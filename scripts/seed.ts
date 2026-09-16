@@ -15,13 +15,56 @@ import { AuditService } from "@/server/audit/audit-service";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-// Phase 1 baseline permission catalog. This is seeded *data*, not
-// hardcoded authorization logic — new permission keys are added here as
-// later phases introduce the domains that need them (AGENTS.md §54).
+// Baseline permission catalog. This is seeded *data*, not hardcoded
+// authorization logic (AGENTS.md §54) — new permission keys are added here
+// as later phases introduce the domains that need them. Granular
+// create/read/update per resource (AGENTS.md §20's own example is
+// "employees.read"/"employees.create", not one coarse "employees.manage")
+// rather than a single "manage" key — no "delete" key exists anywhere yet
+// because nothing in this codebase hard-deletes (AGENTS.md §53); removal
+// is always a status transition, covered by "update".
 const BASELINE_PERMISSIONS = [
-  { key: "organization.manage", description: "Create and manage organizations" },
-  { key: "users.manage", description: "Create and manage user accounts" },
-  { key: "roles.manage", description: "Create and manage roles and role assignments" },
+  { key: "users.create", description: "Create user accounts", category: "identity" },
+  { key: "users.read", description: "View user accounts", category: "identity" },
+  { key: "users.update", description: "Update user accounts", category: "identity" },
+  { key: "roles.create", description: "Create roles and role assignments", category: "identity" },
+  { key: "roles.read", description: "View roles and role assignments", category: "identity" },
+  { key: "roles.update", description: "Update roles and role assignments", category: "identity" },
+
+  { key: "organization.create", description: "Create organizations", category: "organization" },
+  { key: "organization.read", description: "View organization details", category: "organization" },
+  { key: "organization.update", description: "Update organization details", category: "organization" },
+
+  { key: "organization-units.create", description: "Create organization units", category: "organization" },
+  { key: "organization-units.read", description: "View organization units", category: "organization" },
+  { key: "organization-units.update", description: "Update organization units", category: "organization" },
+
+  { key: "positions.create", description: "Create positions", category: "organization" },
+  { key: "positions.read", description: "View positions", category: "organization" },
+  { key: "positions.update", description: "Update positions", category: "organization" },
+
+  { key: "locations.create", description: "Create locations", category: "organization" },
+  { key: "locations.read", description: "View locations", category: "organization" },
+  { key: "locations.update", description: "Update locations", category: "organization" },
+
+  { key: "projects.create", description: "Create projects", category: "organization" },
+  { key: "projects.read", description: "View projects", category: "organization" },
+  { key: "projects.update", description: "Update projects", category: "organization" },
+] as const;
+
+// Superseded by the granular create/read/update keys above (this seed used
+// to grant a single coarse "<resource>.manage" per resource). Explicitly
+// retired rather than left as orphaned catalog entries and stale grants on
+// already-seeded roles (AGENTS.md §53 — explicit, idempotent cleanup, not
+// a silent migration).
+const RETIRED_PERMISSION_KEYS = [
+  "organization.manage",
+  "users.manage",
+  "roles.manage",
+  "organization-units.manage",
+  "positions.manage",
+  "locations.manage",
+  "projects.manage",
 ];
 
 async function upsertPermissionCatalog() {
@@ -36,6 +79,14 @@ async function upsertPermissionCatalog() {
   );
 }
 
+async function retireSupersededPermissions() {
+  await PermissionModel.deleteMany({ key: { $in: RETIRED_PERMISSION_KEYS } });
+  await RoleModel.updateMany(
+    { permissionKeys: { $in: RETIRED_PERMISSION_KEYS } },
+    { $pull: { permissionKeys: { $in: RETIRED_PERMISSION_KEYS } } },
+  );
+}
+
 function splitFullName(fullName: string): { firstName: string; lastName: string } {
   const [firstName, ...rest] = fullName.trim().split(/\s+/);
   return { firstName, lastName: rest.join(" ") || firstName };
@@ -44,6 +95,7 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
 async function seed() {
   await connectMongoDB();
   await upsertPermissionCatalog();
+  await retireSupersededPermissions();
 
   const organizationName = process.env.SEED_ORGANIZATION_NAME;
   const organizationSlug = process.env.SEED_ORGANIZATION_SLUG;
@@ -67,6 +119,10 @@ async function seed() {
     slug: organizationSlug,
   });
 
+  // $addToSet (not $setOnInsert) for permissionKeys: re-running seed after
+  // adding new baseline permissions must bring an *already-seeded* HR
+  // Administrator role up to date too, not just a freshly-created one
+  // (AGENTS.md §53 — explicit, idempotent backfill).
   const hrRole = await RoleModel.findOneAndUpdate(
     { organizationId: organization._id, name: "HR Administrator" },
     {
@@ -74,7 +130,9 @@ async function seed() {
         organizationId: organization._id,
         name: "HR Administrator",
         description: "Full administrative access within the organization",
-        permissionKeys: BASELINE_PERMISSIONS.map((permission) => permission.key),
+      },
+      $addToSet: {
+        permissionKeys: { $each: BASELINE_PERMISSIONS.map((permission) => permission.key) },
       },
     },
     { upsert: true, returnDocument: "after" },

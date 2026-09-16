@@ -26,6 +26,20 @@ project-scoped assignment must grant access to its own project and deny every ot
   organization at all") for `requireOrganizationAccess`, kept separate from permission-specific
   `authorize()` so organization-switching UI doesn't need to probe an arbitrary permission key.
 
+- **Permission granularity** (added in Phase 2, before Workforce/Attendance/Leave/Payroll
+  introduce many more permissions, so the convention is settled early rather than retrofitted):
+  every permission key is `<resource>.<create|read|update>`, matching AGENTS.md §20's own example
+  (`employees.read`, `employees.create`) rather than one coarse `<resource>.manage`. There is no
+  `.delete` key anywhere, because nothing in this codebase hard-deletes (§53) — removal is always
+  a `status` transition, covered by `.update`. `GET` routes now require `<resource>.read`
+  explicitly rather than the weaker "any org member can read" default Phase 1 used — Server
+  Component pages call the same `requirePermission` check the API routes do
+  (`src/app/organization/_shared/has-permission.ts`), so a page can't accidentally show data an
+  API route would have refused.
+- `Permission` documents also carry `category` (grouping for a future permissions-management UI)
+  and `isSystem` (reserved for a future custom/org-defined permission, not introduced yet).
+  Neither field is read by `authorize()` — they're display metadata only.
+
 ## Consequences
 
 - Phase 1 can only express organization-wide grants — there is no project yet to scope to, so
@@ -37,3 +51,7 @@ project-scoped assignment must grant access to its own project and deny every ot
 - Extending `scope` to `project`/`organizationUnit` in a later phase requires only adding new
   discriminant branches to `authorize()`'s query and to this ADR — not a new authorization
   mechanism.
+- `hasActiveRoleAssignment`/`requireOrganizationAccess` are no longer called by any route now that
+  reads require an explicit `.read` permission — kept as a documented primitive (AGENTS.md §22
+  names it explicitly) for a future case that only needs "is this user a member at all" (e.g. an
+  organization switcher), not removed as dead code.

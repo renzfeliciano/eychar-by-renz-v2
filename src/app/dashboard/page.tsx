@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/options";
 import { OrganizationService } from "@/domains/organization/organization-service";
@@ -30,6 +31,10 @@ export default async function DashboardPage() {
           </ul>
         )}
       </section>
+
+      <Link href="/organization/units" className="mt-6 inline-block text-sm" style={{ color: "var(--accent)" }}>
+        Manage organization structure →
+      </Link>
     </main>
   );
 }

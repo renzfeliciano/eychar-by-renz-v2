@@ -7,13 +7,14 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 1 — Foundation** (see AGENTS.md §57). Implemented: Organization, User, Person, Role,
-Permission, RoleAssignment, AuditLog; server-side authorization; append-only audit logging;
-Auth.js credentials login; a minimal dashboard.
+**Phase 2 — Organization** (see AGENTS.md §57) on top of Phase 1's foundation. Implemented:
+Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
+Position, Location, Project; server-side authorization with a granular per-resource permission
+catalog; append-only audit logging; Auth.js credentials (username-or-email) login; a minimal
+dashboard and `/organization/{units,positions,locations,projects}` UI.
 
-Not yet implemented (later phases): OrganizationUnit, Position, Project/Location,
-Employee/Employment/EmployeeAssignment, Organizational Chart, Attendance, Leave, Payroll,
-Recruitment, Performance, Cases, Assets, Documents, Events.
+Not yet implemented (later phases): Employee/Employment/EmployeeAssignment, Organizational Chart,
+Attendance, Leave, Payroll, Recruitment, Performance, Cases, Assets, Documents, Events.
 
 ## Architecture style
 
@@ -40,6 +41,14 @@ Route handlers orchestrate: Authenticate → Validate → Resolve Context → Au
 only has one HR user. `Employee` / `Employment` / `EmployeeAssignment` are introduced in Phase 3
 once Workforce is built — a `Person` is not assumed to be an employee.
 
+## Organization structure (Phase 2)
+
+`OrganizationUnit` (self-referencing `parentUnitId`, free-form `type`), `Position`
+(`organizationUnitId?`), `Location`, `Project` (`locationId?`) — see ADR-004 (Position vs Role)
+and ADR-006 (Effective Dating) for the two decisions specific to this phase. No hard delete
+anywhere (AGENTS.md §53); every domain service exposes `create()` and `updateStatus()`
+(active/inactive, plus `effectiveTo` for the two effective-dated models) but never a delete.
+
 ## Authorization (ADR-007)
 
 Server-side only, resolved from data on every check — never cached role-name strings, never
@@ -48,10 +57,18 @@ Server-side only, resolved from data on every check — never cached role-name s
 - `authorize({ userId, organizationId, permission })` — throws unless the user has an active
   (`effectiveFrom <= now <= effectiveTo|null`) `RoleAssignment` in that organization whose `Role`
   carries the permission key.
-- `hasActiveRoleAssignment({ userId, organizationId })` — organization *membership* only, used by
-  `requireOrganizationAccess`.
+- `hasActiveRoleAssignment({ userId, organizationId })` — organization *membership* only; kept as
+  a documented primitive (AGENTS.md §22) though no route currently calls it (see ADR-007).
 - `requireAuthenticatedUser()`, `requireOrganizationAccess(organizationId)`,
   `requirePermission(permission, organizationId)` — the primitives route handlers call.
+
+Permission keys are granular per resource — `<resource>.create` / `<resource>.read` /
+`<resource>.update` (e.g. `positions.read`), matching AGENTS.md §20's own example, not one coarse
+`<resource>.manage`. `GET` routes require `<resource>.read` explicitly; Server Component pages
+call the identical `requirePermission` check via `src/app/organization/_shared/has-permission.ts`
+so a page can never show data an API route would refuse. `Permission` documents also carry
+`category` (grouping, for a future permissions UI) and `isSystem` (reserved) — display metadata
+only, never read by `authorize()`.
 
 `RoleAssignment.scope` is a discriminated `{ type: "organization" }` shape today so `project` /
 `organizationUnit` scope types can be added in a later phase without a schema migration —
@@ -59,20 +76,27 @@ without building the full multi-scope policy-resolution hierarchy prematurely (A
 
 ## MongoDB modeling (ADR-002)
 
-Phase 1 collections: `organizations`, `people`, `users`, `permissions`, `roles`,
-`roleAssignments`, `auditLogs`.
+Collections: `organizations`, `people`, `users`, `permissions`, `roles`, `roleAssignments`,
+`auditLogs`, `organizationUnits`, `positions`, `locations`, `projects`.
 
 - `Role.permissionKeys: string[]` is embedded rather than a `rolePermissions` join collection —
   a role's permission set is small, bounded, and always read together with the role.
 - `RoleAssignment` references `User`, `Role`, `Organization` by id — assignments have an
   independent lifecycle (effective-dated, revocable) from all three.
 - `AuditLog` is append-only: no update/delete API is exposed over it anywhere in the codebase.
+- `OrganizationUnit.parentUnitId` references itself (unbounded hierarchy depth, independent
+  lifecycle per node) rather than embedding children — a unit's descendants are queried
+  independently of the unit itself, and cardinality is unbounded.
 
 Indexes (all justified by an actual query above): `organizations.slug` (unique),
 `users.username` (unique, sparse), `users.email` (unique, sparse), `roles.organizationId+name`
-(unique), `people.organizationId`,
-`roleAssignments.userId+organizationId`, `roleAssignments.roleId`,
-`auditLogs.organizationId+timestamp`, `auditLogs.organizationId+resourceType+resourceId`.
+(unique), `people.organizationId`, `roleAssignments.userId+organizationId`,
+`roleAssignments.roleId`, `auditLogs.organizationId+timestamp`,
+`auditLogs.organizationId+resourceType+resourceId`,
+`organizationUnits.organizationId+code` (unique), `organizationUnits.parentUnitId`,
+`positions.organizationId+code` (unique), `positions.organizationUnitId`,
+`locations.organizationId+code` (unique), `projects.organizationId+code` (unique),
+`projects.locationId`.
 
 ## Audit (part of ADR-007's server-side trust boundary)
 

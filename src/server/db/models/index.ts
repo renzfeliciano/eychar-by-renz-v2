@@ -5,3 +5,7 @@ export { PermissionModel } from "./permission";
 export { RoleModel } from "./role";
 export { RoleAssignmentModel } from "./role-assignment";
 export { AuditLogModel } from "./audit-log";
+export { OrganizationUnitModel } from "./organization-unit";
+export { PositionModel } from "./position";
+export { LocationModel } from "./location";
+export { ProjectModel } from "./project";
