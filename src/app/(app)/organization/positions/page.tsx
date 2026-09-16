@@ -5,7 +5,7 @@ import { OrganizationUnitService } from "@/domains/organization/organization-uni
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreatePositionForm } from "./create-position-form";
+import { CreatePositionDialog } from "./create-position-dialog";
 
 export default async function PositionsPage() {
   const { organization } = await getCurrentOrganization();
@@ -24,12 +24,18 @@ export default async function PositionsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Positions" description="Job positions employees can be assigned to." />
-      <CreatePositionForm
-        organizationId={organizationId}
-        units={units.map((unit) => ({ id: unit._id.toString(), name: unit.name }))}
+      <PageHeader
+        title="Positions"
+        description="Job positions employees can be assigned to."
+        action={
+          <CreatePositionDialog
+            organizationId={organizationId}
+            units={units.map((unit) => ({ id: unit._id.toString(), name: unit.name }))}
+          />
+        }
       />
       <DataTable
+        caption="Positions"
         columns={[
           { key: "title", header: "Title", render: (position) => <span className="font-medium">{position.title}</span> },
           { key: "code", header: "Code", render: (position) => position.code },

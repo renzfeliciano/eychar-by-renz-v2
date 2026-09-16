@@ -77,7 +77,7 @@ export function GenerateRunDialog({ organizationId, employees }: { organizationI
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="payroll-generate-run-button">
         <Plus className="size-3.5" />
         Generate run
       </DialogTrigger>
@@ -120,7 +120,13 @@ export function GenerateRunDialog({ organizationId, employees }: { organizationI
                 <FormField label="Amount">
                   <Input type="number" min={0} value={row.amount} onChange={(event) => updateAdjustment(index, { amount: event.target.value })} />
                 </FormField>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setAdjustments(adjustments.filter((_, i) => i !== index))}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove adjustment ${index + 1}`}
+                  onClick={() => setAdjustments(adjustments.filter((_, i) => i !== index))}
+                >
                   <Trash2 className="size-3.5" />
                 </Button>
               </div>
@@ -141,7 +147,7 @@ export function GenerateRunDialog({ organizationId, employees }: { organizationI
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="payroll-generate-run-submit-button">
             {isSubmitting ? "Generating…" : "Generate"}
           </Button>
         </DialogFooter>

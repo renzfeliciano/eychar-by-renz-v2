@@ -34,17 +34,21 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm shadow-lg">
+    // The gradient wash + glass card is deliberately reserved for this one
+    // "first impression" screen (and the Dashboard hero) rather than
+    // applied everywhere — used sparingly, it reads as a considered detail
+    // instead of noise competing with the data-dense pages behind login.
+    <main className="bg-gradient-brand flex min-h-screen items-center justify-center p-4">
+      <Card className="glass-surface w-full max-w-sm border shadow-[var(--shadow-glow)]">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Building className="size-5" />
+          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-glow)]">
+            <Building className="size-5" aria-hidden="true" />
           </div>
           <CardTitle className="text-xl">WorkforceHub</CardTitle>
           <CardDescription>Sign in to your organization</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4" aria-label="Sign in">
             <FormField label="Username or email" htmlFor="login">
               <Input
                 id="login"
@@ -53,6 +57,7 @@ export default function LoginPage() {
                 autoComplete="username"
                 value={login}
                 onChange={(event) => setLogin(event.target.value)}
+                data-testid="login-username-input"
               />
             </FormField>
 
@@ -64,13 +69,14 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                data-testid="login-password-input"
               />
             </FormField>
 
             <FormError message={error} />
 
-            <Button type="submit" disabled={isSubmitting} className="mt-1 w-full">
-              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitting} className="mt-1 w-full" data-testid="login-submit-button">
+              {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
               {isSubmitting ? "Signing in…" : "Sign in"}
             </Button>
           </form>

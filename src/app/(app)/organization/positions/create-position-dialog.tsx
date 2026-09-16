@@ -2,17 +2,26 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
+import { cn } from "@/lib/utils";
 
 type UnitOption = { id: string; name: string };
 
-export function CreatePositionForm({ organizationId, units }: { organizationId: string; units: UnitOption[] }) {
+export function CreatePositionDialog({ organizationId, units }: { organizationId: string; units: UnitOption[] }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [code, setCode] = useState("");
   const [organizationUnitId, setOrganizationUnitId] = useState("");
@@ -41,13 +50,21 @@ export function CreatePositionForm({ organizationId, units }: { organizationId: 
     setTitle("");
     setCode("");
     setOrganizationUnitId("");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="positions-create-button">
+        <Plus className="size-3.5" />
+        Add position
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add position</DialogTitle>
+        </DialogHeader>
+        <form id="create-position-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Title" htmlFor="position-title">
             <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} required />
           </FormField>
@@ -60,13 +77,14 @@ export function CreatePositionForm({ organizationId, units }: { organizationId: 
             onChange={setOrganizationUnitId}
             options={units.map((unit) => ({ id: unit.id, label: unit.name }))}
           />
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <FormError message={error} />
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-position-form" disabled={isSubmitting} data-testid="positions-create-submit-button">
             {isSubmitting ? "Adding…" : "Add position"}
           </Button>
-        </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

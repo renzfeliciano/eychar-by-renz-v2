@@ -20,19 +20,21 @@ export function OptionSelect({
   onChange,
   options,
   placeholder = "None",
+  testId,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
+  testId?: string;
 }) {
   const selectedLabel = value ? options.find((option) => option.id === value)?.label ?? placeholder : placeholder;
 
   return (
     <FormField label={label}>
       <Select value={value || NONE} onValueChange={(next) => onChange(!next || next === NONE ? "" : next)}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" data-testid={testId}>
           {/* Computed from our own state rather than SelectValue's default
               label lookup, which only resolves once the popup's items have
               registered — before that it renders the raw sentinel value. */}

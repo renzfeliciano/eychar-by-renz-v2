@@ -1,5 +1,7 @@
 "use client";
 
+// data-testid convention used across this app: "<feature>-<element>-<action?>",
+// kebab-case (e.g. "payroll-generate-run-button", "leave-types-create-button").
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -67,11 +69,15 @@ export const NAV_SECTIONS = [
   },
 ];
 
+function slugify(href: string): string {
+  return href.replace(/^\//, "").replace(/\//g, "-");
+}
+
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-4">
+    <nav aria-label="Main navigation" className="flex flex-col gap-4">
       {NAV_SECTIONS.map((section, index) => (
         <div key={section.label ?? `section-${index}`} className="flex flex-col gap-1">
           {section.label && (
@@ -87,11 +93,13 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
+                aria-current={isActive ? "page" : undefined}
+                data-testid={`nav-link-${slugify(item.href)}`}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:translate-x-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
                 )}
               >
                 <Icon className="size-4 shrink-0" />

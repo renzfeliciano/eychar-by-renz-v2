@@ -6,7 +6,7 @@ import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreateLeavePolicyForm } from "./create-leave-policy-form";
+import { CreateLeavePolicyDialog } from "./create-leave-policy-dialog";
 
 export default async function LeavePoliciesPage() {
   const { organization } = await getCurrentOrganization();
@@ -27,13 +27,19 @@ export default async function LeavePoliciesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Leave policies" description="Annual entitlement per leave type, with optional project overrides." />
-      <CreateLeavePolicyForm
-        organizationId={organizationId}
-        leaveTypes={leaveTypes.map((leaveType) => ({ id: leaveType._id.toString(), label: leaveType.name }))}
-        projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
+      <PageHeader
+        title="Leave policies"
+        description="Annual entitlement per leave type, with optional project overrides."
+        action={
+          <CreateLeavePolicyDialog
+            organizationId={organizationId}
+            leaveTypes={leaveTypes.map((leaveType) => ({ id: leaveType._id.toString(), label: leaveType.name }))}
+            projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
+          />
+        }
       />
       <DataTable
+        caption="Leave policies"
         columns={[
           { key: "name", header: "Name", render: (policy) => <span className="font-medium">{policy.name}</span> },
           {

@@ -78,13 +78,20 @@ export function DecideActions({
     <div className="flex items-center gap-2">
       {canApprove && (
         <>
-          <Button size="sm" variant="outline" onClick={handleApprove} disabled={pendingAction !== null}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleApprove}
+            disabled={pendingAction !== null}
+            data-testid="leave-approve-request-button"
+          >
             <Check className="size-3.5" />
             {pendingAction === "approve" ? "Approving…" : "Approve"}
           </Button>
           <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
             <DialogTrigger
               className={cn(buttonVariants({ size: "sm", variant: "outline" }), pendingAction !== null && "pointer-events-none opacity-50")}
+              data-testid="leave-reject-request-button"
             >
               <X className="size-3.5" />
               Reject
@@ -100,7 +107,12 @@ export function DecideActions({
                 <FormError message={error} />
               </div>
               <DialogFooter>
-                <Button variant="destructive" onClick={handleReject} disabled={pendingAction !== null}>
+                <Button
+                  variant="destructive"
+                  onClick={handleReject}
+                  disabled={pendingAction !== null}
+                  data-testid="leave-reject-request-submit-button"
+                >
                   {pendingAction === "reject" ? "Rejecting…" : "Reject"}
                 </Button>
               </DialogFooter>
@@ -109,7 +121,13 @@ export function DecideActions({
         </>
       )}
       {canCancel && (
-        <Button size="sm" variant="ghost" onClick={handleCancel} disabled={pendingAction !== null}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleCancel}
+          disabled={pendingAction !== null}
+          data-testid="leave-cancel-request-button"
+        >
           <Ban className="size-3.5" />
           {pendingAction === "cancel" ? "Cancelling…" : "Cancel"}
         </Button>

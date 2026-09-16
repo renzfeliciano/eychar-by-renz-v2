@@ -4,7 +4,7 @@ import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreatePayrollPolicyForm } from "./create-payroll-policy-form";
+import { CreatePayrollPolicyDialog } from "./create-payroll-policy-dialog";
 
 export default async function PayrollPoliciesPage() {
   const { organization } = await getCurrentOrganization();
@@ -19,9 +19,13 @@ export default async function PayrollPoliciesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Payroll policies" description="Pay frequency and standard work days used to prorate basic salary." />
-      <CreatePayrollPolicyForm organizationId={organizationId} />
+      <PageHeader
+        title="Payroll policies"
+        description="Pay frequency and standard work days used to prorate basic salary."
+        action={<CreatePayrollPolicyDialog organizationId={organizationId} />}
+      />
       <DataTable
+        caption="Payroll policies"
         columns={[
           { key: "name", header: "Name", render: (policy) => <span className="font-medium">{policy.name}</span> },
           { key: "frequency", header: "Pay frequency", render: (policy) => policy.payFrequency },

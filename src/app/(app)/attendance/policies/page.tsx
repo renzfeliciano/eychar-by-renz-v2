@@ -5,7 +5,7 @@ import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreatePolicyForm } from "./create-policy-form";
+import { CreatePolicyDialog } from "./create-policy-dialog";
 
 export default async function AttendancePoliciesPage() {
   const { organization } = await getCurrentOrganization();
@@ -24,12 +24,18 @@ export default async function AttendancePoliciesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Attendance policies" description="Standard hours, grace period, and org/project scope." />
-      <CreatePolicyForm
-        organizationId={organizationId}
-        projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
+      <PageHeader
+        title="Attendance policies"
+        description="Standard hours, grace period, and org/project scope."
+        action={
+          <CreatePolicyDialog
+            organizationId={organizationId}
+            projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
+          />
+        }
       />
       <DataTable
+        caption="Attendance policies"
         columns={[
           { key: "name", header: "Name", render: (policy) => <span className="font-medium">{policy.name}</span> },
           {

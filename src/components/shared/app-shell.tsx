@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NavLinks } from "./nav-links";
+import { ThemeToggle } from "./theme-toggle";
 
 function initials(name: string) {
   return name
@@ -51,7 +52,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center gap-3 border-b bg-card px-4 md:px-6">
+        <header className="glass-surface sticky top-0 z-10 flex h-16 items-center gap-3 border-b px-4 md:px-6">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <Button
               variant="ghost"
@@ -59,6 +60,7 @@ export function AppShell({
               className="md:hidden"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Open navigation"
+              data-testid="mobile-nav-open-button"
             >
               <Menu className="size-5" />
             </Button>
@@ -78,8 +80,12 @@ export function AppShell({
 
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground sm:inline">{organizationName}</span>
+            <ThemeToggle />
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <DropdownMenuTrigger
+                aria-label={`Account menu for ${userName}`}
+                className="flex items-center gap-2 rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring hover:scale-105"
+              >
                 <Avatar className="size-8">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {initials(userName)}

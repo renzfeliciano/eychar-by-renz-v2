@@ -69,7 +69,7 @@ export function NewRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="leave-new-request-button">
         <Plus className="size-3.5" />
         New request
       </DialogTrigger>
@@ -96,7 +96,7 @@ export function NewRequestDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="leave-new-request-submit-button">
             {isSubmitting ? "Submitting…" : "Submit"}
           </Button>
         </DialogFooter>

@@ -2,17 +2,26 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
+import { cn } from "@/lib/utils";
 
 type LocationOption = { id: string; name: string };
 
-export function CreateProjectForm({ organizationId, locations }: { organizationId: string; locations: LocationOption[] }) {
+export function CreateProjectDialog({ organizationId, locations }: { organizationId: string; locations: LocationOption[] }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [locationId, setLocationId] = useState("");
@@ -41,13 +50,21 @@ export function CreateProjectForm({ organizationId, locations }: { organizationI
     setName("");
     setCode("");
     setLocationId("");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="projects-create-button">
+        <Plus className="size-3.5" />
+        Add project
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add project</DialogTitle>
+        </DialogHeader>
+        <form id="create-project-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="project-name">
             <Input id="project-name" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
@@ -60,13 +77,14 @@ export function CreateProjectForm({ organizationId, locations }: { organizationI
             onChange={setLocationId}
             options={locations.map((location) => ({ id: location.id, label: location.name }))}
           />
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <FormError message={error} />
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-project-form" disabled={isSubmitting} data-testid="projects-create-submit-button">
             {isSubmitting ? "Adding…" : "Add project"}
           </Button>
-        </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

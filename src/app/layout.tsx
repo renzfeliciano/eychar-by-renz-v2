@@ -14,7 +14,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    // next-themes sets the "dark"/"light" class and color-scheme style on
+    // <html> from an inline script before React hydrates, so this element's
+    // attributes will always legitimately differ from the server-rendered
+    // markup — suppressHydrationWarning is next-themes' own documented fix,
+    // not a workaround for a real bug.
+    <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <body>
         <Providers>
           {children}

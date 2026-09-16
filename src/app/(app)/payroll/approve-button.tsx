@@ -21,7 +21,7 @@ export function ApproveButton({ runId, organizationId }: { runId: string; organi
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={handleApprove} disabled={isSubmitting}>
+    <Button size="sm" variant="outline" onClick={handleApprove} disabled={isSubmitting} data-testid="payroll-approve-run-button">
       <Check className="size-3.5" />
       {isSubmitting ? "Approving…" : "Approve"}
     </Button>

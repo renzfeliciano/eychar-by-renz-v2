@@ -5,7 +5,7 @@ import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { CreateLeaveBalanceForm } from "./create-leave-balance-form";
+import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
 
 function employeeName(person: { firstName: string; lastName: string } | null): string {
   return person ? `${person.firstName} ${person.lastName}` : "—";
@@ -42,13 +42,19 @@ export default async function LeaveBalancesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Leave balances" description="Entitlement and adjustments per employee, leave type, and year." />
-      <CreateLeaveBalanceForm
-        organizationId={organizationId}
-        employees={employees.map((employee) => ({ id: employee._id.toString(), label: employeeName(employee.person) }))}
-        leaveTypes={leaveTypes.map((leaveType) => ({ id: leaveType._id.toString(), label: leaveType.name }))}
+      <PageHeader
+        title="Leave balances"
+        description="Entitlement and adjustments per employee, leave type, and year."
+        action={
+          <CreateLeaveBalanceDialog
+            organizationId={organizationId}
+            employees={employees.map((employee) => ({ id: employee._id.toString(), label: employeeName(employee.person) }))}
+            leaveTypes={leaveTypes.map((leaveType) => ({ id: leaveType._id.toString(), label: leaveType.name }))}
+          />
+        }
       />
       <DataTable
+        caption="Leave balances"
         columns={[
           {
             key: "employee",

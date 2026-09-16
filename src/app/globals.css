@@ -41,6 +41,14 @@
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.75 0.17 70);
   --warning-foreground: oklch(0.2 0 0);
+
+  /* Complements the existing primary blue with violet rather than replacing
+     it — reserved for hero surfaces (dashboard, login), not every button. */
+  --gradient-brand: linear-gradient(135deg, oklch(0.546 0.245 262.881), oklch(0.55 0.23 302));
+  --shadow-soft: 0 1px 2px oklch(0.145 0 0 / 4%), 0 4px 12px -4px oklch(0.145 0 0 / 8%);
+  --shadow-glow: 0 0 0 1px oklch(0.546 0.245 262.881 / 15%), 0 4px 20px -2px oklch(0.546 0.245 262.881 / 35%);
+  --glass-bg: oklch(1 0 0 / 70%);
+  --glass-border: oklch(1 0 0 / 40%);
 }
 
 .dark {
@@ -80,6 +88,12 @@
   --success-foreground: oklch(0.145 0 0);
   --warning: oklch(0.8 0.17 70);
   --warning-foreground: oklch(0.145 0 0);
+
+  --gradient-brand: linear-gradient(135deg, oklch(0.707 0.165 254.624), oklch(0.65 0.2 302));
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 20%), 0 4px 12px -4px oklch(0 0 0 / 30%);
+  --shadow-glow: 0 0 0 1px oklch(0.707 0.165 254.624 / 25%), 0 4px 20px -2px oklch(0.707 0.165 254.624 / 45%);
+  --glass-bg: oklch(0.205 0 0 / 65%);
+  --glass-border: oklch(1 0 0 / 12%);
 }
 
 @theme inline {
@@ -127,6 +141,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-gradient-brand: var(--gradient-brand);
 }
 
 @layer base {
@@ -138,5 +153,25 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /*
+   * Glassmorphism, used sparingly: the topbar, dialog overlays, and the
+   * login card. Never on data tables — translucency over dense tabular
+   * data hurts legibility, which would cut against our own accessibility
+   * bar. backdrop-filter degrades gracefully to a plain translucent panel
+   * in browsers/print contexts that don't support it.
+   */
+  .glass-surface {
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  .bg-gradient-brand {
+    background-image: var(--gradient-brand);
   }
 }

@@ -58,7 +58,7 @@ export function ReviseDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+      <DialogTrigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))} data-testid="compensation-revise-button">
         <Pencil className="size-3.5" />
         Revise
       </DialogTrigger>
@@ -76,7 +76,7 @@ export function ReviseDialog({
           <FormError message={error} />
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="compensation-revise-submit-button">
             {isSubmitting ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>

@@ -2,14 +2,23 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
+import { cn } from "@/lib/utils";
 
-export function CreateLeaveTypeForm({ organizationId }: { organizationId: string }) {
+export function CreateLeaveTypeDialog({ organizationId }: { organizationId: string }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
@@ -38,13 +47,21 @@ export function CreateLeaveTypeForm({ organizationId }: { organizationId: string
     setName("");
     setCode("");
     setDescription("");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="leave-types-create-button">
+        <Plus className="size-3.5" />
+        Add leave type
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add leave type</DialogTitle>
+        </DialogHeader>
+        <form id="create-leave-type-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="leave-type-name">
             <Input id="leave-type-name" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
@@ -54,13 +71,14 @@ export function CreateLeaveTypeForm({ organizationId }: { organizationId: string
           <FormField label="Description" htmlFor="leave-type-description">
             <Input id="leave-type-description" value={description} onChange={(event) => setDescription(event.target.value)} />
           </FormField>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <FormError message={error} />
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-leave-type-form" disabled={isSubmitting} data-testid="leave-types-create-submit-button">
             {isSubmitting ? "Adding…" : "Add leave type"}
           </Button>
-        </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

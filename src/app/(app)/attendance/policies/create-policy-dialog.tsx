@@ -2,17 +2,26 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
+import { cn } from "@/lib/utils";
 
 type ProjectOption = { id: string; label: string };
 
-export function CreatePolicyForm({ organizationId, projects }: { organizationId: string; projects: ProjectOption[] }) {
+export function CreatePolicyDialog({ organizationId, projects }: { organizationId: string; projects: ProjectOption[] }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [projectId, setProjectId] = useState("");
   const [standardStartTime, setStandardStartTime] = useState("09:00");
@@ -49,33 +58,44 @@ export function CreatePolicyForm({ organizationId, projects }: { organizationId:
 
     setName("");
     setProjectId("");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="attendance-policies-create-button">
+        <Plus className="size-3.5" />
+        Add policy
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add attendance policy</DialogTitle>
+        </DialogHeader>
+        <form id="create-attendance-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="policy-name">
             <Input id="policy-name" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
           <OptionSelect label="Project (optional)" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
-          <FormField label="Start time" htmlFor="policy-start">
-            <Input id="policy-start" type="time" value={standardStartTime} onChange={(event) => setStandardStartTime(event.target.value)} required />
-          </FormField>
-          <FormField label="End time" htmlFor="policy-end">
-            <Input id="policy-end" type="time" value={standardEndTime} onChange={(event) => setStandardEndTime(event.target.value)} required />
-          </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Start time" htmlFor="policy-start">
+              <Input id="policy-start" type="time" value={standardStartTime} onChange={(event) => setStandardStartTime(event.target.value)} required />
+            </FormField>
+            <FormField label="End time" htmlFor="policy-end">
+              <Input id="policy-end" type="time" value={standardEndTime} onChange={(event) => setStandardEndTime(event.target.value)} required />
+            </FormField>
+          </div>
           <FormField label="Grace (min)" htmlFor="policy-grace">
             <Input id="policy-grace" type="number" min={0} value={gracePeriodMinutes} onChange={(event) => setGracePeriodMinutes(event.target.value)} required />
           </FormField>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <FormError message={error} />
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-attendance-policy-form" disabled={isSubmitting} data-testid="attendance-policies-create-submit-button">
             {isSubmitting ? "Adding…" : "Add policy"}
           </Button>
-        </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

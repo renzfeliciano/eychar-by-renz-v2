@@ -2,15 +2,24 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
+import { cn } from "@/lib/utils";
 
-export function CreateCompensationForm({ organizationId, employees }: { organizationId: string; employees: SelectOption[] }) {
+export function CreateCompensationDialog({ organizationId, employees }: { organizationId: string; employees: SelectOption[] }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [baseSalary, setBaseSalary] = useState("");
   const [allowanceAmount, setAllowanceAmount] = useState("0");
@@ -49,13 +58,21 @@ export function CreateCompensationForm({ organizationId, employees }: { organiza
     setEmployeeId("");
     setBaseSalary("");
     setAllowanceAmount("0");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="compensation-create-button">
+        <Plus className="size-3.5" />
+        Grant compensation
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Grant compensation</DialogTitle>
+        </DialogHeader>
+        <form id="create-compensation-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
           <FormField label="Base salary / period" htmlFor="compensation-base-salary">
             <Input id="compensation-base-salary" type="number" min={0} value={baseSalary} onChange={(event) => setBaseSalary(event.target.value)} required />
@@ -63,13 +80,14 @@ export function CreateCompensationForm({ organizationId, employees }: { organiza
           <FormField label="Allowance / period" htmlFor="compensation-allowance">
             <Input id="compensation-allowance" type="number" min={0} value={allowanceAmount} onChange={(event) => setAllowanceAmount(event.target.value)} />
           </FormField>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <FormError message={error} />
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-compensation-form" disabled={isSubmitting} data-testid="compensation-create-submit-button">
             {isSubmitting ? "Granting…" : "Grant compensation"}
           </Button>
-        </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

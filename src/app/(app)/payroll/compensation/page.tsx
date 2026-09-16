@@ -4,7 +4,7 @@ import { CompensationService } from "@/domains/payroll/compensation-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { CreateCompensationForm } from "./create-compensation-form";
+import { CreateCompensationDialog } from "./create-compensation-dialog";
 import { ReviseDialog } from "./revise-dialog";
 
 function employeeName(person: { firstName: string; lastName: string } | null): string {
@@ -30,12 +30,18 @@ export default async function CompensationPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Compensation" description="Base salary and allowance per pay period, per employee." />
-      <CreateCompensationForm
-        organizationId={organizationId}
-        employees={employees.map((employee) => ({ id: employee._id.toString(), label: employeeName(employee.person) }))}
+      <PageHeader
+        title="Compensation"
+        description="Base salary and allowance per pay period, per employee."
+        action={
+          <CreateCompensationDialog
+            organizationId={organizationId}
+            employees={employees.map((employee) => ({ id: employee._id.toString(), label: employeeName(employee.person) }))}
+          />
+        }
       />
       <DataTable
+        caption="Compensation"
         columns={[
           {
             key: "employee",

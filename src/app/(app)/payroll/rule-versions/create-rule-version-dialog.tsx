@@ -2,11 +2,19 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Trash2 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
+import { cn } from "@/lib/utils";
 
 type BracketRow = { minIncome: string; maxIncome: string; rate: string; baseDeduction: string };
 type ContributionRow = { name: string; employeeRate: string; cap: string };
@@ -14,8 +22,9 @@ type ContributionRow = { name: string; employeeRate: string; cap: string };
 const EMPTY_BRACKET: BracketRow = { minIncome: "", maxIncome: "", rate: "", baseDeduction: "0" };
 const EMPTY_CONTRIBUTION: ContributionRow = { name: "", employeeRate: "", cap: "" };
 
-export function CreateRuleVersionForm({ organizationId }: { organizationId: string }) {
+export function CreateRuleVersionDialog({ organizationId }: { organizationId: string }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [brackets, setBrackets] = useState<BracketRow[]>([{ ...EMPTY_BRACKET }]);
   const [contributions, setContributions] = useState<ContributionRow[]>([{ ...EMPTY_CONTRIBUTION }]);
@@ -62,16 +71,21 @@ export function CreateRuleVersionForm({ organizationId }: { organizationId: stri
     setDescription("");
     setBrackets([{ ...EMPTY_BRACKET }]);
     setContributions([{ ...EMPTY_CONTRIBUTION }]);
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">New rule version</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="payroll-rule-versions-create-button">
+        <Plus className="size-3.5" />
+        New rule version
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New rule version</DialogTitle>
+        </DialogHeader>
+        <form id="create-rule-version-form" onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto pr-1">
           <FormField label="Description (optional)" htmlFor="rule-version-description">
             <Input
               id="rule-version-description"
@@ -120,7 +134,13 @@ export function CreateRuleVersionForm({ organizationId }: { organizationId: stri
                     }
                   />
                 </FormField>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setBrackets(brackets.filter((_, i) => i !== index))}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove tax bracket ${index + 1}`}
+                  onClick={() => setBrackets(brackets.filter((_, i) => i !== index))}
+                >
                   <Trash2 className="size-3.5" />
                 </Button>
               </div>
@@ -166,6 +186,7 @@ export function CreateRuleVersionForm({ organizationId }: { organizationId: stri
                   type="button"
                   variant="ghost"
                   size="sm"
+                  aria-label={`Remove statutory contribution ${index + 1}`}
                   onClick={() => setContributions(contributions.filter((_, i) => i !== index))}
                 >
                   <Trash2 className="size-3.5" />
@@ -185,12 +206,13 @@ export function CreateRuleVersionForm({ organizationId }: { organizationId: stri
           </div>
 
           <FormError message={error} />
-          <Button type="submit" disabled={isSubmitting} className="w-fit">
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-rule-version-form" disabled={isSubmitting} data-testid="payroll-rule-versions-create-submit-button">
             {isSubmitting ? "Creating…" : "Create rule version"}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

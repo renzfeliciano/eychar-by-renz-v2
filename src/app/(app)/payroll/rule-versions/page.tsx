@@ -4,7 +4,7 @@ import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-versio
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreateRuleVersionForm } from "./create-rule-version-form";
+import { CreateRuleVersionDialog } from "./create-rule-version-dialog";
 
 export default async function PayrollRuleVersionsPage() {
   const { organization } = await getCurrentOrganization();
@@ -22,9 +22,10 @@ export default async function PayrollRuleVersionsPage() {
       <PageHeader
         title="Payroll rule versions"
         description="Tax brackets and statutory contributions — versioned, never edited in place, so a payroll run always shows what was actually used."
+        action={<CreateRuleVersionDialog organizationId={organizationId} />}
       />
-      <CreateRuleVersionForm organizationId={organizationId} />
       <DataTable
+        caption="Payroll rule versions"
         columns={[
           { key: "version", header: "Version", render: (version) => `v${version.versionNumber}` },
           { key: "description", header: "Description", render: (version) => version.description ?? "—" },

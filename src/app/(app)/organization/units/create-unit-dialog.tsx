@@ -2,17 +2,26 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
+import { cn } from "@/lib/utils";
 
 type UnitOption = { id: string; name: string };
 
-export function CreateUnitForm({ organizationId, units }: { organizationId: string; units: UnitOption[] }) {
+export function CreateUnitDialog({ organizationId, units }: { organizationId: string; units: UnitOption[] }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [type, setType] = useState("");
@@ -43,13 +52,24 @@ export function CreateUnitForm({ organizationId, units }: { organizationId: stri
     setCode("");
     setType("");
     setParentUnitId("");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        className={cn(buttonVariants({ size: "sm" }))}
+        data-testid="organization-units-create-button"
+      >
+        <Plus className="size-3.5" />
+        Add unit
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add organization unit</DialogTitle>
+        </DialogHeader>
+        <form id="create-unit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="unit-name">
             <Input id="unit-name" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
@@ -71,13 +91,14 @@ export function CreateUnitForm({ organizationId, units }: { organizationId: stri
             onChange={setParentUnitId}
             options={units.map((unit) => ({ id: unit.id, label: unit.name }))}
           />
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <FormError message={error} />
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="create-unit-form" disabled={isSubmitting} data-testid="organization-units-create-submit-button">
             {isSubmitting ? "Adding…" : "Add unit"}
           </Button>
-        </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

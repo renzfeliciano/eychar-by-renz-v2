@@ -4,7 +4,7 @@ import { LocationService } from "@/domains/organization/location-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreateLocationForm } from "./create-location-form";
+import { CreateLocationDialog } from "./create-location-dialog";
 
 export default async function LocationsPage() {
   const { organization } = await getCurrentOrganization();
@@ -19,9 +19,13 @@ export default async function LocationsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Locations" description="Physical offices and sites." />
-      <CreateLocationForm organizationId={organizationId} />
+      <PageHeader
+        title="Locations"
+        description="Physical offices and sites."
+        action={<CreateLocationDialog organizationId={organizationId} />}
+      />
       <DataTable
+        caption="Locations"
         columns={[
           { key: "name", header: "Name", render: (location) => <span className="font-medium">{location.name}</span> },
           { key: "code", header: "Code", render: (location) => location.code },

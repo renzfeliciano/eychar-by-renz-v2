@@ -4,7 +4,7 @@ import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreateLeaveTypeForm } from "./create-leave-type-form";
+import { CreateLeaveTypeDialog } from "./create-leave-type-dialog";
 
 export default async function LeaveTypesPage() {
   const { organization } = await getCurrentOrganization();
@@ -19,9 +19,13 @@ export default async function LeaveTypesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Leave types" description="The configurable catalog of leave an organization offers." />
-      <CreateLeaveTypeForm organizationId={organizationId} />
+      <PageHeader
+        title="Leave types"
+        description="The configurable catalog of leave an organization offers."
+        action={<CreateLeaveTypeDialog organizationId={organizationId} />}
+      />
       <DataTable
+        caption="Leave types"
         columns={[
           { key: "name", header: "Name", render: (leaveType) => <span className="font-medium">{leaveType.name}</span> },
           { key: "code", header: "Code", render: (leaveType) => leaveType.code },

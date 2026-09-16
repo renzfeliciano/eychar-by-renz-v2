@@ -4,7 +4,7 @@ import { OrganizationUnitService } from "@/domains/organization/organization-uni
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreateUnitForm } from "./create-unit-form";
+import { CreateUnitDialog } from "./create-unit-dialog";
 
 export default async function OrganizationUnitsPage() {
   const { organization } = await getCurrentOrganization();
@@ -22,12 +22,15 @@ export default async function OrganizationUnitsPage() {
       <PageHeader
         title="Organization units"
         description="Divisions, departments, teams, and other organizational groupings."
-      />
-      <CreateUnitForm
-        organizationId={organizationId}
-        units={units.map((unit) => ({ id: unit._id.toString(), name: unit.name }))}
+        action={
+          <CreateUnitDialog
+            organizationId={organizationId}
+            units={units.map((unit) => ({ id: unit._id.toString(), name: unit.name }))}
+          />
+        }
       />
       <DataTable
+        caption="Organization units"
         columns={[
           { key: "name", header: "Name", render: (unit) => <span className="font-medium">{unit.name}</span> },
           { key: "code", header: "Code", render: (unit) => unit.code },

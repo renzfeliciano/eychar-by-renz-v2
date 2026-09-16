@@ -2,14 +2,22 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
+import { cn } from "@/lib/utils";
 
-export function CreateLeaveBalanceForm({
+export function CreateLeaveBalanceDialog({
   organizationId,
   employees,
   leaveTypes,
@@ -19,6 +27,7 @@ export function CreateLeaveBalanceForm({
   leaveTypes: SelectOption[];
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -58,35 +67,46 @@ export function CreateLeaveBalanceForm({
 
     setEmployeeId("");
     setLeaveTypeId("");
+    setOpen(false);
     router.refresh();
   }
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="leave-balances-create-button">
+        <Plus className="size-3.5" />
+        Grant balance
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Grant leave balance</DialogTitle>
+        </DialogHeader>
+        <form id="create-leave-balance-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
           <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" />
-          <FormField label="Year" htmlFor="leave-balance-year">
-            <Input id="leave-balance-year" type="number" value={year} onChange={(event) => setYear(event.target.value)} required />
-          </FormField>
-          <FormField label="Entitled days" htmlFor="leave-balance-days">
-            <Input
-              id="leave-balance-days"
-              type="number"
-              min={0}
-              value={entitledDays}
-              onChange={(event) => setEntitledDays(event.target.value)}
-              required
-            />
-          </FormField>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-            {isSubmitting ? "Adding…" : "Grant balance"}
-          </Button>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Year" htmlFor="leave-balance-year">
+              <Input id="leave-balance-year" type="number" value={year} onChange={(event) => setYear(event.target.value)} required />
+            </FormField>
+            <FormField label="Entitled days" htmlFor="leave-balance-days">
+              <Input
+                id="leave-balance-days"
+                type="number"
+                min={0}
+                value={entitledDays}
+                onChange={(event) => setEntitledDays(event.target.value)}
+                required
+              />
+            </FormField>
+          </div>
+          <FormError message={error} />
         </form>
-        <FormError message={error} />
-      </CardContent>
-    </Card>
+        <DialogFooter>
+          <Button type="submit" form="create-leave-balance-form" disabled={isSubmitting} data-testid="leave-balances-create-submit-button">
+            {isSubmitting ? "Granting…" : "Grant balance"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

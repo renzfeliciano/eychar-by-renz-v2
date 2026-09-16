@@ -5,7 +5,7 @@ import { LocationService } from "@/domains/organization/location-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { CreateProjectForm } from "./create-project-form";
+import { CreateProjectDialog } from "./create-project-dialog";
 
 export default async function ProjectsPage() {
   const { organization } = await getCurrentOrganization();
@@ -24,12 +24,18 @@ export default async function ProjectsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Projects" description="Operational projects and client engagements." />
-      <CreateProjectForm
-        organizationId={organizationId}
-        locations={locations.map((location) => ({ id: location._id.toString(), name: location.name }))}
+      <PageHeader
+        title="Projects"
+        description="Operational projects and client engagements."
+        action={
+          <CreateProjectDialog
+            organizationId={organizationId}
+            locations={locations.map((location) => ({ id: location._id.toString(), name: location.name }))}
+          />
+        }
       />
       <DataTable
+        caption="Projects"
         columns={[
           { key: "name", header: "Name", render: (project) => <span className="font-medium">{project.name}</span> },
           { key: "code", header: "Code", render: (project) => project.code },
