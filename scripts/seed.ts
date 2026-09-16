@@ -61,6 +61,20 @@ const BASELINE_PERMISSIONS = [
   { key: "attendance-policies.create", description: "Create attendance policies", category: "attendance" },
   { key: "attendance-policies.read", description: "View attendance policies", category: "attendance" },
   { key: "attendance-policies.update", description: "Update attendance policies", category: "attendance" },
+
+  { key: "leave-types.create", description: "Create leave types", category: "leave" },
+  { key: "leave-types.read", description: "View leave types", category: "leave" },
+  { key: "leave-types.update", description: "Update leave types", category: "leave" },
+  { key: "leave-policies.create", description: "Create leave policies", category: "leave" },
+  { key: "leave-policies.read", description: "View leave policies", category: "leave" },
+  { key: "leave-policies.update", description: "Update leave policies", category: "leave" },
+  { key: "leave-balances.create", description: "Grant leave balances", category: "leave" },
+  { key: "leave-balances.read", description: "View leave balances", category: "leave" },
+  { key: "leave-balances.update", description: "Adjust leave balances", category: "leave" },
+  { key: "leave.create", description: "Submit leave requests", category: "leave" },
+  { key: "leave.read", description: "View leave requests", category: "leave" },
+  { key: "leave.update", description: "Cancel leave requests", category: "leave" },
+  { key: "leave.approve", description: "Approve or reject leave requests", category: "leave" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used

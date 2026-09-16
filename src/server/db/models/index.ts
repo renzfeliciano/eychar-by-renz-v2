@@ -14,3 +14,7 @@ export { EmploymentModel } from "./employment";
 export { EmployeeAssignmentModel } from "./employee-assignment";
 export { AttendancePolicyModel } from "./attendance-policy";
 export { AttendanceRecordModel } from "./attendance-record";
+export { LeaveTypeModel } from "./leave-type";
+export { LeavePolicyModel } from "./leave-policy";
+export { LeaveBalanceModel } from "./leave-balance";
+export { LeaveRequestModel } from "./leave-request";

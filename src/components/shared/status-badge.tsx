@@ -5,6 +5,10 @@ const TONE_BY_STATUS: Record<string, string> = {
   on_leave: "bg-warning/15 text-warning border-warning/30",
   inactive: "bg-muted text-muted-foreground border-border",
   terminated: "bg-destructive/10 text-destructive border-destructive/30",
+  pending: "bg-warning/15 text-warning border-warning/30",
+  approved: "bg-success/15 text-success border-success/30",
+  rejected: "bg-destructive/10 text-destructive border-destructive/30",
+  cancelled: "bg-muted text-muted-foreground border-border",
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {

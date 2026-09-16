@@ -13,6 +13,10 @@ import {
   Network,
   ClipboardCheck,
   Settings2,
+  CalendarDays,
+  Tags,
+  ScrollText,
+  Wallet,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -39,6 +43,15 @@ export const NAV_SECTIONS = [
     items: [
       { href: "/attendance", label: "Daily roster", icon: ClipboardCheck },
       { href: "/attendance/policies", label: "Policies", icon: Settings2 },
+    ],
+  },
+  {
+    label: "Leave",
+    items: [
+      { href: "/leave", label: "Requests", icon: CalendarDays },
+      { href: "/leave/types", label: "Types", icon: Tags },
+      { href: "/leave/policies", label: "Policies", icon: ScrollText },
+      { href: "/leave/balances", label: "Balances", icon: Wallet },
     ],
   },
 ];

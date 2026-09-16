@@ -1,44 +1,37 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { AttendancePolicyModel } from "@/server/db/models";
+import { LeavePolicyModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
-import type { CreateAttendancePolicyInput } from "@/shared/validation/attendance";
+import type { CreateLeavePolicyInput } from "@/shared/validation/leave";
 
 export type { PolicySource };
 
-type AttendancePolicyDoc = NonNullable<Awaited<ReturnType<typeof AttendancePolicyModel.findOne>>>;
+type LeavePolicyDoc = NonNullable<Awaited<ReturnType<typeof LeavePolicyModel.findOne>>>;
 
-export const AttendancePolicyService = {
-  async create(input: CreateAttendancePolicyInput, actor: { userId?: string }) {
+export const LeavePolicyService = {
+  async create(input: CreateLeavePolicyInput, actor: { userId?: string }) {
     await connectMongoDB();
 
-    const policy = await AttendancePolicyModel.create({
+    const policy = await LeavePolicyModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
       projectId: input.projectId ? new Types.ObjectId(input.projectId) : undefined,
+      leaveTypeId: new Types.ObjectId(input.leaveTypeId),
       name: input.name,
-      standardStartTime: input.standardStartTime,
-      standardEndTime: input.standardEndTime,
-      gracePeriodMinutes: input.gracePeriodMinutes,
-      workDays: input.workDays,
+      annualEntitlementDays: input.annualEntitlementDays,
     });
 
     await AuditService.record({
       organizationId: input.organizationId,
       actorUserId: actor.userId,
-      action: "attendance-policy.created",
-      resourceType: "AttendancePolicy",
+      action: "leave-policy.created",
+      resourceType: "LeavePolicy",
       resourceId: policy._id.toString(),
-      after: { name: policy.name, projectId: policy.projectId },
+      after: { name: policy.name, leaveTypeId: policy.leaveTypeId, projectId: policy.projectId },
     });
 
     return policy;
-  },
-
-  async listCurrent(organizationId: string) {
-    await connectMongoDB();
-    return AttendancePolicyModel.find({ organizationId: new Types.ObjectId(organizationId) }).lean();
   },
 
   async updateStatus(
@@ -49,11 +42,11 @@ export const AttendancePolicyService = {
   ) {
     await connectMongoDB();
 
-    const policy = await AttendancePolicyModel.findOne({
+    const policy = await LeavePolicyModel.findOne({
       _id: new Types.ObjectId(id),
       organizationId: new Types.ObjectId(organizationId),
     });
-    if (!policy) throw new NotFoundError("Attendance policy not found in this organization");
+    if (!policy) throw new NotFoundError("Leave policy not found in this organization");
 
     const before = { status: policy.status, effectiveTo: policy.effectiveTo };
     if (patch.status) policy.status = patch.status;
@@ -63,8 +56,8 @@ export const AttendancePolicyService = {
     await AuditService.record({
       organizationId,
       actorUserId: actor.userId,
-      action: "attendance-policy.updated",
-      resourceType: "AttendancePolicy",
+      action: "leave-policy.updated",
+      resourceType: "LeavePolicy",
       resourceId: policy._id.toString(),
       before,
       after: { status: policy.status, effectiveTo: policy.effectiveTo },
@@ -73,13 +66,24 @@ export const AttendancePolicyService = {
     return policy;
   },
 
+  async listCurrent(organizationId: string) {
+    await connectMongoDB();
+    return LeavePolicyModel.find({ organizationId: new Types.ObjectId(organizationId) }).lean();
+  },
+
   /**
    * Organization → Project override resolution (AGENTS.md §26) via the
    * shared resolver (src/server/policies/resolve-org-project-policy.ts) —
-   * extracted once Leave needed the identical shape (see ADR-011).
+   * the same shape AttendancePolicyService uses, scoped further to a
+   * specific leaveTypeId via extraFilter.
    */
-  async resolve(params: { organizationId: string; projectId?: string; effectiveDate: Date }) {
+  async resolve(params: { organizationId: string; projectId?: string; leaveTypeId: string; effectiveDate: Date }) {
     await connectMongoDB();
-    return resolveOrgProjectPolicy<AttendancePolicyDoc>(AttendancePolicyModel, params);
+    return resolveOrgProjectPolicy<LeavePolicyDoc>(LeavePolicyModel, {
+      organizationId: params.organizationId,
+      projectId: params.projectId,
+      effectiveDate: params.effectiveDate,
+      extraFilter: { leaveTypeId: new Types.ObjectId(params.leaveTypeId) },
+    });
   },
 };

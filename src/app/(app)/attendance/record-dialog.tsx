@@ -98,7 +98,7 @@ export function RecordDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Check-in" htmlFor="record-check-in">
               <Input id="record-check-in" type="time" value={checkInTime} onChange={(event) => setCheckInTime(event.target.value)} />
             </FormField>

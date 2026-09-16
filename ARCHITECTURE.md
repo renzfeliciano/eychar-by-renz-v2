@@ -7,17 +7,17 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 5 — Attendance** (see AGENTS.md §57) on top of Phases 1–4. Implemented: Organization,
+**Phase 6 — Leave** (see AGENTS.md §57) on top of Phases 1–5. Implemented: Organization,
 User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
-Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord;
-server-side authorization with a granular per-resource permission catalog; append-only audit
-logging; Auth.js credentials (username-or-email) login with single-active-session +
-idle-timeout enforcement; a shadcn/ui dashboard,
-`/organization/{units,positions,locations,projects,chart}`, `/people`, and
-`/attendance{,/policies}` UI.
+Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord,
+LeaveType, LeavePolicy, LeaveBalance, LeaveRequest; server-side authorization with a granular
+per-resource permission catalog; append-only audit logging; Auth.js credentials
+(username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
+dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people`,
+`/attendance{,/policies}`, and `/leave{,/types,/policies,/balances}` UI.
 
-Not yet implemented (later phases): Leave, Payroll, Recruitment, Performance, Cases, Assets,
-Documents, Events.
+Not yet implemented (later phases): Payroll, Recruitment, Performance, Cases, Assets, Documents,
+Events.
 
 ## Architecture style
 
@@ -30,7 +30,7 @@ none of those have a concrete requirement yet (AGENTS.md §45).
 src/
 ├── app/
 │   ├── (auth)/login/     Unauthenticated, outside the app shell
-│   ├── (app)/            dashboard, organization/*, people/* — shared sidebar+topbar layout
+│   ├── (app)/            dashboard, organization/*, people/*, attendance/*, leave/* — shared sidebar+topbar layout
 │   ├── _shared/          getCurrentOrganization/hasPermission — used by every (app) page
 │   └── api/               Route handlers
 ├── components/
@@ -95,6 +95,20 @@ time unless an explicit status is given — computed and stored once, never reco
 `adjust()` is gated by `attendance.update` and writes a full before/after audit entry, which is
 this phase's approval record rather than a separate request/approve workflow (that's Phase 6's
 pattern).
+
+## Leave (Phase 6, ADR-012)
+
+Same HR-recorded scoping as Attendance — leave is requested on an employee's behalf, not
+self-service. `LeaveType` is a seeded catalog (`requiresApproval` per type); `LeavePolicy`
+resolves Organization→Project override the same way `AttendancePolicy` does, via the shared
+`resolveOrgProjectPolicy()` extracted in ADR-011 once Leave needed the identical shape.
+`LeaveBalance` stores only `entitledDays`/`adjustmentDays` — "used" days are derived at read
+time (`LeaveBalanceService.getAvailable`) from the sum of `approved` `LeaveRequest.totalDays`,
+never a stored counter that could drift. `LeaveRequestService.create()` rejects a request that
+exceeds the available balance or overlaps an existing pending/approved request for the same
+employee; `decide()` (gated by `leave.approve`, distinct from `leave.update`) is the real
+request/approve state machine Phase 5 deferred — see ADR-012 for why `leave.approve` is its own
+permission and why balance consumption is derived rather than stored.
 
 ## Authorization (ADR-007)
 

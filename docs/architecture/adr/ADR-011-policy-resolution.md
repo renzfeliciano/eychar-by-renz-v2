@@ -21,12 +21,18 @@ projectId?, effectiveDate })` (`src/domains/attendance/attendance-policy-service
 most specific active policy effective on that date: project-scoped first, falling back to
 org-wide, returning `{ policy, source }` or `null`.
 
-**This resolver is Attendance-specific**, not a shared `server/policies/resolvePolicy()`
-dispatcher across domains — AGENTS.md §38 mentions a `server/policies/` folder, but Attendance is
-still the only policy-driven domain in this codebase. A "shared" abstraction with exactly one
-caller isn't actually shared, it's just misplaced (AGENTS.md §56). Extract a common shape into
-`server/policies/` only when Leave or Payroll need the same Organization→Project (→Employee?)
-resolution pattern, and only after seeing what they actually have in common — not before.
+**Update (Phase 6/Leave): the shared shape was extracted.** This ADR originally kept the
+resolver Attendance-specific, deferring extraction until a second real caller needed the same
+shape (AGENTS.md §56 — no abstraction for a hypothetical future caller). Leave's
+`LeavePolicy.resolve()` needed exactly this Organization→Project override plus the same
+day-granular effective-dating widening below, so `src/server/policies/resolve-org-project-policy.ts`
+now holds the shared `resolveOrgProjectPolicy<T>(model, { organizationId, projectId?,
+effectiveDate, extraFilter? })`. Both `AttendancePolicyService.resolve()` and
+`LeavePolicyService.resolve()` are thin wrappers: each supplies its own Mongoose model, its own
+concrete document type as the generic parameter (so `resolved.policy` stays fully typed instead
+of `unknown`), and, for Leave, an `extraFilter: { leaveTypeId }` to scope further within the org.
+The two domains still keep their own typed `create`/`updateStatus`/`listCurrent` — only the
+resolution query shape is shared, not the whole service.
 
 **Day-granular comparison, not timestamp comparison**: attendance is recorded per calendar day
 (`AttendanceRecord.date`, normalized to UTC midnight), but `effectiveFrom`/`effectiveTo` are full
@@ -55,8 +61,10 @@ here requires multi-party sign-off yet.
 
 ## Consequences
 
-- Leave and Payroll policies, when built, get their own typed models and their own `resolve()`
-  functions following this same shape — copy the pattern, not (yet) a shared function.
+- Payroll policies, when built, can reuse `resolveOrgProjectPolicy()` directly if its shape fits,
+  or extend it if a third caller reveals a shape it doesn't yet cover — either way, the decision
+  is made from two real examples (Attendance, Leave) instead of a guess.
 - If a real multi-party approval requirement for attendance corrections emerges later, it slots
   in as a new state machine without needing to change how policies resolve or how status is
-  computed — those two concerns are already separate from "who approved this."
+  computed — those two concerns are already separate from "who approved this." Leave's own
+  approval workflow (ADR-012) is the first domain that actually needed one.
