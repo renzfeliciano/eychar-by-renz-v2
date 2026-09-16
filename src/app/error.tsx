@@ -1,0 +1,31 @@
+"use client";
+
+import { useEffect } from "react";
+import { TriangleAlertIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <Card className="w-full max-w-sm text-center shadow-lg">
+        <CardHeader className="items-center">
+          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+            <TriangleAlertIcon className="size-5" />
+          </div>
+          <CardTitle className="text-xl">Something went wrong</CardTitle>
+          <CardDescription>An unexpected error occurred. You can try again.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={reset} className="w-full">
+            Try again
+          </Button>
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
