@@ -7,15 +7,15 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 3 — Workforce** (see AGENTS.md §57) on top of Phases 1–2. Implemented: Organization,
-User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
-Project, Employee, Employment, EmployeeAssignment; server-side authorization with a granular
-per-resource permission catalog; append-only audit logging; Auth.js credentials
-(username-or-email) login; a dashboard, `/organization/{units,positions,locations,projects}`, and
-`/people` UI.
+**Phase 4 — Organizational Chart** (see AGENTS.md §57) on top of Phases 1–3. Implemented:
+Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
+Position, Location, Project, Employee, Employment, EmployeeAssignment; server-side authorization
+with a granular per-resource permission catalog; append-only audit logging; Auth.js credentials
+(username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
+dashboard, `/organization/{units,positions,locations,projects,chart}`, and `/people` UI.
 
-Not yet implemented (later phases): Organizational Chart, Attendance, Leave, Payroll,
-Recruitment, Performance, Cases, Assets, Documents, Events.
+Not yet implemented (later phases): Attendance, Leave, Payroll, Recruitment, Performance, Cases,
+Assets, Documents, Events.
 
 ## Architecture style
 
@@ -70,6 +70,16 @@ moving an employee closes the current assignment and creates a new one, never an
 which is what makes historical reconstruction (`getAsOf(employeeId, date)`) possible.
 `HireService.hire(...)` orchestrates Person → Employee → Employment → EmployeeAssignment as three
 separately audited writes for a new hire, not one Mongo transaction (see ADR-005's consequences).
+
+## Organizational chart (Phase 4, ADR-009)
+
+A projection, not a source of truth (AGENTS.md §18) — `OrgChartService.getSnapshot(organizationId,
+filters)` (`src/domains/workforce/org-chart-service.ts`) builds a reporting-relationship tree
+(via `EmployeeAssignment.reportsToEmployeeId`) from a single bulk as-of-date query, the same
+effective-dating filter `EmployeeAssignmentService.getAsOf` uses per-employee, generalized to the
+whole organization. Vacant positions (active `Position`s with no current assignment) are a
+separate list, not slotted into the tree. No new collection, no new permission key — `GET
+/api/organization-chart` requires the existing `employees.read`.
 
 ## Authorization (ADR-007)
 

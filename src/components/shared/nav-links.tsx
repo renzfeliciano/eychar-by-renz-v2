@@ -10,6 +10,7 @@ import {
   MapPin,
   FolderKanban,
   Users,
+  Network,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -24,6 +25,7 @@ export const NAV_SECTIONS = [
       { href: "/organization/positions", label: "Positions", icon: Briefcase },
       { href: "/organization/locations", label: "Locations", icon: MapPin },
       { href: "/organization/projects", label: "Projects", icon: FolderKanban },
+      { href: "/organization/chart", label: "Chart", icon: Network },
     ],
   },
   {
