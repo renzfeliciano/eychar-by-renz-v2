@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     <main className="p-6">
       <h1 className="text-xl font-semibold">Dashboard</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-        Signed in as {session.user.email}
+        Signed in as {session.user.name ?? session.user.email}
       </p>
 
       <section className="mt-6">

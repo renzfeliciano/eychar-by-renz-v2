@@ -6,7 +6,7 @@ import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,12 +16,12 @@ export default function LoginPage() {
     setError(null);
     setIsSubmitting(true);
 
-    const result = await signIn("credentials", { email, password, redirect: false });
+    const result = await signIn("credentials", { login, password, redirect: false });
 
     setIsSubmitting(false);
 
     if (result?.error) {
-      setError("Invalid email or password.");
+      setError("Invalid username/email or password.");
       return;
     }
 
@@ -38,13 +38,13 @@ export default function LoginPage() {
         <h1 className="mb-6 text-xl font-semibold">Sign in</h1>
 
         <label className="mb-4 block text-sm">
-          Email
+          Username or email
           <input
-            type="email"
+            type="text"
             required
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="username"
+            value={login}
+            onChange={(event) => setLogin(event.target.value)}
             className="mt-1 block w-full rounded border px-3 py-2"
             style={{ borderColor: "var(--line)" }}
           />

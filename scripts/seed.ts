@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { config } from "dotenv";
-import { hash } from "bcryptjs";
+import argon2 from "argon2";
 import { connectMongoDB } from "@/server/db/connection";
 import {
   OrganizationModel,
@@ -36,21 +36,30 @@ async function upsertPermissionCatalog() {
   );
 }
 
+function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const [firstName, ...rest] = fullName.trim().split(/\s+/);
+  return { firstName, lastName: rest.join(" ") || firstName };
+}
+
 async function seed() {
   await connectMongoDB();
   await upsertPermissionCatalog();
 
   const organizationName = process.env.SEED_ORGANIZATION_NAME;
   const organizationSlug = process.env.SEED_ORGANIZATION_SLUG;
-  const hrEmail = process.env.SEED_HR_EMAIL?.trim().toLowerCase();
+  const hrFullName = process.env.SEED_HR_FULL_NAME;
+  const hrUsername = process.env.SEED_HR_USERNAME?.trim().toLowerCase();
   const hrPassword = process.env.SEED_HR_PASSWORD;
 
-  if (!organizationName || !organizationSlug || !hrEmail || !hrPassword) {
+  if (!organizationName || !organizationSlug || !hrFullName || !hrUsername || !hrPassword) {
     throw new Error(
-      "SEED_ORGANIZATION_NAME, SEED_ORGANIZATION_SLUG, SEED_HR_EMAIL and SEED_HR_PASSWORD must be set (see .env.local.example)",
+      "SEED_ORGANIZATION_NAME, SEED_ORGANIZATION_SLUG, SEED_HR_FULL_NAME, SEED_HR_USERNAME and SEED_HR_PASSWORD must be set (see .env.local.example)",
     );
   }
 
+  // Organization is a plain data record, editable later (name/slug are not
+  // hardcoded anywhere in application logic) — this seed just establishes
+  // the initial value per AGENTS.md §8/§54.
   let organization = await OrganizationModel.findOne({ slug: organizationSlug });
   const isNewOrganization = !organization;
   organization ??= await OrganizationModel.create({
@@ -71,17 +80,17 @@ async function seed() {
     { upsert: true, returnDocument: "after" },
   );
 
-  let hrUser = await UserModel.findOne({ email: hrEmail });
+  let hrUser = await UserModel.findOne({ username: hrUsername });
   if (!hrUser) {
+    const { firstName, lastName } = splitFullName(hrFullName);
     const person = await PersonModel.create({
       organizationId: organization._id,
-      firstName: "HR",
-      lastName: "Administrator",
-      email: hrEmail,
+      firstName,
+      lastName,
     });
     hrUser = await UserModel.create({
-      email: hrEmail,
-      passwordHash: await hash(hrPassword, 12),
+      username: hrUsername,
+      passwordHash: await argon2.hash(hrPassword),
       personId: person._id,
     });
   }
@@ -110,7 +119,7 @@ async function seed() {
     });
   }
 
-  console.log(`Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrEmail}.`);
+  console.log(`Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrUsername}.`);
 }
 
 seed()

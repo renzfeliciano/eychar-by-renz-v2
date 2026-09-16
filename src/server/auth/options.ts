@@ -1,15 +1,15 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { compare, hashSync } from "bcryptjs";
-import { connectMongoDB } from "@/server/db/connection";
-import { UserModel } from "@/server/db/models";
+import argon2 from "argon2";
+import { findUserByLogin } from "@/domains/identity/user-lookup";
+import { loginSchema } from "@/shared/validation/auth";
 import { checkLoginRateLimit } from "./rate-limit";
 
-// Computed once per process: compare() must run with the same cost whether
+// Computed once per process: verify() must run with the same cost whether
 // the account exists or not, so response timing can't be used to enumerate
-// valid emails (bcrypt is deliberately slow, and was previously only
-// invoked when a matching user was found).
-const DUMMY_PASSWORD_HASH = hashSync("not-a-real-password", 10);
+// valid usernames/emails (argon2 is deliberately slow, and was previously
+// only invoked when a matching user was found).
+const dummyHashPromise = argon2.hash("not-a-real-password");
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -31,38 +31,25 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "hris-workforcehub",
       credentials: {
-        email: { label: "Email", type: "email" },
+        login: { label: "Username or email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
         const ip = req?.headers?.["x-forwarded-for"] ?? "unknown";
         if (!checkLoginRateLimit(`login:${ip}`)) return null;
 
-        // Explicit typeof checks — credentials come straight off the
-        // request body, and a crafted payload like { email: { $ne: null } }
-        // is truthy but would otherwise reach the Mongo query below as an
-        // object instead of a string (NoSQL operator-injection).
-        if (
-          typeof credentials?.email !== "string" ||
-          typeof credentials.password !== "string" ||
-          !credentials.email ||
-          !credentials.password
-        ) {
-          return null;
-        }
+        const parsed = loginSchema.safeParse(credentials);
+        if (!parsed.success) return null;
 
-        await connectMongoDB();
+        const user = await findUserByLogin(parsed.data.login);
 
-        const email = credentials.email.trim().toLowerCase();
-        const user = await UserModel.findOne({ email, status: "active" }).lean();
-
-        const passwordMatches = await compare(
-          credentials.password,
-          user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+        const passwordMatches = await argon2.verify(
+          user?.passwordHash ?? (await dummyHashPromise),
+          parsed.data.password,
         );
         if (!user || !passwordMatches) return null;
 
-        return { id: user._id.toString(), email: user.email };
+        return { id: user._id.toString(), email: user.email, name: user.username };
       },
     }),
   ],

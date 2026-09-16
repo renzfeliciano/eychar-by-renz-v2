@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+// `login` accepts either a username or an email — see
+// src/domains/identity/user-lookup.ts for the matching lookup.
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  login: z.string().trim().min(1).toLowerCase(),
   password: z.string().min(1),
 });
 

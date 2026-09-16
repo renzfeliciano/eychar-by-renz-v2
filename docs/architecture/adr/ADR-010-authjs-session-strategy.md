@@ -17,10 +17,16 @@ resulting `session.user.id` carry **only** the authenticated user's id — no ro
 keys, no organization list. Every authorization decision re-queries
 `RoleAssignment`/`Role` at request time via `authorize()`.
 
-Login itself: explicit `typeof` checks on credentials before they reach a MongoDB query (guards
-against NoSQL operator injection via a crafted `{ email: { $ne: null } } ` payload), and the
-password comparison always runs against a real bcrypt hash — a precomputed dummy hash when no
-user matches — so response timing doesn't reveal whether an email is registered.
+Login itself: credentials are parsed with a Zod schema (`loginSchema`) before they reach a
+MongoDB query, which rejects a crafted `{ login: { $ne: null } }` payload instead of letting it
+through as a Mongo operator (NoSQL operator injection). Passwords are hashed with **Argon2id**
+(the `argon2` package), not bcrypt — OWASP's current recommendation, and password comparison
+always runs against a real Argon2 hash (a precomputed dummy hash when no user matches), so
+response timing doesn't reveal whether a username/email is registered.
+
+A login identifier can be a **username or an email** (`findUserByLogin`,
+`src/domains/identity/user-lookup.ts`) — not every account has both, and this deliberately
+matches the login convention already used elsewhere on this team's other HR tooling.
 
 ## Consequences
 

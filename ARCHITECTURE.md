@@ -69,7 +69,8 @@ Phase 1 collections: `organizations`, `people`, `users`, `permissions`, `roles`,
 - `AuditLog` is append-only: no update/delete API is exposed over it anywhere in the codebase.
 
 Indexes (all justified by an actual query above): `organizations.slug` (unique),
-`users.email` (unique), `roles.organizationId+name` (unique), `people.organizationId`,
+`users.username` (unique, sparse), `users.email` (unique, sparse), `roles.organizationId+name`
+(unique), `people.organizationId`,
 `roleAssignments.userId+organizationId`, `roleAssignments.roleId`,
 `auditLogs.organizationId+timestamp`, `auditLogs.organizationId+resourceType+resourceId`.
 
