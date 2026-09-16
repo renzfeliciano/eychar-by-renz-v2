@@ -32,9 +32,14 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <Link href="/organization/units" className="mt-6 inline-block text-sm" style={{ color: "var(--accent)" }}>
-        Manage organization structure →
-      </Link>
+      <div className="mt-6 flex flex-col gap-2">
+        <Link href="/organization/units" className="text-sm" style={{ color: "var(--accent)" }}>
+          Manage organization structure →
+        </Link>
+        <Link href="/people" className="text-sm" style={{ color: "var(--accent)" }}>
+          Manage people →
+        </Link>
+      </div>
     </main>
   );
 }

@@ -50,6 +50,10 @@ const BASELINE_PERMISSIONS = [
   { key: "projects.create", description: "Create projects", category: "organization" },
   { key: "projects.read", description: "View projects", category: "organization" },
   { key: "projects.update", description: "Update projects", category: "organization" },
+
+  { key: "employees.create", description: "Hire employees and record new employment stints", category: "workforce" },
+  { key: "employees.read", description: "View employees, employment, and assignment history", category: "workforce" },
+  { key: "employees.update", description: "Transfer employees and terminate employment", category: "workforce" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used

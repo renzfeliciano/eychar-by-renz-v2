@@ -1,5 +1,5 @@
-import { getCurrentOrganization } from "../_shared/get-current-organization";
-import { hasPermission } from "../_shared/has-permission";
+import { getCurrentOrganization } from "../../_shared/get-current-organization";
+import { hasPermission } from "../../_shared/has-permission";
 import { LocationService } from "@/domains/organization/location-service";
 import { CreateLocationForm } from "./create-location-form";
 

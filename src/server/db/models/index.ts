@@ -9,3 +9,6 @@ export { OrganizationUnitModel } from "./organization-unit";
 export { PositionModel } from "./position";
 export { LocationModel } from "./location";
 export { ProjectModel } from "./project";
+export { EmployeeModel } from "./employee";
+export { EmploymentModel } from "./employment";
+export { EmployeeAssignmentModel } from "./employee-assignment";

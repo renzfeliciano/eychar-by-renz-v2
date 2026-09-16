@@ -1,5 +1,5 @@
-import { getCurrentOrganization } from "../_shared/get-current-organization";
-import { hasPermission } from "../_shared/has-permission";
+import { getCurrentOrganization } from "../../_shared/get-current-organization";
+import { hasPermission } from "../../_shared/has-permission";
 import { OrganizationUnitService } from "@/domains/organization/organization-unit-service";
 import { CreateUnitForm } from "./create-unit-form";
 

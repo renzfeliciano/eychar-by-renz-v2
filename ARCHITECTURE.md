@@ -7,14 +7,15 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 2 — Organization** (see AGENTS.md §57) on top of Phase 1's foundation. Implemented:
-Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
-Position, Location, Project; server-side authorization with a granular per-resource permission
-catalog; append-only audit logging; Auth.js credentials (username-or-email) login; a minimal
-dashboard and `/organization/{units,positions,locations,projects}` UI.
+**Phase 3 — Workforce** (see AGENTS.md §57) on top of Phases 1–2. Implemented: Organization,
+User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
+Project, Employee, Employment, EmployeeAssignment; server-side authorization with a granular
+per-resource permission catalog; append-only audit logging; Auth.js credentials
+(username-or-email) login; a dashboard, `/organization/{units,positions,locations,projects}`, and
+`/people` UI.
 
-Not yet implemented (later phases): Employee/Employment/EmployeeAssignment, Organizational Chart,
-Attendance, Leave, Payroll, Recruitment, Performance, Cases, Assets, Documents, Events.
+Not yet implemented (later phases): Organizational Chart, Attendance, Leave, Payroll,
+Recruitment, Performance, Cases, Assets, Documents, Events.
 
 ## Architecture style
 
@@ -37,9 +38,10 @@ Route handlers orchestrate: Authenticate → Validate → Resolve Context → Au
 
 ## Identity model (ADR-003)
 
-`User` (login identity) → `Person` (human identity) are already separated, even though Phase 1
-only has one HR user. `Employee` / `Employment` / `EmployeeAssignment` are introduced in Phase 3
-once Workforce is built — a `Person` is not assumed to be an employee.
+`User` (login identity) → `Person` (human identity) → `Employee` (workforce identity) →
+`Employment` (lifecycle) → `EmployeeAssignment` (where/what/who) — five distinct models, per
+AGENTS.md §13. A `Person` is not assumed to be an `Employee` (Phase 1's HR user has no `Employee`
+record at all); an `Employee` has no status field of its own — see "Workforce (Phase 3)" below.
 
 ## Organization structure (Phase 2)
 
@@ -48,6 +50,19 @@ once Workforce is built — a `Person` is not assumed to be an employee.
 and ADR-006 (Effective Dating) for the two decisions specific to this phase. No hard delete
 anywhere (AGENTS.md §53); every domain service exposes `create()` and `updateStatus()`
 (active/inactive, plus `effectiveTo` for the two effective-dated models) but never a delete.
+
+## Workforce (Phase 3)
+
+`Employee` is pure identity (`personId`, `employeeNumber`) — no status field, since "is this
+employee active" is answered by their latest `Employment`, not a second flag that could drift out
+of sync. `Employment` is the effective-dated lifecycle (`employmentType` free-form,
+`status: active|on_leave|terminated`); a rehire is just a new row, not a special case.
+`EmployeeAssignment` is where/what/who (`positionId?`/`organizationUnitId?`/`projectId?`/
+`locationId?`/`reportsToEmployeeId?`), effective-dated. See ADR-005 for the transfer mechanic —
+moving an employee closes the current assignment and creates a new one, never an in-place edit,
+which is what makes historical reconstruction (`getAsOf(employeeId, date)`) possible.
+`HireService.hire(...)` orchestrates Person → Employee → Employment → EmployeeAssignment as three
+separately audited writes for a new hire, not one Mongo transaction (see ADR-005's consequences).
 
 ## Authorization (ADR-007)
 
@@ -65,8 +80,9 @@ Server-side only, resolved from data on every check — never cached role-name s
 Permission keys are granular per resource — `<resource>.create` / `<resource>.read` /
 `<resource>.update` (e.g. `positions.read`), matching AGENTS.md §20's own example, not one coarse
 `<resource>.manage`. `GET` routes require `<resource>.read` explicitly; Server Component pages
-call the identical `requirePermission` check via `src/app/organization/_shared/has-permission.ts`
-so a page can never show data an API route would refuse. `Permission` documents also carry
+call the identical `requirePermission` check via `src/app/_shared/has-permission.ts` (shared
+across `/organization` and `/people`) so a page can never show data an API route would refuse.
+`Permission` documents also carry
 `category` (grouping, for a future permissions UI) and `isSystem` (reserved) — display metadata
 only, never read by `authorize()`.
 
@@ -77,7 +93,8 @@ without building the full multi-scope policy-resolution hierarchy prematurely (A
 ## MongoDB modeling (ADR-002)
 
 Collections: `organizations`, `people`, `users`, `permissions`, `roles`, `roleAssignments`,
-`auditLogs`, `organizationUnits`, `positions`, `locations`, `projects`.
+`auditLogs`, `organizationUnits`, `positions`, `locations`, `projects`, `employees`,
+`employments`, `employeeAssignments`.
 
 - `Role.permissionKeys: string[]` is embedded rather than a `rolePermissions` join collection —
   a role's permission set is small, bounded, and always read together with the role.
@@ -87,6 +104,9 @@ Collections: `organizations`, `people`, `users`, `permissions`, `roles`, `roleAs
 - `OrganizationUnit.parentUnitId` references itself (unbounded hierarchy depth, independent
   lifecycle per node) rather than embedding children — a unit's descendants are queried
   independently of the unit itself, and cardinality is unbounded.
+- `Employment` and `EmployeeAssignment` both reference `Employee` by id rather than embedding —
+  both are unbounded, independently-queried histories (see ADR-005/ADR-006), not data owned
+  exclusively by one `Employee` document.
 
 Indexes (all justified by an actual query above): `organizations.slug` (unique),
 `users.username` (unique, sparse), `users.email` (unique, sparse), `roles.organizationId+name`
@@ -96,7 +116,9 @@ Indexes (all justified by an actual query above): `organizations.slug` (unique),
 `organizationUnits.organizationId+code` (unique), `organizationUnits.parentUnitId`,
 `positions.organizationId+code` (unique), `positions.organizationUnitId`,
 `locations.organizationId+code` (unique), `projects.organizationId+code` (unique),
-`projects.locationId`.
+`projects.locationId`, `employees.organizationId+employeeNumber` (unique),
+`employments.employeeId+effectiveFrom`, `employeeAssignments.employeeId+effectiveFrom`,
+`employeeAssignments.reportsToEmployeeId`.
 
 ## Audit (part of ADR-007's server-side trust boundary)
 

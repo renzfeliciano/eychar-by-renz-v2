@@ -1,5 +1,5 @@
-import { getCurrentOrganization } from "../_shared/get-current-organization";
-import { hasPermission } from "../_shared/has-permission";
+import { getCurrentOrganization } from "../../_shared/get-current-organization";
+import { hasPermission } from "../../_shared/has-permission";
 import { ProjectService } from "@/domains/organization/project-service";
 import { LocationService } from "@/domains/organization/location-service";
 import { CreateProjectForm } from "./create-project-form";
