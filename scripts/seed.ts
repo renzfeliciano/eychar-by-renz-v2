@@ -54,6 +54,13 @@ const BASELINE_PERMISSIONS = [
   { key: "employees.create", description: "Hire employees and record new employment stints", category: "workforce" },
   { key: "employees.read", description: "View employees, employment, and assignment history", category: "workforce" },
   { key: "employees.update", description: "Transfer employees and terminate employment", category: "workforce" },
+
+  { key: "attendance.create", description: "Record employee attendance", category: "attendance" },
+  { key: "attendance.read", description: "View attendance records", category: "attendance" },
+  { key: "attendance.update", description: "Adjust attendance records", category: "attendance" },
+  { key: "attendance-policies.create", description: "Create attendance policies", category: "attendance" },
+  { key: "attendance-policies.read", description: "View attendance policies", category: "attendance" },
+  { key: "attendance-policies.update", description: "Update attendance policies", category: "attendance" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used

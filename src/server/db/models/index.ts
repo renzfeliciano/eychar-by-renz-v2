@@ -12,3 +12,5 @@ export { ProjectModel } from "./project";
 export { EmployeeModel } from "./employee";
 export { EmploymentModel } from "./employment";
 export { EmployeeAssignmentModel } from "./employee-assignment";
+export { AttendancePolicyModel } from "./attendance-policy";
+export { AttendanceRecordModel } from "./attendance-record";

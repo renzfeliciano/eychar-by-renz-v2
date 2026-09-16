@@ -11,6 +11,8 @@ import {
   FolderKanban,
   Users,
   Network,
+  ClipboardCheck,
+  Settings2,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -32,6 +34,13 @@ export const NAV_SECTIONS = [
     label: "Workforce",
     items: [{ href: "/people", label: "People", icon: Users }],
   },
+  {
+    label: "Attendance",
+    items: [
+      { href: "/attendance", label: "Daily roster", icon: ClipboardCheck },
+      { href: "/attendance/policies", label: "Policies", icon: Settings2 },
+    ],
+  },
 ];
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -47,7 +56,7 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             </p>
           )}
           {section.items.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
               <Link

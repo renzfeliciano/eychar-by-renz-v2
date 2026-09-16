@@ -7,15 +7,17 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 4 — Organizational Chart** (see AGENTS.md §57) on top of Phases 1–3. Implemented:
-Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
-Position, Location, Project, Employee, Employment, EmployeeAssignment; server-side authorization
-with a granular per-resource permission catalog; append-only audit logging; Auth.js credentials
-(username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
-dashboard, `/organization/{units,positions,locations,projects,chart}`, and `/people` UI.
+**Phase 5 — Attendance** (see AGENTS.md §57) on top of Phases 1–4. Implemented: Organization,
+User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
+Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord;
+server-side authorization with a granular per-resource permission catalog; append-only audit
+logging; Auth.js credentials (username-or-email) login with single-active-session +
+idle-timeout enforcement; a shadcn/ui dashboard,
+`/organization/{units,positions,locations,projects,chart}`, `/people`, and
+`/attendance{,/policies}` UI.
 
-Not yet implemented (later phases): Attendance, Leave, Payroll, Recruitment, Performance, Cases,
-Assets, Documents, Events.
+Not yet implemented (later phases): Leave, Payroll, Recruitment, Performance, Cases, Assets,
+Documents, Events.
 
 ## Architecture style
 
@@ -81,6 +83,19 @@ whole organization. Vacant positions (active `Position`s with no current assignm
 separate list, not slotted into the tree. No new collection, no new permission key — `GET
 /api/organization-chart` requires the existing `employees.read`.
 
+## Attendance (Phase 5, ADR-011)
+
+**HR-recorded**, not employee self-check-in — no employee created via `HireService.hire()` gets
+a login, only Phase 1's HR admin does, so there's no self-service session to check in from.
+`AttendanceService.record()` (`src/domains/attendance/attendance-service.ts`) resolves the
+employee's project as of the record's date (`EmployeeAssignmentService.getAsOf`), resolves the
+applicable `AttendancePolicy` for that project+date
+(`AttendancePolicyService.resolve`, ADR-011), and computes `present`/`late` from the check-in
+time unless an explicit status is given — computed and stored once, never recomputed later.
+`adjust()` is gated by `attendance.update` and writes a full before/after audit entry, which is
+this phase's approval record rather than a separate request/approve workflow (that's Phase 6's
+pattern).
+
 ## Authorization (ADR-007)
 
 Server-side only, resolved from data on every check — never cached role-name strings, never
@@ -98,7 +113,8 @@ Permission keys are granular per resource — `<resource>.create` / `<resource>.
 `<resource>.update` (e.g. `positions.read`), matching AGENTS.md §20's own example, not one coarse
 `<resource>.manage`. `GET` routes require `<resource>.read` explicitly; Server Component pages
 call the identical `requirePermission` check via `src/app/_shared/has-permission.ts` (shared
-across `/organization` and `/people`) so a page can never show data an API route would refuse.
+across `/organization`, `/people`, and `/attendance`) so a page can never show data an API route
+would refuse.
 `Permission` documents also carry
 `category` (grouping, for a future permissions UI) and `isSystem` (reserved) — display metadata
 only, never read by `authorize()`.
@@ -111,7 +127,7 @@ without building the full multi-scope policy-resolution hierarchy prematurely (A
 
 Collections: `organizations`, `people`, `users`, `permissions`, `roles`, `roleAssignments`,
 `auditLogs`, `organizationUnits`, `positions`, `locations`, `projects`, `employees`,
-`employments`, `employeeAssignments`.
+`employments`, `employeeAssignments`, `attendancePolicies`, `attendanceRecords`.
 
 - `Role.permissionKeys: string[]` is embedded rather than a `rolePermissions` join collection —
   a role's permission set is small, bounded, and always read together with the role.
@@ -135,7 +151,9 @@ Indexes (all justified by an actual query above): `organizations.slug` (unique),
 `locations.organizationId+code` (unique), `projects.organizationId+code` (unique),
 `projects.locationId`, `employees.organizationId+employeeNumber` (unique),
 `employments.employeeId+effectiveFrom`, `employeeAssignments.employeeId+effectiveFrom`,
-`employeeAssignments.reportsToEmployeeId`.
+`employeeAssignments.reportsToEmployeeId`, `attendancePolicies.organizationId+projectId`,
+`attendanceRecords.organizationId+employeeId+date` (unique),
+`attendanceRecords.organizationId+date`.
 
 ## Audit (part of ADR-007's server-side trust boundary)
 
