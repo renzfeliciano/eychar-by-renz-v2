@@ -4,6 +4,7 @@
 // kebab-case (e.g. "payroll-generate-run-button", "leave-types-create-button").
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -23,6 +24,7 @@ import {
   FileSpreadsheet,
   Settings,
   KanbanSquare,
+  ChevronDown,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -86,42 +88,96 @@ function slugify(href: string): string {
   return href.replace(/^\//, "").replace(/\//g, "-");
 }
 
+function sectionSlug(label: string): string {
+  return label.toLowerCase().replace(/\s+/g, "-");
+}
+
+const COLLAPSED_SECTIONS_STORAGE_KEY = "workforcehub:nav-collapsed-sections";
+
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Per-viewer convenience only (which sections are collapsed) — never
+  // read back by the server, safe to lose in private mode/cleared storage.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a per-viewer preference on mount, not a derived/external sync
+      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      // localStorage unavailable — sections just default to expanded.
+    }
+  }, []);
+
+  function toggleSection(label: string) {
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      try {
+        window.localStorage.setItem(COLLAPSED_SECTIONS_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        // ignore — nothing to persist to
+      }
+      return next;
+    });
+  }
 
   return (
     <nav aria-label="Main navigation" className="flex flex-col gap-4">
-      {NAV_SECTIONS.map((section, index) => (
-        <div key={section.label ?? `section-${index}`} className="flex flex-col gap-1">
-          {section.label && (
-            <p className="px-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {section.label}
-            </p>
-          )}
-          {section.items.map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                aria-current={isActive ? "page" : undefined}
-                data-testid={`nav-link-${slugify(item.href)}`}
-                className={cn(
-                  "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
-                    : "text-sidebar-foreground/70 hover:translate-x-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                )}
+      {NAV_SECTIONS.map((section, index) => {
+        const hasActiveItem = section.items.some((item) => item.href === pathname);
+        // A section containing the current page always stays visible, even
+        // if the viewer previously collapsed it — collapsing your own
+        // active section re-expands it instead of hiding where you are.
+        const isCollapsed = section.label ? collapsed.has(section.label) && !hasActiveItem : false;
+        const slug = section.label ? sectionSlug(section.label) : `section-${index}`;
+
+        return (
+          <div key={section.label ?? `section-${index}`} className="flex flex-col gap-1">
+            {section.label && (
+              <button
+                type="button"
+                onClick={() => toggleSection(section.label!)}
+                aria-expanded={!isCollapsed}
+                aria-controls={`nav-section-${slug}`}
+                data-testid={`nav-section-toggle-${slug}`}
+                className="flex items-center justify-between rounded-md px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-sidebar-foreground"
               >
-                <Icon className="size-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+                {section.label}
+                <ChevronDown className={cn("size-3.5 transition-transform duration-150", isCollapsed && "-rotate-90")} />
+              </button>
+            )}
+            {!isCollapsed && (
+              <div id={`nav-section-${slug}`} className="flex flex-col gap-1">
+                {section.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={isActive ? "page" : undefined}
+                      data-testid={`nav-link-${slugify(item.href)}`}
+                      className={cn(
+                        "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
+                          : "text-sidebar-foreground/70 hover:translate-x-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 }

@@ -13,7 +13,7 @@ export default async function NewEmployeePage() {
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("employees.create", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to hire employees.</p>;
+    return <p className="text-sm text-muted-foreground">You don&apos;t have access to add employees.</p>;
   }
 
   const [positions, projects, roster, employmentTypes] = await Promise.all([
@@ -25,7 +25,7 @@ export default async function NewEmployeePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Hire employee" description="Creates the person, employee record, employment, and initial assignment." />
+      <PageHeader title="Add employee" description="Creates the person, employee record, employment, and initial assignment." />
       <HireForm
         organizationId={organizationId}
         positions={positions.map((position) => ({ id: position._id.toString(), label: position.title }))}

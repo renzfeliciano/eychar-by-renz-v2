@@ -53,39 +53,14 @@ export default async function OrganizationChartPage({ searchParams }: { searchPa
         projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Reporting structure</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <OrgChartTree roots={snapshot.roots} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Vacant positions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {snapshot.vacantPositions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No vacant positions.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {snapshot.vacantPositions.map((position) => (
-                  <li key={position.id} className="text-sm">
-                    <span className="font-medium">{position.title}</span>
-                    <span className="text-muted-foreground"> ({position.code})</span>
-                    {position.organizationUnitName && (
-                      <p className="text-xs text-muted-foreground">{position.organizationUnitName}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Reporting structure</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OrgChartTree roots={snapshot.roots} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

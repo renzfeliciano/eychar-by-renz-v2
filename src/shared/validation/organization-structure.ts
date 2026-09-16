@@ -13,7 +13,7 @@ export const createPositionSchema = z.object({
   organizationId: z.string().trim().min(1),
   organizationUnitId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
-  code: z.string().trim().min(1),
+  code: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
 });
 
@@ -28,7 +28,7 @@ export const createProjectSchema = z.object({
   organizationId: z.string().trim().min(1),
   locationId: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1),
-  code: z.string().trim().min(1),
+  code: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
 });
 

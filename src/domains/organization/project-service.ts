@@ -4,6 +4,7 @@ import { LocationModel, ProjectModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
+import { slugifyUpperKebab } from "@/shared/slugify";
 import type { CreateProjectInput } from "@/shared/validation/organization-structure";
 
 export const ProjectService = {
@@ -20,18 +21,20 @@ export const ProjectService = {
       }
     }
 
+    const code = input.code ?? slugifyUpperKebab(input.name);
+
     let project;
     try {
       project = await ProjectModel.create({
         organizationId: new Types.ObjectId(input.organizationId),
         locationId: input.locationId ? new Types.ObjectId(input.locationId) : undefined,
         name: input.name,
-        code: input.code,
+        code,
         description: input.description,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) {
-        throw new ConflictError(`Project code "${input.code}" is already in use`);
+        throw new ConflictError(`A project named "${input.name}" already exists`);
       }
       throw error;
     }

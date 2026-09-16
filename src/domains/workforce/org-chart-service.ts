@@ -29,16 +29,8 @@ export type OrgChartNode = {
   children: OrgChartNode[];
 };
 
-export type VacantPosition = {
-  id: string;
-  title: string;
-  code: string;
-  organizationUnitName: string | null;
-};
-
 export type OrgChartSnapshot = {
   roots: OrgChartNode[];
-  vacantPositions: VacantPosition[];
 };
 
 /**
@@ -121,21 +113,7 @@ export const OrgChartService = {
 
     const roots = buildTree(nodesById, reportsTo);
 
-    const filledPositionIds = new Set(
-      assignments.filter((assignment) => assignment.positionId).map((assignment) => assignment.positionId!.toString()),
-    );
-    const vacantPositions: VacantPosition[] = positions
-      .filter((position) => position.status === "active" && !filledPositionIds.has(position._id.toString()))
-      .map((position) => ({
-        id: position._id.toString(),
-        title: position.title,
-        code: position.code,
-        organizationUnitName: position.organizationUnitId
-          ? unitById.get(position.organizationUnitId.toString())?.name ?? null
-          : null,
-      }));
-
-    return { roots, vacantPositions };
+    return { roots };
   },
 };
 

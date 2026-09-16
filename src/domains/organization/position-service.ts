@@ -4,6 +4,7 @@ import { OrganizationUnitModel, PositionModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
+import { slugifyUpperKebab } from "@/shared/slugify";
 import type { CreatePositionInput } from "@/shared/validation/organization-structure";
 
 export const PositionService = {
@@ -20,18 +21,20 @@ export const PositionService = {
       }
     }
 
+    const code = input.code ?? slugifyUpperKebab(input.title);
+
     let position;
     try {
       position = await PositionModel.create({
         organizationId: new Types.ObjectId(input.organizationId),
         organizationUnitId: input.organizationUnitId ? new Types.ObjectId(input.organizationUnitId) : undefined,
         title: input.title,
-        code: input.code,
+        code,
         description: input.description,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) {
-        throw new ConflictError(`Position code "${input.code}" is already in use`);
+        throw new ConflictError(`A position named "${input.title}" already exists`);
       }
       throw error;
     }

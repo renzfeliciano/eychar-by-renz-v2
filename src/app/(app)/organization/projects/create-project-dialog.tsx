@@ -23,7 +23,6 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [code, setCode] = useState("");
   const [locationId, setLocationId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,7 +35,7 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
     const response = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, name, code, locationId: locationId || undefined }),
+      body: JSON.stringify({ organizationId, name, locationId: locationId || undefined }),
     });
 
     setIsSubmitting(false);
@@ -48,7 +47,6 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
     }
 
     setName("");
-    setCode("");
     setLocationId("");
     setOpen(false);
     router.refresh();
@@ -67,9 +65,6 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
         <form id="create-project-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="project-name">
             <Input id="project-name" value={name} onChange={(event) => setName(event.target.value)} required />
-          </FormField>
-          <FormField label="Code" htmlFor="project-code">
-            <Input id="project-code" value={code} onChange={(event) => setCode(event.target.value)} required />
           </FormField>
           <OptionSelect
             label="Location"

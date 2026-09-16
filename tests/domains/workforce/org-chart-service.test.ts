@@ -4,7 +4,6 @@ import {
   OrganizationModel,
   PersonModel,
   EmployeeModel,
-  PositionModel,
   ProjectModel,
   EmployeeAssignmentModel,
 } from "@/server/db/models";
@@ -87,24 +86,6 @@ describe("OrgChartService", () => {
     const current = await OrgChartService.getSnapshot(orgId, {});
     const currentManagerC = current.roots.find((root) => root.employeeId === managerC._id.toString());
     expect(currentManagerC?.children.map((c) => c.employeeId)).toContain(employee._id.toString());
-  });
-
-  it("lists an active position with no current assignment as vacant, and excludes a filled one", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-vacant-${Date.now()}-${Math.random()}` });
-    const orgId = organization._id.toString();
-
-    const filledPosition = await PositionModel.create({ organizationId: organization._id, title: "Filled", code: `F-${Date.now()}` });
-    const vacantPosition = await PositionModel.create({ organizationId: organization._id, title: "Vacant", code: `V-${Date.now()}` });
-    const employee = await seedEmployee(organization._id, "HOLDER");
-    await EmployeeAssignmentService.create(
-      { organizationId: orgId, employeeId: employee._id.toString(), positionId: filledPosition._id.toString() },
-      {},
-    );
-
-    const snapshot = await OrgChartService.getSnapshot(orgId, {});
-
-    expect(snapshot.vacantPositions.map((position) => position.id)).toContain(vacantPosition._id.toString());
-    expect(snapshot.vacantPositions.map((position) => position.id)).not.toContain(filledPosition._id.toString());
   });
 
   it("re-roots an employee whose manager was filtered out of the set", async () => {

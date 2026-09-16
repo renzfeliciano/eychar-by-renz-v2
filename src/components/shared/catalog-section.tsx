@@ -53,7 +53,6 @@ export function CatalogSection({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [itemDescription, setItemDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +67,7 @@ export function CatalogSection({
     const response = await fetch(`/api/catalogs/${catalogType}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, code, name, description: itemDescription || undefined }),
+      body: JSON.stringify({ organizationId, name, description: itemDescription || undefined }),
     });
 
     setIsSubmitting(false);
@@ -79,7 +78,6 @@ export function CatalogSection({
       return;
     }
 
-    setCode("");
     setName("");
     setItemDescription("");
     setOpen(false);
@@ -120,9 +118,6 @@ export function CatalogSection({
                 <FormField label="Name" htmlFor={`${formId}-name`}>
                   <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} required />
                 </FormField>
-                <FormField label="Code" htmlFor={`${formId}-code`}>
-                  <Input id={`${formId}-code`} value={code} onChange={(event) => setCode(event.target.value)} required />
-                </FormField>
                 <FormField label="Description (optional)" htmlFor={`${formId}-description`}>
                   <Input id={`${formId}-description`} value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} />
                 </FormField>
@@ -143,7 +138,6 @@ export function CatalogSection({
           testId={`catalog-${catalogType}-table`}
           columns={[
             { key: "name", header: "Name", render: (item) => <span className="font-medium">{item.name}</span> },
-            { key: "code", header: "Code", render: (item) => item.code },
             { key: "description", header: "Description", render: (item) => item.description ?? "—" },
             { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
             {

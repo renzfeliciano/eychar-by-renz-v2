@@ -5,12 +5,21 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
+import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PeopleFilters } from "./people-filters";
 
-export default async function PeoplePage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function firstValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function PeoplePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -19,26 +28,34 @@ export default async function PeoplePage() {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view employees.</p>;
   }
 
-  const [roster, positions, projects] = await Promise.all([
+  const [fullRoster, positions, projects, employmentTypes] = await Promise.all([
     EmployeeService.listWithCurrentStatus(organizationId),
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
+    EmploymentTypeService.listCurrent(organizationId),
   ]);
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
+
+  const employmentTypeFilter = firstValue(params.employmentType);
+  const roster = employmentTypeFilter
+    ? fullRoster.filter((row) => row.currentEmployment?.employmentType === employmentTypeFilter)
+    : fullRoster;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="People"
-        description="Every employee's current employment status and assignment."
+        description="The company's full employee roster and current status."
         action={
           <Link href="/people/new" className={buttonVariants()}>
             <UserPlus className="size-4" />
-            Hire employee
+            Add employee
           </Link>
         }
       />
+
+      <PeopleFilters employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))} />
 
       <DataTable
         columns={[
@@ -68,7 +85,7 @@ export default async function PeoplePage() {
         ]}
         rows={roster}
         getRowKey={(row) => row._id.toString()}
-        emptyMessage="No employees yet."
+        emptyMessage={employmentTypeFilter ? "No employees match this filter." : "No employees yet."}
       />
     </div>
   );

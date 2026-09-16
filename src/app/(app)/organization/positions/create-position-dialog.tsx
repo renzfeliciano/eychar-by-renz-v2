@@ -23,7 +23,6 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [code, setCode] = useState("");
   const [organizationUnitId, setOrganizationUnitId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,7 +35,7 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
     const response = await fetch("/api/positions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, title, code, organizationUnitId: organizationUnitId || undefined }),
+      body: JSON.stringify({ organizationId, title, organizationUnitId: organizationUnitId || undefined }),
     });
 
     setIsSubmitting(false);
@@ -48,7 +47,6 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
     }
 
     setTitle("");
-    setCode("");
     setOrganizationUnitId("");
     setOpen(false);
     router.refresh();
@@ -67,9 +65,6 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
         <form id="create-position-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Title" htmlFor="position-title">
             <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} required />
-          </FormField>
-          <FormField label="Code" htmlFor="position-code">
-            <Input id="position-code" value={code} onChange={(event) => setCode(event.target.value)} required />
           </FormField>
           <OptionSelect
             label="Organization unit"

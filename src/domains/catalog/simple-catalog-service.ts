@@ -3,10 +3,11 @@ import { connectMongoDB } from "@/server/db/connection";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
+import { slugifyLowerSnake } from "@/shared/slugify";
 
 export type SimpleCatalogInput = {
   organizationId: string;
-  code: string;
+  code?: string;
   name: string;
   description?: string;
   sortOrder?: number;
@@ -33,11 +34,13 @@ export function createSimpleCatalogService(CatalogModel: Model<any>, resourceTyp
     async create(input: SimpleCatalogInput, actor: { userId?: string }) {
       await connectMongoDB();
 
+      const code = input.code ?? slugifyLowerSnake(input.name);
+
       let item;
       try {
         item = await CatalogModel.create({
           organizationId: new Types.ObjectId(input.organizationId),
-          code: input.code,
+          code,
           name: input.name,
           description: input.description,
           sortOrder: input.sortOrder ?? 0,
@@ -45,7 +48,7 @@ export function createSimpleCatalogService(CatalogModel: Model<any>, resourceTyp
         });
       } catch (error) {
         if (isDuplicateKeyError(error)) {
-          throw new ConflictError(`Code "${input.code}" is already in use for ${resourceType}`);
+          throw new ConflictError(`"${input.name}" already exists for ${resourceType}`);
         }
         throw error;
       }

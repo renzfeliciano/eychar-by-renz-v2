@@ -125,7 +125,7 @@ export function HireForm({
 
           <Button type="submit" disabled={isSubmitting} className="self-start">
             {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-            {isSubmitting ? "Hiring…" : "Hire employee"}
+            {isSubmitting ? "Adding…" : "Add employee"}
           </Button>
         </form>
       </CardContent>

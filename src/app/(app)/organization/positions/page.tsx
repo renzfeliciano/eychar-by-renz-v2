@@ -38,7 +38,6 @@ export default async function PositionsPage() {
         caption="Positions"
         columns={[
           { key: "title", header: "Title", render: (position) => <span className="font-medium">{position.title}</span> },
-          { key: "code", header: "Code", render: (position) => position.code },
           {
             key: "unit",
             header: "Organization unit",

@@ -38,7 +38,6 @@ export default async function ProjectsPage() {
         caption="Projects"
         columns={[
           { key: "name", header: "Name", render: (project) => <span className="font-medium">{project.name}</span> },
-          { key: "code", header: "Code", render: (project) => project.code },
           {
             key: "location",
             header: "Location",
