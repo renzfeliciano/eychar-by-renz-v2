@@ -1,9 +1,14 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import argon2 from "argon2";
+import { randomUUID } from "crypto";
 import { findUserByLogin } from "@/domains/identity/user-lookup";
 import { loginSchema } from "@/shared/validation/auth";
+import { connectMongoDB } from "@/server/db/connection";
+import { UserModel } from "@/server/db/models";
 import { checkLoginRateLimit } from "./rate-limit";
+import { resolveSessionState } from "./session-policy";
+import { getInactivityMs } from "./inactivity";
 
 // Computed once per process: verify() must run with the same cost whether
 // the account exists or not, so response timing can't be used to enumerate
@@ -49,17 +54,60 @@ export const authOptions: NextAuthOptions = {
         );
         if (!user || !passwordMatches) return null;
 
-        return { id: user._id.toString(), email: user.email, name: user.username };
+        // Single-active-session enforcement: this login supersedes any
+        // other open session on this account (src/server/auth/session-policy.ts).
+        const sessionId = randomUUID();
+        await UserModel.updateOne(
+          { _id: user._id },
+          { $set: { activeSessionId: sessionId, lastActivityAt: new Date() } },
+        );
+
+        return { id: user._id.toString(), email: user.email, name: user.username, sessionId };
       },
     }),
   ],
 
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.userId = user.id;
+      if (user) {
+        token.userId = user.id;
+        token.sessionId = user.sessionId;
+        token.lastActivityAt = Date.now();
+        token.expired = false;
+        return token;
+      }
+
+      if (!token.userId || !token.sessionId) return token;
+
+      await connectMongoDB();
+      const currentUser = await UserModel.findOne({ _id: token.userId, status: "active" })
+        .select("activeSessionId")
+        .lean();
+
+      const state = resolveSessionState({
+        tokenSessionId: token.sessionId,
+        tokenLastActivityAt: token.lastActivityAt ?? 0,
+        now: Date.now(),
+        inactivityMs: getInactivityMs(),
+        currentUser: currentUser ? { activeSessionId: currentUser.activeSessionId } : null,
+      });
+
+      if (state.expired) {
+        token.expired = true;
+        token.expiredReason = state.reason;
+        return token;
+      }
+
+      token.expired = false;
+      token.lastActivityAt = Date.now();
       return token;
     },
+
     async session({ session, token }) {
+      if (token.expired) {
+        session.error = token.expiredReason === "concurrent_session" ? "ConcurrentSessionError" : "SessionExpired";
+        return session;
+      }
       if (token.userId) session.user.id = token.userId as string;
       return session;
     },

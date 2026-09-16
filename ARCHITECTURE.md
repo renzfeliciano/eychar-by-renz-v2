@@ -26,7 +26,14 @@ none of those have a concrete requirement yet (AGENTS.md §45).
 
 ```
 src/
-├── app/            Next.js App Router routes (pages + API route handlers)
+├── app/
+│   ├── (auth)/login/     Unauthenticated, outside the app shell
+│   ├── (app)/            dashboard, organization/*, people/* — shared sidebar+topbar layout
+│   ├── _shared/          getCurrentOrganization/hasPermission — used by every (app) page
+│   └── api/               Route handlers
+├── components/
+│   ├── ui/                shadcn/ui primitives (copied in, not an opaque dependency)
+│   └── shared/            PageHeader, DataTable, StatusBadge, FormField, OptionSelect, AppShell
 ├── domains/        Domain services — business logic, one folder per bounded domain
 ├── server/         Cross-cutting server infrastructure: db, auth, authorization, audit
 └── shared/         Validation (Zod), error types, shared TS types
@@ -34,7 +41,7 @@ src/
 
 Route handlers orchestrate: Authenticate → Validate → Resolve Context → Authorize → Execute
 (domain service) → Persist → Audit → Return. They do not contain business logic themselves
-(AGENTS.md §37).
+(AGENTS.md §37). See ADR-013 for the UI/design-system layer.
 
 ## Identity model (ADR-003)
 
@@ -131,6 +138,8 @@ finalization, ...) must call it too, per AGENTS.md §35.
 JWT session strategy. The token carries only `userId` — no role or permission is cached in the
 token, so authorization is always re-resolved from `RoleAssignment`/`Role` at request time and a
 revoked assignment takes effect immediately rather than waiting for the token to expire.
+Single-active-session and idle-timeout enforcement (`src/server/auth/session-policy.ts`,
+`ConcurrentSessionGuard`) are layered on top — see ADR-010's later section for the mechanism.
 
 ## Known gaps (tracked, not silently ignored)
 
@@ -138,5 +147,6 @@ revoked assignment takes effect immediately rather than waiting for the token to
   On a multi-instance/serverless deployment each instance tracks separately, so it is a
   best-effort mitigation, not complete brute-force protection. Revisit with Upstash/Redis only
   when there's a concrete incident or requirement (AGENTS.md §45) — not preemptively.
-- No `SessionProvider` / client-side `useSession()` wiring yet — the dashboard reads the session
-  server-side. Add it if a future page needs client-side session state.
+- `lastActivityAt` idle tracking lives in the JWT, not rewritten to the database on every
+  request — avoids write-amplification, at the cost of trusting the (signed, tamper-proof)
+  token's own timestamp rather than a server-side clock.

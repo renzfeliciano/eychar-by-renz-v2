@@ -11,6 +11,12 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true },
     personId: { type: Schema.Types.ObjectId, ref: "Person" },
     status: { type: String, enum: ["active", "disabled"], default: "active", required: true },
+    // Single-active-session enforcement (src/server/auth/session-policy.ts):
+    // each login overwrites this, so an older session's token stops
+    // matching and reports "signed in elsewhere" instead of silently
+    // sharing the account across devices.
+    activeSessionId: { type: String },
+    lastActivityAt: { type: Date },
   },
   { timestamps: true },
 );
