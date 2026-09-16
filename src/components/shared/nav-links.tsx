@@ -17,6 +17,8 @@ import {
   Tags,
   ScrollText,
   Wallet,
+  Banknote,
+  FileSpreadsheet,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -52,6 +54,15 @@ export const NAV_SECTIONS = [
       { href: "/leave/types", label: "Types", icon: Tags },
       { href: "/leave/policies", label: "Policies", icon: ScrollText },
       { href: "/leave/balances", label: "Balances", icon: Wallet },
+    ],
+  },
+  {
+    label: "Payroll",
+    items: [
+      { href: "/payroll", label: "Runs", icon: Banknote },
+      { href: "/payroll/policies", label: "Policies", icon: ScrollText },
+      { href: "/payroll/rule-versions", label: "Rule versions", icon: FileSpreadsheet },
+      { href: "/payroll/compensation", label: "Compensation", icon: Wallet },
     ],
   },
 ];

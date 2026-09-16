@@ -5,3 +5,4 @@ export * from "./workforce";
 export * from "./org-chart";
 export * from "./attendance";
 export * from "./leave";
+export * from "./payroll";

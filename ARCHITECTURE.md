@@ -7,17 +7,18 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 6 — Leave** (see AGENTS.md §57) on top of Phases 1–5. Implemented: Organization,
+**Phase 7 — Payroll** (see AGENTS.md §57) on top of Phases 1–6. Implemented: Organization,
 User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
 Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord,
-LeaveType, LeavePolicy, LeaveBalance, LeaveRequest; server-side authorization with a granular
-per-resource permission catalog; append-only audit logging; Auth.js credentials
+LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy, PayrollRuleVersion,
+Compensation, PayrollRun, PayrollRecord, PayrollAdjustment; server-side authorization with a
+granular per-resource permission catalog; append-only audit logging; Auth.js credentials
 (username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
 dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people`,
-`/attendance{,/policies}`, and `/leave{,/types,/policies,/balances}` UI.
+`/attendance{,/policies}`, `/leave{,/types,/policies,/balances}`, and
+`/payroll{,/policies,/rule-versions,/compensation}` UI.
 
-Not yet implemented (later phases): Payroll, Recruitment, Performance, Cases, Assets, Documents,
-Events.
+Not yet implemented (later phases): Recruitment, Performance, Cases, Assets, Documents, Events.
 
 ## Architecture style
 
@@ -109,6 +110,28 @@ exceeds the available balance or overlaps an existing pending/approved request f
 employee; `decide()` (gated by `leave.approve`, distinct from `leave.update`) is the real
 request/approve state machine Phase 5 deferred — see ADR-012 for why `leave.approve` is its own
 permission and why balance consumption is derived rather than stored.
+
+## Payroll (Phase 7, ADR-014)
+
+Same HR-recorded scoping as Attendance/Leave. `PayrollPolicy` (pay frequency, standard work
+days/period) and `PayrollRuleVersion` (tax brackets, statutory contributions) both resolve
+Organization→Project override independently via `resolveOrgProjectPolicy()` — the shared
+resolver's third caller, after Attendance and Leave. `PayrollRuleVersion` is never edited in
+place: a correction creates a new, auto-numbered version, so a `PayrollRun`'s snapshotted
+`policyId`/`ruleVersionId` always identify exactly what was used, satisfying AGENTS.md §28's
+reproducibility requirement directly. `Compensation` (base salary + allowance per pay period) is
+its own effective-dated model, deliberately separate from `Employment` (see that model's own
+comment) and revised via the same transfer mechanic as `EmployeeAssignment`.
+
+`PayrollService.generateRun()` computes Basic Salary (prorated against `AttendanceRecord`
+absences — `"on_leave"` rows don't count, no Attendance/Leave model changes needed) and
+Tax/Statutory Contributions (via a generic progressive-bracket formula applied to seeded rule
+data — never a hardcoded formula) automatically; Overtime, Holiday Pay, Night Differential,
+Bonuses, 13th Month, Loans, and Other Deductions are HR-supplied `PayrollAdjustment` line items
+at generation time rather than derived from attendance clock-in/out (no `HolidayCalendar` model
+exists yet). Every employee's record is computed fully in memory before any write — see ADR-014
+for why this replaces a Mongo transaction for run atomicity. `approve()` is gated by
+`payroll.approve`, its own permission (same precedent as `leave.approve`).
 
 ## Authorization (ADR-007)
 

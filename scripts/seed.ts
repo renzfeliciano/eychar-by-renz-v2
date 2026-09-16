@@ -9,6 +9,7 @@ import {
   UserModel,
   PersonModel,
   RoleAssignmentModel,
+  PayrollRuleVersionModel,
 } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 
@@ -75,6 +76,19 @@ const BASELINE_PERMISSIONS = [
   { key: "leave.read", description: "View leave requests", category: "leave" },
   { key: "leave.update", description: "Cancel leave requests", category: "leave" },
   { key: "leave.approve", description: "Approve or reject leave requests", category: "leave" },
+
+  { key: "payroll-policies.create", description: "Create payroll policies", category: "payroll" },
+  { key: "payroll-policies.read", description: "View payroll policies", category: "payroll" },
+  { key: "payroll-policies.update", description: "Update payroll policies", category: "payroll" },
+  { key: "payroll-rule-versions.create", description: "Create payroll rule versions", category: "payroll" },
+  { key: "payroll-rule-versions.read", description: "View payroll rule versions", category: "payroll" },
+  { key: "payroll-rule-versions.update", description: "Retire payroll rule versions", category: "payroll" },
+  { key: "compensation.create", description: "Grant employee compensation", category: "payroll" },
+  { key: "compensation.read", description: "View employee compensation", category: "payroll" },
+  { key: "compensation.update", description: "Revise employee compensation", category: "payroll" },
+  { key: "payroll-runs.create", description: "Generate payroll runs", category: "payroll" },
+  { key: "payroll-runs.read", description: "View payroll runs and records", category: "payroll" },
+  { key: "payroll.approve", description: "Approve payroll runs", category: "payroll" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -199,6 +213,35 @@ async function seed() {
       resourceId: organization._id.toString(),
       after: { name: organization.name, slug: organization.slug },
       metadata: { source: "seed" },
+    });
+  }
+
+  // One illustrative example PayrollRuleVersion, seeded only once (never
+  // re-created on a later seed run, since PayrollRuleVersionService.create
+  // always auto-increments — re-running this unconditionally would pile up
+  // a new version every time). PH-shaped tax brackets and named statutory
+  // contributions (SSS/PhilHealth/Pag-IBIG-shaped) live here as pure seeded
+  // DATA, never as hardcoded formulas in application code (AGENTS.md §28)
+  // — the numbers are illustrative, not authoritative rates or tax advice.
+  const hasRuleVersion = await PayrollRuleVersionModel.exists({ organizationId: organization._id });
+  if (!hasRuleVersion) {
+    await PayrollRuleVersionModel.create({
+      organizationId: organization._id,
+      versionNumber: 1,
+      description: "Illustrative example rule version — not authoritative tax or contribution rates.",
+      taxBrackets: [
+        { minIncome: 0, maxIncome: 20833, rate: 0, baseDeduction: 0 },
+        { minIncome: 20833, maxIncome: 33333, rate: 0.15, baseDeduction: 0 },
+        { minIncome: 33333, maxIncome: 66667, rate: 0.2, baseDeduction: 1875 },
+        { minIncome: 66667, maxIncome: 166667, rate: 0.25, baseDeduction: 13541.8 },
+        { minIncome: 166667, maxIncome: 666667, rate: 0.3, baseDeduction: 38541.8 },
+        { minIncome: 666667, rate: 0.35, baseDeduction: 188541.8 },
+      ],
+      statutoryContributions: [
+        { name: "SSS", employeeRate: 0.045, cap: 30000 },
+        { name: "PhilHealth", employeeRate: 0.025, cap: 100000 },
+        { name: "Pag-IBIG", employeeRate: 0.02, cap: 10000 },
+      ],
     });
   }
 
