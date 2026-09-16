@@ -12,6 +12,8 @@ const TONE_BY_STATUS: Record<string, string> = {
   hired: "bg-success/15 text-success border-success/30",
   open: "bg-success/15 text-success border-success/30",
   closed: "bg-muted text-muted-foreground border-border",
+  draft: "bg-muted text-muted-foreground border-border",
+  submitted: "bg-success/15 text-success border-success/30",
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {

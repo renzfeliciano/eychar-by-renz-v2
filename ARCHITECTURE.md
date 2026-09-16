@@ -7,23 +7,24 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 8a — Catalogs + Recruitment** (see AGENTS.md §57) on top of Phases 1–7. Implemented:
+**Phase 8b — Performance** (see AGENTS.md §57) on top of Phases 1–8a. Implemented:
 Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
 Position, Location, Project, Employee, Employment, EmployeeAssignment, AttendancePolicy,
 AttendanceRecord, LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
 PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment,
 EmploymentType, EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory,
-CaseClassification, CaseStatus (org-managed catalogs, ADR-016), JobOpening, Applicant
-(Recruitment, ADR-015); server-side authorization with a granular per-resource permission
-catalog; append-only audit logging; Auth.js credentials (username-or-email) login with
-single-active-session + idle-timeout enforcement; a shadcn/ui dashboard,
+CaseClassification, CaseStatus, PerformanceRating (org-managed catalogs, ADR-016), JobOpening,
+Applicant (Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance, ADR-017);
+server-side authorization with a granular per-resource permission catalog; append-only audit
+logging; Auth.js credentials (username-or-email) login with single-active-session +
+idle-timeout enforcement; a shadcn/ui dashboard,
 `/organization/{units,positions,locations,projects,chart}`, `/people`, `/attendance{,/policies}`,
 `/leave{,/types,/policies,/balances}`, `/payroll{,/policies,/rule-versions,/compensation}`,
-`/recruitment{,/tracking}`, and `/settings/catalogs` UI.
+`/recruitment{,/tracking}`, `/performance{,/[id]}`, and `/settings/catalogs` UI.
 
-Not yet implemented (later Phase 8 sub-phases): Performance, Cases, Assets, Documents, Events —
-though their org-managed lookup lists (EventCategory, CaseClassification, CaseStatus) are already
-seeded and manageable under Settings > Catalogs, ahead of the domains that will consume them.
+Not yet implemented (later Phase 8 sub-phases): Cases, Assets, Documents, Events — though their
+org-managed lookup lists (EventCategory, CaseClassification, CaseStatus) are already seeded and
+manageable under Settings > Catalogs, ahead of the domains that will consume them.
 
 ## Architecture style
 
@@ -141,13 +142,16 @@ for why this replaces a Mongo transaction for run atomicity. `approve()` is gate
 ## Catalogs (Phase 8 foundation, ADR-016)
 
 Employment statuses, employment types, attendance statuses, recruitment stages, event
-categories, case classifications, and case statuses are org-managed lookup lists, not hardcoded
-option arrays — matching the existing `LeaveType`/`Position`/`Project` precedent. Each is its own
-Mongoose model/collection built from a shared `buildSimpleCatalogSchema()` factory, and each has
-its own bound service built from a shared `createSimpleCatalogService()` factory — one schema
-shape and one CRUD+audit implementation, reused seven times, without merging the seven entities
-into one table. A `CATALOG_REGISTRY` maps seven URL-safe slugs to `{service, permissionPrefix}`
-so `/api/catalogs/[type]` stays two route files instead of fourteen.
+categories, case classifications, case statuses, and performance ratings are org-managed lookup
+lists, not hardcoded option arrays — matching the existing `LeaveType`/`Position`/`Project`
+precedent. Each is its own Mongoose model/collection built from a shared
+`buildSimpleCatalogSchema()` factory, and each has its own bound service built from a shared
+`createSimpleCatalogService()` factory — one schema shape and one CRUD+audit implementation,
+reused across all eight, without merging them into one table. A `CATALOG_REGISTRY` maps each
+URL-safe slug to `{service, permissionPrefix}` so `/api/catalogs/[type]` stays two route files
+instead of one per entity. None of these catalog Add forms ask for a machine "code" — it's
+slugified from the name/title server-side (`src/shared/slugify.ts`), the same as `Position`/
+`Project`.
 
 `assertValidCode(organizationId, code)` is permissive when an organization hasn't configured any
 items for that type (any code is accepted) and strict once at least one item exists (the code
@@ -159,9 +163,10 @@ drives whether the Terminate button shows on `/people/[id]`, and
 `RecruitmentStage.metadata.{sortOrder,isTerminal}` drive the Application-tracking Kanban's
 column order and terminal-stage detection — without a business-rules engine existing yet.
 
-`scripts/seed.ts` seeds a starter set of values for all seven types (sourced from the legacy
-v1 app's real "Workspace administration" lists) plus real `Position`/`Project` data, each
-upserted idempotently by `{organizationId, code}` so re-running `db:seed` never duplicates rows.
+`scripts/seed.ts` seeds a starter set of values for every catalog type (sourced from the legacy
+v1 app's real "Workspace administration" lists, plus a plain Needs Improvement…Outstanding scale
+for Performance ratings) plus real `Position`/`Project` data, each upserted idempotently by
+`{organizationId, code}` so re-running `db:seed` never duplicates rows.
 
 ## Recruitment (Phase 8a, ADR-015)
 
@@ -177,6 +182,19 @@ sets the applicant to the terminal "hired" code and links `hiredEmployeeId`.
 `sortOrder`, cards are applicants, and each card's available actions (Move/Reject/Hire) are
 computed client-side from the full stage list — no drag-and-drop library, click-based actions
 only, since nothing in this phase needs free-form reordering.
+
+## Performance (Phase 8b, ADR-017)
+
+`ReviewCycle` (`draft → open → closed`, forward-only) is a simple, dated container — HR names
+it and sets its period before any review can be recorded against it. `PerformanceReview` links
+one `Employee` to one `ReviewCycle` (unique per pair — one review per employee per cycle),
+starts in `draft` with no rating, and `submit()` is the one mutating action: it requires a
+`ratingCode` that validates against the org's configured `PerformanceRating` catalog (the eighth
+simple catalog, same factory as every other one) and locks the review at `submitted` — no
+un-submit; a correction is a new cycle's review, matching this codebase's "never edit an audited
+stint in place" precedent. There's no separate `.approve` permission (unlike Leave/Payroll) since
+submitting is a single-actor action, and no employee-facing acknowledgment step, since this
+codebase has no employee self-service portal yet to acknowledge from.
 
 ## Authorization (ADR-007)
 

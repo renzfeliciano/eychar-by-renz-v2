@@ -33,3 +33,6 @@ export { CaseClassificationModel } from "./case-classification";
 export { CaseStatusModel } from "./case-status";
 export { JobOpeningModel } from "./job-opening";
 export { ApplicantModel } from "./applicant";
+export { PerformanceRatingModel } from "./performance-rating";
+export { ReviewCycleModel } from "./review-cycle";
+export { PerformanceReviewModel } from "./performance-review";

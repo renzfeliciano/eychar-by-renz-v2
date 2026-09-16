@@ -17,6 +17,7 @@ import {
   EventCategoryModel,
   CaseClassificationModel,
   CaseStatusModel,
+  PerformanceRatingModel,
   PositionModel,
   ProjectModel,
 } from "@/server/db/models";
@@ -121,6 +122,9 @@ const BASELINE_PERMISSIONS = [
   { key: "case-statuses.create", description: "Add case status catalog items", category: "settings" },
   { key: "case-statuses.read", description: "View case status catalog items", category: "settings" },
   { key: "case-statuses.update", description: "Retire case status catalog items", category: "settings" },
+  { key: "performance-ratings.create", description: "Add performance rating catalog items", category: "settings" },
+  { key: "performance-ratings.read", description: "View performance rating catalog items", category: "settings" },
+  { key: "performance-ratings.update", description: "Retire performance rating catalog items", category: "settings" },
 
   { key: "job-openings.create", description: "Create job openings", category: "recruitment" },
   { key: "job-openings.read", description: "View job openings", category: "recruitment" },
@@ -129,6 +133,13 @@ const BASELINE_PERMISSIONS = [
   { key: "applicants.read", description: "View applicants", category: "recruitment" },
   { key: "applicants.update", description: "Advance or reject applicants", category: "recruitment" },
   { key: "applicants.hire", description: "Hire an applicant into a real employee record", category: "recruitment" },
+
+  { key: "review-cycles.create", description: "Create performance review cycles", category: "performance" },
+  { key: "review-cycles.read", description: "View performance review cycles", category: "performance" },
+  { key: "review-cycles.update", description: "Open or close performance review cycles", category: "performance" },
+  { key: "performance-reviews.create", description: "Add a performance review within a cycle", category: "performance" },
+  { key: "performance-reviews.read", description: "View performance reviews", category: "performance" },
+  { key: "performance-reviews.update", description: "Submit a performance review", category: "performance" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -374,6 +385,13 @@ async function seed() {
     { code: "ongoing", name: "Ongoing", sortOrder: 1 },
     { code: "pending", name: "Pending", sortOrder: 2 },
     { code: "dismissed", name: "Dismissed", sortOrder: 3 },
+  ]);
+
+  await seedCatalogDefaults(PerformanceRatingModel, [
+    { code: "needs_improvement", name: "Needs Improvement", sortOrder: 0 },
+    { code: "meets_expectations", name: "Meets Expectations", sortOrder: 1 },
+    { code: "exceeds_expectations", name: "Exceeds Expectations", sortOrder: 2 },
+    { code: "outstanding", name: "Outstanding", sortOrder: 3 },
   ]);
 
   // Real Position/Project data from the v1 app, seeded as a starter set for

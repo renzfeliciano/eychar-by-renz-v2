@@ -25,6 +25,7 @@ import {
   Settings,
   KanbanSquare,
   ChevronDown,
+  Star,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -77,6 +78,10 @@ export const NAV_SECTIONS = [
       { href: "/recruitment", label: "Job openings", icon: Briefcase },
       { href: "/recruitment/tracking", label: "Application tracking", icon: KanbanSquare },
     ],
+  },
+  {
+    label: "Performance",
+    items: [{ href: "/performance", label: "Review cycles", icon: Star }],
   },
   {
     label: "Settings",

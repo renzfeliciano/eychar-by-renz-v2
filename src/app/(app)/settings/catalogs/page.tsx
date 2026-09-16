@@ -12,6 +12,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "event-categories", title: "Event categories", description: "Used to classify calendar events." },
   { catalogType: "case-classifications", title: "Case classifications", description: "Types of cases the organization tracks." },
   { catalogType: "case-statuses", title: "Case statuses", description: "Where a case currently stands." },
+  { catalogType: "performance-ratings", title: "Performance ratings", description: "The rating scale used on performance reviews." },
 ];
 
 export default async function CatalogsSettingsPage() {
