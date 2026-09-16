@@ -9,6 +9,9 @@ const TONE_BY_STATUS: Record<string, string> = {
   approved: "bg-success/15 text-success border-success/30",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
   cancelled: "bg-muted text-muted-foreground border-border",
+  hired: "bg-success/15 text-success border-success/30",
+  open: "bg-success/15 text-success border-success/30",
+  closed: "bg-muted text-muted-foreground border-border",
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {

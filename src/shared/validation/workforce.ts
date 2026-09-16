@@ -34,6 +34,7 @@ export const terminateEmploymentSchema = z.object({
   organizationId: z.string().trim().min(1),
   effectiveTo: z.coerce.date().optional(),
   terminationReason: z.string().trim().optional(),
+  status: z.string().trim().optional(),
 });
 
 export type HireEmployeeInput = z.infer<typeof hireEmployeeSchema>;

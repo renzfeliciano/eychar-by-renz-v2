@@ -16,7 +16,10 @@ export const recordAttendanceSchema = z.object({
   date: z.coerce.date(),
   checkInAt: z.coerce.date().optional(),
   checkOutAt: z.coerce.date().optional(),
-  status: z.enum(["present", "late", "absent", "on_leave"]).optional(),
+  // A plain string, not a fixed enum — validated against the org's
+  // AttendanceStatus collection at the service layer instead (see
+  // AttendanceStatusService.assertValidCode), so new codes don't need a code change.
+  status: z.string().trim().optional(),
   notes: z.string().trim().optional(),
 });
 
@@ -24,7 +27,7 @@ export const adjustAttendanceSchema = z.object({
   organizationId: z.string().trim().min(1),
   checkInAt: z.coerce.date().optional(),
   checkOutAt: z.coerce.date().optional(),
-  status: z.enum(["present", "late", "absent", "on_leave"]).optional(),
+  status: z.string().trim().optional(),
   notes: z.string().trim().optional(),
 });
 

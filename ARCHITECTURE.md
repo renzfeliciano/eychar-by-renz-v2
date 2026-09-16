@@ -7,18 +7,23 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 7 — Payroll** (see AGENTS.md §57) on top of Phases 1–6. Implemented: Organization,
-User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
-Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord,
-LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy, PayrollRuleVersion,
-Compensation, PayrollRun, PayrollRecord, PayrollAdjustment; server-side authorization with a
-granular per-resource permission catalog; append-only audit logging; Auth.js credentials
-(username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
-dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people`,
-`/attendance{,/policies}`, `/leave{,/types,/policies,/balances}`, and
-`/payroll{,/policies,/rule-versions,/compensation}` UI.
+**Phase 8a — Catalogs + Recruitment** (see AGENTS.md §57) on top of Phases 1–7. Implemented:
+Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
+Position, Location, Project, Employee, Employment, EmployeeAssignment, AttendancePolicy,
+AttendanceRecord, LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
+PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment,
+EmploymentType, EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory,
+CaseClassification, CaseStatus (org-managed catalogs, ADR-016), JobOpening, Applicant
+(Recruitment, ADR-015); server-side authorization with a granular per-resource permission
+catalog; append-only audit logging; Auth.js credentials (username-or-email) login with
+single-active-session + idle-timeout enforcement; a shadcn/ui dashboard,
+`/organization/{units,positions,locations,projects,chart}`, `/people`, `/attendance{,/policies}`,
+`/leave{,/types,/policies,/balances}`, `/payroll{,/policies,/rule-versions,/compensation}`,
+`/recruitment{,/tracking}`, and `/settings/catalogs` UI.
 
-Not yet implemented (later phases): Recruitment, Performance, Cases, Assets, Documents, Events.
+Not yet implemented (later Phase 8 sub-phases): Performance, Cases, Assets, Documents, Events —
+though their org-managed lookup lists (EventCategory, CaseClassification, CaseStatus) are already
+seeded and manageable under Settings > Catalogs, ahead of the domains that will consume them.
 
 ## Architecture style
 
@@ -132,6 +137,46 @@ at generation time rather than derived from attendance clock-in/out (no `Holiday
 exists yet). Every employee's record is computed fully in memory before any write — see ADR-014
 for why this replaces a Mongo transaction for run atomicity. `approve()` is gated by
 `payroll.approve`, its own permission (same precedent as `leave.approve`).
+
+## Catalogs (Phase 8 foundation, ADR-016)
+
+Employment statuses, employment types, attendance statuses, recruitment stages, event
+categories, case classifications, and case statuses are org-managed lookup lists, not hardcoded
+option arrays — matching the existing `LeaveType`/`Position`/`Project` precedent. Each is its own
+Mongoose model/collection built from a shared `buildSimpleCatalogSchema()` factory, and each has
+its own bound service built from a shared `createSimpleCatalogService()` factory — one schema
+shape and one CRUD+audit implementation, reused seven times, without merging the seven entities
+into one table. A `CATALOG_REGISTRY` maps seven URL-safe slugs to `{service, permissionPrefix}`
+so `/api/catalogs/[type]` stays two route files instead of fourteen.
+
+`assertValidCode(organizationId, code)` is permissive when an organization hasn't configured any
+items for that type (any code is accepted) and strict once at least one item exists (the code
+must match an active one) — this is what let `Employment.status`/`employmentType` and
+`AttendanceRecord.status` drop their hardcoded `enum` arrays in favor of catalog validation with
+zero changes to either domain's pre-existing tests. `metadata` (Mixed, default `{}`) is the
+extension point for business-rule hooks — e.g. `EmploymentStatus.metadata.isActiveHeadcount`
+drives whether the Terminate button shows on `/people/[id]`, and
+`RecruitmentStage.metadata.{sortOrder,isTerminal}` drive the Application-tracking Kanban's
+column order and terminal-stage detection — without a business-rules engine existing yet.
+
+`scripts/seed.ts` seeds a starter set of values for all seven types (sourced from the legacy
+v1 app's real "Workspace administration" lists) plus real `Position`/`Project` data, each
+upserted idempotently by `{organizationId, code}` so re-running `db:seed` never duplicates rows.
+
+## Recruitment (Phase 8a, ADR-015)
+
+`JobOpening` references `Position` (never duplicates its title) and tracks `headcount`/`status`.
+`Applicant.stage` is a catalog code (`RecruitmentStage`), not a hardcoded enum — `advanceStage()`
+only allows moving to a non-terminal stage with a higher `sortOrder` than the current one,
+`reject()` only fires from a non-terminal stage, and `hire()` only fires from the org's
+configured final non-terminal stage, all read from the catalog at call time. `hire()` delegates
+to the existing `HireService.hire()` (ADR-015) rather than duplicating employee creation, then
+sets the applicant to the terminal "hired" code and links `hiredEmployeeId`.
+
+`/recruitment/tracking` is a Kanban-style board: columns are `RecruitmentStage` items ordered by
+`sortOrder`, cards are applicants, and each card's available actions (Move/Reject/Hire) are
+computed client-side from the full stage list — no drag-and-drop library, click-based actions
+only, since nothing in this phase needs free-form reordering.
 
 ## Authorization (ADR-007)
 

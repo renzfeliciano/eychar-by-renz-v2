@@ -16,11 +16,13 @@ export function HireForm({
   positions,
   projects,
   managers,
+  employmentTypes,
 }: {
   organizationId: string;
   positions: Option[];
   projects: Option[];
   managers: Option[];
+  employmentTypes: Option[];
 }) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
@@ -36,6 +38,11 @@ export function HireForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (!employmentType) {
+      setError("Select an employment type.");
+      return;
+    }
     setIsSubmitting(true);
 
     const response = await fetch("/api/employees", {
@@ -85,15 +92,13 @@ export function HireForm({
                 required
               />
             </FormField>
-            <FormField label="Employment type" htmlFor="hire-employment-type">
-              <Input
-                id="hire-employment-type"
-                placeholder="e.g. regular"
-                value={employmentType}
-                onChange={(event) => setEmploymentType(event.target.value)}
-                required
-              />
-            </FormField>
+            <OptionSelect
+              label="Employment type"
+              value={employmentType}
+              onChange={setEmploymentType}
+              options={employmentTypes}
+              placeholder="Select a type"
+            />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect

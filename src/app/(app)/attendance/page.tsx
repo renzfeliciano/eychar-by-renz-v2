@@ -2,6 +2,7 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
+import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -30,11 +31,13 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const date = dateParam ? new Date(dateParam) : new Date();
   const canRecord = await hasPermission("attendance.create", organizationId);
 
-  const [roster, records] = await Promise.all([
+  const [roster, records, statusItems] = await Promise.all([
     EmployeeService.listWithCurrentStatus(organizationId),
     AttendanceService.listForOrganization(organizationId, { date }),
+    AttendanceStatusService.listCurrent(organizationId),
   ]);
   const recordByEmployeeId = new Map(records.map((record) => [record.employeeId.toString(), record]));
+  const statusOptions = statusItems.map((item) => ({ id: item.code, label: item.name }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,6 +74,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                   initialCheckInAt={existing?.checkInAt}
                   initialCheckOutAt={existing?.checkOutAt}
                   initialStatus={existing?.status}
+                  statusOptions={statusOptions}
                 />
               );
             },

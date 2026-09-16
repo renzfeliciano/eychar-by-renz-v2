@@ -4,6 +4,8 @@ import { OrganizationModel, PositionModel } from "@/server/db/models";
 import { HireService } from "@/domains/workforce/hire-service";
 import { EmploymentService } from "@/domains/workforce/employment-service";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
+import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
+import { BusinessRuleError } from "@/shared/errors";
 
 describe("HireService", () => {
   beforeEach(async () => {
@@ -34,5 +36,26 @@ describe("HireService", () => {
 
     const currentAssignment = await EmployeeAssignmentService.getCurrent(result.employee._id.toString());
     expect(currentAssignment?.positionId?.toString()).toBe(position._id.toString());
+  });
+
+  it("rejects an employmentType that doesn't match the organization's configured catalog", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-hire-cat-${Date.now()}` });
+    await EmploymentTypeService.create(
+      { organizationId: organization._id.toString(), code: "regular", name: "Regular" },
+      {},
+    );
+
+    await expect(
+      HireService.hire(
+        {
+          organizationId: organization._id.toString(),
+          firstName: "Jane",
+          lastName: "Doe",
+          employeeNumber: `EMP-HIRE-CAT-${Date.now()}`,
+          employmentType: "made-up",
+        },
+        {},
+      ),
+    ).rejects.toThrow(BusinessRuleError);
   });
 });

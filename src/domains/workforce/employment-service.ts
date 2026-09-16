@@ -2,6 +2,8 @@ import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, EmploymentModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
+import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
+import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
 
 export type CreateEmploymentInput = {
@@ -31,6 +33,8 @@ export const EmploymentService = {
       throw new BusinessRuleError("This employee already has an open employment record");
     }
 
+    await EmploymentTypeService.assertValidCode(input.organizationId, input.employmentType);
+
     const employment = await EmploymentModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
       employeeId: employeeObjectId,
@@ -54,7 +58,7 @@ export const EmploymentService = {
   async terminate(
     id: string,
     organizationId: string,
-    patch: { effectiveTo?: Date; terminationReason?: string },
+    patch: { effectiveTo?: Date; terminationReason?: string; status?: string },
     actor: { userId?: string },
   ) {
     await connectMongoDB();
@@ -64,12 +68,18 @@ export const EmploymentService = {
       organizationId: new Types.ObjectId(organizationId),
     });
     if (!employment) throw new NotFoundError("Employment record not found in this organization");
-    if (employment.status === "terminated") {
-      throw new BusinessRuleError("This employment record is already terminated");
+    if (!(await EmploymentService.isActiveStatus(organizationId, employment.status))) {
+      throw new BusinessRuleError("This employment record has already ended");
     }
 
+    // Defaults to the original literal "terminated" for callers that don't
+    // pick a specific reason — an org can also configure "resigned"/"awol"
+    // etc. via Settings > Catalogs and pass one of those codes instead.
+    const nextStatus = patch.status ?? "terminated";
+    await EmploymentStatusService.assertValidCode(organizationId, nextStatus);
+
     const before = { status: employment.status, effectiveTo: employment.effectiveTo };
-    employment.status = "terminated";
+    employment.status = nextStatus;
     employment.effectiveTo = patch.effectiveTo ?? new Date();
     if (patch.terminationReason) employment.terminationReason = patch.terminationReason;
     await employment.save();
@@ -92,5 +102,21 @@ export const EmploymentService = {
     return EmploymentModel.findOne({ employeeId: new Types.ObjectId(employeeId), ...OPEN_EMPLOYMENT_FILTER })
       .sort({ effectiveFrom: -1 })
       .lean();
+  },
+
+  /**
+   * Generalizes the old literal `status !== "terminated"` check: if the
+   * organization has configured "employment-status" catalog items, this
+   * reads the matching item's `metadata.isActiveHeadcount`. If no item
+   * matches (catalog unconfigured, or a code predating any configuration),
+   * it falls back to the original literal rule — so behavior for orgs that
+   * never touch Settings > Catalogs is unchanged.
+   */
+  async isActiveStatus(organizationId: string, status: string): Promise<boolean> {
+    const item = await EmploymentStatusService.getByCode(organizationId, status);
+    if (item?.metadata && typeof item.metadata === "object" && "isActiveHeadcount" in item.metadata) {
+      return Boolean((item.metadata as Record<string, unknown>).isActiveHeadcount);
+    }
+    return status !== "terminated";
   },
 };

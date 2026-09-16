@@ -21,6 +21,8 @@ import {
   Wallet,
   Banknote,
   FileSpreadsheet,
+  Settings,
+  KanbanSquare,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -66,6 +68,17 @@ export const NAV_SECTIONS = [
       { href: "/payroll/rule-versions", label: "Rule versions", icon: FileSpreadsheet },
       { href: "/payroll/compensation", label: "Compensation", icon: Wallet },
     ],
+  },
+  {
+    label: "Recruitment",
+    items: [
+      { href: "/recruitment", label: "Job openings", icon: Briefcase },
+      { href: "/recruitment/tracking", label: "Application tracking", icon: KanbanSquare },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [{ href: "/settings/catalogs", label: "Catalogs", icon: Settings }],
   },
 ];
 

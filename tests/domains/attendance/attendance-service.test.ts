@@ -3,7 +3,8 @@ import { connectMongoDB } from "@/server/db/connection";
 import { OrganizationModel, PersonModel, EmployeeModel, AuditLogModel } from "@/server/db/models";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { AttendancePolicyService } from "@/domains/attendance/attendance-policy-service";
-import { ConflictError } from "@/shared/errors";
+import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
+import { ConflictError, BusinessRuleError } from "@/shared/errors";
 
 async function seedEmployeeWithPolicy(suffix: string) {
   const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-att-${suffix}-${Date.now()}-${Math.random()}` });
@@ -118,5 +119,20 @@ describe("AttendanceService", () => {
     expect(audits).toHaveLength(1);
     expect(audits[0].before).toMatchObject({ status: "absent" });
     expect(audits[0].after).toMatchObject({ status: "present" });
+  });
+
+  it("rejects a status that doesn't match the organization's configured attendance-status catalog", async () => {
+    const { organization, employee } = await seedEmployeeWithPolicy("6");
+    await AttendanceStatusService.create(
+      { organizationId: organization._id.toString(), code: "present", name: "Present" },
+      {},
+    );
+
+    await expect(
+      AttendanceService.record(
+        { organizationId: organization._id.toString(), employeeId: employee._id.toString(), date: todayUtc(), status: "made-up" },
+        {},
+      ),
+    ).rejects.toThrow(BusinessRuleError);
   });
 });

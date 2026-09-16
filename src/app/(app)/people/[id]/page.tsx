@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
+import { EmploymentService } from "@/domains/workforce/employment-service";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { NotFoundError } from "@/shared/errors";
@@ -31,6 +32,9 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   }
 
   const canUpdate = await hasPermission("employees.update", organizationId);
+  const isCurrentlyActive = detail.currentEmployment
+    ? await EmploymentService.isActiveStatus(organizationId, detail.currentEmployment.status)
+    : false;
 
   const [positions, projects, roster] = await Promise.all([
     PositionService.listCurrent(organizationId),
@@ -59,7 +63,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
               <StatusBadge status={detail.currentEmployment?.status} />
               <span className="text-muted-foreground">{detail.currentEmployment?.employmentType ?? "—"}</span>
             </div>
-            {canUpdate && detail.currentEmployment?.status !== "terminated" && (
+            {canUpdate && isCurrentlyActive && (
               <TerminateButton employeeId={detail.employee._id.toString()} organizationId={organizationId} />
             )}
           </CardContent>

@@ -3,6 +3,7 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
+import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { HireForm } from "./hire-form";
 
@@ -15,10 +16,11 @@ export default async function NewEmployeePage() {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to hire employees.</p>;
   }
 
-  const [positions, projects, roster] = await Promise.all([
+  const [positions, projects, roster, employmentTypes] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeService.listWithCurrentStatus(organizationId),
+    EmploymentTypeService.listCurrent(organizationId),
   ]);
 
   return (
@@ -31,6 +33,7 @@ export default async function NewEmployeePage() {
         managers={roster
           .filter((row) => row.person)
           .map((row) => ({ id: row._id.toString(), label: `${row.person!.firstName} ${row.person!.lastName}` }))}
+        employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))}
       />
     </div>
   );

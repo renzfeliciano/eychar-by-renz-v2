@@ -3,6 +3,7 @@ import { connectMongoDB } from "@/server/db/connection";
 import { AttendanceRecordModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
+import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { ConflictError, NotFoundError, BusinessRuleError } from "@/shared/errors";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { AttendancePolicyService } from "./attendance-policy-service";
@@ -53,6 +54,7 @@ export const AttendanceService = {
     });
 
     const status = input.status ?? computeStatus(input.checkInAt, resolved?.policy ?? null);
+    await AttendanceStatusService.assertValidCode(input.organizationId, status);
 
     let record;
     try {
@@ -105,6 +107,10 @@ export const AttendanceService = {
       organizationId: new Types.ObjectId(organizationId),
     });
     if (!record) throw new NotFoundError("Attendance record not found in this organization");
+
+    if (patch.status) {
+      await AttendanceStatusService.assertValidCode(organizationId, patch.status);
+    }
 
     const before = { status: record.status, checkInAt: record.checkInAt, checkOutAt: record.checkOutAt, notes: record.notes };
 

@@ -8,10 +8,14 @@ const employmentSchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
     employeeId: { type: Schema.Types.ObjectId, required: true, ref: "Employee" },
-    // Free-form, not a hardcoded enum — employment types genuinely vary by
-    // organization/country (AGENTS.md §14/§55).
+    // Both fields are plain strings, validated at the service boundary
+    // against the org's EmploymentType/EmploymentStatus collections
+    // (EmploymentTypeService/EmploymentStatusService.assertValidCode)
+    // instead of a hardcoded Mongoose enum — employment types genuinely
+    // vary by organization/country (AGENTS.md §14/§55), and an org can add
+    // "Resigned"/"AWOL" etc. via Settings without a schema change.
     employmentType: { type: String, required: true, trim: true },
-    status: { type: String, enum: ["active", "on_leave", "terminated"], default: "active", required: true },
+    status: { type: String, required: true, trim: true, default: "active" },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     effectiveTo: { type: Date },
     terminationReason: { type: String, trim: true },

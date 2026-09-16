@@ -10,8 +10,18 @@ import {
   PersonModel,
   RoleAssignmentModel,
   PayrollRuleVersionModel,
+  EmploymentTypeModel,
+  EmploymentStatusModel,
+  AttendanceStatusModel,
+  RecruitmentStageModel,
+  EventCategoryModel,
+  CaseClassificationModel,
+  CaseStatusModel,
+  PositionModel,
+  ProjectModel,
 } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
+import type { Model } from "mongoose";
 
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
@@ -89,6 +99,36 @@ const BASELINE_PERMISSIONS = [
   { key: "payroll-runs.create", description: "Generate payroll runs", category: "payroll" },
   { key: "payroll-runs.read", description: "View payroll runs and records", category: "payroll" },
   { key: "payroll.approve", description: "Approve payroll runs", category: "payroll" },
+
+  { key: "employment-types.create", description: "Add employment type catalog items", category: "settings" },
+  { key: "employment-types.read", description: "View employment type catalog items", category: "settings" },
+  { key: "employment-types.update", description: "Retire employment type catalog items", category: "settings" },
+  { key: "employment-statuses.create", description: "Add employment status catalog items", category: "settings" },
+  { key: "employment-statuses.read", description: "View employment status catalog items", category: "settings" },
+  { key: "employment-statuses.update", description: "Retire employment status catalog items", category: "settings" },
+  { key: "attendance-statuses.create", description: "Add attendance status catalog items", category: "settings" },
+  { key: "attendance-statuses.read", description: "View attendance status catalog items", category: "settings" },
+  { key: "attendance-statuses.update", description: "Retire attendance status catalog items", category: "settings" },
+  { key: "recruitment-stages.create", description: "Add recruitment stage catalog items", category: "settings" },
+  { key: "recruitment-stages.read", description: "View recruitment stage catalog items", category: "settings" },
+  { key: "recruitment-stages.update", description: "Retire recruitment stage catalog items", category: "settings" },
+  { key: "event-categories.create", description: "Add event category catalog items", category: "settings" },
+  { key: "event-categories.read", description: "View event category catalog items", category: "settings" },
+  { key: "event-categories.update", description: "Retire event category catalog items", category: "settings" },
+  { key: "case-classifications.create", description: "Add case classification catalog items", category: "settings" },
+  { key: "case-classifications.read", description: "View case classification catalog items", category: "settings" },
+  { key: "case-classifications.update", description: "Retire case classification catalog items", category: "settings" },
+  { key: "case-statuses.create", description: "Add case status catalog items", category: "settings" },
+  { key: "case-statuses.read", description: "View case status catalog items", category: "settings" },
+  { key: "case-statuses.update", description: "Retire case status catalog items", category: "settings" },
+
+  { key: "job-openings.create", description: "Create job openings", category: "recruitment" },
+  { key: "job-openings.read", description: "View job openings", category: "recruitment" },
+  { key: "job-openings.update", description: "Open or close job openings", category: "recruitment" },
+  { key: "applicants.create", description: "Submit applicants", category: "recruitment" },
+  { key: "applicants.read", description: "View applicants", category: "recruitment" },
+  { key: "applicants.update", description: "Advance or reject applicants", category: "recruitment" },
+  { key: "applicants.hire", description: "Hire an applicant into a real employee record", category: "recruitment" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -243,6 +283,153 @@ async function seed() {
         { name: "Pag-IBIG", employeeRate: 0.02, cap: 10000 },
       ],
     });
+  }
+
+  // Default catalog items, sourced from the v1 (legacy) app's real
+  // "Workspace administration" lookup lists as a starter set (per explicit
+  // instruction: seed these as data, not as hardcoded application logic —
+  // AGENTS.md §30). Each item is upserted by {organizationId, code} so
+  // re-running db:seed never duplicates or trips the unique index, while
+  // still leaving room for the org to add further items of its own through
+  // the Settings > Catalogs UI.
+  async function seedCatalogDefaults(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    CatalogModel: Model<any>,
+    items: Array<{ code: string; name: string; sortOrder: number; metadata?: Record<string, unknown> }>,
+  ) {
+    for (const item of items) {
+      await CatalogModel.findOneAndUpdate(
+        { organizationId: organization._id, code: item.code },
+        {
+          $setOnInsert: {
+            organizationId: organization._id,
+            code: item.code,
+            name: item.name,
+            sortOrder: item.sortOrder,
+            metadata: item.metadata ?? {},
+            status: "active",
+          },
+        },
+        { upsert: true },
+      );
+    }
+  }
+
+  await seedCatalogDefaults(EmploymentTypeModel, [
+    { code: "regular", name: "Regular", sortOrder: 0 },
+    { code: "probationary", name: "Probationary", sortOrder: 1 },
+    { code: "contractual", name: "Contractual", sortOrder: 2 },
+    { code: "transfer", name: "Transfer", sortOrder: 3 },
+  ]);
+
+  await seedCatalogDefaults(EmploymentStatusModel, [
+    { code: "active", name: "Active", sortOrder: 0, metadata: { isActiveHeadcount: true } },
+    { code: "on_leave", name: "On Leave", sortOrder: 1, metadata: { isActiveHeadcount: true } },
+    { code: "terminated", name: "Terminated", sortOrder: 2, metadata: { isActiveHeadcount: false } },
+    { code: "resigned", name: "Resigned", sortOrder: 3, metadata: { isActiveHeadcount: false } },
+    { code: "awol", name: "AWOL", sortOrder: 4, metadata: { isActiveHeadcount: false } },
+  ]);
+
+  await seedCatalogDefaults(AttendanceStatusModel, [
+    { code: "present", name: "Present", sortOrder: 0 },
+    { code: "late", name: "Late", sortOrder: 1 },
+    { code: "absent", name: "Absent", sortOrder: 2 },
+    { code: "on_leave", name: "On Leave", sortOrder: 3 },
+    { code: "offset", name: "Offset", sortOrder: 4 },
+    { code: "half_day", name: "Half-day", sortOrder: 5 },
+    { code: "day_off", name: "Day off", sortOrder: 6 },
+    { code: "restday_work", name: "Restday work", sortOrder: 7 },
+    { code: "holiday_work", name: "Holiday work", sortOrder: 8 },
+    { code: "undertime", name: "Undertime", sortOrder: 9 },
+    { code: "tardy_late", name: "Tardy/Late", sortOrder: 10 },
+  ]);
+
+  await seedCatalogDefaults(RecruitmentStageModel, [
+    { code: "applied", name: "Applied", sortOrder: 0 },
+    { code: "screening", name: "Screening", sortOrder: 1 },
+    { code: "interview", name: "Interview", sortOrder: 2 },
+    { code: "offer", name: "Offer", sortOrder: 3 },
+    { code: "hired", name: "Hired", sortOrder: 4, metadata: { isTerminal: true } },
+    { code: "rejected", name: "Rejected", sortOrder: 5, metadata: { isTerminal: true } },
+  ]);
+
+  await seedCatalogDefaults(EventCategoryModel, [
+    { code: "meeting", name: "Meeting", sortOrder: 0 },
+    { code: "holiday", name: "Holiday", sortOrder: 1 },
+    { code: "deadline", name: "Deadline", sortOrder: 2 },
+    { code: "reminder", name: "Reminder", sortOrder: 3 },
+    { code: "other", name: "Other", sortOrder: 4 },
+  ]);
+
+  await seedCatalogDefaults(CaseClassificationModel, [
+    { code: "sena_labor_case", name: "SeNA/Labor Case", sortOrder: 0 },
+    { code: "criminal_case", name: "Criminal Case", sortOrder: 1 },
+    { code: "civil_case", name: "Civil Case", sortOrder: 2 },
+    { code: "hlurb_dshud", name: "HLURB/DSHUD", sortOrder: 3 },
+    { code: "others", name: "Others", sortOrder: 4 },
+  ]);
+
+  await seedCatalogDefaults(CaseStatusModel, [
+    { code: "mediation", name: "Mediation", sortOrder: 0 },
+    { code: "ongoing", name: "Ongoing", sortOrder: 1 },
+    { code: "pending", name: "Pending", sortOrder: 2 },
+    { code: "dismissed", name: "Dismissed", sortOrder: 3 },
+  ]);
+
+  // Real Position/Project data from the v1 app, seeded as a starter set for
+  // the "pcas" organization. Codes are generated (v1's own admin screen
+  // doesn't expose one) and upserted by {organizationId, code} so re-running
+  // db:seed never duplicates existing rows.
+  const POSITION_DEFAULTS = [
+    { code: "PARKING-ATTENDANT", title: "Parking Attendant" },
+    { code: "OJT-INTERN", title: "OJT/Intern" },
+    { code: "ON-CALL", title: "On-Call" },
+    { code: "PRESIDENT", title: "President" },
+    { code: "OPS-MANAGER", title: "Operations Manager" },
+    { code: "ADMIN-HEAD", title: "Administrative Head" },
+    { code: "HR-GENERALIST", title: "HR Generalist/Paralegal" },
+    { code: "ACCTG-FINANCE-GENERALIST", title: "Accounting and Finance Generalist" },
+    { code: "BLDG-ADMIN", title: "Building Administrator/Property Manager" },
+    { code: "BLDG-ENGINEER", title: "Building Engineer" },
+    { code: "PROJECT-BOOKKEEPER", title: "Project Bookkeeper" },
+    { code: "BILLING-CASHIER", title: "Billing/Cashier Staff" },
+    { code: "FRONT-DESK", title: "Front Desk Staff" },
+    { code: "MAINTENANCE-HANDYMAN", title: "Maintenance/Handyman" },
+    { code: "HOUSEKEEPER", title: "Housekeeper" },
+    { code: "ACCTG-HEAD", title: "Accounting Head" },
+  ];
+  for (const position of POSITION_DEFAULTS) {
+    await PositionModel.findOneAndUpdate(
+      { organizationId: organization._id, code: position.code },
+      { $setOnInsert: { organizationId: organization._id, code: position.code, title: position.title, status: "active" } },
+      { upsert: true },
+    );
+  }
+
+  const PROJECT_DEFAULTS = [
+    { code: "EGI-RUFINO", name: "EGI Rufino" },
+    { code: "PCAS-HO", name: "PCAS – HO" },
+    { code: "EGI-TAFT-TOWER", name: "EGI Taft Tower" },
+    { code: "IVORY-COURT", name: "Ivory Court" },
+    { code: "EGI-HOMES-MEDINA", name: "EGI Homes Medina" },
+    { code: "TRINITY-PLAZA-T1", name: "Trinity Plaza Tower 1" },
+    { code: "MACTAN-OASIS-GARDENS", name: "Mactan Oasis Gardens" },
+    { code: "EGI-CBTS-1", name: "EGI City by the Sea Building I" },
+    { code: "EGI-CBTS-2", name: "EGI City by the Sea Building II" },
+    { code: "EGI-CBTS-3", name: "EGI City by the Sea Building III" },
+    { code: "SOUTH-INSULA", name: "South Insula" },
+    { code: "WEST-INSULA", name: "West Insula" },
+    { code: "UNIVERSITY-SUITES", name: "University Suites" },
+    { code: "ESTRELLA-CONDO", name: "Estrella Condominium Corporation" },
+    { code: "EGI-ALBERGO-FERROCA", name: "EGI Albergo Di Ferroca" },
+    { code: "METRO-TERRACES", name: "Metropolitan Terraces Condominium" },
+  ];
+  for (const project of PROJECT_DEFAULTS) {
+    await ProjectModel.findOneAndUpdate(
+      { organizationId: organization._id, code: project.code },
+      { $setOnInsert: { organizationId: organization._id, code: project.code, name: project.name, status: "active" } },
+      { upsert: true },
+    );
   }
 
   console.log(`Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrUsername}.`);

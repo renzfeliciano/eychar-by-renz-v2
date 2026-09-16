@@ -14,15 +14,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
-import { OptionSelect } from "@/components/shared/option-select";
+import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
-
-const STATUS_OPTIONS = [
-  { id: "present", label: "Present" },
-  { id: "late", label: "Late" },
-  { id: "absent", label: "Absent" },
-  { id: "on_leave", label: "On leave" },
-];
 
 function toTimeInput(value?: string | Date | null): string {
   if (!value) return "";
@@ -38,6 +31,7 @@ export function RecordDialog({
   initialCheckInAt,
   initialCheckOutAt,
   initialStatus,
+  statusOptions,
 }: {
   organizationId: string;
   employeeId: string;
@@ -46,6 +40,7 @@ export function RecordDialog({
   initialCheckInAt?: string | Date | null;
   initialCheckOutAt?: string | Date | null;
   initialStatus?: string | null;
+  statusOptions: SelectOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -109,7 +104,7 @@ export function RecordDialog({
               <Input id="record-check-out" type="time" value={checkOutTime} onChange={(event) => setCheckOutTime(event.target.value)} />
             </FormField>
           </div>
-          <OptionSelect label="Status override" value={status} onChange={setStatus} options={STATUS_OPTIONS} placeholder="Compute from check-in" />
+          <OptionSelect label="Status override" value={status} onChange={setStatus} options={statusOptions} placeholder="Compute from check-in" />
           <FormError message={error} />
         </div>
 
