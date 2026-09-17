@@ -6,6 +6,7 @@ import { EmploymentService } from "@/domains/workforce/employment-service";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeAccountService } from "@/domains/identity/employee-account-service";
+import { AssetIssuanceService } from "@/domains/assets/asset-issuance-service";
 import { NotFoundError } from "@/shared/errors";
 import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransferForm } from "./transfer-form";
 import { TerminateButton } from "./terminate-button";
 import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
+import { AssetIssuanceFormDialog } from "./asset-issuance-form-dialog";
 
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,11 +41,12 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     ? await EmploymentService.isActiveStatus(organizationId, detail.currentEmployment.status)
     : false;
 
-  const [positions, projects, roster, selfServiceAccount] = await Promise.all([
+  const [positions, projects, roster, selfServiceAccount, issuedAssets] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeService.listWithCurrentStatus(organizationId),
     EmployeeAccountService.getForEmployee(id),
+    AssetIssuanceService.listForEmployee(id, organizationId),
   ]);
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
@@ -118,6 +121,53 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
               )}
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Issued assets</CardTitle>
+          {canUpdate && <AssetIssuanceFormDialog organizationId={organizationId} employeeId={detail.employee._id.toString()} />}
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={[
+              { key: "assetName", header: "Asset", render: (record) => <span className="font-medium">{record.assetName}</span> },
+              { key: "type", header: "Type", render: (record) => record.assetType || "—" },
+              { key: "serial", header: "Serial #", render: (record) => record.serialNumber || "—" },
+              { key: "condition", header: "Condition", render: (record) => record.condition },
+              { key: "issued", header: "Issued", render: (record) => new Date(record.issuedDate).toLocaleDateString() },
+              {
+                key: "returned",
+                header: "Returned",
+                render: (record) => (record.returnedDate ? new Date(record.returnedDate).toLocaleDateString() : "—"),
+              },
+              {
+                key: "action",
+                header: "",
+                render: (record) =>
+                  canUpdate ? (
+                    <AssetIssuanceFormDialog
+                      organizationId={organizationId}
+                      employeeId={detail.employee._id.toString()}
+                      initialValue={{
+                        id: record._id.toString(),
+                        assetName: record.assetName,
+                        assetType: record.assetType,
+                        serialNumber: record.serialNumber,
+                        condition: record.condition,
+                        issuedDate: record.issuedDate.toISOString(),
+                        returnedDate: record.returnedDate?.toISOString(),
+                        remarks: record.remarks,
+                      }}
+                    />
+                  ) : null,
+              },
+            ]}
+            rows={issuedAssets}
+            getRowKey={(record) => record._id.toString()}
+            emptyMessage="No assets logged yet."
+          />
         </CardContent>
       </Card>
 

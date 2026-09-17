@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationUnitModel, PositionModel } from "@/server/db/models";
+import { PositionModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
@@ -11,23 +11,12 @@ export const PositionService = {
   async create(input: CreatePositionInput, actor: { userId?: string }) {
     await connectMongoDB();
 
-    if (input.organizationUnitId) {
-      const unitExists = await OrganizationUnitModel.exists({
-        _id: new Types.ObjectId(input.organizationUnitId),
-        organizationId: new Types.ObjectId(input.organizationId),
-      });
-      if (!unitExists) {
-        throw new NotFoundError("Organization unit not found in this organization");
-      }
-    }
-
     const code = input.code ?? slugifyUpperKebab(input.title);
 
     let position;
     try {
       position = await PositionModel.create({
         organizationId: new Types.ObjectId(input.organizationId),
-        organizationUnitId: input.organizationUnitId ? new Types.ObjectId(input.organizationUnitId) : undefined,
         title: input.title,
         code,
         description: input.description,
@@ -45,7 +34,7 @@ export const PositionService = {
       action: "position.created",
       resourceType: "Position",
       resourceId: position._id.toString(),
-      after: { title: position.title, code: position.code, organizationUnitId: position.organizationUnitId },
+      after: { title: position.title, code: position.code },
     });
 
     return position;

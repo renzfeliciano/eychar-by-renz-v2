@@ -35,6 +35,10 @@ export async function authorize({ userId, organizationId, permission }: Authoriz
   const roleIds = assignments.map((assignment) => assignment.roleId);
   const grantingRole = await RoleModel.exists({
     _id: { $in: roleIds },
+    // Missing status (any role seeded before this field existed) is
+    // treated as active, the same permissive-when-unconfigured fallback
+    // used for employment/attendance status metadata elsewhere.
+    $or: [{ status: "active" }, { status: { $exists: false } }],
     permissionKeys: permission,
   });
 

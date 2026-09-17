@@ -6,7 +6,6 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 const positionSchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
-    organizationUnitId: { type: Schema.Types.ObjectId, ref: "OrganizationUnit" },
     title: { type: String, required: true, trim: true },
     code: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
@@ -19,7 +18,6 @@ const positionSchema = new Schema(
 );
 
 positionSchema.index({ organizationId: 1, code: 1 }, { unique: true });
-positionSchema.index({ organizationUnitId: 1 });
 
 export type Position = InferSchemaType<typeof positionSchema>;
 

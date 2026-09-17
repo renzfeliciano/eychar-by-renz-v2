@@ -17,3 +17,16 @@ export const createEmployeeAccountSchema = z.object({
 });
 
 export type CreateEmployeeAccountInput = z.infer<typeof createEmployeeAccountSchema>;
+
+// A plain HR/admin-shell login — no employeeId, distinct from
+// createEmployeeAccountSchema's self-service account (see ADR-022).
+export const createStaffAccountSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+  username: z.string().trim().min(3).toLowerCase(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  roleId: z.string().trim().min(1).optional(),
+});
+
+export type CreateStaffAccountInput = z.infer<typeof createStaffAccountSchema>;

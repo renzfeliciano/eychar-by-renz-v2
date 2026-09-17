@@ -1,7 +1,6 @@
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PositionService } from "@/domains/organization/position-service";
-import { OrganizationUnitService } from "@/domains/organization/organization-unit-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -16,34 +15,19 @@ export default async function PositionsPage() {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view positions.</p>;
   }
 
-  const [positions, units] = await Promise.all([
-    PositionService.listCurrent(organizationId),
-    OrganizationUnitService.listCurrent(organizationId),
-  ]);
-  const unitNameById = new Map(units.map((unit) => [unit._id.toString(), unit.name]));
+  const positions = await PositionService.listCurrent(organizationId);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Positions"
         description="Job positions employees can be assigned to."
-        action={
-          <CreatePositionDialog
-            organizationId={organizationId}
-            units={units.map((unit) => ({ id: unit._id.toString(), name: unit.name }))}
-          />
-        }
+        action={<CreatePositionDialog organizationId={organizationId} />}
       />
       <DataTable
         caption="Positions"
         columns={[
           { key: "title", header: "Title", render: (position) => <span className="font-medium">{position.title}</span> },
-          {
-            key: "unit",
-            header: "Organization unit",
-            render: (position) =>
-              position.organizationUnitId ? unitNameById.get(position.organizationUnitId.toString()) ?? "—" : "—",
-          },
           { key: "status", header: "Status", render: (position) => <StatusBadge status={position.status} /> },
         ]}
         rows={positions}

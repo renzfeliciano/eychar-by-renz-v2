@@ -37,3 +37,5 @@ export { ReviewCycleModel } from "./review-cycle";
 export { PerformanceReviewModel } from "./performance-review";
 export { CaseModel } from "./case";
 export { WebAuthnCredentialModel } from "./webauthn-credential";
+export { TravelOrderModel } from "./travel-order";
+export { AssetIssuanceModel } from "./asset-issuance";

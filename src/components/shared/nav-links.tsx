@@ -27,6 +27,8 @@ import {
   ChevronDown,
   Star,
   Gavel,
+  Plane,
+  ShieldCheck,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -46,7 +48,10 @@ export const NAV_SECTIONS = [
   },
   {
     label: "Workforce",
-    items: [{ href: "/people", label: "People", icon: Users }],
+    items: [
+      { href: "/people", label: "People", icon: Users },
+      { href: "/travel-orders", label: "Travel orders", icon: Plane },
+    ],
   },
   {
     label: "Attendance",
@@ -87,7 +92,10 @@ export const NAV_SECTIONS = [
   },
   {
     label: "Settings",
-    items: [{ href: "/settings/catalogs", label: "Catalogs", icon: Settings }],
+    items: [
+      { href: "/settings/catalogs", label: "Catalogs", icon: Settings },
+      { href: "/settings/access", label: "Roles & access", icon: ShieldCheck },
+    ],
   },
 ];
 

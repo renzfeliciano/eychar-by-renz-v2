@@ -140,6 +140,20 @@ const BASELINE_PERMISSIONS = [
   { key: "cases.create", description: "Add a case", category: "cases" },
   { key: "cases.read", description: "View cases", category: "cases" },
   { key: "cases.update", description: "Update a case's status or notes", category: "cases" },
+
+  { key: "travel-orders.create", description: "Dispatch employees on a travel order", category: "travel-orders" },
+  { key: "travel-orders.read", description: "View travel orders", category: "travel-orders" },
+  { key: "travel-orders.update", description: "Edit or cancel a travel order", category: "travel-orders" },
+
+  { key: "asset-issuances.create", description: "Log a company asset issued to an employee", category: "assets" },
+  { key: "asset-issuances.read", description: "View an employee's issued assets", category: "assets" },
+  { key: "asset-issuances.update", description: "Edit an asset issuance record", category: "assets" },
+
+  { key: "roles.create", description: "Create custom roles", category: "access" },
+  { key: "roles.read", description: "View roles and who holds them", category: "access" },
+  { key: "roles.update", description: "Edit a role's permissions or retire it", category: "access" },
+  { key: "roles.assign", description: "Assign or revoke a role for a user", category: "access" },
+  { key: "staff-accounts.create", description: "Create an additional HR/admin login", category: "access" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -231,6 +245,11 @@ async function seed() {
     },
     { upsert: true, returnDocument: "after" },
   );
+
+  // Backfills `status` onto every role seeded before that field existed
+  // (AGENTS.md §53) — authorize() already treats a missing status as
+  // active, so this is cleanup, not a correctness fix.
+  await RoleModel.updateMany({ status: { $exists: false } }, { $set: { status: "active" } });
 
   let hrUser = await UserModel.findOne({ username: hrUsername });
   if (!hrUser) {

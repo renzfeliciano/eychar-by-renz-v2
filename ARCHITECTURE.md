@@ -7,26 +7,30 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b, plus an ad hoc
-employee self-service attendance enhancement to Phase 5 (ADR-020, ahead of the remaining Phase 8
-sub-phases). Implemented: Organization, User, Person, Role, Permission, RoleAssignment, AuditLog,
-OrganizationUnit, Position, Location, Project, Employee, Employment, EmployeeAssignment,
-AttendancePolicy, AttendanceRecord, WebAuthnCredential (self-service biometrics, ADR-020),
-LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy, PayrollRuleVersion,
-Compensation, PayrollRun, PayrollRecord, PayrollAdjustment, EmploymentType, EmploymentStatus,
-AttendanceStatus, RecruitmentStage, EventCategory, CaseClassification, CaseStatus,
-PerformanceRating (org-managed catalogs, ADR-016), Applicant (Recruitment, ADR-015), ReviewCycle,
-PerformanceReview (Performance, ADR-017), Case (Case monitoring, ADR-018); server-side
-authorization with a granular per-resource permission catalog; append-only audit logging; Auth.js
-credentials (username-or-email) login with single-active-session + idle-timeout enforcement; a
-shadcn/ui dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people` (with
-Age/Length-of-service columns, statutory ID fields, CSV export + print — ADR-019),
-`/attendance{,/policies}` (HR-recorded) plus a separate self-service `/clock` portal (WebAuthn
-biometric + geolocation + photo, ADR-020), `/leave{,/types,/policies,/balances}`,
+**Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b, plus several ad hoc
+enhancements ahead of the remaining Phase 8 sub-phases: employee self-service attendance
+(ADR-020), Travel Orders and Asset Issuance mirrored from the legacy v1 app (ADR-022), and custom
+roles/staff accounts (ADR-023). Implemented: Organization, User, Person, Role, Permission,
+RoleAssignment, AuditLog, OrganizationUnit, Position, Location, Project, Employee, Employment,
+EmployeeAssignment, AttendancePolicy, AttendanceRecord, WebAuthnCredential (self-service
+biometrics, ADR-020), LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
+PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment, EmploymentType,
+EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory, CaseClassification,
+CaseStatus, PerformanceRating (org-managed catalogs, ADR-016), Applicant (Recruitment, ADR-015),
+ReviewCycle, PerformanceReview (Performance, ADR-017), Case (Case monitoring, ADR-018),
+TravelOrder, AssetIssuance (ADR-022); server-side authorization with a granular per-resource
+permission catalog, now with HR-editable custom Roles on top (ADR-023); append-only audit
+logging; Auth.js credentials (username-or-email) login with single-active-session + idle-timeout
+enforcement; a shadcn/ui dashboard, `/organization/{units,positions,locations,projects,chart}`,
+`/people` (with Age/Length-of-service columns, statutory ID fields, CSV export + print —
+ADR-019), `/attendance{,/policies}` (HR-recorded) plus a separate self-service `/clock` portal
+(WebAuthn biometric + geolocation + photo, ADR-020), `/leave{,/types,/policies,/balances}`,
 `/payroll{,/policies,/rule-versions,/compensation}`, `/recruitment/tracking` (drag-and-drop
-Kanban), `/performance{,/[id]}`, `/cases` (CSV export + print), and `/settings/catalogs` UI.
+Kanban), `/performance{,/[id]}`, `/cases` (CSV export + print), `/travel-orders`, an "Issued
+assets" section on `/people/[id]`, `/settings/catalogs`, and `/settings/access` (roles, role
+assignments, staff accounts).
 
-Not yet implemented (later Phase 8 sub-phases): Assets, Documents, Events — though their
+Not yet implemented (later Phase 8 sub-phases): Documents, Events — though their
 org-managed lookup lists (EventCategory) are already seeded and manageable under Settings >
 Catalogs, ahead of the domains that will consume them.
 
@@ -65,8 +69,8 @@ record at all); an `Employee` has no status field of its own — see "Workforce 
 
 ## Organization structure (Phase 2)
 
-`OrganizationUnit` (self-referencing `parentUnitId`, free-form `type`), `Position`
-(`organizationUnitId?`), `Location`, `Project` (`locationId?`) — see ADR-004 (Position vs Role)
+`OrganizationUnit` (self-referencing `parentUnitId`, free-form `type`), `Position`, `Location`,
+`Project` (`locationId?`) — see ADR-004 (Position vs Role)
 and ADR-006 (Effective Dating) for the two decisions specific to this phase. No hard delete
 anywhere (AGENTS.md §53); every domain service exposes `create()` and `updateStatus()`
 (active/inactive, plus `effectiveTo` for the two effective-dated models) but never a delete.
@@ -233,6 +237,17 @@ print report (`hidden print:block`, per ADR-018/019's Tailwind-first print conve
 hard-delete was intentionally not ported (AGENTS.md §53: no hard deletes anywhere in this
 codebase); a case is retired via its `status` catalog value instead.
 
+## Travel Orders & Asset Issuance (ADR-022)
+
+Both mirror the legacy v1 app's real modules. `TravelOrder` (`employeeIds[]` ref `Employee`,
+`startDate`/`endDate`, `remarks?`, `status: scheduled|cancelled`) has its own top-level
+`/travel-orders` page since one order spans several employees, not one. `AssetIssuance`
+(`employeeId`, `assetName`, `assetType?`, `serialNumber?`, `condition` — a fixed enum matching v1
+exactly, not a catalog — `issuedDate`, `returnedDate?`, `remarks?`) is instead a card on
+`/people/[id]` rather than v1's separate employee-lookup page, since the People roster + detail
+page already is that lookup. Neither supports v1's hard delete (AGENTS.md §53) — a travel order
+is cancelled via `status`, an asset-issuance mistake is corrected via `update()`.
+
 ## Authorization (ADR-007)
 
 Server-side only, resolved from data on every check — never cached role-name strings, never
@@ -253,12 +268,25 @@ call the identical `requirePermission` check via `src/app/_shared/has-permission
 across `/organization`, `/people`, and `/attendance`) so a page can never show data an API route
 would refuse.
 `Permission` documents also carry
-`category` (grouping, for a future permissions UI) and `isSystem` (reserved) — display metadata
-only, never read by `authorize()`.
+`category` (grouping — now actually used by `/settings/access`'s permission-checkbox editor,
+ADR-023) and `isSystem` (reserved) — display metadata only, never read by `authorize()`.
 
 `RoleAssignment.scope` is a discriminated `{ type: "organization" }` shape today so `project` /
 `organizationUnit` scope types can be added in a later phase without a schema migration —
 without building the full multi-scope policy-resolution hierarchy prematurely (AGENTS.md §21/§26).
+
+## Custom roles & staff accounts (ADR-023)
+
+`Role` gains a `status` (`active|inactive`); `authorize()`'s granting query treats a missing
+status as active (permissive for every role seeded before this field existed) so this shipped
+without a required migration. `RoleService`/`RoleAssignmentService`
+(`src/domains/authorization/`) let HR compose a role from the real, seeded `Permission` catalog
+(rejects unknown keys) and assign/revoke it per user — `/settings/access`. Deactivating a role
+stops granting access to everyone holding it immediately; revoking an assignment closes it via
+`effectiveTo`, never a delete. `StaffAccountService` (`src/domains/identity/`) creates a plain
+HR-shell login (`Person`+`User`, no `employeeId`) — distinct from `EmployeeAccountService`'s
+self-service account, since `(app)/layout.tsx` routes purely on `User.employeeId` regardless of
+permissions, so a self-service account can never reach the HR shell no matter what role it holds.
 
 ## MongoDB modeling (ADR-002)
 
@@ -284,7 +312,7 @@ Indexes (all justified by an actual query above): `organizations.slug` (unique),
 `roleAssignments.roleId`, `auditLogs.organizationId+timestamp`,
 `auditLogs.organizationId+resourceType+resourceId`,
 `organizationUnits.organizationId+code` (unique), `organizationUnits.parentUnitId`,
-`positions.organizationId+code` (unique), `positions.organizationUnitId`,
+`positions.organizationId+code` (unique),
 `locations.organizationId+code` (unique), `projects.organizationId+code` (unique),
 `projects.locationId`, `employees.organizationId+employeeNumber` (unique),
 `employments.employeeId+effectiveFrom`, `employeeAssignments.employeeId+effectiveFrom`,

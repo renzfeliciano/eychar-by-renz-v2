@@ -14,16 +14,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
-import { OptionSelect } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
-type UnitOption = { id: string; name: string };
-
-export function CreatePositionDialog({ organizationId, units }: { organizationId: string; units: UnitOption[] }) {
+export function CreatePositionDialog({ organizationId }: { organizationId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [organizationUnitId, setOrganizationUnitId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,7 +31,7 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
     const response = await fetch("/api/positions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, title, organizationUnitId: organizationUnitId || undefined }),
+      body: JSON.stringify({ organizationId, title }),
     });
 
     setIsSubmitting(false);
@@ -47,7 +43,6 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
     }
 
     setTitle("");
-    setOrganizationUnitId("");
     setOpen(false);
     router.refresh();
   }
@@ -67,12 +62,6 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
           <FormField label="Title" htmlFor="position-title" required>
             <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Front Desk Staff" required />
           </FormField>
-          <OptionSelect
-            label="Organization unit"
-            value={organizationUnitId}
-            onChange={setOrganizationUnitId}
-            options={units.map((unit) => ({ id: unit.id, label: unit.name }))}
-          />
           <FormError message={error} />
         </form>
         <DialogFooter>

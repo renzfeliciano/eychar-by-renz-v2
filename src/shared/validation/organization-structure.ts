@@ -11,7 +11,6 @@ export const createOrganizationUnitSchema = z.object({
 
 export const createPositionSchema = z.object({
   organizationId: z.string().trim().min(1),
-  organizationUnitId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
   code: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
