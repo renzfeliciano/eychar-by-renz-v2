@@ -21,7 +21,7 @@ function parseHHmm(value: string): number {
 /** Truncates to the calendar day (UTC midnight) so the unique
  * organizationId+employeeId+date index actually enforces one record per
  * employee per day, regardless of what time-of-day was passed in. */
-function toCalendarDateUtc(date: Date): Date {
+export function toCalendarDateUtc(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
@@ -31,7 +31,7 @@ function toCalendarDateUtc(date: Date): Date {
  * today's policy. Without a resolvable policy there's nothing to compare
  * a check-in time against, so a bare check-in defaults to "present".
  */
-function computeStatus(checkInAt: Date | undefined, policy: { standardStartTime: string; gracePeriodMinutes: number } | null): "present" | "late" {
+export function computeStatus(checkInAt: Date | undefined, policy: { standardStartTime: string; gracePeriodMinutes: number } | null): "present" | "late" {
   if (!checkInAt || !policy) return "present";
   const lateThreshold = parseHHmm(policy.standardStartTime) + policy.gracePeriodMinutes;
   return minutesSinceMidnightUtc(checkInAt) > lateThreshold ? "late" : "present";

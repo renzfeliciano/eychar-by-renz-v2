@@ -31,6 +31,35 @@ export const adjustAttendanceSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
+// Geolocation and photo are optional at the schema level (a device without
+// a camera or that denies location access can still clock in), but the
+// WebAuthn assertion is not — self-service clock-in/out is the one flow
+// this codebase requires biometric confirmation for.
+const clockEventSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
+  accuracy: z.coerce.number().min(0).optional(),
+  photo: z.string().trim().max(2_000_000).optional(),
+  webAuthn: z.object({
+    id: z.string(),
+    rawId: z.string(),
+    type: z.literal("public-key"),
+    response: z.object({
+      clientDataJSON: z.string(),
+      authenticatorData: z.string(),
+      signature: z.string(),
+      userHandle: z.string().optional(),
+    }),
+    clientExtensionResults: z.record(z.string(), z.unknown()).default({}),
+    authenticatorAttachment: z.enum(["platform", "cross-platform"]).optional(),
+  }),
+});
+
+export const selfServiceClockInSchema = clockEventSchema;
+export const selfServiceClockOutSchema = clockEventSchema;
+
 export type CreateAttendancePolicyInput = z.infer<typeof createAttendancePolicySchema>;
 export type RecordAttendanceInput = z.infer<typeof recordAttendanceSchema>;
 export type AdjustAttendanceInput = z.infer<typeof adjustAttendanceSchema>;
+export type SelfServiceClockInput = z.infer<typeof clockEventSchema>;

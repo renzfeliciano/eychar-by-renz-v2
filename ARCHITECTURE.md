@@ -7,22 +7,24 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b. Implemented:
-Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
-Position, Location, Project, Employee, Employment, EmployeeAssignment, AttendancePolicy,
-AttendanceRecord, LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
-PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment,
-EmploymentType, EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory,
-CaseClassification, CaseStatus, PerformanceRating (org-managed catalogs, ADR-016), Applicant
-(Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance, ADR-017), Case (Case
-monitoring, ADR-018); server-side authorization with a granular per-resource permission catalog;
-append-only audit logging; Auth.js credentials (username-or-email) login with
-single-active-session + idle-timeout enforcement; a shadcn/ui dashboard,
-`/organization/{units,positions,locations,projects,chart}`, `/people` (with Age/Length-of-service
-columns, statutory ID fields, CSV export + print — ADR-019), `/attendance{,/policies}`,
-`/leave{,/types,/policies,/balances}`, `/payroll{,/policies,/rule-versions,/compensation}`,
-`/recruitment/tracking` (drag-and-drop Kanban), `/performance{,/[id]}`, `/cases` (CSV export +
-print), and `/settings/catalogs` UI.
+**Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b, plus an ad hoc
+employee self-service attendance enhancement to Phase 5 (ADR-020, ahead of the remaining Phase 8
+sub-phases). Implemented: Organization, User, Person, Role, Permission, RoleAssignment, AuditLog,
+OrganizationUnit, Position, Location, Project, Employee, Employment, EmployeeAssignment,
+AttendancePolicy, AttendanceRecord, WebAuthnCredential (self-service biometrics, ADR-020),
+LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy, PayrollRuleVersion,
+Compensation, PayrollRun, PayrollRecord, PayrollAdjustment, EmploymentType, EmploymentStatus,
+AttendanceStatus, RecruitmentStage, EventCategory, CaseClassification, CaseStatus,
+PerformanceRating (org-managed catalogs, ADR-016), Applicant (Recruitment, ADR-015), ReviewCycle,
+PerformanceReview (Performance, ADR-017), Case (Case monitoring, ADR-018); server-side
+authorization with a granular per-resource permission catalog; append-only audit logging; Auth.js
+credentials (username-or-email) login with single-active-session + idle-timeout enforcement; a
+shadcn/ui dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people` (with
+Age/Length-of-service columns, statutory ID fields, CSV export + print — ADR-019),
+`/attendance{,/policies}` (HR-recorded) plus a separate self-service `/clock` portal (WebAuthn
+biometric + geolocation + photo, ADR-020), `/leave{,/types,/policies,/balances}`,
+`/payroll{,/policies,/rule-versions,/compensation}`, `/recruitment/tracking` (drag-and-drop
+Kanban), `/performance{,/[id]}`, `/cases` (CSV export + print), and `/settings/catalogs` UI.
 
 Not yet implemented (later Phase 8 sub-phases): Assets, Documents, Events — though their
 org-managed lookup lists (EventCategory) are already seeded and manageable under Settings >
@@ -103,16 +105,31 @@ separate list, not slotted into the tree. No new collection, no new permission k
 
 ## Attendance (Phase 5, ADR-011)
 
-**HR-recorded**, not employee self-check-in — no employee created via `HireService.hire()` gets
-a login, only Phase 1's HR admin does, so there's no self-service session to check in from.
-`AttendanceService.record()` (`src/domains/attendance/attendance-service.ts`) resolves the
-employee's project as of the record's date (`EmployeeAssignmentService.getAsOf`), resolves the
-applicable `AttendancePolicy` for that project+date
-(`AttendancePolicyService.resolve`, ADR-011), and computes `present`/`late` from the check-in
-time unless an explicit status is given — computed and stored once, never recomputed later.
-`adjust()` is gated by `attendance.update` and writes a full before/after audit entry, which is
-this phase's approval record rather than a separate request/approve workflow (that's Phase 6's
-pattern).
+`AttendanceService.record()` (`src/domains/attendance/attendance-service.ts`) is **HR-recorded**
+attendance: resolves the employee's project as of the record's date
+(`EmployeeAssignmentService.getAsOf`), resolves the applicable `AttendancePolicy` for that
+project+date (`AttendancePolicyService.resolve`, ADR-011), and computes `present`/`late` from the
+check-in time unless an explicit status is given — computed and stored once, never recomputed
+later. `adjust()` is gated by `attendance.update` and writes a full before/after audit entry,
+which is this phase's approval record rather than a separate request/approve workflow (that's
+Phase 6's pattern).
+
+## Employee self-service attendance (Phase 5 enhancement, ADR-020)
+
+A second, independent way to produce an `AttendanceRecord`: `User.employeeId` marks an account as
+self-service (HR-provisioned via `EmployeeAccountService.create()`, never auto-created at hire).
+Such a session is redirected straight to `/clock` — a route group with no HR sidebar — and every
+self-service API route is gated by `requireSelfServiceEmployee()`
+(`src/server/authorization/require.ts`), which resolves the employee strictly from the session's
+own `User.employeeId` and never touches the granular permission catalog at all.
+`SelfServiceAttendanceService.checkIn()`/`.checkOut()` (`src/domains/attendance/
+self-service-attendance-service.ts`) reuse `AttendanceService`'s `computeStatus()`, but hard-require
+a fresh `WebAuthnService.verifyAuthentication()` (platform authenticator — Face ID/fingerprint/
+screen lock, via `@simplewebauthn/server`) before writing anything; browser geolocation and a
+webcam photo snapshot are captured alongside but are best-effort metadata, never blocking the
+flow if denied. See ADR-020 for the full set of tradeoffs the user chose explicitly (full
+self-service login over a shared kiosk; both WebAuthn and photo, not one; HR-provisioned
+accounts; photos stored as base64 in MongoDB).
 
 ## Leave (Phase 6, ADR-012)
 
@@ -298,3 +315,6 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 - `lastActivityAt` idle tracking lives in the JWT, not rewritten to the database on every
   request — avoids write-amplification, at the cost of trusting the (signed, tamper-proof)
   token's own timestamp rather than a server-side clock.
+- No admin UI exists to revoke a single `WebAuthnCredential` (e.g. a lost phone) — see ADR-020's
+  consequences. HR resetting a self-service account's password does not touch its registered
+  credentials today.

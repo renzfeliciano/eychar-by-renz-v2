@@ -1,5 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/options";
+import { connectMongoDB } from "@/server/db/connection";
+import { EmployeeModel, UserModel } from "@/server/db/models";
 import { AuthenticationError, AuthorizationError } from "@/shared/errors";
 import { authorize, hasActiveRoleAssignment } from "./authorize";
 
@@ -33,4 +35,23 @@ export async function requirePermission(
   const { userId } = await requireAuthenticatedUser();
   await authorize({ userId, organizationId, permission });
   return { userId };
+}
+
+/**
+ * For self-service API routes only (attendance clock-in/out, WebAuthn
+ * ceremonies) — resolves the session's own employeeId from its linked
+ * User record, never from a client-supplied id, and rejects an HR/admin
+ * account (no employeeId) the same as an unauthenticated one.
+ */
+export async function requireSelfServiceEmployee(): Promise<{ userId: string; employeeId: string; organizationId: string }> {
+  const { userId } = await requireAuthenticatedUser();
+
+  await connectMongoDB();
+  const user = await UserModel.findById(userId).lean();
+  if (!user?.employeeId) throw new AuthorizationError("This account has no self-service employee access");
+
+  const employee = await EmployeeModel.findById(user.employeeId).lean();
+  if (!employee) throw new AuthorizationError("Linked employee record not found");
+
+  return { userId, employeeId: employee._id.toString(), organizationId: employee.organizationId.toString() };
 }

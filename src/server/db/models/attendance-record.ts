@@ -1,5 +1,24 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
+// Captured only by the employee self-service clock-in/out flow
+// (src/domains/attendance/self-service-attendance-service.ts) — HR's own
+// proxy-recording flow (AttendanceService.record()) never sets these.
+// `verified` reflects whether the device's own WebAuthn platform
+// authenticator (Face ID/Touch ID/Android biometric/Windows Hello)
+// confirmed this action; `photo` is a webcam snapshot, a visual record
+// alongside that confirmation, not itself a biometric match.
+const clockEventSchema = new Schema(
+  {
+    at: { type: Date, required: true },
+    latitude: { type: Number },
+    longitude: { type: Number },
+    accuracy: { type: Number },
+    photo: { type: String },
+    verified: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
 // One record per employee per calendar day (unique index below) — a
 // correction goes through AttendanceService.adjust(), never a second
 // record() call. `status` is computed and stored at record time using
@@ -22,6 +41,8 @@ const attendanceRecordSchema = new Schema(
     status: { type: String, required: true, trim: true },
     policyId: { type: Schema.Types.ObjectId, ref: "AttendancePolicy" },
     notes: { type: String, trim: true },
+    checkIn: { type: clockEventSchema },
+    checkOut: { type: clockEventSchema },
   },
   { timestamps: true },
 );

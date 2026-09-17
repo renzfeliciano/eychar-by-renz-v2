@@ -8,3 +8,12 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const createEmployeeAccountSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  employeeId: z.string().trim().min(1),
+  username: z.string().trim().min(3).toLowerCase(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export type CreateEmployeeAccountInput = z.infer<typeof createEmployeeAccountSchema>;

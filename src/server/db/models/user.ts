@@ -10,6 +10,12 @@ const userSchema = new Schema(
     email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
     passwordHash: { type: String, required: true },
     personId: { type: Schema.Types.ObjectId, ref: "Person" },
+    // Set only for an employee self-service login (created explicitly by
+    // HR via EmployeeAccountService, never auto-provisioned at hire) —
+    // its presence is what self-service routes check to resolve "this
+    // session's own employee record", instead of trusting a client-
+    // supplied employeeId. Absent for every HR/admin account.
+    employeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
     status: { type: String, enum: ["active", "disabled"], default: "active", required: true },
     // Single-active-session enforcement (src/server/auth/session-policy.ts):
     // each login overwrites this, so an older session's token stops
@@ -17,6 +23,12 @@ const userSchema = new Schema(
     // sharing the account across devices.
     activeSessionId: { type: String },
     lastActivityAt: { type: Date },
+    // Ephemeral: holds the WebAuthn challenge between "generate options"
+    // and "verify response" for whichever ceremony (registration or
+    // authentication) is in flight, then is cleared. Not a security
+    // secret in the same sense as passwordHash — a challenge is only
+    // useful for one specific in-progress ceremony.
+    webAuthnChallenge: { type: String },
   },
   { timestamps: true },
 );

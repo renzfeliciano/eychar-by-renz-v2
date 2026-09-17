@@ -5,6 +5,7 @@ import { EmployeeService } from "@/domains/workforce/employee-service";
 import { EmploymentService } from "@/domains/workforce/employment-service";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
+import { EmployeeAccountService } from "@/domains/identity/employee-account-service";
 import { NotFoundError } from "@/shared/errors";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
@@ -12,6 +13,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransferForm } from "./transfer-form";
 import { TerminateButton } from "./terminate-button";
+import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
 
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,10 +38,11 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     ? await EmploymentService.isActiveStatus(organizationId, detail.currentEmployment.status)
     : false;
 
-  const [positions, projects, roster] = await Promise.all([
+  const [positions, projects, roster, selfServiceAccount] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeService.listWithCurrentStatus(organizationId),
+    EmployeeAccountService.getForEmployee(id),
   ]);
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
@@ -91,6 +94,31 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Self-service login</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-4">
+          {selfServiceAccount ? (
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{selfServiceAccount.username}</span> can sign in on their own device to
+              clock in/out with biometric confirmation.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">No self-service login yet — this employee can&apos;t clock in/out on their own device.</p>
+              {canUpdate && (
+                <CreateEmployeeAccountDialog
+                  organizationId={organizationId}
+                  employeeId={detail.employee._id.toString()}
+                  suggestedUsername={detail.employee.employeeNumber.toLowerCase()}
+                />
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {canUpdate && (
         <TransferForm
