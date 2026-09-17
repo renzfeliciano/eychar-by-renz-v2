@@ -7,6 +7,7 @@ import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeAccountService } from "@/domains/identity/employee-account-service";
 import { NotFoundError } from "@/shared/errors";
+import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -47,10 +48,10 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
   const employeeNameById = new Map(
-    roster.filter((row) => row.person).map((row) => [row._id.toString(), `${row.person!.firstName} ${row.person!.lastName}`]),
+    roster.filter((row) => row.person).map((row) => [row._id.toString(), formatPersonName(row.person)]),
   );
 
-  const personName = detail.person ? `${detail.person.firstName} ${detail.person.lastName}` : "Employee";
+  const personName = detail.person ? formatPersonName(detail.person) : "Employee";
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,7 +129,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
           projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
           managers={roster
             .filter((row) => row.person && row._id.toString() !== detail.employee._id.toString())
-            .map((row) => ({ id: row._id.toString(), label: `${row.person!.firstName} ${row.person!.lastName}` }))}
+            .map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }))}
         />
       )}
 

@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
 
 export function CreateReviewCycleDialog({ organizationId }: { organizationId: string }) {
@@ -62,13 +62,14 @@ export function CreateReviewCycleDialog({ organizationId }: { organizationId: st
           <DialogTitle>Add review cycle</DialogTitle>
         </DialogHeader>
         <form id="create-review-cycle-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="review-cycle-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="review-cycle-name" required>
             <Input id="review-cycle-name" placeholder="e.g. 2026 Annual Review" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
-          <FormField label="Period start" htmlFor="review-cycle-start">
+          <FormField label="Period start" htmlFor="review-cycle-start" required>
             <Input id="review-cycle-start" type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} required />
           </FormField>
-          <FormField label="Period end" htmlFor="review-cycle-end">
+          <FormField label="Period end" htmlFor="review-cycle-end" required>
             <Input id="review-cycle-end" type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} required />
           </FormField>
           <FormError message={error} />

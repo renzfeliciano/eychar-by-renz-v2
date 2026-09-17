@@ -4,6 +4,7 @@ const personSchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
     firstName: { type: String, required: true, trim: true },
+    middleName: { type: String, trim: true },
     lastName: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true },
     phone: { type: String, trim: true },

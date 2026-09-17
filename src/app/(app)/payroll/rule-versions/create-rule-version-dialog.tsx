@@ -86,7 +86,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
           <DialogTitle>New rule version</DialogTitle>
         </DialogHeader>
         <form id="create-rule-version-form" onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto pr-1">
-          <FormField label="Description (optional)" htmlFor="rule-version-description">
+          <FormField label="Description" htmlFor="rule-version-description">
             <Input
               id="rule-version-description"
               value={description}
@@ -109,7 +109,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                     }
                   />
                 </FormField>
-                <FormField label="Max income (optional)">
+                <FormField label="Max income">
                   <Input
                     type="number"
                     placeholder="e.g. 20000"
@@ -179,7 +179,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                     }
                   />
                 </FormField>
-                <FormField label="Cap (optional)">
+                <FormField label="Cap">
                   <Input
                     type="number"
                     placeholder="e.g. 30000"

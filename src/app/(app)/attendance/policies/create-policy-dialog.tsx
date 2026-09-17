@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -73,19 +73,20 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
           <DialogTitle>Add attendance policy</DialogTitle>
         </DialogHeader>
         <form id="create-attendance-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="policy-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="policy-name" required>
             <Input id="policy-name" placeholder="e.g. Standard Day Shift" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
-          <OptionSelect label="Project (optional)" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
+          <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Start time" htmlFor="policy-start">
+            <FormField label="Start time" htmlFor="policy-start" required>
               <Input id="policy-start" type="time" value={standardStartTime} onChange={(event) => setStandardStartTime(event.target.value)} required />
             </FormField>
-            <FormField label="End time" htmlFor="policy-end">
+            <FormField label="End time" htmlFor="policy-end" required>
               <Input id="policy-end" type="time" value={standardEndTime} onChange={(event) => setStandardEndTime(event.target.value)} required />
             </FormField>
           </div>
-          <FormField label="Grace (min)" htmlFor="policy-grace">
+          <FormField label="Grace (min)" htmlFor="policy-grace" required>
             <Input id="policy-grace" type="number" min={0} placeholder="e.g. 15" value={gracePeriodMinutes} onChange={(event) => setGracePeriodMinutes(event.target.value)} required />
           </FormField>
           <FormError message={error} />

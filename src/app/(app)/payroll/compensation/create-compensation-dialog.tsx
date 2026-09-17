@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -73,8 +73,9 @@ export function CreateCompensationDialog({ organizationId, employees }: { organi
           <DialogTitle>Grant compensation</DialogTitle>
         </DialogHeader>
         <form id="create-compensation-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
-          <FormField label="Base salary / period" htmlFor="compensation-base-salary">
+          <RequiredFieldsHint />
+          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
+          <FormField label="Base salary / period" htmlFor="compensation-base-salary" required>
             <Input id="compensation-base-salary" type="number" min={0} placeholder="e.g. 25000" value={baseSalary} onChange={(event) => setBaseSalary(event.target.value)} required />
           </FormField>
           <FormField label="Allowance / period" htmlFor="compensation-allowance">

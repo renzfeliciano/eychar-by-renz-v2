@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, PersonModel, UserModel } from "@/server/db/models";
+import { formatPersonName } from "@/lib/person-name";
 
 /**
  * Resolves the logged-in session to its own linked Employee record — never
@@ -28,6 +29,6 @@ export async function getSelfServiceSession() {
     organizationId: employee.organizationId.toString(),
     employeeId: employee._id.toString(),
     employeeNumber: employee.employeeNumber,
-    name: person ? `${person.firstName} ${person.lastName}` : "Employee",
+    name: person ? formatPersonName(person) : "Employee",
   };
 }

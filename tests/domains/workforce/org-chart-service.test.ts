@@ -6,6 +6,7 @@ import {
   EmployeeModel,
   ProjectModel,
   EmployeeAssignmentModel,
+  EmploymentModel,
 } from "@/server/db/models";
 import { OrgChartService } from "@/domains/workforce/org-chart-service";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
@@ -140,5 +141,43 @@ describe("OrgChartService", () => {
 
     expect(rootIds).toContain(a._id.toString());
     expect(rootIds).toContain(b._id.toString());
+  });
+
+  it("excludes a terminated employee even though their EmployeeAssignment was never closed", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-term-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+
+    const manager = await seedEmployee(organization._id, "MGRTERM");
+    const stillActive = await seedEmployee(organization._id, "ACTIVE");
+    const terminated = await seedEmployee(organization._id, "GONE");
+
+    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: manager._id.toString() }, {});
+    await EmployeeAssignmentService.create(
+      { organizationId: orgId, employeeId: stillActive._id.toString(), reportsToEmployeeId: manager._id.toString() },
+      {},
+    );
+    await EmployeeAssignmentService.create(
+      { organizationId: orgId, employeeId: terminated._id.toString(), reportsToEmployeeId: manager._id.toString() },
+      {},
+    );
+    // Termination only ever touches Employment, never the
+    // EmployeeAssignment (see EmploymentService.terminate) — so this row
+    // stays "current" and would keep surfacing on the chart without the
+    // active-headcount filter this test is pinning down.
+    await EmploymentModel.create({
+      organizationId: organization._id,
+      employeeId: terminated._id,
+      employmentType: "regular",
+      status: "terminated",
+    });
+
+    const snapshot = await OrgChartService.getSnapshot(orgId, {});
+    const allIds = [
+      ...snapshot.roots.map((root) => root.employeeId),
+      ...snapshot.roots.flatMap((root) => root.children.map((child) => child.employeeId)),
+    ];
+
+    expect(allIds).toContain(stillActive._id.toString());
+    expect(allIds).not.toContain(terminated._id.toString());
   });
 });

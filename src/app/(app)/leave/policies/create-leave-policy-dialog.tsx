@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -82,12 +82,13 @@ export function CreateLeavePolicyDialog({
           <DialogTitle>Add leave policy</DialogTitle>
         </DialogHeader>
         <form id="create-leave-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="leave-policy-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="leave-policy-name" required>
             <Input id="leave-policy-name" placeholder="e.g. Standard Vacation Leave Policy" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
-          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" />
-          <OptionSelect label="Project (optional)" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
-          <FormField label="Annual entitlement (days)" htmlFor="leave-policy-days">
+          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
+          <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
+          <FormField label="Annual entitlement (days)" htmlFor="leave-policy-days" required>
             <Input
               id="leave-policy-days"
               type="number"

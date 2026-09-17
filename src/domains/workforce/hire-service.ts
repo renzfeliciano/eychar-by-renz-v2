@@ -17,6 +17,7 @@ export const HireService = {
       {
         organizationId: input.organizationId,
         firstName: input.firstName,
+        middleName: input.middleName,
         lastName: input.lastName,
         email: input.email,
         phone: input.phone,

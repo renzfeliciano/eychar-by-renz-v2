@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -119,20 +119,21 @@ export function ApplicantFormDialog({
           <DialogTitle>{isEdit ? "Edit applicant" : "Add applicant"}</DialogTitle>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
-          <FormField label="Applicant name" htmlFor={`${formId}-name`}>
+          <RequiredFieldsHint />
+          <FormField label="Applicant name" htmlFor={`${formId}-name`} required>
             <Input id={`${formId}-name`} value={applicantName} onChange={(event) => setApplicantName(event.target.value)} placeholder="e.g. Dela Cruz, Juan Miguel" required />
           </FormField>
-          <OptionSelect label="Position" value={positionId} onChange={setPositionId} options={positions} placeholder="Select a position" />
-          <FormField label="Email (optional)" htmlFor={`${formId}-email`}>
+          <OptionSelect label="Position" value={positionId} onChange={setPositionId} options={positions} placeholder="Select a position" required />
+          <FormField label="Email" htmlFor={`${formId}-email`}>
             <Input id={`${formId}-email`} type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="e.g. juan.delacruz@email.com" />
           </FormField>
-          <FormField label="Phone (optional)" htmlFor={`${formId}-phone`}>
+          <FormField label="Phone" htmlFor={`${formId}-phone`}>
             <Input id={`${formId}-phone`} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09XX-XXX-XXXX" />
           </FormField>
-          <FormField label="Applied date" htmlFor={`${formId}-applied`}>
+          <FormField label="Applied date" htmlFor={`${formId}-applied`} required>
             <Input id={`${formId}-applied`} type="date" value={appliedDate} onChange={(event) => setAppliedDate(event.target.value)} required />
           </FormField>
-          <FormField label="Remarks (optional)" htmlFor={`${formId}-remarks`}>
+          <FormField label="Remarks" htmlFor={`${formId}-remarks`}>
             <Textarea id={`${formId}-remarks`} value={remarks} onChange={(event) => setRemarks(event.target.value)} />
           </FormField>
           <FormError message={error} />

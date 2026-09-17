@@ -26,7 +26,7 @@ export function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col gap-3 rounded-xl border bg-muted/30 p-3 transition-colors",
+        "flex w-full flex-col gap-3 rounded-xl border bg-muted/30 p-3 transition-colors sm:w-72 sm:shrink-0",
         isOver && "border-primary bg-primary/5",
       )}
       role="group"

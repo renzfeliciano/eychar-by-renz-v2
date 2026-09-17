@@ -12,6 +12,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { calculateAge, formatLengthOfService } from "@/lib/employee-dates";
+import { formatPersonName } from "@/lib/person-name";
 import { PeopleFilters } from "./people-filters";
 import { PeopleExportActions, type PeopleExportRow } from "./people-export-actions";
 import { PeoplePrintReport } from "./people-print-report";
@@ -53,7 +54,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     const birthDate = row.person?.birthDate;
     return {
       employeeNumber: row.employeeNumber,
-      name: row.person ? `${row.person.firstName} ${row.person.lastName}` : "—",
+      name: row.person ? formatPersonName(row.person) : "—",
       gender: row.person?.gender ?? "",
       position: row.currentAssignment?.positionId ? positionTitleById.get(row.currentAssignment.positionId.toString()) ?? "—" : "—",
       project: row.currentAssignment?.projectId ? projectNameById.get(row.currentAssignment.projectId.toString()) ?? "—" : "—",
@@ -97,7 +98,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               header: "Name",
               render: (row) => (
                 <Link href={`/people/${row._id.toString()}`} className="font-medium text-primary hover:underline">
-                  {row.person ? `${row.person.firstName} ${row.person.lastName}` : "—"}
+                  {row.person ? formatPersonName(row.person) : "—"}
                 </Link>
               ),
             },

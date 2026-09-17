@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
@@ -115,10 +115,11 @@ export function CatalogSection({
                 <DialogTitle>Add {title.toLowerCase()} item</DialogTitle>
               </DialogHeader>
               <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <FormField label="Name" htmlFor={`${formId}-name`}>
+                <RequiredFieldsHint />
+                <FormField label="Name" htmlFor={`${formId}-name`} required>
                   <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Regular" required />
                 </FormField>
-                <FormField label="Description (optional)" htmlFor={`${formId}-description`}>
+                <FormField label="Description" htmlFor={`${formId}-description`}>
                   <Input id={`${formId}-description`} value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} placeholder="e.g. Standard, full-time employment" />
                 </FormField>
                 <FormError message={error} />

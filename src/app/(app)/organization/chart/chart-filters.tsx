@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { FormField } from "@/components/shared/form-field";
 
+// Terminated/resigned employees never appear on the chart at all (see
+// OrgChartService's active-headcount filter), so only currently-active
+// statuses are worth offering here.
 const EMPLOYMENT_STATUS_OPTIONS: SelectOption[] = [
   { id: "active", label: "Active" },
   { id: "on_leave", label: "On leave" },
-  { id: "terminated", label: "Terminated" },
 ];
 
 export function ChartFilters({

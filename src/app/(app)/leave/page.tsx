@@ -3,15 +3,12 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { LeaveRequestService } from "@/domains/leave/leave-request-service";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
+import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { NewRequestDialog } from "./new-request-dialog";
 import { DecideActions } from "./decide-actions";
-
-function employeeName(person: { firstName: string; lastName: string } | null): string {
-  return person ? `${person.firstName} ${person.lastName}` : "—";
-}
 
 function formatDate(value: Date): string {
   return new Date(value).toISOString().slice(0, 10);

@@ -13,6 +13,7 @@ const assignmentFields = {
 export const hireEmployeeSchema = z.object({
   organizationId: z.string().trim().min(1),
   firstName: z.string().trim().min(1),
+  middleName: z.string().trim().max(100).optional(),
   lastName: z.string().trim().min(1),
   email: z.string().trim().toLowerCase().email().optional(),
   employeeNumber: z.string().trim().min(1),

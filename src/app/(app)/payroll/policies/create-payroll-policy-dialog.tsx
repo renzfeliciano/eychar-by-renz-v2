@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
 
 export function CreatePayrollPolicyDialog({ organizationId }: { organizationId: string }) {
@@ -65,13 +65,14 @@ export function CreatePayrollPolicyDialog({ organizationId }: { organizationId: 
           <DialogTitle>Add payroll policy</DialogTitle>
         </DialogHeader>
         <form id="create-payroll-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="payroll-policy-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="payroll-policy-name" required>
             <Input id="payroll-policy-name" placeholder="e.g. Standard Semi-Monthly Policy" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
-          <FormField label="Pay frequency" htmlFor="payroll-policy-frequency">
+          <FormField label="Pay frequency" htmlFor="payroll-policy-frequency" required>
             <Input id="payroll-policy-frequency" placeholder="e.g. semi-monthly" value={payFrequency} onChange={(event) => setPayFrequency(event.target.value)} required />
           </FormField>
-          <FormField label="Standard work days / period" htmlFor="payroll-policy-days">
+          <FormField label="Standard work days / period" htmlFor="payroll-policy-days" required>
             <Input
               id="payroll-policy-days"
               type="number"

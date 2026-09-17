@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -70,13 +70,14 @@ export function CreateUnitDialog({ organizationId, units }: { organizationId: st
           <DialogTitle>Add organization unit</DialogTitle>
         </DialogHeader>
         <form id="create-unit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="unit-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="unit-name" required>
             <Input id="unit-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Human Resources" required />
           </FormField>
-          <FormField label="Code" htmlFor="unit-code">
+          <FormField label="Code" htmlFor="unit-code" required>
             <Input id="unit-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="e.g. HR" required />
           </FormField>
-          <FormField label="Type" htmlFor="unit-type">
+          <FormField label="Type" htmlFor="unit-type" required>
             <Input
               id="unit-type"
               placeholder="e.g. department"

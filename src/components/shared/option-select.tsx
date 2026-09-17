@@ -21,6 +21,7 @@ export function OptionSelect({
   options,
   placeholder = "None",
   testId,
+  required,
 }: {
   label: string;
   value: string;
@@ -28,11 +29,12 @@ export function OptionSelect({
   options: SelectOption[];
   placeholder?: string;
   testId?: string;
+  required?: boolean;
 }) {
   const selectedLabel = value ? options.find((option) => option.id === value)?.label ?? placeholder : placeholder;
 
   return (
-    <FormField label={label}>
+    <FormField label={label} required={required}>
       <Select value={value || NONE} onValueChange={(next) => onChange(!next || next === NONE ? "" : next)}>
         <SelectTrigger className="w-full" data-testid={testId}>
           {/* Computed from our own state rather than SelectValue's default

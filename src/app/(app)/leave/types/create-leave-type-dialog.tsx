@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
 
 export function CreateLeaveTypeDialog({ organizationId }: { organizationId: string }) {
@@ -62,10 +62,11 @@ export function CreateLeaveTypeDialog({ organizationId }: { organizationId: stri
           <DialogTitle>Add leave type</DialogTitle>
         </DialogHeader>
         <form id="create-leave-type-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="leave-type-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="leave-type-name" required>
             <Input id="leave-type-name" placeholder="e.g. Vacation Leave" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
-          <FormField label="Code" htmlFor="leave-type-code">
+          <FormField label="Code" htmlFor="leave-type-code" required>
             <Input id="leave-type-code" placeholder="e.g. VL" value={code} onChange={(event) => setCode(event.target.value)} required />
           </FormField>
           <FormField label="Description" htmlFor="leave-type-description">

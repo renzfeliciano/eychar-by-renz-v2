@@ -3,6 +3,7 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
+import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -50,7 +51,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           {
             key: "name",
             header: "Employee",
-            render: (row) => (row.person ? `${row.person.firstName} ${row.person.lastName}` : "—"),
+            render: (row) => (row.person ? formatPersonName(row.person) : "—"),
           },
           {
             key: "status",

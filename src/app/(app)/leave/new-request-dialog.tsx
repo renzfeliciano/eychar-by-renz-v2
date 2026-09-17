@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -79,17 +79,18 @@ export function NewRequestDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
-          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" />
+          <RequiredFieldsHint />
+          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
+          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Start date" htmlFor="request-start-date">
+            <FormField label="Start date" htmlFor="request-start-date" required>
               <Input id="request-start-date" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
             </FormField>
-            <FormField label="End date" htmlFor="request-end-date">
+            <FormField label="End date" htmlFor="request-end-date" required>
               <Input id="request-end-date" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
             </FormField>
           </div>
-          <FormField label="Reason (optional)" htmlFor="request-reason">
+          <FormField label="Reason" htmlFor="request-reason">
             <Input id="request-reason" placeholder="e.g. Family emergency" value={reason} onChange={(event) => setReason(event.target.value)} />
           </FormField>
           <FormError message={error} />

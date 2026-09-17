@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -86,13 +86,14 @@ export function CreateLeaveBalanceDialog({
           <DialogTitle>Grant leave balance</DialogTitle>
         </DialogHeader>
         <form id="create-leave-balance-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
-          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" />
+          <RequiredFieldsHint />
+          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
+          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Year" htmlFor="leave-balance-year">
+            <FormField label="Year" htmlFor="leave-balance-year" required>
               <Input id="leave-balance-year" type="number" value={year} onChange={(event) => setYear(event.target.value)} placeholder="e.g. 2026" required />
             </FormField>
-            <FormField label="Entitled days" htmlFor="leave-balance-days">
+            <FormField label="Entitled days" htmlFor="leave-balance-days" required={!hasNoFixedAmount}>
               <Input
                 id="leave-balance-days"
                 type="number"

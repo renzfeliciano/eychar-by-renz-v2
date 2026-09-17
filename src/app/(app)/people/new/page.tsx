@@ -5,6 +5,7 @@ import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { PageHeader } from "@/components/shared/page-header";
+import { formatPersonName } from "@/lib/person-name";
 import { HireForm } from "./hire-form";
 
 export default async function NewEmployeePage() {
@@ -32,7 +33,7 @@ export default async function NewEmployeePage() {
         projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
         managers={roster
           .filter((row) => row.person)
-          .map((row) => ({ id: row._id.toString(), label: `${row.person!.firstName} ${row.person!.lastName}` }))}
+          .map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }))}
         employmentTypes={employmentTypes.map((item) => ({
           id: item.code,
           label: item.name,

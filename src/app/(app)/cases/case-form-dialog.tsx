@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -127,19 +127,20 @@ export function CaseFormDialog({
           <DialogTitle>{isEdit ? "Edit case" : "Add case"}</DialogTitle>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
-          <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Select a project" />
-          <FormField label="Case number" htmlFor={`${formId}-number`}>
+          <RequiredFieldsHint />
+          <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Select a project" required />
+          <FormField label="Case number" htmlFor={`${formId}-number`} required>
             <Input id={`${formId}-number`} value={caseNumber} onChange={(event) => setCaseNumber(event.target.value)} placeholder="e.g. NLRC-NCR-01-00123-26" required />
           </FormField>
-          <FormField label="Case name" htmlFor={`${formId}-name`}>
+          <FormField label="Case name" htmlFor={`${formId}-name`} required>
             <Input id={`${formId}-name`} value={caseName} onChange={(event) => setCaseName(event.target.value)} placeholder="e.g. Dela Cruz vs. PCAS Corp" required />
           </FormField>
-          <OptionSelect label="Classification" value={classification} onChange={setClassification} options={classifications} placeholder="Select a classification" />
-          <OptionSelect label="Status" value={status} onChange={setStatus} options={statuses} placeholder="Select a status" />
-          <FormField label="Legal counsel (optional)" htmlFor={`${formId}-counsel`}>
+          <OptionSelect label="Classification" value={classification} onChange={setClassification} options={classifications} placeholder="Select a classification" required />
+          <OptionSelect label="Status" value={status} onChange={setStatus} options={statuses} placeholder="Select a status" required />
+          <FormField label="Legal counsel" htmlFor={`${formId}-counsel`}>
             <Input id={`${formId}-counsel`} value={legalCounsel} onChange={(event) => setLegalCounsel(event.target.value)} placeholder="e.g. Atty. Juan Dela Cruz" />
           </FormField>
-          <FormField label="Brief history (optional)" htmlFor={`${formId}-history`}>
+          <FormField label="Brief history" htmlFor={`${formId}-history`}>
             <Textarea id={`${formId}-history`} value={briefHistory} onChange={(event) => setBriefHistory(event.target.value)} placeholder="Summarize the case background and current developments" />
           </FormField>
           <FormError message={error} />

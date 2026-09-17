@@ -101,7 +101,7 @@ export function DecideActions({
                 <DialogTitle>Reject leave request</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col gap-4">
-                <FormField label="Reason (optional)" htmlFor="reject-reason">
+                <FormField label="Reason" htmlFor="reject-reason">
                   <Input id="reject-reason" placeholder="e.g. Insufficient balance for requested dates" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} />
                 </FormField>
                 <FormError message={error} />

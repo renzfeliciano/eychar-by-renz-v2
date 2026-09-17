@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 
 type Option = { id: string; label: string };
@@ -33,6 +33,7 @@ export function HireForm({
 }) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -75,6 +76,7 @@ export function HireForm({
       body: JSON.stringify({
         organizationId,
         firstName,
+        middleName: middleName || undefined,
         lastName,
         gender: gender || undefined,
         birthDate: birthDate || undefined,
@@ -109,35 +111,39 @@ export function HireForm({
     <Card className="max-w-2xl">
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="First name" htmlFor="hire-first-name">
+          <RequiredFieldsHint />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField label="First name" htmlFor="hire-first-name" required>
               <Input id="hire-first-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="e.g. Juan Miguel" required />
             </FormField>
-            <FormField label="Last name" htmlFor="hire-last-name">
+            <FormField label="Middle name" htmlFor="hire-middle-name">
+              <Input id="hire-middle-name" value={middleName} onChange={(event) => setMiddleName(event.target.value)} placeholder="e.g. Santos" />
+            </FormField>
+            <FormField label="Last name" htmlFor="hire-last-name" required>
               <Input id="hire-last-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="e.g. Dela Cruz" required />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" />
-            <FormField label="Birth date (optional)" htmlFor="hire-birth-date">
+            <FormField label="Birth date" htmlFor="hire-birth-date">
               <Input id="hire-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Contact number (optional)" htmlFor="hire-phone">
+            <FormField label="Contact number" htmlFor="hire-phone">
               <Input id="hire-phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09XX-XXX-XXXX" />
             </FormField>
-            <FormField label="Employee number" htmlFor="hire-employee-number">
+            <FormField label="Employee number" htmlFor="hire-employee-number" required>
               <Input
                 id="hire-employee-number"
                 value={employeeNumber}
                 onChange={(event) => setEmployeeNumber(event.target.value)}
-                placeholder="e.g. WH-2026-001"
+                placeholder="e.g. 0001"
                 required
               />
             </FormField>
           </div>
-          <FormField label="Address (optional)" htmlFor="hire-address">
+          <FormField label="Address" htmlFor="hire-address">
             <Textarea id="hire-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -147,15 +153,18 @@ export function HireForm({
               onChange={setEmploymentType}
               options={employmentTypes}
               placeholder="Select a type"
+              required
             />
             <FormField label="Date hired" htmlFor="hire-date-hired">
               <Input id="hire-date-hired" type="date" value={dateHired} onChange={(event) => setDateHired(event.target.value)} />
             </FormField>
           </div>
           {showEndOfContract && (
-            <FormField label="End of contract" htmlFor="hire-end-of-contract">
-              <Input id="hire-end-of-contract" type="date" value={endOfContract} onChange={(event) => setEndOfContract(event.target.value)} required />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="End of contract" htmlFor="hire-end-of-contract" required>
+                <Input id="hire-end-of-contract" type="date" value={endOfContract} onChange={(event) => setEndOfContract(event.target.value)} required />
+              </FormField>
+            </div>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect
@@ -179,16 +188,16 @@ export function HireForm({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="SSS no. (optional)" htmlFor="hire-sss">
+            <FormField label="SSS no." htmlFor="hire-sss">
               <Input id="hire-sss" value={sssNumber} onChange={(event) => setSssNumber(event.target.value)} placeholder="e.g. 34-1234567-8" />
             </FormField>
-            <FormField label="PhilHealth no. (optional)" htmlFor="hire-philhealth">
+            <FormField label="PhilHealth no." htmlFor="hire-philhealth">
               <Input id="hire-philhealth" value={philHealthNumber} onChange={(event) => setPhilHealthNumber(event.target.value)} placeholder="e.g. 12-345678901-2" />
             </FormField>
-            <FormField label="Pag-IBIG no. (optional)" htmlFor="hire-pagibig">
+            <FormField label="Pag-IBIG no." htmlFor="hire-pagibig">
               <Input id="hire-pagibig" value={pagIbigNumber} onChange={(event) => setPagIbigNumber(event.target.value)} placeholder="e.g. 1234-5678-9012" />
             </FormField>
-            <FormField label="TIN no. (optional)" htmlFor="hire-tin">
+            <FormField label="TIN no." htmlFor="hire-tin">
               <Input id="hire-tin" value={tinNumber} onChange={(event) => setTinNumber(event.target.value)} placeholder="e.g. 123-456-789" />
             </FormField>
           </div>

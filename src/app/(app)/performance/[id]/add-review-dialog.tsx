@@ -12,7 +12,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormError } from "@/components/shared/form-field";
+import { FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -73,8 +73,9 @@ export function AddReviewDialog({
           <DialogTitle>Add review</DialogTitle>
         </DialogHeader>
         <form id="add-review-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
-          <OptionSelect label="Reviewer" value={reviewerId} onChange={setReviewerId} options={employees} placeholder="Select a reviewer" />
+          <RequiredFieldsHint />
+          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
+          <OptionSelect label="Reviewer" value={reviewerId} onChange={setReviewerId} options={employees} placeholder="Select a reviewer" required />
           <FormError message={error} />
         </form>
         <DialogFooter>

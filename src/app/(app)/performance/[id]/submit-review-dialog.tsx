@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -72,8 +72,9 @@ export function SubmitReviewDialog({
           <DialogTitle>Submit review</DialogTitle>
         </DialogHeader>
         <form id={`submit-review-form-${reviewId}`} onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <OptionSelect label="Rating" value={ratingCode} onChange={setRatingCode} options={ratings} placeholder="Select a rating" />
-          <FormField label="Comments (optional)" htmlFor={`review-comments-${reviewId}`}>
+          <RequiredFieldsHint />
+          <OptionSelect label="Rating" value={ratingCode} onChange={setRatingCode} options={ratings} placeholder="Select a rating" required />
+          <FormField label="Comments" htmlFor={`review-comments-${reviewId}`}>
             <Textarea id={`review-comments-${reviewId}`} value={comments} onChange={(event) => setComments(event.target.value)} placeholder="e.g. Consistently exceeds expectations, strong collaboration skills" />
           </FormField>
           <FormError message={error} />

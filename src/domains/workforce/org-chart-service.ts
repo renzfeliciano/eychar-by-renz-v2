@@ -9,6 +9,8 @@ import {
   ProjectModel,
   EmploymentModel,
 } from "@/server/db/models";
+import { formatPersonName } from "@/lib/person-name";
+import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 
 export type OrgChartFilters = {
   asOf?: Date;
@@ -56,13 +58,34 @@ export const OrgChartService = {
     }).lean();
 
     const employeeIds = assignments.map((assignment) => assignment.employeeId);
-    const [employees, positions, units, projects, employments] = await Promise.all([
+    const [employees, positions, units, projects, employments, employmentStatuses] = await Promise.all([
       EmployeeModel.find({ _id: { $in: employeeIds } }).lean(),
       PositionModel.find({ organizationId: orgObjectId }).lean(),
       OrganizationUnitModel.find({ organizationId: orgObjectId }).lean(),
       ProjectModel.find({ organizationId: orgObjectId }).lean(),
       EmploymentModel.find({ employeeId: { $in: employeeIds } }).sort({ effectiveFrom: -1 }).lean(),
+      EmploymentStatusService.listCurrent(organizationId),
     ]);
+
+    // Same "active headcount" rule EmploymentService.isActiveStatus applies
+    // one employee at a time (used to gate the Terminate button) — batched
+    // here since the chart evaluates every employee in the organization at
+    // once. A resigned/terminated employee's EmployeeAssignment is never
+    // auto-closed on termination (Employment and EmployeeAssignment are
+    // deliberately separate models), so without this the chart would keep
+    // showing them indefinitely.
+    const isActiveHeadcountByStatus = new Map(
+      employmentStatuses.map((item) => [
+        item.code,
+        item.metadata && typeof item.metadata === "object" && "isActiveHeadcount" in item.metadata
+          ? Boolean((item.metadata as Record<string, unknown>).isActiveHeadcount)
+          : item.code !== "terminated",
+      ]),
+    );
+    function isActiveHeadcount(status: string | null): boolean {
+      if (!status) return true;
+      return isActiveHeadcountByStatus.get(status) ?? status !== "terminated";
+    }
 
     const persons = await PersonModel.find({ _id: { $in: employees.map((employee) => employee.personId) } }).lean();
     const personById = new Map(persons.map((person) => [person._id.toString(), person]));
@@ -92,9 +115,10 @@ export const OrgChartService = {
       if (filters.projectId && assignment.projectId?.toString() !== filters.projectId) continue;
 
       const employmentStatus = latestEmploymentByEmployee.get(employeeId)?.status ?? null;
+      if (!isActiveHeadcount(employmentStatus)) continue;
       if (filters.employmentStatus && employmentStatus !== filters.employmentStatus) continue;
 
-      const name = `${person.firstName} ${person.lastName}`;
+      const name = formatPersonName(person);
       if (search && !name.toLowerCase().includes(search)) continue;
 
       nodesById.set(employeeId, {

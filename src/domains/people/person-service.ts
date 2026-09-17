@@ -6,6 +6,7 @@ import { AuditService } from "@/server/audit/audit-service";
 export type CreatePersonInput = {
   organizationId: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   email?: string;
   phone?: string;
@@ -25,6 +26,7 @@ export const PersonService = {
     const person = await PersonModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
       firstName: input.firstName,
+      middleName: input.middleName,
       lastName: input.lastName,
       email: input.email,
       phone: input.phone,

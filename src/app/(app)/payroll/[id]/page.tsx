@@ -4,15 +4,12 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollService } from "@/domains/payroll/payroll-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { NotFoundError } from "@/shared/errors";
+import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApproveButton } from "../approve-button";
-
-function employeeName(person: { firstName: string; lastName: string } | null): string {
-  return person ? `${person.firstName} ${person.lastName}` : "—";
-}
 
 function formatDate(value: Date): string {
   return new Date(value).toISOString().slice(0, 10);

@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
 
 export function CreateEmployeeAccountDialog({ organizationId, employeeId, suggestedUsername }: { organizationId: string; employeeId: string; suggestedUsername: string }) {
@@ -58,13 +58,14 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
           <DialogTitle>Create self-service login</DialogTitle>
         </DialogHeader>
         <form id="create-employee-account-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <RequiredFieldsHint />
           <p className="text-sm text-muted-foreground">
             Lets this employee sign in on their own device to clock in/out with biometric confirmation and location.
           </p>
-          <FormField label="Username" htmlFor="employee-account-username">
+          <FormField label="Username" htmlFor="employee-account-username" required>
             <Input id="employee-account-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="e.g. jdelacruz" required />
           </FormField>
-          <FormField label="Temporary password" htmlFor="employee-account-password">
+          <FormField label="Temporary password" htmlFor="employee-account-password" required>
             <Input
               id="employee-account-password"
               type="text"

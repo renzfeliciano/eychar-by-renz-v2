@@ -2,14 +2,11 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
+import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { CreateCompensationDialog } from "./create-compensation-dialog";
 import { ReviseDialog } from "./revise-dialog";
-
-function employeeName(person: { firstName: string; lastName: string } | null): string {
-  return person ? `${person.firstName} ${person.lastName}` : "—";
-}
 
 export default async function CompensationPage() {
   const { organization } = await getCurrentOrganization();

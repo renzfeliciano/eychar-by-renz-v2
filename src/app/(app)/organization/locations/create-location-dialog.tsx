@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
 
 export function CreateLocationDialog({ organizationId }: { organizationId: string }) {
@@ -62,10 +62,11 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
           <DialogTitle>Add location</DialogTitle>
         </DialogHeader>
         <form id="create-location-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="location-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="location-name" required>
             <Input id="location-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. PCAS Head Office" required />
           </FormField>
-          <FormField label="Code" htmlFor="location-code">
+          <FormField label="Code" htmlFor="location-code" required>
             <Input id="location-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="e.g. HO" required />
           </FormField>
           <FormField label="Address" htmlFor="location-address">

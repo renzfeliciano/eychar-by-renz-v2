@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +63,8 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
           <DialogTitle>Add project</DialogTitle>
         </DialogHeader>
         <form id="create-project-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Name" htmlFor="project-name">
+          <RequiredFieldsHint />
+          <FormField label="Name" htmlFor="project-name" required>
             <Input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. EGI Rufino" required />
           </FormField>
           <OptionSelect

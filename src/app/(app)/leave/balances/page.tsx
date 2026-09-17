@@ -3,13 +3,10 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { LeaveBalanceService } from "@/domains/leave/leave-balance-service";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
+import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
-
-function employeeName(person: { firstName: string; lastName: string } | null): string {
-  return person ? `${person.firstName} ${person.lastName}` : "—";
-}
 
 export default async function LeaveBalancesPage() {
   const { organization } = await getCurrentOrganization();

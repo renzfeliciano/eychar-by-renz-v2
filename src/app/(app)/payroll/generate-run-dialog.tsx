@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -87,11 +87,12 @@ export function GenerateRunDialog({ organizationId, employees }: { organizationI
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
+          <RequiredFieldsHint />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Pay period start" htmlFor="run-period-start">
+            <FormField label="Pay period start" htmlFor="run-period-start" required>
               <Input id="run-period-start" type="date" value={payPeriodStart} onChange={(event) => setPayPeriodStart(event.target.value)} />
             </FormField>
-            <FormField label="Pay period end" htmlFor="run-period-end">
+            <FormField label="Pay period end" htmlFor="run-period-end" required>
               <Input id="run-period-end" type="date" value={payPeriodEnd} onChange={(event) => setPayPeriodEnd(event.target.value)} />
             </FormField>
           </div>

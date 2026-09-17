@@ -4,6 +4,7 @@ import { ReviewCycleService } from "@/domains/performance/review-cycle-service";
 import { PerformanceReviewService } from "@/domains/performance/performance-review-service";
 import { PerformanceRatingService } from "@/domains/catalog/performance-rating-service";
 import { EmployeeService } from "@/domains/workforce/employee-service";
+import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -36,7 +37,7 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
 
   const employeeOptions = roster
     .filter((row) => row.person)
-    .map((row) => ({ id: row._id.toString(), label: `${row.person!.firstName} ${row.person!.lastName}` }));
+    .map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }));
   const nameByEmployeeId = new Map(employeeOptions.map((option) => [option.id, option.label]));
   const ratingOptions = ratings.map((rating) => ({ id: rating.code, label: rating.name }));
   const ratingNameByCode = new Map(ratings.map((rating) => [rating.code, rating.name]));

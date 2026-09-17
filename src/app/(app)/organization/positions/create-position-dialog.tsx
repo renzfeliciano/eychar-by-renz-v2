@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField, FormError } from "@/components/shared/form-field";
+import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +63,8 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
           <DialogTitle>Add position</DialogTitle>
         </DialogHeader>
         <form id="create-position-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Title" htmlFor="position-title">
+          <RequiredFieldsHint />
+          <FormField label="Title" htmlFor="position-title" required>
             <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Front Desk Staff" required />
           </FormField>
           <OptionSelect
