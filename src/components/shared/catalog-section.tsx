@@ -116,10 +116,10 @@ export function CatalogSection({
               </DialogHeader>
               <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <FormField label="Name" htmlFor={`${formId}-name`}>
-                  <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} required />
+                  <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Regular" required />
                 </FormField>
                 <FormField label="Description (optional)" htmlFor={`${formId}-description`}>
-                  <Input id={`${formId}-description`} value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} />
+                  <Input id={`${formId}-description`} value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} placeholder="e.g. Standard, full-time employment" />
                 </FormField>
                 <FormError message={error} />
               </form>

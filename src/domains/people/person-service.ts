@@ -8,6 +8,14 @@ export type CreatePersonInput = {
   firstName: string;
   lastName: string;
   email?: string;
+  phone?: string;
+  gender?: "Male" | "Female";
+  birthDate?: Date;
+  address?: string;
+  sssNumber?: string;
+  philHealthNumber?: string;
+  pagIbigNumber?: string;
+  tinNumber?: string;
 };
 
 export const PersonService = {
@@ -19,6 +27,14 @@ export const PersonService = {
       firstName: input.firstName,
       lastName: input.lastName,
       email: input.email,
+      phone: input.phone,
+      gender: input.gender,
+      birthDate: input.birthDate,
+      address: input.address,
+      sssNumber: input.sssNumber,
+      philHealthNumber: input.philHealthNumber,
+      pagIbigNumber: input.pagIbigNumber,
+      tinNumber: input.tinNumber,
     });
 
     await AuditService.record({

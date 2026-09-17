@@ -11,7 +11,12 @@ export type CreateEmploymentInput = {
   employeeId: string;
   employmentType: string;
   effectiveFrom?: Date;
+  endOfContract?: Date;
 };
+
+function requiresEndOfContract(item: { metadata?: unknown } | null | undefined): boolean {
+  return Boolean(item && item.metadata && typeof item.metadata === "object" && (item.metadata as Record<string, unknown>).requiresEndOfContract);
+}
 
 const OPEN_EMPLOYMENT_FILTER = {
   $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }],
@@ -35,12 +40,18 @@ export const EmploymentService = {
 
     await EmploymentTypeService.assertValidCode(input.organizationId, input.employmentType);
 
+    const typeItem = await EmploymentTypeService.getByCode(input.organizationId, input.employmentType);
+    if (requiresEndOfContract(typeItem) && !input.endOfContract) {
+      throw new BusinessRuleError(`End of contract is required for employment type "${input.employmentType}"`);
+    }
+
     const employment = await EmploymentModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
       employeeId: employeeObjectId,
       employmentType: input.employmentType,
       status: "active",
       effectiveFrom: input.effectiveFrom ?? new Date(),
+      endOfContract: input.endOfContract,
     });
 
     await AuditService.record({

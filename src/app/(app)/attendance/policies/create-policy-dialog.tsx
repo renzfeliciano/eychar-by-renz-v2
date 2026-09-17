@@ -74,7 +74,7 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
         </DialogHeader>
         <form id="create-attendance-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="policy-name">
-            <Input id="policy-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="policy-name" placeholder="e.g. Standard Day Shift" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
           <OptionSelect label="Project (optional)" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -86,7 +86,7 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
             </FormField>
           </div>
           <FormField label="Grace (min)" htmlFor="policy-grace">
-            <Input id="policy-grace" type="number" min={0} value={gracePeriodMinutes} onChange={(event) => setGracePeriodMinutes(event.target.value)} required />
+            <Input id="policy-grace" type="number" min={0} placeholder="e.g. 15" value={gracePeriodMinutes} onChange={(event) => setGracePeriodMinutes(event.target.value)} required />
           </FormField>
           <FormError message={error} />
         </form>

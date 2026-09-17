@@ -63,7 +63,7 @@ export function CreateReviewCycleDialog({ organizationId }: { organizationId: st
         </DialogHeader>
         <form id="create-review-cycle-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="review-cycle-name">
-            <Input id="review-cycle-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="review-cycle-name" placeholder="e.g. 2026 Annual Review" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
           <FormField label="Period start" htmlFor="review-cycle-start">
             <Input id="review-cycle-start" type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} required />

@@ -7,24 +7,26 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 8b — Performance** (see AGENTS.md §57) on top of Phases 1–8a. Implemented:
+**Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b. Implemented:
 Organization, User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit,
 Position, Location, Project, Employee, Employment, EmployeeAssignment, AttendancePolicy,
 AttendanceRecord, LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
 PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment,
 EmploymentType, EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory,
-CaseClassification, CaseStatus, PerformanceRating (org-managed catalogs, ADR-016), JobOpening,
-Applicant (Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance, ADR-017);
-server-side authorization with a granular per-resource permission catalog; append-only audit
-logging; Auth.js credentials (username-or-email) login with single-active-session +
-idle-timeout enforcement; a shadcn/ui dashboard,
-`/organization/{units,positions,locations,projects,chart}`, `/people`, `/attendance{,/policies}`,
+CaseClassification, CaseStatus, PerformanceRating (org-managed catalogs, ADR-016), Applicant
+(Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance, ADR-017), Case (Case
+monitoring, ADR-018); server-side authorization with a granular per-resource permission catalog;
+append-only audit logging; Auth.js credentials (username-or-email) login with
+single-active-session + idle-timeout enforcement; a shadcn/ui dashboard,
+`/organization/{units,positions,locations,projects,chart}`, `/people` (with Age/Length-of-service
+columns, statutory ID fields, CSV export + print — ADR-019), `/attendance{,/policies}`,
 `/leave{,/types,/policies,/balances}`, `/payroll{,/policies,/rule-versions,/compensation}`,
-`/recruitment{,/tracking}`, `/performance{,/[id]}`, and `/settings/catalogs` UI.
+`/recruitment/tracking` (drag-and-drop Kanban), `/performance{,/[id]}`, `/cases` (CSV export +
+print), and `/settings/catalogs` UI.
 
-Not yet implemented (later Phase 8 sub-phases): Cases, Assets, Documents, Events — though their
-org-managed lookup lists (EventCategory, CaseClassification, CaseStatus) are already seeded and
-manageable under Settings > Catalogs, ahead of the domains that will consume them.
+Not yet implemented (later Phase 8 sub-phases): Assets, Documents, Events — though their
+org-managed lookup lists (EventCategory) are already seeded and manageable under Settings >
+Catalogs, ahead of the domains that will consume them.
 
 ## Architecture style
 
@@ -79,6 +81,15 @@ moving an employee closes the current assignment and creates a new one, never an
 which is what makes historical reconstruction (`getAsOf(employeeId, date)`) possible.
 `HireService.hire(...)` orchestrates Person → Employee → Employment → EmployeeAssignment as three
 separately audited writes for a new hire, not one Mongo transaction (see ADR-005's consequences).
+
+`Person` also carries `gender`/`birthDate`/`address`/`phone` and statutory ID numbers (SSS/
+PhilHealth/Pag-IBIG/TIN, format-validated), and `Employment` carries an optional `endOfContract`
+(required only when the selected `EmploymentType`'s `metadata.requiresEndOfContract` is set) —
+added per ADR-019 to match the legacy v1 app's Employee Roster fields on top of this codebase's
+existing Person/Employment/EmployeeAssignment split, rather than flattening back to one document.
+`/people` computes Age and Length of Service at read time from `birthDate`/`effectiveFrom`
+(`src/lib/employee-dates.ts`) and offers CSV export + a print report, both covering every row
+matching the current Employment-type filter, not just what's visible.
 
 ## Organizational chart (Phase 4, ADR-009)
 
@@ -170,18 +181,14 @@ for Performance ratings) plus real `Position`/`Project` data, each upserted idem
 
 ## Recruitment (Phase 8a, ADR-015)
 
-`JobOpening` references `Position` (never duplicates its title) and tracks `headcount`/`status`.
-`Applicant.stage` is a catalog code (`RecruitmentStage`), not a hardcoded enum — `advanceStage()`
-only allows moving to a non-terminal stage with a higher `sortOrder` than the current one,
-`reject()` only fires from a non-terminal stage, and `hire()` only fires from the org's
-configured final non-terminal stage, all read from the catalog at call time. `hire()` delegates
-to the existing `HireService.hire()` (ADR-015) rather than duplicating employee creation, then
-sets the applicant to the terminal "hired" code and links `hiredEmployeeId`.
-
-`/recruitment/tracking` is a Kanban-style board: columns are `RecruitmentStage` items ordered by
-`sortOrder`, cards are applicants, and each card's available actions (Move/Reject/Hire) are
-computed client-side from the full stage list — no drag-and-drop library, click-based actions
-only, since nothing in this phase needs free-form reordering.
+Rebuilt to mirror the legacy v1 app's real Application Tracking feature. `Applicant` references
+`Position` directly (no `JobOpening`/headcount layer) and `stage` is a catalog code
+(`RecruitmentStage`) with **free-form movement in any direction** — no forward-only state
+machine, matching v1's plain "Move to" dropdown. `/recruitment/tracking` is a Kanban board using
+`@dnd-kit/core` for drag-and-drop between columns (`StageColumn` is a drop target, `ApplicantCard`
+is draggable via a grip handle), with the "Move to" select as a non-drag fallback — both call the
+same `ApplicantService.moveStage()`. Moving a card to a "Hired"-named stage is just a label; it
+does not create an `Employee` record, matching v1's actual (deliberately narrower) scope.
 
 ## Performance (Phase 8b, ADR-017)
 
@@ -195,6 +202,19 @@ un-submit; a correction is a new cycle's review, matching this codebase's "never
 stint in place" precedent. There's no separate `.approve` permission (unlike Leave/Payroll) since
 submitting is a single-actor action, and no employee-facing acknowledgment step, since this
 codebase has no employee self-service portal yet to acknowledge from.
+
+## Case monitoring (Phase 8c, ADR-018)
+
+Rebuilt to mirror the legacy v1 app's real Case Monitoring module. `Case` (`projectId` required
+ref `Project`, `caseName`, `caseNumber`, `classification`, `status`, `legalCounsel?`,
+`briefHistory?`) ties a case to a property/site, not an employee — matching what these cases
+actually are for a property-management org (SeNA/labor, criminal, civil, regulatory matters).
+`classification`/`status` validate against the `CaseClassification`/`CaseStatus` catalogs, same
+pattern as everywhere else. `CaseService.update()` is a full replace (`caseSchema` reused for
+create and update), matching v1's single reused form dialog. `/cases` offers CSV export and a
+print report (`hidden print:block`, per ADR-018/019's Tailwind-first print convention) — v1's
+hard-delete was intentionally not ported (AGENTS.md §53: no hard deletes anywhere in this
+codebase); a case is retired via its `status` catalog value instead.
 
 ## Authorization (ADR-007)
 

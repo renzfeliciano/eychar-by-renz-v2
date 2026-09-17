@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,8 @@ export function CreateLeaveBalanceDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [year, setYear] = useState(String(new Date().getFullYear()));
-  const [entitledDays, setEntitledDays] = useState("15");
+  const [entitledDays, setEntitledDays] = useState("15.00");
+  const [hasNoFixedAmount, setHasNoFixedAmount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,7 +55,8 @@ export function CreateLeaveBalanceDialog({
         employeeId,
         leaveTypeId,
         year: Number(year),
-        entitledDays: Number(entitledDays),
+        entitledDays: hasNoFixedAmount ? undefined : Number(entitledDays),
+        hasNoFixedAmount,
       }),
     });
 
@@ -67,6 +70,7 @@ export function CreateLeaveBalanceDialog({
 
     setEmployeeId("");
     setLeaveTypeId("");
+    setHasNoFixedAmount(false);
     setOpen(false);
     router.refresh();
   }
@@ -86,19 +90,31 @@ export function CreateLeaveBalanceDialog({
           <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Year" htmlFor="leave-balance-year">
-              <Input id="leave-balance-year" type="number" value={year} onChange={(event) => setYear(event.target.value)} required />
+              <Input id="leave-balance-year" type="number" value={year} onChange={(event) => setYear(event.target.value)} placeholder="e.g. 2026" required />
             </FormField>
             <FormField label="Entitled days" htmlFor="leave-balance-days">
               <Input
                 id="leave-balance-days"
                 type="number"
                 min={0}
+                max={999.99}
+                step={0.01}
                 value={entitledDays}
                 onChange={(event) => setEntitledDays(event.target.value)}
-                required
+                placeholder="e.g. 15.00"
+                disabled={hasNoFixedAmount}
+                required={!hasNoFixedAmount}
               />
             </FormField>
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={hasNoFixedAmount}
+              onCheckedChange={(checked) => setHasNoFixedAmount(checked === true)}
+              data-testid="leave-balance-no-fixed-amount"
+            />
+            No fixed balance (unlimited — employee can request this leave type freely)
+          </label>
           <FormError message={error} />
         </form>
         <DialogFooter>

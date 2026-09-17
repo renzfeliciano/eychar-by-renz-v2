@@ -63,13 +63,13 @@ export function CreateLeaveTypeDialog({ organizationId }: { organizationId: stri
         </DialogHeader>
         <form id="create-leave-type-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="leave-type-name">
-            <Input id="leave-type-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="leave-type-name" placeholder="e.g. Vacation Leave" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
           <FormField label="Code" htmlFor="leave-type-code">
-            <Input id="leave-type-code" value={code} onChange={(event) => setCode(event.target.value)} required />
+            <Input id="leave-type-code" placeholder="e.g. VL" value={code} onChange={(event) => setCode(event.target.value)} required />
           </FormField>
           <FormField label="Description" htmlFor="leave-type-description">
-            <Input id="leave-type-description" value={description} onChange={(event) => setDescription(event.target.value)} />
+            <Input id="leave-type-description" placeholder="e.g. Paid time off for rest and personal matters" value={description} onChange={(event) => setDescription(event.target.value)} />
           </FormField>
           <FormError message={error} />
         </form>

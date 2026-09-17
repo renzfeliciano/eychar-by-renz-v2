@@ -102,6 +102,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                 <FormField label="Min income">
                   <Input
                     type="number"
+                    placeholder="e.g. 0"
                     value={bracket.minIncome}
                     onChange={(event) =>
                       setBrackets(brackets.map((row, i) => (i === index ? { ...row, minIncome: event.target.value } : row)))
@@ -111,6 +112,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                 <FormField label="Max income (optional)">
                   <Input
                     type="number"
+                    placeholder="e.g. 20000"
                     value={bracket.maxIncome}
                     onChange={(event) =>
                       setBrackets(brackets.map((row, i) => (i === index ? { ...row, maxIncome: event.target.value } : row)))
@@ -121,6 +123,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                   <Input
                     type="number"
                     step="0.01"
+                    placeholder="e.g. 0.15"
                     value={bracket.rate}
                     onChange={(event) => setBrackets(brackets.map((row, i) => (i === index ? { ...row, rate: event.target.value } : row)))}
                   />
@@ -128,6 +131,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                 <FormField label="Base deduction">
                   <Input
                     type="number"
+                    placeholder="e.g. 0"
                     value={bracket.baseDeduction}
                     onChange={(event) =>
                       setBrackets(brackets.map((row, i) => (i === index ? { ...row, baseDeduction: event.target.value } : row)))
@@ -157,6 +161,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
               <div key={index} className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:items-end">
                 <FormField label="Name">
                   <Input
+                    placeholder="e.g. SSS"
                     value={contribution.name}
                     onChange={(event) =>
                       setContributions(contributions.map((row, i) => (i === index ? { ...row, name: event.target.value } : row)))
@@ -167,6 +172,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                   <Input
                     type="number"
                     step="0.001"
+                    placeholder="e.g. 0.045"
                     value={contribution.employeeRate}
                     onChange={(event) =>
                       setContributions(contributions.map((row, i) => (i === index ? { ...row, employeeRate: event.target.value } : row)))
@@ -176,6 +182,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
                 <FormField label="Cap (optional)">
                   <Input
                     type="number"
+                    placeholder="e.g. 30000"
                     value={contribution.cap}
                     onChange={(event) =>
                       setContributions(contributions.map((row, i) => (i === index ? { ...row, cap: event.target.value } : row)))

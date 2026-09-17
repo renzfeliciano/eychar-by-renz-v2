@@ -18,6 +18,10 @@ const employmentSchema = new Schema(
     status: { type: String, required: true, trim: true, default: "active" },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     effectiveTo: { type: Date },
+    // Only meaningful for employment types whose catalog item has
+    // metadata.requiresEndOfContract (e.g. Contractual/Probationary) —
+    // enforced at the service boundary, not a hardcoded status list.
+    endOfContract: { type: Date },
     terminationReason: { type: String, trim: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },

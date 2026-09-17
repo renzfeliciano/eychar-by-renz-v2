@@ -66,16 +66,17 @@ export function CreatePayrollPolicyDialog({ organizationId }: { organizationId: 
         </DialogHeader>
         <form id="create-payroll-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="payroll-policy-name">
-            <Input id="payroll-policy-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="payroll-policy-name" placeholder="e.g. Standard Semi-Monthly Policy" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
           <FormField label="Pay frequency" htmlFor="payroll-policy-frequency">
-            <Input id="payroll-policy-frequency" value={payFrequency} onChange={(event) => setPayFrequency(event.target.value)} required />
+            <Input id="payroll-policy-frequency" placeholder="e.g. semi-monthly" value={payFrequency} onChange={(event) => setPayFrequency(event.target.value)} required />
           </FormField>
           <FormField label="Standard work days / period" htmlFor="payroll-policy-days">
             <Input
               id="payroll-policy-days"
               type="number"
               min={1}
+              placeholder="e.g. 22"
               value={standardWorkDaysPerPeriod}
               onChange={(event) => setStandardWorkDaysPerPeriod(event.target.value)}
               required

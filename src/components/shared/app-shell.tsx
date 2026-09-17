@@ -39,7 +39,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex print:hidden">
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-5">
           <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
             <Building className="size-4" />
@@ -52,7 +52,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass-surface sticky top-0 z-10 flex h-16 items-center gap-3 border-b px-4 md:px-6">
+        <header className="glass-surface sticky top-0 z-10 flex h-16 items-center gap-3 border-b px-4 md:px-6 print:hidden">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <Button
               variant="ghost"

@@ -90,7 +90,7 @@ export function NewRequestDialog({
             </FormField>
           </div>
           <FormField label="Reason (optional)" htmlFor="request-reason">
-            <Input id="request-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+            <Input id="request-reason" placeholder="e.g. Family emergency" value={reason} onChange={(event) => setReason(event.target.value)} />
           </FormField>
           <FormError message={error} />
         </div>

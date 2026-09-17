@@ -33,7 +33,13 @@ export default async function NewEmployeePage() {
         managers={roster
           .filter((row) => row.person)
           .map((row) => ({ id: row._id.toString(), label: `${row.person!.firstName} ${row.person!.lastName}` }))}
-        employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))}
+        employmentTypes={employmentTypes.map((item) => ({
+          id: item.code,
+          label: item.name,
+          requiresEndOfContract: Boolean(
+            item.metadata && typeof item.metadata === "object" && (item.metadata as Record<string, unknown>).requiresEndOfContract,
+          ),
+        }))}
       />
     </div>
   );

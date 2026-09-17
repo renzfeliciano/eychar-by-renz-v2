@@ -64,7 +64,7 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
         </DialogHeader>
         <form id="create-project-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="project-name">
-            <Input id="project-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. EGI Rufino" required />
           </FormField>
           <OptionSelect
             label="Location"

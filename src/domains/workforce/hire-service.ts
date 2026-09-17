@@ -14,7 +14,20 @@ import type { HireEmployeeInput } from "@/shared/validation/workforce";
 export const HireService = {
   async hire(input: HireEmployeeInput, actor: { userId?: string }) {
     const person = await PersonService.create(
-      { organizationId: input.organizationId, firstName: input.firstName, lastName: input.lastName, email: input.email },
+      {
+        organizationId: input.organizationId,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        phone: input.phone,
+        gender: input.gender,
+        birthDate: input.birthDate,
+        address: input.address,
+        sssNumber: input.sssNumber,
+        philHealthNumber: input.philHealthNumber,
+        pagIbigNumber: input.pagIbigNumber,
+        tinNumber: input.tinNumber,
+      },
       actor,
     );
 
@@ -29,6 +42,7 @@ export const HireService = {
         employeeId: employee._id.toString(),
         employmentType: input.employmentType,
         effectiveFrom: input.effectiveFrom,
+        endOfContract: input.endOfContract,
       },
       actor,
     );

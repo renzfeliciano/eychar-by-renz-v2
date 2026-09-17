@@ -1,3 +1,4 @@
+export * from "./shared";
 export * from "./auth";
 export * from "./organization";
 export * from "./organization-structure";
@@ -9,3 +10,4 @@ export * from "./payroll";
 export * from "./catalog";
 export * from "./recruitment";
 export * from "./performance";
+export * from "./cases";

@@ -1,38 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, PositionModel, EmployeeModel, AuditLogModel } from "@/server/db/models";
-import { JobOpeningService } from "@/domains/recruitment/job-opening-service";
+import { OrganizationModel, PositionModel } from "@/server/db/models";
 import { ApplicantService } from "@/domains/recruitment/applicant-service";
 import { RecruitmentStageService } from "@/domains/catalog/recruitment-stage-service";
-import { BusinessRuleError } from "@/shared/errors";
 
-async function seedStages(organizationId: string) {
-  const stages = [
-    { code: "applied", name: "Applied", sortOrder: 0 },
-    { code: "screening", name: "Screening", sortOrder: 1 },
-    { code: "interview", name: "Interview", sortOrder: 2 },
-    { code: "offer", name: "Offer", sortOrder: 3 },
-    { code: "hired", name: "Hired", sortOrder: 4, metadata: { isTerminal: true } },
-    { code: "rejected", name: "Rejected", sortOrder: 5, metadata: { isTerminal: true } },
-  ];
-  for (const stage of stages) {
-    await RecruitmentStageService.create({ organizationId, ...stage }, {});
-  }
-}
-
-async function seedOrgOpeningAndApplicant(suffix: string, withStages: boolean) {
-  const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-${suffix}-${Date.now()}-${Math.random()}` });
-  if (withStages) await seedStages(organization._id.toString());
-  const position = await PositionModel.create({ organizationId: organization._id, title: "Engineer", code: `ENG-${suffix}-${Date.now()}` });
-  const opening = await JobOpeningService.create(
-    { organizationId: organization._id.toString(), positionId: position._id.toString() },
-    {},
-  );
-  const applicant = await ApplicantService.create(
-    { organizationId: organization._id.toString(), jobOpeningId: opening._id.toString(), firstName: "Jane", lastName: "Doe" },
-    {},
-  );
-  return { organization, position, opening, applicant };
+async function seedPosition(organizationId: object, suffix: string) {
+  return PositionModel.create({ organizationId, title: `Position ${suffix}`, code: `POS-${suffix}-${Date.now()}-${Math.random()}` });
 }
 
 describe("ApplicantService", () => {
@@ -40,109 +13,108 @@ describe("ApplicantService", () => {
     await connectMongoDB();
   });
 
-  it("creates an applicant in the applied stage", async () => {
-    const { applicant } = await seedOrgOpeningAndApplicant("1", true);
-    expect(applicant.stage).toBe("applied");
-  });
+  it("creates an applicant in the applied stage, linked directly to a position", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const position = await seedPosition(organization._id, "A");
 
-  it("rejects applying to a closed job opening", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-2-${Date.now()}` });
-    await seedStages(organization._id.toString());
-    const position = await PositionModel.create({ organizationId: organization._id, title: "Engineer", code: `ENG-2-${Date.now()}` });
-    const opening = await JobOpeningService.create(
-      { organizationId: organization._id.toString(), positionId: position._id.toString() },
+    const applicant = await ApplicantService.create(
+      { organizationId: orgId, positionId: position._id.toString(), applicantName: "Juan Dela Cruz", appliedDate: new Date("2026-01-01") },
       {},
     );
-    await JobOpeningService.updateStatus(opening._id.toString(), organization._id.toString(), { status: "closed" }, {});
+
+    expect(applicant.stage).toBe("applied");
+    expect(applicant.applicantName).toBe("Juan Dela Cruz");
+    expect(applicant.positionId.toString()).toBe(position._id.toString());
+  });
+
+  it("rejects a position that doesn't belong to the organization", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-badpos-${Date.now()}-${Math.random()}` });
+    const otherOrg = await OrganizationModel.create({ name: "Other", slug: `other-app-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const foreignPosition = await seedPosition(otherOrg._id, "FOREIGN");
 
     await expect(
       ApplicantService.create(
-        { organizationId: organization._id.toString(), jobOpeningId: opening._id.toString(), firstName: "Jane", lastName: "Doe" },
+        { organizationId: orgId, positionId: foreignPosition._id.toString(), applicantName: "Juan", appliedDate: new Date() },
         {},
       ),
-    ).rejects.toThrow(BusinessRuleError);
+    ).rejects.toThrow();
   });
 
-  describe("advanceStage", () => {
-    it("allows a forward move, including skipping a stage", async () => {
-      const { organization, applicant } = await seedOrgOpeningAndApplicant("3", true);
+  it("moves an applicant to any configured stage, in any direction, with no forward-only restriction", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-move-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const position = await seedPosition(organization._id, "B");
+    await RecruitmentStageService.create({ organizationId: orgId, code: "applied", name: "Applied", sortOrder: 0 }, {});
+    await RecruitmentStageService.create({ organizationId: orgId, code: "interview", name: "Interview", sortOrder: 1 }, {});
+    await RecruitmentStageService.create({ organizationId: orgId, code: "hired", name: "Hired", sortOrder: 2 }, {});
+    await RecruitmentStageService.create({ organizationId: orgId, code: "rejected", name: "Rejected", sortOrder: 3 }, {});
 
-      const advanced = await ApplicantService.advanceStage(applicant._id.toString(), organization._id.toString(), { stage: "interview" }, {});
+    const applicant = await ApplicantService.create(
+      { organizationId: orgId, positionId: position._id.toString(), applicantName: "Juan", appliedDate: new Date() },
+      {},
+    );
 
-      expect(advanced.stage).toBe("interview");
-    });
+    const advanced = await ApplicantService.moveStage(applicant._id.toString(), orgId, { stage: "hired" }, {});
+    expect(advanced.stage).toBe("hired");
 
-    it("rejects moving backward", async () => {
-      const { organization, applicant } = await seedOrgOpeningAndApplicant("4", true);
-      await ApplicantService.advanceStage(applicant._id.toString(), organization._id.toString(), { stage: "interview" }, {});
+    // Moving "backward" is allowed — no forward-only state machine, matching v1.
+    const movedBack = await ApplicantService.moveStage(applicant._id.toString(), orgId, { stage: "applied" }, {});
+    expect(movedBack.stage).toBe("applied");
 
-      await expect(
-        ApplicantService.advanceStage(applicant._id.toString(), organization._id.toString(), { stage: "screening" }, {}),
-      ).rejects.toThrow(BusinessRuleError);
-    });
-
-    it("rejects moving to the same stage", async () => {
-      const { organization, applicant } = await seedOrgOpeningAndApplicant("5", true);
-
-      await expect(
-        ApplicantService.advanceStage(applicant._id.toString(), organization._id.toString(), { stage: "applied" }, {}),
-      ).rejects.toThrow(BusinessRuleError);
-    });
-
-    it("rejects moving into a terminal stage via advanceStage", async () => {
-      const { organization, applicant } = await seedOrgOpeningAndApplicant("6", true);
-
-      await expect(
-        ApplicantService.advanceStage(applicant._id.toString(), organization._id.toString(), { stage: "hired" }, {}),
-      ).rejects.toThrow(BusinessRuleError);
-    });
+    const rejected = await ApplicantService.moveStage(applicant._id.toString(), orgId, { stage: "rejected" }, {});
+    expect(rejected.stage).toBe("rejected");
   });
 
-  describe("reject", () => {
-    it("rejects a non-terminal applicant and audits it", async () => {
-      const { organization, applicant } = await seedOrgOpeningAndApplicant("7", true);
+  it("rejects a move to a stage not configured in the org's catalog once one exists", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-badstage-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const position = await seedPosition(organization._id, "C");
+    await RecruitmentStageService.create({ organizationId: orgId, code: "applied", name: "Applied", sortOrder: 0 }, {});
 
-      const rejected = await ApplicantService.reject(applicant._id.toString(), organization._id.toString(), { reason: "Not a fit" }, {});
+    const applicant = await ApplicantService.create(
+      { organizationId: orgId, positionId: position._id.toString(), applicantName: "Juan", appliedDate: new Date() },
+      {},
+    );
 
-      expect(rejected.stage).toBe("rejected");
-      expect(rejected.rejectionReason).toBe("Not a fit");
-      const audits = await AuditLogModel.find({ resourceId: applicant._id, action: "applicant.rejected" }).lean();
-      expect(audits).toHaveLength(1);
-    });
-
-    it("rejects rejecting an already-terminal applicant", async () => {
-      const { organization, applicant } = await seedOrgOpeningAndApplicant("8", true);
-      await ApplicantService.reject(applicant._id.toString(), organization._id.toString(), {}, {});
-
-      await expect(ApplicantService.reject(applicant._id.toString(), organization._id.toString(), {}, {})).rejects.toThrow(
-        BusinessRuleError,
-      );
-    });
+    await expect(ApplicantService.moveStage(applicant._id.toString(), orgId, { stage: "not-a-real-stage" }, {})).rejects.toThrow();
   });
 
-  describe("hire", () => {
-    it("only hires from the final pre-terminal stage, and creates a real Employee", async () => {
-      const { organization, applicant, position } = await seedOrgOpeningAndApplicant("9", true);
+  it("fully updates an applicant's fields", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-update-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const position = await seedPosition(organization._id, "D");
+    const applicant = await ApplicantService.create(
+      { organizationId: orgId, positionId: position._id.toString(), applicantName: "Juan", appliedDate: new Date("2026-01-01") },
+      {},
+    );
 
-      await expect(
-        ApplicantService.hire(applicant._id.toString(), organization._id.toString(), { employeeNumber: "EMP-9", employmentType: "regular" }, {}),
-      ).rejects.toThrow(BusinessRuleError);
+    const updated = await ApplicantService.update(
+      applicant._id.toString(),
+      orgId,
+      { positionId: position._id.toString(), applicantName: "Juan Dela Cruz", appliedDate: new Date("2026-02-01"), remarks: "Strong candidate" },
+      {},
+    );
 
-      await ApplicantService.advanceStage(applicant._id.toString(), organization._id.toString(), { stage: "offer" }, {});
-      const hired = await ApplicantService.hire(
-        applicant._id.toString(),
-        organization._id.toString(),
-        { employeeNumber: "EMP-9", employmentType: "regular", positionId: position._id.toString() },
-        { userId: undefined },
-      );
+    expect(updated.applicantName).toBe("Juan Dela Cruz");
+    expect(updated.remarks).toBe("Strong candidate");
+  });
 
-      expect(hired.stage).toBe("hired");
-      expect(hired.hiredEmployeeId).toBeTruthy();
-      const employee = await EmployeeModel.findById(hired.hiredEmployeeId).lean();
-      expect(employee?.employeeNumber).toBe("EMP-9");
+  it("lists applicants for an organization, most recently applied first", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-app-list-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const position = await seedPosition(organization._id, "E");
+    await ApplicantService.create(
+      { organizationId: orgId, positionId: position._id.toString(), applicantName: "A", appliedDate: new Date("2026-01-01") },
+      {},
+    );
+    await ApplicantService.create(
+      { organizationId: orgId, positionId: position._id.toString(), applicantName: "B", appliedDate: new Date("2026-02-01") },
+      {},
+    );
 
-      const audits = await AuditLogModel.find({ resourceId: applicant._id, action: "applicant.hired" }).lean();
-      expect(audits).toHaveLength(1);
-    });
+    const applicants = await ApplicantService.listForOrganization(orgId);
+    expect(applicants.map((applicant) => applicant.applicantName)).toEqual(["B", "A"]);
   });
 });

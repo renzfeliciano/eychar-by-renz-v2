@@ -83,7 +83,7 @@ export function CreateLeavePolicyDialog({
         </DialogHeader>
         <form id="create-leave-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="leave-policy-name">
-            <Input id="leave-policy-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="leave-policy-name" placeholder="e.g. Standard Vacation Leave Policy" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
           <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" />
           <OptionSelect label="Project (optional)" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
@@ -92,6 +92,7 @@ export function CreateLeavePolicyDialog({
               id="leave-policy-days"
               type="number"
               min={0}
+              placeholder="e.g. 15"
               value={annualEntitlementDays}
               onChange={(event) => setAnnualEntitlementDays(event.target.value)}
               required

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardCheck } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -74,7 +74,7 @@ export function SubmitReviewDialog({
         <form id={`submit-review-form-${reviewId}`} onSubmit={handleSubmit} className="flex flex-col gap-4">
           <OptionSelect label="Rating" value={ratingCode} onChange={setRatingCode} options={ratings} placeholder="Select a rating" />
           <FormField label="Comments (optional)" htmlFor={`review-comments-${reviewId}`}>
-            <Input id={`review-comments-${reviewId}`} value={comments} onChange={(event) => setComments(event.target.value)} />
+            <Textarea id={`review-comments-${reviewId}`} value={comments} onChange={(event) => setComments(event.target.value)} placeholder="e.g. Consistently exceeds expectations, strong collaboration skills" />
           </FormField>
           <FormError message={error} />
         </form>

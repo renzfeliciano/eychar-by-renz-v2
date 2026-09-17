@@ -5,9 +5,9 @@ import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
 import type { CreateReviewCycleInput } from "@/shared/validation/performance";
 
-// draft -> open -> closed only, matching JobOpening's simpler open/closed
-// shape but with an extra draft stage so HR can set up a cycle (dates,
-// name) before reviewers can start submitting reviews against it.
+// draft -> open -> closed only — an extra draft stage before open/closed so
+// HR can set up a cycle (dates, name) before reviewers can start
+// submitting reviews against it.
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ["open"],
   open: ["closed"],

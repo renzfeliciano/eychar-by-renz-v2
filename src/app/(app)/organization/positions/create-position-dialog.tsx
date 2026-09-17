@@ -64,7 +64,7 @@ export function CreatePositionDialog({ organizationId, units }: { organizationId
         </DialogHeader>
         <form id="create-position-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Title" htmlFor="position-title">
-            <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} required />
+            <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Front Desk Staff" required />
           </FormField>
           <OptionSelect
             label="Organization unit"

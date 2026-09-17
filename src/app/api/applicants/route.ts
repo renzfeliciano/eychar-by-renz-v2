@@ -12,12 +12,8 @@ export async function GET(request: NextRequest) {
     });
     await requirePermission("applicants.read", organizationId);
 
-    const jobOpeningId = request.nextUrl.searchParams.get("jobOpeningId");
     const stage = request.nextUrl.searchParams.get("stage") ?? undefined;
-
-    const applicants = jobOpeningId
-      ? await ApplicantService.listForJobOpening(jobOpeningId, organizationId)
-      : await ApplicantService.listForOrganization(organizationId, { stage });
+    const applicants = await ApplicantService.listForOrganization(organizationId, { stage });
 
     return NextResponse.json({ applicants });
   } catch (error) {

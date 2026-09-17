@@ -1,48 +1,27 @@
 import { z } from "zod";
+import { contactNumberSchema, emailSchema } from "./shared";
 
-export const createJobOpeningSchema = z.object({
+// Same shape for create and update — mirroring the legacy v1 app, where an
+// applicant's form dialog is a full edit, not a narrow single-field patch.
+export const applicantSchema = z.object({
   organizationId: z.string().trim().min(1),
-  projectId: z.string().trim().min(1).optional(),
   positionId: z.string().trim().min(1),
-  headcount: z.coerce.number().int().min(1).optional(),
+  applicantName: z.string().trim().min(1).max(120),
+  email: emailSchema.optional(),
+  phone: contactNumberSchema.optional(),
+  appliedDate: z.coerce.date(),
+  remarks: z.string().trim().max(500).optional(),
 });
 
-export const updateJobOpeningStatusSchema = z.object({
+export const createApplicantSchema = applicantSchema;
+export const updateApplicantSchema = applicantSchema;
+
+/** Free-form move to any configured stage — no forward-only/terminal restriction, matching v1's plain "Move to" dropdown. */
+export const moveApplicantStageSchema = z.object({
   organizationId: z.string().trim().min(1),
-  status: z.enum(["open", "closed"]),
+  stage: z.string().trim().min(1),
 });
 
-export const createApplicantSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  jobOpeningId: z.string().trim().min(1),
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  email: z.string().trim().toLowerCase().email().optional(),
-  phone: z.string().trim().optional(),
-});
-
-const assignmentFields = {
-  positionId: z.string().trim().min(1).optional(),
-  organizationUnitId: z.string().trim().min(1).optional(),
-  projectId: z.string().trim().min(1).optional(),
-  locationId: z.string().trim().min(1).optional(),
-  reportsToEmployeeId: z.string().trim().min(1).optional(),
-  effectiveFrom: z.coerce.date().optional(),
-};
-
-export const decideApplicantSchema = z.discriminatedUnion("action", [
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("advance"), stage: z.string().trim().min(1) }),
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("reject"), reason: z.string().trim().optional() }),
-  z.object({
-    organizationId: z.string().trim().min(1),
-    action: z.literal("hire"),
-    employeeNumber: z.string().trim().min(1),
-    employmentType: z.string().trim().min(1),
-    ...assignmentFields,
-  }),
-]);
-
-export type CreateJobOpeningInput = z.infer<typeof createJobOpeningSchema>;
-export type UpdateJobOpeningStatusInput = z.infer<typeof updateJobOpeningStatusSchema>;
 export type CreateApplicantInput = z.infer<typeof createApplicantSchema>;
-export type DecideApplicantInput = z.infer<typeof decideApplicantSchema>;
+export type UpdateApplicantInput = z.infer<typeof updateApplicantSchema>;
+export type MoveApplicantStageInput = z.infer<typeof moveApplicantStageSchema>;

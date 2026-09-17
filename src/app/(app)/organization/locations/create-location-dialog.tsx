@@ -63,13 +63,13 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
         </DialogHeader>
         <form id="create-location-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="location-name">
-            <Input id="location-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="location-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. PCAS Head Office" required />
           </FormField>
           <FormField label="Code" htmlFor="location-code">
-            <Input id="location-code" value={code} onChange={(event) => setCode(event.target.value)} required />
+            <Input id="location-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="e.g. HO" required />
           </FormField>
           <FormField label="Address" htmlFor="location-address">
-            <Input id="location-address" value={address} onChange={(event) => setAddress(event.target.value)} />
+            <Input id="location-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
           </FormField>
           <FormError message={error} />
         </form>

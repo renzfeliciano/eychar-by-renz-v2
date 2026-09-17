@@ -104,6 +104,39 @@ describe("LeaveBalanceService", () => {
     expect(available).toBe(12);
   });
 
+  it("getAvailable returns Infinity for a balance marked hasNoFixedAmount, regardless of usage", async () => {
+    const { organization, employee, leaveType } = await seedOrgEmployeeAndType("4");
+    await LeaveBalanceService.create(
+      {
+        organizationId: organization._id.toString(),
+        employeeId: employee._id.toString(),
+        leaveTypeId: leaveType._id.toString(),
+        year: 2026,
+        hasNoFixedAmount: true,
+      },
+      {},
+    );
+
+    await LeaveRequestModel.create({
+      organizationId: organization._id,
+      employeeId: employee._id,
+      leaveTypeId: leaveType._id,
+      startDate: new Date("2026-02-01"),
+      endDate: new Date("2026-02-20"),
+      totalDays: 20,
+      status: "approved",
+    });
+
+    const available = await LeaveBalanceService.getAvailable({
+      organizationId: organization._id.toString(),
+      employeeId: employee._id.toString(),
+      leaveTypeId: leaveType._id.toString(),
+      year: 2026,
+    });
+
+    expect(available).toBe(Infinity);
+  });
+
   it("adjust() changes adjustmentDays and audits before/after", async () => {
     const { organization, employee, leaveType } = await seedOrgEmployeeAndType("3");
     const balance = await LeaveBalanceService.create(

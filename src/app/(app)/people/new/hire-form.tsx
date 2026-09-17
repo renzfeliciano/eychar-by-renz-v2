@@ -5,11 +5,18 @@ import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 
 type Option = { id: string; label: string };
+type EmploymentTypeOption = Option & { requiresEndOfContract: boolean };
+
+const GENDER_OPTIONS: Option[] = [
+  { id: "Male", label: "Male" },
+  { id: "Female", label: "Female" },
+];
 
 export function HireForm({
   organizationId,
@@ -22,18 +29,31 @@ export function HireForm({
   positions: Option[];
   projects: Option[];
   managers: Option[];
-  employmentTypes: Option[];
+  employmentTypes: EmploymentTypeOption[];
 }) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [employmentType, setEmploymentType] = useState("");
+  const [dateHired, setDateHired] = useState("");
+  const [endOfContract, setEndOfContract] = useState("");
+  const [sssNumber, setSssNumber] = useState("");
+  const [philHealthNumber, setPhilHealthNumber] = useState("");
+  const [pagIbigNumber, setPagIbigNumber] = useState("");
+  const [tinNumber, setTinNumber] = useState("");
   const [positionId, setPositionId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [reportsToEmployeeId, setReportsToEmployeeId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const selectedType = employmentTypes.find((type) => type.id === employmentType);
+  const showEndOfContract = Boolean(selectedType?.requiresEndOfContract);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +61,10 @@ export function HireForm({
 
     if (!employmentType) {
       setError("Select an employment type.");
+      return;
+    }
+    if (showEndOfContract && !endOfContract) {
+      setError("End of contract is required for this employment type.");
       return;
     }
     setIsSubmitting(true);
@@ -52,8 +76,18 @@ export function HireForm({
         organizationId,
         firstName,
         lastName,
+        gender: gender || undefined,
+        birthDate: birthDate || undefined,
+        phone: phone || undefined,
+        address: address || undefined,
         employeeNumber,
         employmentType,
+        effectiveFrom: dateHired || undefined,
+        endOfContract: showEndOfContract ? endOfContract : undefined,
+        sssNumber: sssNumber || undefined,
+        philHealthNumber: philHealthNumber || undefined,
+        pagIbigNumber: pagIbigNumber || undefined,
+        tinNumber: tinNumber || undefined,
         positionId: positionId || undefined,
         projectId: projectId || undefined,
         reportsToEmployeeId: reportsToEmployeeId || undefined,
@@ -64,7 +98,7 @@ export function HireForm({
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? "Failed to hire employee.");
+      setError(body.error ?? "Failed to add employee.");
       return;
     }
 
@@ -77,21 +111,36 @@ export function HireForm({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="First name" htmlFor="hire-first-name">
-              <Input id="hire-first-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+              <Input id="hire-first-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="e.g. Juan Miguel" required />
             </FormField>
             <FormField label="Last name" htmlFor="hire-last-name">
-              <Input id="hire-last-name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
+              <Input id="hire-last-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="e.g. Dela Cruz" required />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
+            <OptionSelect label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" />
+            <FormField label="Birth date (optional)" htmlFor="hire-birth-date">
+              <Input id="hire-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
+            </FormField>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Contact number (optional)" htmlFor="hire-phone">
+              <Input id="hire-phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09XX-XXX-XXXX" />
+            </FormField>
             <FormField label="Employee number" htmlFor="hire-employee-number">
               <Input
                 id="hire-employee-number"
                 value={employeeNumber}
                 onChange={(event) => setEmployeeNumber(event.target.value)}
+                placeholder="e.g. WH-2026-001"
                 required
               />
             </FormField>
+          </div>
+          <FormField label="Address (optional)" htmlFor="hire-address">
+            <Textarea id="hire-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
+          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect
               label="Employment type"
               value={employmentType}
@@ -99,7 +148,15 @@ export function HireForm({
               options={employmentTypes}
               placeholder="Select a type"
             />
+            <FormField label="Date hired" htmlFor="hire-date-hired">
+              <Input id="hire-date-hired" type="date" value={dateHired} onChange={(event) => setDateHired(event.target.value)} />
+            </FormField>
           </div>
+          {showEndOfContract && (
+            <FormField label="End of contract" htmlFor="hire-end-of-contract">
+              <Input id="hire-end-of-contract" type="date" value={endOfContract} onChange={(event) => setEndOfContract(event.target.value)} required />
+            </FormField>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect
               label="Position"
@@ -120,6 +177,21 @@ export function HireForm({
             onChange={setReportsToEmployeeId}
             options={managers}
           />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="SSS no. (optional)" htmlFor="hire-sss">
+              <Input id="hire-sss" value={sssNumber} onChange={(event) => setSssNumber(event.target.value)} placeholder="e.g. 34-1234567-8" />
+            </FormField>
+            <FormField label="PhilHealth no. (optional)" htmlFor="hire-philhealth">
+              <Input id="hire-philhealth" value={philHealthNumber} onChange={(event) => setPhilHealthNumber(event.target.value)} placeholder="e.g. 12-345678901-2" />
+            </FormField>
+            <FormField label="Pag-IBIG no. (optional)" htmlFor="hire-pagibig">
+              <Input id="hire-pagibig" value={pagIbigNumber} onChange={(event) => setPagIbigNumber(event.target.value)} placeholder="e.g. 1234-5678-9012" />
+            </FormField>
+            <FormField label="TIN no. (optional)" htmlFor="hire-tin">
+              <Input id="hire-tin" value={tinNumber} onChange={(event) => setTinNumber(event.target.value)} placeholder="e.g. 123-456-789" />
+            </FormField>
+          </div>
 
           <FormError message={error} />
 

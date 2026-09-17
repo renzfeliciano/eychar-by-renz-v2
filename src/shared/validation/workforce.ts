@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contactNumberSchema, sssNumberSchema, philHealthNumberSchema, pagIbigNumberSchema, tinNumberSchema } from "./shared";
 
 const assignmentFields = {
   positionId: z.string().trim().min(1).optional(),
@@ -16,6 +17,15 @@ export const hireEmployeeSchema = z.object({
   email: z.string().trim().toLowerCase().email().optional(),
   employeeNumber: z.string().trim().min(1),
   employmentType: z.string().trim().min(1),
+  gender: z.enum(["Male", "Female"]).optional(),
+  birthDate: z.coerce.date().optional(),
+  phone: contactNumberSchema.optional(),
+  address: z.string().trim().max(255).optional(),
+  sssNumber: sssNumberSchema.optional(),
+  philHealthNumber: philHealthNumberSchema.optional(),
+  pagIbigNumber: pagIbigNumberSchema.optional(),
+  tinNumber: tinNumberSchema.optional(),
+  endOfContract: z.coerce.date().optional(),
   ...assignmentFields,
 });
 

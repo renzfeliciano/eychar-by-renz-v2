@@ -17,7 +17,8 @@ export const LeaveBalanceService = {
         employeeId: new Types.ObjectId(input.employeeId),
         leaveTypeId: new Types.ObjectId(input.leaveTypeId),
         year: input.year,
-        entitledDays: input.entitledDays,
+        entitledDays: input.hasNoFixedAmount ? 0 : input.entitledDays,
+        hasNoFixedAmount: input.hasNoFixedAmount ?? false,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -83,6 +84,8 @@ export const LeaveBalanceService = {
     const leaveTypeId = new Types.ObjectId(params.leaveTypeId);
 
     const balance = await LeaveBalanceModel.findOne({ organizationId, employeeId, leaveTypeId, year: params.year }).lean();
+    if (balance?.hasNoFixedAmount) return Infinity;
+
     const entitled = (balance?.entitledDays ?? 0) + (balance?.adjustmentDays ?? 0);
 
     const yearStart = new Date(Date.UTC(params.year, 0, 1));

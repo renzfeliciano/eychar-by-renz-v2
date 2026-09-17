@@ -7,6 +7,15 @@ const personSchema = new Schema(
     lastName: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true },
     phone: { type: String, trim: true },
+    gender: { type: String, enum: ["Male", "Female"] },
+    birthDate: { type: Date },
+    address: { type: String, trim: true },
+    // Statutory ID numbers — plain text, format-validated at the service
+    // boundary (src/shared/validation/shared.ts) rather than the schema.
+    sssNumber: { type: String, trim: true },
+    philHealthNumber: { type: String, trim: true },
+    pagIbigNumber: { type: String, trim: true },
+    tinNumber: { type: String, trim: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },

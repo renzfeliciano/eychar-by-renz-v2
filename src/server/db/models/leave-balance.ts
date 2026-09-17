@@ -11,8 +11,16 @@ const leaveBalanceSchema = new Schema(
     employeeId: { type: Schema.Types.ObjectId, required: true, ref: "Employee" },
     leaveTypeId: { type: Schema.Types.ObjectId, required: true, ref: "LeaveType" },
     year: { type: Number, required: true },
-    entitledDays: { type: Number, required: true, min: 0 },
+    // Not required at the schema level — a balance with hasNoFixedAmount
+    // set has no entitledDays to speak of. The "required unless unlimited"
+    // rule lives in the zod schema (src/shared/validation/leave.ts).
+    entitledDays: { type: Number, default: 0, min: 0 },
     adjustmentDays: { type: Number, required: true, default: 0 },
+    // Marks a leave type an employee can request without a capped balance
+    // (e.g. an org's unlimited Bereavement Leave) — LeaveBalanceService
+    // .getAvailable() returns Infinity for these, so LeaveRequestService's
+    // exceeds-balance check never blocks a request against them.
+    hasNoFixedAmount: { type: Boolean, required: true, default: false },
   },
   { timestamps: true },
 );

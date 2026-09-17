@@ -71,10 +71,10 @@ export function CreateUnitDialog({ organizationId, units }: { organizationId: st
         </DialogHeader>
         <form id="create-unit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="Name" htmlFor="unit-name">
-            <Input id="unit-name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input id="unit-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Human Resources" required />
           </FormField>
           <FormField label="Code" htmlFor="unit-code">
-            <Input id="unit-code" value={code} onChange={(event) => setCode(event.target.value)} required />
+            <Input id="unit-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="e.g. HR" required />
           </FormField>
           <FormField label="Type" htmlFor="unit-type">
             <Input

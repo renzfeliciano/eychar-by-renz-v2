@@ -63,9 +63,21 @@ export default async function LeaveBalancesPage() {
           },
           { key: "leaveType", header: "Leave type", render: (balance) => leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—" },
           { key: "year", header: "Year", render: (balance) => balance.year },
-          { key: "entitled", header: "Entitled", render: (balance) => balance.entitledDays },
-          { key: "adjustment", header: "Adjustment", render: (balance) => balance.adjustmentDays },
-          { key: "available", header: "Available", render: (balance) => availableByBalanceId.get(balance._id.toString()) ?? "—" },
+          {
+            key: "entitled",
+            header: "Entitled",
+            render: (balance) => (balance.hasNoFixedAmount ? "Unlimited" : balance.entitledDays.toFixed(2)),
+          },
+          { key: "adjustment", header: "Adjustment", render: (balance) => balance.adjustmentDays.toFixed(2) },
+          {
+            key: "available",
+            header: "Available",
+            render: (balance) => {
+              if (balance.hasNoFixedAmount) return "Unlimited";
+              const value = availableByBalanceId.get(balance._id.toString());
+              return value !== undefined ? value.toFixed(2) : "—";
+            },
+          },
         ]}
         rows={balances}
         getRowKey={(balance) => balance._id.toString()}

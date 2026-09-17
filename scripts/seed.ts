@@ -126,13 +126,9 @@ const BASELINE_PERMISSIONS = [
   { key: "performance-ratings.read", description: "View performance rating catalog items", category: "settings" },
   { key: "performance-ratings.update", description: "Retire performance rating catalog items", category: "settings" },
 
-  { key: "job-openings.create", description: "Create job openings", category: "recruitment" },
-  { key: "job-openings.read", description: "View job openings", category: "recruitment" },
-  { key: "job-openings.update", description: "Open or close job openings", category: "recruitment" },
-  { key: "applicants.create", description: "Submit applicants", category: "recruitment" },
+  { key: "applicants.create", description: "Add applicants", category: "recruitment" },
   { key: "applicants.read", description: "View applicants", category: "recruitment" },
-  { key: "applicants.update", description: "Advance or reject applicants", category: "recruitment" },
-  { key: "applicants.hire", description: "Hire an applicant into a real employee record", category: "recruitment" },
+  { key: "applicants.update", description: "Edit applicants and move them between pipeline stages", category: "recruitment" },
 
   { key: "review-cycles.create", description: "Create performance review cycles", category: "performance" },
   { key: "review-cycles.read", description: "View performance review cycles", category: "performance" },
@@ -140,6 +136,10 @@ const BASELINE_PERMISSIONS = [
   { key: "performance-reviews.create", description: "Add a performance review within a cycle", category: "performance" },
   { key: "performance-reviews.read", description: "View performance reviews", category: "performance" },
   { key: "performance-reviews.update", description: "Submit a performance review", category: "performance" },
+
+  { key: "cases.create", description: "Add a case", category: "cases" },
+  { key: "cases.read", description: "View cases", category: "cases" },
+  { key: "cases.update", description: "Update a case's status or notes", category: "cases" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -155,6 +155,10 @@ const RETIRED_PERMISSION_KEYS = [
   "positions.manage",
   "locations.manage",
   "projects.manage",
+  "job-openings.create",
+  "job-openings.read",
+  "job-openings.update",
+  "applicants.hire",
 ];
 
 async function upsertPermissionCatalog() {
@@ -323,13 +327,26 @@ async function seed() {
         },
         { upsert: true },
       );
+
+      // Backfill new metadata keys onto an item that already existed
+      // before that key was introduced (e.g. requiresEndOfContract added
+      // after Contractual/Probationary were already seeded on real
+      // clusters) — $setOnInsert above only helps brand-new documents.
+      // Guarded per-key so an org's own edit to that key is never
+      // overwritten by a later seed run.
+      for (const [key, value] of Object.entries(item.metadata ?? {})) {
+        await CatalogModel.updateOne(
+          { organizationId: organization._id, code: item.code, [`metadata.${key}`]: { $exists: false } },
+          { $set: { [`metadata.${key}`]: value } },
+        );
+      }
     }
   }
 
   await seedCatalogDefaults(EmploymentTypeModel, [
     { code: "regular", name: "Regular", sortOrder: 0 },
-    { code: "probationary", name: "Probationary", sortOrder: 1 },
-    { code: "contractual", name: "Contractual", sortOrder: 2 },
+    { code: "probationary", name: "Probationary", sortOrder: 1, metadata: { requiresEndOfContract: true } },
+    { code: "contractual", name: "Contractual", sortOrder: 2, metadata: { requiresEndOfContract: true } },
     { code: "transfer", name: "Transfer", sortOrder: 3 },
   ]);
 

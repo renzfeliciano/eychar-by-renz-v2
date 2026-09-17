@@ -75,10 +75,10 @@ export function CreateCompensationDialog({ organizationId, employees }: { organi
         <form id="create-compensation-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" />
           <FormField label="Base salary / period" htmlFor="compensation-base-salary">
-            <Input id="compensation-base-salary" type="number" min={0} value={baseSalary} onChange={(event) => setBaseSalary(event.target.value)} required />
+            <Input id="compensation-base-salary" type="number" min={0} placeholder="e.g. 25000" value={baseSalary} onChange={(event) => setBaseSalary(event.target.value)} required />
           </FormField>
           <FormField label="Allowance / period" htmlFor="compensation-allowance">
-            <Input id="compensation-allowance" type="number" min={0} value={allowanceAmount} onChange={(event) => setAllowanceAmount(event.target.value)} />
+            <Input id="compensation-allowance" type="number" min={0} placeholder="e.g. 2000" value={allowanceAmount} onChange={(event) => setAllowanceAmount(event.target.value)} />
           </FormField>
           <FormError message={error} />
         </form>

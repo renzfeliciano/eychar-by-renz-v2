@@ -27,13 +27,27 @@ export const updateLeavePolicyStatusSchema = z.object({
   effectiveTo: z.coerce.date().optional(),
 });
 
-export const createLeaveBalanceSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  employeeId: z.string().trim().min(1),
-  leaveTypeId: z.string().trim().min(1),
-  year: z.coerce.number().int(),
-  entitledDays: z.coerce.number().min(0),
-});
+// At most 3 whole-number digits and strict 2 decimal places (0-999.99,
+// e.g. 111.11) — not an arbitrary float like 22.244244. Required unless
+// hasNoFixedAmount marks this balance as unlimited.
+export const createLeaveBalanceSchema = z
+  .object({
+    organizationId: z.string().trim().min(1),
+    employeeId: z.string().trim().min(1),
+    leaveTypeId: z.string().trim().min(1),
+    year: z.coerce.number().int(),
+    entitledDays: z.coerce
+      .number()
+      .min(0)
+      .max(999.99, "Balances can have at most three whole-number digits")
+      .multipleOf(0.01, "Balances can have at most two decimal places")
+      .optional(),
+    hasNoFixedAmount: z.coerce.boolean().optional(),
+  })
+  .refine((data) => data.hasNoFixedAmount || data.entitledDays !== undefined, {
+    message: "Entitled days is required unless this balance has no fixed amount",
+    path: ["entitledDays"],
+  });
 
 export const adjustLeaveBalanceSchema = z.object({
   organizationId: z.string().trim().min(1),
