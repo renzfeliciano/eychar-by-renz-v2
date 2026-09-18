@@ -8,6 +8,8 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TravelOrderFormDialog } from "./travel-order-form-dialog";
 import { CancelTravelOrderButton } from "./cancel-travel-order-button";
+import { TravelOrderExportActions, type TravelOrderExportRow } from "./travel-order-export-actions";
+import { TravelOrderPrintReport } from "./travel-order-print-report";
 
 export default async function TravelOrdersPage() {
   const { organization } = await getCurrentOrganization();
@@ -33,58 +35,74 @@ export default async function TravelOrdersPage() {
     .map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }));
   const employeeNameById = new Map(employeeOptions.map((option) => [option.id, option.label]));
 
+  const exportRows: TravelOrderExportRow[] = travelOrders.map((order) => ({
+    employees: order.employeeIds.map((id: { toString(): string }) => employeeNameById.get(id.toString()) ?? "—").join("; "),
+    startDate: new Date(order.startDate).toLocaleDateString(),
+    endDate: new Date(order.endDate).toLocaleDateString(),
+    remarks: order.remarks ?? "",
+    status: order.status,
+  }));
+
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Travel orders"
-        description="Dispatch one or more employees for a date range."
-        action={canCreate && <TravelOrderFormDialog organizationId={organizationId} employees={employeeOptions} />}
-      />
-      <DataTable
-        caption="Travel orders"
-        columns={[
-          {
-            key: "employees",
-            header: "Employees",
-            render: (order) => (
-              <span className="font-medium">
-                {order.employeeIds.map((id: { toString(): string }) => employeeNameById.get(id.toString()) ?? "—").join(", ")}
-              </span>
-            ),
-          },
-          {
-            key: "dates",
-            header: "Date range",
-            render: (order) => `${new Date(order.startDate).toLocaleDateString()} – ${new Date(order.endDate).toLocaleDateString()}`,
-          },
-          { key: "remarks", header: "Remarks", render: (order) => order.remarks || "—" },
-          { key: "status", header: "Status", render: (order) => <StatusBadge status={order.status} /> },
-          {
-            key: "action",
-            header: "",
-            render: (order) =>
-              canUpdate && order.status !== "cancelled" ? (
-                <div className="flex items-center gap-1">
-                  <TravelOrderFormDialog
-                    organizationId={organizationId}
-                    employees={employeeOptions}
-                    initialValue={{
-                      id: order._id.toString(),
-                      employeeIds: order.employeeIds.map((id: { toString(): string }) => id.toString()),
-                      startDate: order.startDate.toISOString(),
-                      endDate: order.endDate.toISOString(),
-                      remarks: order.remarks,
-                    }}
-                  />
-                  <CancelTravelOrderButton id={order._id.toString()} organizationId={organizationId} />
-                </div>
-              ) : null,
-          },
-        ]}
-        rows={travelOrders}
-        getRowKey={(order) => order._id.toString()}
-        emptyMessage="No travel orders yet."
-      />
-    </div>
+    <>
+      <div className="flex flex-col gap-6 print:hidden">
+        <PageHeader
+          title="Travel orders"
+          description="Dispatch one or more employees for a date range."
+          action={
+            <div className="flex items-center gap-2">
+              <TravelOrderExportActions rows={exportRows} />
+              {canCreate && <TravelOrderFormDialog organizationId={organizationId} employees={employeeOptions} />}
+            </div>
+          }
+        />
+        <DataTable
+          caption="Travel orders"
+          columns={[
+            {
+              key: "employees",
+              header: "Employees",
+              render: (order) => (
+                <span className="font-medium">
+                  {order.employeeIds.map((id: { toString(): string }) => employeeNameById.get(id.toString()) ?? "—").join(", ")}
+                </span>
+              ),
+            },
+            {
+              key: "dates",
+              header: "Date range",
+              render: (order) => `${new Date(order.startDate).toLocaleDateString()} – ${new Date(order.endDate).toLocaleDateString()}`,
+            },
+            { key: "remarks", header: "Remarks", render: (order) => order.remarks || "—" },
+            { key: "status", header: "Status", render: (order) => <StatusBadge status={order.status} /> },
+            {
+              key: "action",
+              header: "",
+              render: (order) =>
+                canUpdate && order.status !== "cancelled" ? (
+                  <div className="flex items-center gap-1">
+                    <TravelOrderFormDialog
+                      organizationId={organizationId}
+                      employees={employeeOptions}
+                      initialValue={{
+                        id: order._id.toString(),
+                        employeeIds: order.employeeIds.map((id: { toString(): string }) => id.toString()),
+                        startDate: order.startDate.toISOString(),
+                        endDate: order.endDate.toISOString(),
+                        remarks: order.remarks,
+                      }}
+                    />
+                    <CancelTravelOrderButton id={order._id.toString()} organizationId={organizationId} />
+                  </div>
+                ) : null,
+            },
+          ]}
+          rows={travelOrders}
+          getRowKey={(order) => order._id.toString()}
+          emptyMessage="No travel orders yet."
+        />
+      </div>
+      <TravelOrderPrintReport rows={exportRows} />
+    </>
   );
 }
