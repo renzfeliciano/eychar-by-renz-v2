@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { LeaveBalanceService } from "@/domains/leave/leave-balance-service";
@@ -6,6 +7,7 @@ import { EmployeeService } from "@/domains/workforce/employee-service";
 import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
+import { AdjustLeaveBalanceDialog } from "@/components/shared/adjust-leave-balance-dialog";
 import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
 
 export default async function LeaveBalancesPage() {
@@ -16,6 +18,8 @@ export default async function LeaveBalancesPage() {
   if (!(await hasPermission("leave-balances.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view leave balances.</p>;
   }
+
+  const canUpdate = await hasPermission("leave-balances.update", organizationId);
 
   const [balances, leaveTypes, employees] = await Promise.all([
     LeaveBalanceService.listCurrent(organizationId),
@@ -56,7 +60,11 @@ export default async function LeaveBalancesPage() {
           {
             key: "employee",
             header: "Employee",
-            render: (balance) => employeeName(employeeById.get(balance.employeeId.toString())?.person ?? null),
+            render: (balance) => (
+              <Link href={`/people/${balance.employeeId.toString()}`} className="font-medium text-primary hover:underline">
+                {employeeName(employeeById.get(balance.employeeId.toString())?.person ?? null)}
+              </Link>
+            ),
           },
           { key: "leaveType", header: "Leave type", render: (balance) => leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—" },
           { key: "year", header: "Year", render: (balance) => balance.year },
@@ -74,6 +82,19 @@ export default async function LeaveBalancesPage() {
               const value = availableByBalanceId.get(balance._id.toString());
               return value !== undefined ? value.toFixed(2) : "—";
             },
+          },
+          {
+            key: "action",
+            header: "",
+            render: (balance) =>
+              canUpdate ? (
+                <AdjustLeaveBalanceDialog
+                  organizationId={organizationId}
+                  balanceId={balance._id.toString()}
+                  leaveTypeLabel={leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "leave"}
+                  currentAdjustmentDays={balance.adjustmentDays}
+                />
+              ) : null,
           },
         ]}
         rows={balances}

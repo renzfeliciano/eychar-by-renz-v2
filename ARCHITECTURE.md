@@ -147,6 +147,14 @@ employee; `decide()` (gated by `leave.approve`, distinct from `leave.update`) is
 request/approve state machine Phase 5 deferred — see ADR-012 for why `leave.approve` is its own
 permission and why balance consumption is derived rather than stored.
 
+Leave balances can be granted/adjusted from two places sharing the same components: the org-wide
+`/leave/balances` list (bulk view across every employee, e.g. year-end rollout) and a "Leave
+balances" card on `/people/[id]` (per the user's own workflow — granting one employee's balance
+without hunting them down in a dropdown first). `GrantLeaveBalanceDialog` is employee-page-scoped
+(no employee picker, `employeeId` comes from the page); `AdjustLeaveBalanceDialog`
+(`src/components/shared/`) is shared by both since it only ever needs a `balanceId`, used
+identically from either page.
+
 ## Payroll (Phase 7, ADR-014)
 
 Same HR-recorded scoping as Attendance/Leave. `PayrollPolicy` (pay frequency, standard work

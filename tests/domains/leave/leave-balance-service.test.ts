@@ -163,4 +163,29 @@ describe("LeaveBalanceService", () => {
     expect(audits[0].before).toMatchObject({ adjustmentDays: 0 });
     expect(audits[0].after).toMatchObject({ adjustmentDays: 2 });
   });
+
+  it("listForEmployee returns only that employee's balances, across all years", async () => {
+    const { organization, employee, leaveType } = await seedOrgEmployeeAndType("5");
+    const otherEmployee = await EmployeeModel.create({
+      organizationId: organization._id,
+      personId: (await PersonModel.create({ organizationId: organization._id, firstName: "Other", lastName: "Person" }))._id,
+      employeeNumber: `EMP-5-OTHER-${Date.now()}-${Math.random()}`,
+    });
+    await LeaveBalanceService.create(
+      { organizationId: organization._id.toString(), employeeId: employee._id.toString(), leaveTypeId: leaveType._id.toString(), year: 2025, entitledDays: 15 },
+      {},
+    );
+    await LeaveBalanceService.create(
+      { organizationId: organization._id.toString(), employeeId: employee._id.toString(), leaveTypeId: leaveType._id.toString(), year: 2026, entitledDays: 15 },
+      {},
+    );
+    await LeaveBalanceService.create(
+      { organizationId: organization._id.toString(), employeeId: otherEmployee._id.toString(), leaveTypeId: leaveType._id.toString(), year: 2026, entitledDays: 15 },
+      {},
+    );
+
+    const balances = await LeaveBalanceService.listForEmployee(employee._id.toString(), organization._id.toString());
+    expect(balances).toHaveLength(2);
+    expect(balances.every((balance) => balance.employeeId.toString() === employee._id.toString())).toBe(true);
+  });
 });

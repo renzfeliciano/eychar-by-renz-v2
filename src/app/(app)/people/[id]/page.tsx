@@ -9,6 +9,8 @@ import { EmployeeAccountService } from "@/domains/identity/employee-account-serv
 import { AssetIssuanceService } from "@/domains/assets/asset-issuance-service";
 import { EmployeeDocumentService } from "@/domains/documents/employee-document-service";
 import { DocumentTypeService } from "@/domains/catalog/document-type-service";
+import { LeaveBalanceService } from "@/domains/leave/leave-balance-service";
+import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { NotFoundError } from "@/shared/errors";
 import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
@@ -21,6 +23,8 @@ import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
 import { AssetIssuanceFormDialog } from "./asset-issuance-form-dialog";
 import { DocumentFormDialog } from "./document-form-dialog";
 import { DocumentDownloadButton } from "./document-download-button";
+import { GrantLeaveBalanceDialog } from "./grant-leave-balance-dialog";
+import { AdjustLeaveBalanceDialog } from "@/components/shared/adjust-leave-balance-dialog";
 
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,7 +49,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     ? await EmploymentService.isActiveStatus(organizationId, detail.currentEmployment.status)
     : false;
 
-  const [positions, projects, roster, selfServiceAccount, issuedAssets, documents, documentTypes] = await Promise.all([
+  const [positions, projects, roster, selfServiceAccount, issuedAssets, documents, documentTypes, leaveBalances, leaveTypes] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeService.listWithCurrentStatus(organizationId),
@@ -53,9 +57,24 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     AssetIssuanceService.listForEmployee(id, organizationId),
     EmployeeDocumentService.listForEmployee(id, organizationId),
     DocumentTypeService.listCurrent(organizationId),
+    LeaveBalanceService.listForEmployee(id, organizationId),
+    LeaveTypeService.listCurrent(organizationId),
   ]);
   const documentTypeOptions = documentTypes.map((item) => ({ id: item.code, label: item.name }));
   const documentTypeNameByCode = new Map(documentTypes.map((item) => [item.code, item.name]));
+  const leaveTypeOptions = leaveTypes.map((leaveType) => ({ id: leaveType._id.toString(), label: leaveType.name }));
+  const leaveTypeNameById = new Map(leaveTypes.map((leaveType) => [leaveType._id.toString(), leaveType.name]));
+  const leaveBalancesAvailable = await Promise.all(
+    leaveBalances.map((balance) =>
+      LeaveBalanceService.getAvailable({
+        organizationId,
+        employeeId: id,
+        leaveTypeId: balance.leaveTypeId.toString(),
+        year: balance.year,
+      }),
+    ),
+  );
+  const availableByLeaveBalanceId = new Map(leaveBalances.map((balance, index) => [balance._id.toString(), leaveBalancesAvailable[index]]));
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
   const employeeNameById = new Map(
@@ -229,6 +248,56 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
             rows={documents}
             getRowKey={(document) => document._id.toString()}
             emptyMessage="No documents uploaded yet."
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Leave balances</CardTitle>
+          {canUpdate && <GrantLeaveBalanceDialog organizationId={organizationId} employeeId={detail.employee._id.toString()} leaveTypes={leaveTypeOptions} />}
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={[
+              {
+                key: "leaveType",
+                header: "Leave type",
+                render: (balance) => <span className="font-medium">{leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—"}</span>,
+              },
+              { key: "year", header: "Year", render: (balance) => balance.year },
+              {
+                key: "entitled",
+                header: "Entitled",
+                render: (balance) => (balance.hasNoFixedAmount ? "Unlimited" : balance.entitledDays.toFixed(2)),
+              },
+              { key: "adjustment", header: "Adjustment", render: (balance) => balance.adjustmentDays.toFixed(2) },
+              {
+                key: "available",
+                header: "Available",
+                render: (balance) => {
+                  if (balance.hasNoFixedAmount) return "Unlimited";
+                  const value = availableByLeaveBalanceId.get(balance._id.toString());
+                  return value !== undefined ? value.toFixed(2) : "—";
+                },
+              },
+              {
+                key: "action",
+                header: "",
+                render: (balance) =>
+                  canUpdate ? (
+                    <AdjustLeaveBalanceDialog
+                      organizationId={organizationId}
+                      balanceId={balance._id.toString()}
+                      leaveTypeLabel={leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "leave"}
+                      currentAdjustmentDays={balance.adjustmentDays}
+                    />
+                  ) : null,
+              },
+            ]}
+            rows={leaveBalances}
+            getRowKey={(balance) => balance._id.toString()}
+            emptyMessage="No leave balances granted yet."
           />
         </CardContent>
       </Card>

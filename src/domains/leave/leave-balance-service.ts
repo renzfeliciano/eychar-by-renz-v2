@@ -71,6 +71,17 @@ export const LeaveBalanceService = {
     return LeaveBalanceModel.find({ organizationId: new Types.ObjectId(organizationId) }).lean();
   },
 
+  /** Every balance ever granted to this employee, across all years — the per-employee view on /people/[id]. */
+  async listForEmployee(employeeId: string, organizationId: string) {
+    await connectMongoDB();
+    return LeaveBalanceModel.find({
+      employeeId: new Types.ObjectId(employeeId),
+      organizationId: new Types.ObjectId(organizationId),
+    })
+      .sort({ year: -1 })
+      .lean();
+  },
+
   /**
    * entitledDays + adjustmentDays - sum(approved requests' totalDays) for
    * this employee/leaveType/year. "Used" is derived, not stored, so there's
