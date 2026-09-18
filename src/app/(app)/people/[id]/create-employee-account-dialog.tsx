@@ -16,10 +16,10 @@ import {
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
 
-export function CreateEmployeeAccountDialog({ organizationId, employeeId, suggestedUsername }: { organizationId: string; employeeId: string; suggestedUsername: string }) {
+export function CreateEmployeeAccountDialog({ organizationId, employeeId, suggestedUsername }: { organizationId: string; employeeId: string; suggestedUsername?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [username, setUsername] = useState(suggestedUsername);
+  const [username, setUsername] = useState(suggestedUsername ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,7 +49,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
-      setUsername(suggestedUsername);
+      setUsername(suggestedUsername ?? "");
       setPassword("");
       setError(null);
     }

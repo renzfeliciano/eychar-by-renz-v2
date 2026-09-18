@@ -16,7 +16,7 @@ export const hireEmployeeSchema = z.object({
   middleName: z.string().trim().max(100).optional(),
   lastName: z.string().trim().min(1),
   email: z.string().trim().toLowerCase().email().optional(),
-  employeeNumber: z.string().trim().min(1),
+  employeeNumber: z.string().trim().min(1).optional(),
   employmentType: z.string().trim().min(1),
   gender: z.enum(["Male", "Female"]).optional(),
   birthDate: z.coerce.date().optional(),

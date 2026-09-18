@@ -57,6 +57,24 @@ describe("EmployeeService", () => {
     ).rejects.toThrow(ConflictError);
   });
 
+  it("allows two employees in the same organization to both have no employee number", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-5" });
+    const personA = await PersonModel.create({ organizationId: organization._id, firstName: "No", lastName: "Number A" });
+    const personB = await PersonModel.create({ organizationId: organization._id, firstName: "No", lastName: "Number B" });
+
+    const employeeA = await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: personA._id.toString() },
+      {},
+    );
+    const employeeB = await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: personB._id.toString() },
+      {},
+    );
+
+    expect(employeeA.employeeNumber).toBeUndefined();
+    expect(employeeB.employeeNumber).toBeUndefined();
+  });
+
   it("lists employees with their current employment status and assignment", async () => {
     const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-4" });
 

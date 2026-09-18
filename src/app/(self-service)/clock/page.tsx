@@ -15,7 +15,7 @@ export default async function ClockPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-lg font-semibold">Hi, {session.name.split(" ")[0]}</h1>
-        <p className="text-sm text-muted-foreground">Employee #{session.employeeNumber}</p>
+        <p className="text-sm text-muted-foreground">Employee #{session.employeeNumber ?? "—"}</p>
       </div>
       <ClockPanel
         today={

@@ -85,7 +85,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={personName} description={`Employee #${detail.employee.employeeNumber}`} />
+      <PageHeader title={personName} description={`Employee #${detail.employee.employeeNumber ?? "—"}`} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
@@ -143,7 +143,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
                 <CreateEmployeeAccountDialog
                   organizationId={organizationId}
                   employeeId={detail.employee._id.toString()}
-                  suggestedUsername={detail.employee.employeeNumber.toLowerCase()}
+                  suggestedUsername={detail.employee.employeeNumber?.toLowerCase()}
                 />
               )}
             </>

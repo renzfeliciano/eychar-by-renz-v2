@@ -68,10 +68,6 @@ export function HireForm({
       setError("Last name is required.");
       return;
     }
-    if (!employeeNumber.trim()) {
-      setError("Employee number is required.");
-      return;
-    }
     if (!employmentType) {
       setError("Select an employment type.");
       return;
@@ -94,7 +90,7 @@ export function HireForm({
         birthDate: birthDate || undefined,
         phone: phone || undefined,
         address: address || undefined,
-        employeeNumber,
+        employeeNumber: employeeNumber || undefined,
         employmentType,
         effectiveFrom: dateHired || undefined,
         endOfContract: showEndOfContract ? endOfContract : undefined,
@@ -145,13 +141,12 @@ export function HireForm({
             <FormField label="Contact number" htmlFor="hire-phone">
               <Input id="hire-phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09XX-XXX-XXXX" />
             </FormField>
-            <FormField label="Employee number" htmlFor="hire-employee-number" required>
+            <FormField label="Employee number" htmlFor="hire-employee-number">
               <Input
                 id="hire-employee-number"
                 value={employeeNumber}
                 onChange={(event) => setEmployeeNumber(event.target.value)}
                 placeholder="e.g. 0001"
-                required
               />
             </FormField>
           </div>

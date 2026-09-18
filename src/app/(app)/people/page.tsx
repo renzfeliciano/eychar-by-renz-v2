@@ -53,7 +53,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     const dateHired = row.currentEmployment?.effectiveFrom;
     const birthDate = row.person?.birthDate;
     return {
-      employeeNumber: row.employeeNumber,
+      employeeNumber: row.employeeNumber ?? "—",
       name: row.person ? formatPersonName(row.person) : "—",
       gender: row.person?.gender ?? "",
       position: row.currentAssignment?.positionId ? positionTitleById.get(row.currentAssignment.positionId.toString()) ?? "—" : "—",
@@ -102,7 +102,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                 </Link>
               ),
             },
-            { key: "employeeNumber", header: "Employee #", render: (row) => row.employeeNumber },
+            { key: "employeeNumber", header: "Employee #", render: (row) => row.employeeNumber ?? "—" },
             { key: "status", header: "Employment status", render: (row) => <StatusBadge status={row.currentEmployment?.status} /> },
             {
               key: "position",

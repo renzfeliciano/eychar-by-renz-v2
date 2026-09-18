@@ -9,7 +9,7 @@ import { EmployeeAssignmentService } from "./employee-assignment-service";
 export type CreateEmployeeInput = {
   organizationId: string;
   personId: string;
-  employeeNumber: string;
+  employeeNumber?: string;
 };
 
 /** Picks the most recent row per employeeId from a set sorted by effectiveFrom desc. */
