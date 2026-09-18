@@ -62,8 +62,20 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setName("");
+      setProjectId("");
+      setStandardStartTime("09:00");
+      setStandardEndTime("18:00");
+      setGracePeriodMinutes("10");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="attendance-policies-create-button">
         <Plus className="size-3.5" />
         Add policy

@@ -108,8 +108,22 @@ export function CaseFormDialog({
 
   const formId = `case-form-${initialCase?.id ?? "new"}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setProjectId(initialCase?.projectId ?? "");
+      setCaseName(initialCase?.caseName ?? "");
+      setCaseNumber(initialCase?.caseNumber ?? "");
+      setClassification(initialCase?.classification ?? "");
+      setStatus(initialCase?.status ?? "");
+      setLegalCounsel(initialCase?.legalCounsel ?? "");
+      setBriefHistory(initialCase?.briefHistory ?? "");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(isEdit ? buttonVariants({ size: "sm", variant: "ghost" }) : buttonVariants({ size: "sm" }))}
         aria-label={isEdit ? "Edit case" : undefined}

@@ -62,8 +62,17 @@ export function AddReviewDialog({
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setEmployeeId("");
+      setReviewerId("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="performance-reviews-create-button">
         <Plus className="size-3.5" />
         Add review

@@ -52,8 +52,17 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setName("");
+      setLocationId("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="projects-create-button">
         <Plus className="size-3.5" />
         Add project

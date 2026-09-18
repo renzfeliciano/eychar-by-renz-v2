@@ -100,8 +100,21 @@ export function ApplicantFormDialog({
 
   const formId = `applicant-form-${initialApplicant?.id ?? "new"}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setPositionId(initialApplicant?.positionId ?? "");
+      setApplicantName(initialApplicant?.applicantName ?? "");
+      setEmail(initialApplicant?.email ?? "");
+      setPhone(initialApplicant?.phone ?? "");
+      setAppliedDate(initialApplicant ? toDateInputValue(initialApplicant.appliedDate) : "");
+      setRemarks(initialApplicant?.remarks ?? "");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(isEdit ? buttonVariants({ size: "sm", variant: "ghost" }) : buttonVariants({ size: "sm" }))}
         aria-label={isEdit ? "Edit applicant" : undefined}

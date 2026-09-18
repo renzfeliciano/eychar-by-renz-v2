@@ -56,8 +56,20 @@ export function CreateStaffAccountDialog({ organizationId, roles }: { organizati
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setFirstName("");
+      setLastName("");
+      setUsername("");
+      setPassword("");
+      setRoleId("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="staff-accounts-create-button">
         <UserPlus className="size-3.5" />
         Add staff account

@@ -108,8 +108,22 @@ export function AssetIssuanceFormDialog({
 
   const formId = `asset-issuance-form-${initialValue?.id ?? "new"}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setAssetName(initialValue?.assetName ?? "");
+      setAssetType(initialValue?.assetType ?? "");
+      setSerialNumber(initialValue?.serialNumber ?? "");
+      setCondition(initialValue?.condition ?? "Good");
+      setIssuedDate(toDateInputValue(initialValue?.issuedDate));
+      setReturnedDate(toDateInputValue(initialValue?.returnedDate));
+      setRemarks(initialValue?.remarks ?? "");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(isEdit ? buttonVariants({ size: "sm", variant: "ghost" }) : buttonVariants({ size: "sm" }))}
         aria-label={isEdit ? "Edit asset issuance" : undefined}

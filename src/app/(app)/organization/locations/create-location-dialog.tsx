@@ -51,8 +51,18 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setName("");
+      setCode("");
+      setAddress("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="locations-create-button">
         <Plus className="size-3.5" />
         Add location

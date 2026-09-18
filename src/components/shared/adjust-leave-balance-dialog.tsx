@@ -56,8 +56,16 @@ export function AdjustLeaveBalanceDialog({
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setAdjustmentDays(currentAdjustmentDays.toFixed(2));
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}
         aria-label={`Adjust ${leaveTypeLabel} balance`}

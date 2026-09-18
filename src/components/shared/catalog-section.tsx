@@ -97,6 +97,15 @@ export function CatalogSection({
 
   const formId = `catalog-form-${catalogType}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setName("");
+      setItemDescription("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between space-y-0">
@@ -105,7 +114,7 @@ export function CatalogSection({
           <CardDescription>{description}</CardDescription>
         </div>
         {canCreate && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid={`catalog-${catalogType}-add-button`}>
               <Plus className="size-3.5" />
               Add

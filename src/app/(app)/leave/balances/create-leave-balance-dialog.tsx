@@ -68,15 +68,25 @@ export function CreateLeaveBalanceDialog({
       return;
     }
 
-    setEmployeeId("");
-    setLeaveTypeId("");
-    setHasNoFixedAmount(false);
     setOpen(false);
     router.refresh();
   }
 
+  /** Always start from a clean slate — stale values/errors from a previous open shouldn't carry over, whether that session succeeded, failed, or was just closed. */
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setEmployeeId("");
+      setLeaveTypeId("");
+      setYear(String(new Date().getFullYear()));
+      setEntitledDays("15.00");
+      setHasNoFixedAmount(false);
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="leave-balances-create-button">
         <Plus className="size-3.5" />
         Grant balance

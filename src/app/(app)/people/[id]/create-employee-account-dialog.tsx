@@ -47,8 +47,17 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setUsername(suggestedUsername);
+      setPassword("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm", variant: "outline" }))} data-testid="create-employee-account-button">
         <KeyRound className="size-3.5" />
         Create self-service login

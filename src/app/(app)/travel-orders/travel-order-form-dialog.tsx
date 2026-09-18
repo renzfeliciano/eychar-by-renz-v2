@@ -93,8 +93,20 @@ export function TravelOrderFormDialog({
 
   const formId = `travel-order-form-${initialValue?.id ?? "new"}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setEmployeeIds(initialValue?.employeeIds ?? []);
+      setStartDate(toDateInputValue(initialValue?.startDate ?? ""));
+      setEndDate(toDateInputValue(initialValue?.endDate ?? ""));
+      setRemarks(initialValue?.remarks ?? "");
+      setEmployeesError(null);
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(isEdit ? buttonVariants({ size: "sm", variant: "ghost" }) : buttonVariants({ size: "sm" }))}
         aria-label={isEdit ? "Edit travel order" : undefined}

@@ -116,8 +116,20 @@ export function DocumentFormDialog({
 
   const formId = `document-form-${initialValue?.id ?? "new"}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setTitle(initialValue?.title ?? "");
+      setDocumentType(initialValue?.documentType ?? "");
+      setExpiresAt(toDateInputValue(initialValue?.expiresAt));
+      setNotes(initialValue?.notes ?? "");
+      setError(null);
+      if (!isEdit && fileInputRef.current) fileInputRef.current.value = "";
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(isEdit ? buttonVariants({ size: "sm", variant: "ghost" }) : buttonVariants({ size: "sm" }))}
         aria-label={isEdit ? "Edit document" : undefined}

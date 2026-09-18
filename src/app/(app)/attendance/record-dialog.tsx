@@ -81,8 +81,18 @@ export function RecordDialog({
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setCheckInTime(toTimeInput(initialCheckInAt));
+      setCheckOutTime(toTimeInput(initialCheckOutAt));
+      setStatus(initialStatus ?? "");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(buttonVariants({ variant: existingRecordId ? "outline" : "default", size: "sm" }))}
         data-testid={existingRecordId ? "attendance-adjust-button" : "attendance-record-button"}

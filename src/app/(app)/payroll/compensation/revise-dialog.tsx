@@ -56,8 +56,17 @@ export function ReviseDialog({
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setBaseSalary(String(currentBaseSalary));
+      setAllowanceAmount(String(currentAllowanceAmount));
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))} data-testid="compensation-revise-button">
         <Pencil className="size-3.5" />
         Revise

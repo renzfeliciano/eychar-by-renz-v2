@@ -89,8 +89,19 @@ export function RoleFormDialog({
 
   const formId = `role-form-${initialValue?.id ?? "new"}`;
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setName(initialValue?.name ?? "");
+      setDescription(initialValue?.description ?? "");
+      setPermissionKeys(initialValue?.permissionKeys ?? []);
+      setStatus(initialValue?.status ?? "active");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         className={cn(isEdit ? buttonVariants({ size: "sm", variant: "ghost" }) : buttonVariants({ size: "sm" }))}
         aria-label={isEdit ? "Edit role" : undefined}

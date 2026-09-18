@@ -75,8 +75,18 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setDescription("");
+      setBrackets([{ ...EMPTY_BRACKET }]);
+      setContributions([{ ...EMPTY_CONTRIBUTION }]);
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="payroll-rule-versions-create-button">
         <Plus className="size-3.5" />
         New rule version

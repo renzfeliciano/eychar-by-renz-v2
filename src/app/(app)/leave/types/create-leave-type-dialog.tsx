@@ -51,8 +51,18 @@ export function CreateLeaveTypeDialog({ organizationId }: { organizationId: stri
     router.refresh();
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setName("");
+      setCode("");
+      setDescription("");
+      setError(null);
+    }
+    setOpen(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid="leave-types-create-button">
         <Plus className="size-3.5" />
         Add leave type
