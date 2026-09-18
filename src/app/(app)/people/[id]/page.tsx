@@ -7,6 +7,8 @@ import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeAccountService } from "@/domains/identity/employee-account-service";
 import { AssetIssuanceService } from "@/domains/assets/asset-issuance-service";
+import { EmployeeDocumentService } from "@/domains/documents/employee-document-service";
+import { DocumentTypeService } from "@/domains/catalog/document-type-service";
 import { NotFoundError } from "@/shared/errors";
 import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
@@ -17,6 +19,8 @@ import { TransferForm } from "./transfer-form";
 import { TerminateButton } from "./terminate-button";
 import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
 import { AssetIssuanceFormDialog } from "./asset-issuance-form-dialog";
+import { DocumentFormDialog } from "./document-form-dialog";
+import { DocumentDownloadButton } from "./document-download-button";
 
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,13 +45,17 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     ? await EmploymentService.isActiveStatus(organizationId, detail.currentEmployment.status)
     : false;
 
-  const [positions, projects, roster, selfServiceAccount, issuedAssets] = await Promise.all([
+  const [positions, projects, roster, selfServiceAccount, issuedAssets, documents, documentTypes] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeService.listWithCurrentStatus(organizationId),
     EmployeeAccountService.getForEmployee(id),
     AssetIssuanceService.listForEmployee(id, organizationId),
+    EmployeeDocumentService.listForEmployee(id, organizationId),
+    DocumentTypeService.listCurrent(organizationId),
   ]);
+  const documentTypeOptions = documentTypes.map((item) => ({ id: item.code, label: item.name }));
+  const documentTypeNameByCode = new Map(documentTypes.map((item) => [item.code, item.name]));
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
   const employeeNameById = new Map(
@@ -167,6 +175,60 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
             rows={issuedAssets}
             getRowKey={(record) => record._id.toString()}
             emptyMessage="No assets logged yet."
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Documents</CardTitle>
+          {canUpdate && <DocumentFormDialog organizationId={organizationId} employeeId={detail.employee._id.toString()} documentTypes={documentTypeOptions} />}
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={[
+              { key: "title", header: "Title", render: (document) => <span className="font-medium">{document.title}</span> },
+              { key: "type", header: "Type", render: (document) => documentTypeNameByCode.get(document.documentType) ?? document.documentType },
+              { key: "fileName", header: "File", render: (document) => document.fileName },
+              {
+                key: "expires",
+                header: "Expires",
+                render: (document) => (document.expiresAt ? new Date(document.expiresAt).toLocaleDateString() : "—"),
+              },
+              { key: "uploaded", header: "Uploaded", render: (document) => new Date(document.createdAt).toLocaleDateString() },
+              {
+                key: "action",
+                header: "",
+                render: (document) => (
+                  <div className="flex items-center gap-1">
+                    <DocumentDownloadButton
+                      employeeId={detail.employee._id.toString()}
+                      documentId={document._id.toString()}
+                      organizationId={organizationId}
+                      fileName={document.fileName}
+                    />
+                    {canUpdate && (
+                      <DocumentFormDialog
+                        organizationId={organizationId}
+                        employeeId={detail.employee._id.toString()}
+                        documentTypes={documentTypeOptions}
+                        initialValue={{
+                          id: document._id.toString(),
+                          title: document.title,
+                          documentType: document.documentType,
+                          fileName: document.fileName,
+                          expiresAt: document.expiresAt?.toISOString(),
+                          notes: document.notes,
+                        }}
+                      />
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+            rows={documents}
+            getRowKey={(document) => document._id.toString()}
+            emptyMessage="No documents uploaded yet."
           />
         </CardContent>
       </Card>

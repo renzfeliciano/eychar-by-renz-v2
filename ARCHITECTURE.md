@@ -7,19 +7,20 @@ instructions this repository is built against.
 
 ## Status
 
-**Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b, plus several ad hoc
-enhancements ahead of/beyond the remaining Phase 8 sub-phases: employee self-service attendance
-(ADR-020), Travel Orders and Asset Issuance mirrored from the legacy v1 app (ADR-022), custom
-roles/staff accounts (ADR-023), and an Events calendar (ADR-024). Implemented: Organization,
-User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
-Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord,
-WebAuthnCredential (self-service biometrics, ADR-020), LeaveType, LeavePolicy, LeaveBalance,
-LeaveRequest, PayrollPolicy, PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord,
-PayrollAdjustment, EmploymentType, EmploymentStatus, AttendanceStatus, RecruitmentStage,
-EventCategory, CaseClassification, CaseStatus, PerformanceRating (org-managed catalogs,
-ADR-016), Applicant (Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance,
-ADR-017), Case (Case monitoring, ADR-018), TravelOrder, AssetIssuance (ADR-022), Event
-(ADR-024); server-side authorization with a granular per-resource permission catalog, now with
+**Phase 8 complete** (see AGENTS.md §57) — every named sub-phase (Recruitment, Performance,
+Cases, Assets, Documents, Events) is implemented, on top of Phases 1–8c, plus several ad hoc
+enhancements beyond the original phase list: employee self-service attendance (ADR-020), Travel
+Orders and Asset Issuance mirrored from the legacy v1 app (ADR-022), and custom roles/staff
+accounts (ADR-023). Implemented: Organization, User, Person, Role, Permission, RoleAssignment,
+AuditLog, OrganizationUnit, Position, Location, Project, Employee, Employment,
+EmployeeAssignment, AttendancePolicy, AttendanceRecord, WebAuthnCredential (self-service
+biometrics, ADR-020), LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
+PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment, EmploymentType,
+EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory, CaseClassification,
+CaseStatus, PerformanceRating, DocumentType (org-managed catalogs, ADR-016), Applicant
+(Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance, ADR-017), Case (Case
+monitoring, ADR-018), TravelOrder, AssetIssuance (ADR-022), Event (ADR-024), EmployeeDocument
+(ADR-025); server-side authorization with a granular per-resource permission catalog, now with
 HR-editable custom Roles on top (ADR-023); append-only audit logging; Auth.js credentials
 (username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
 dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people` (with
@@ -28,10 +29,8 @@ Age/Length-of-service columns, statutory ID fields, CSV export + print — ADR-0
 biometric + geolocation + photo, ADR-020), `/leave{,/types,/policies,/balances}`,
 `/payroll{,/policies,/rule-versions,/compensation}`, `/recruitment/tracking` (drag-and-drop
 Kanban), `/performance{,/[id]}`, `/cases` (CSV export + print), `/travel-orders` (CSV export +
-print), an "Issued assets" section on `/people/[id]`, `/events` (month calendar), `/settings/
-catalogs`, and `/settings/access` (roles, role assignments, staff accounts).
-
-Not yet implemented: Documents — the last remaining named Phase 8 sub-phase (AGENTS.md §57).
+print), "Issued assets" and "Documents" sections on `/people/[id]`, `/events` (month calendar),
+`/settings/catalogs`, and `/settings/access` (roles, role assignments, staff accounts).
 
 ## Architecture style
 
@@ -257,6 +256,19 @@ prev/next click, so a month's events are already in the initial server render.
 `EventService.listForMonth()` only ever returns `status: "active"` rows — no hard delete
 (AGENTS.md §53), a cancelled event just stops appearing on the calendar. Clicking a day opens
 `EventDayDialog`, the same list-then-form dialog shape as Travel Orders/Asset Issuance.
+
+## Documents (Phase 8, ADR-025)
+
+The last Phase 8 sub-phase, and the only one with nothing in the legacy v1 app to mirror — scope
+(employee 201-file documents, not a company-wide library) and storage (base64 in MongoDB, same
+call as ADR-020's attendance photos) were confirmed directly with the user rather than inferred.
+`EmployeeDocument` (`employeeId`, `title`, `documentType` — the ninth org-managed catalog,
+ADR-016 — `fileName`/`fileType`/`fileSize`/`fileData`, `expiresAt?`, `notes?`) lives on a
+"Documents" card on `/people/[id]`. `fileData` is capped around 5MB decoded at the validation
+boundary and excluded from `listForEmployee()` (`.select("-fileData")`) — only the single-record
+download endpoint (`getById()`) returns it, fetched on demand when a download button is clicked.
+No delete of any kind, not even a status flip — a wrong upload is superseded by a new one, never
+edited in place at the byte level; `update()`'s schema omits every file field entirely.
 
 ## Authorization (ADR-007)
 

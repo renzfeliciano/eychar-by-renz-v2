@@ -13,6 +13,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "case-classifications", title: "Case classifications", description: "Types of cases the organization tracks." },
   { catalogType: "case-statuses", title: "Case statuses", description: "Where a case currently stands." },
   { catalogType: "performance-ratings", title: "Performance ratings", description: "The rating scale used on performance reviews." },
+  { catalogType: "document-types", title: "Document types", description: "Categories for employee documents (government IDs, contracts, certifications)." },
 ];
 
 export default async function CatalogsSettingsPage() {

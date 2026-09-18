@@ -18,6 +18,7 @@ import {
   CaseClassificationModel,
   CaseStatusModel,
   PerformanceRatingModel,
+  DocumentTypeModel,
   PositionModel,
   ProjectModel,
 } from "@/server/db/models";
@@ -158,6 +159,14 @@ const BASELINE_PERMISSIONS = [
   { key: "events.create", description: "Add a calendar event", category: "events" },
   { key: "events.read", description: "View calendar events", category: "events" },
   { key: "events.update", description: "Edit or cancel a calendar event", category: "events" },
+
+  { key: "document-types.create", description: "Add document type catalog items", category: "settings" },
+  { key: "document-types.read", description: "View document type catalog items", category: "settings" },
+  { key: "document-types.update", description: "Retire document type catalog items", category: "settings" },
+
+  { key: "employee-documents.create", description: "Upload an employee document", category: "documents" },
+  { key: "employee-documents.read", description: "View and download an employee's documents", category: "documents" },
+  { key: "employee-documents.update", description: "Edit an employee document's details", category: "documents" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -432,6 +441,14 @@ async function seed() {
     { code: "meets_expectations", name: "Meets Expectations", sortOrder: 1 },
     { code: "exceeds_expectations", name: "Exceeds Expectations", sortOrder: 2 },
     { code: "outstanding", name: "Outstanding", sortOrder: 3 },
+  ]);
+
+  await seedCatalogDefaults(DocumentTypeModel, [
+    { code: "government-id", name: "Government ID", sortOrder: 0 },
+    { code: "contract", name: "Employment Contract", sortOrder: 1 },
+    { code: "certification", name: "Certification", sortOrder: 2 },
+    { code: "resume", name: "Resume", sortOrder: 3 },
+    { code: "other", name: "Other", sortOrder: 4 },
   ]);
 
   // Real Position/Project data from the v1 app, seeded as a starter set for

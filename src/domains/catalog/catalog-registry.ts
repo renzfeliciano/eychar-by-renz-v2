@@ -6,6 +6,7 @@ import { EventCategoryService } from "./event-category-service";
 import { CaseClassificationService } from "./case-classification-service";
 import { CaseStatusService } from "./case-status-service";
 import { PerformanceRatingService } from "./performance-rating-service";
+import { DocumentTypeService } from "./document-type-service";
 
 /**
  * Maps a URL-safe type slug to its bound service + permission prefix, so
@@ -24,6 +25,7 @@ export const CATALOG_REGISTRY = {
   "case-classifications": { service: CaseClassificationService, permissionPrefix: "case-classifications" },
   "case-statuses": { service: CaseStatusService, permissionPrefix: "case-statuses" },
   "performance-ratings": { service: PerformanceRatingService, permissionPrefix: "performance-ratings" },
+  "document-types": { service: DocumentTypeService, permissionPrefix: "document-types" },
 } as const;
 
 export type CatalogTypeSlug = keyof typeof CATALOG_REGISTRY;
