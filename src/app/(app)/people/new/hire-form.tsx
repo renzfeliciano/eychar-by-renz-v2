@@ -60,6 +60,18 @@ export function HireForm({
     event.preventDefault();
     setError(null);
 
+    if (!firstName.trim()) {
+      setError("First name is required.");
+      return;
+    }
+    if (!lastName.trim()) {
+      setError("Last name is required.");
+      return;
+    }
+    if (!employeeNumber.trim()) {
+      setError("Employee number is required.");
+      return;
+    }
     if (!employmentType) {
       setError("Select an employment type.");
       return;
@@ -110,7 +122,7 @@ export function HireForm({
   return (
     <Card className="max-w-2xl">
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <div className="grid gap-4 sm:grid-cols-3">
             <FormField label="First name" htmlFor="hire-first-name" required>

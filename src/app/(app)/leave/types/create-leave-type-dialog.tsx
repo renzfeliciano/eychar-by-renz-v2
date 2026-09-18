@@ -71,7 +71,7 @@ export function CreateLeaveTypeDialog({ organizationId }: { organizationId: stri
         <DialogHeader>
           <DialogTitle>Add leave type</DialogTitle>
         </DialogHeader>
-        <form id="create-leave-type-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-leave-type-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="leave-type-name" required>
             <Input id="leave-type-name" placeholder="e.g. Vacation Leave" value={name} onChange={(event) => setName(event.target.value)} required />

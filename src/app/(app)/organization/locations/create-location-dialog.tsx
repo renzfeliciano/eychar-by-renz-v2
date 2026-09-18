@@ -71,7 +71,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
         <DialogHeader>
           <DialogTitle>Add location</DialogTitle>
         </DialogHeader>
-        <form id="create-location-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-location-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="location-name" required>
             <Input id="location-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. PCAS Head Office" required />

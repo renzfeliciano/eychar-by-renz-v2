@@ -93,7 +93,7 @@ export function GrantLeaveBalanceDialog({
         <DialogHeader>
           <DialogTitle>Grant leave balance</DialogTitle>
         </DialogHeader>
-        <form id="grant-leave-balance-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="grant-leave-balance-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

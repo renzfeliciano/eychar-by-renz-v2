@@ -95,7 +95,7 @@ export function CreateLeaveBalanceDialog({
         <DialogHeader>
           <DialogTitle>Grant leave balance</DialogTitle>
         </DialogHeader>
-        <form id="create-leave-balance-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-leave-balance-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
           <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />

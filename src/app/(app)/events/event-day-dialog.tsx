@@ -198,7 +198,7 @@ function EventForm({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit event" : "New event"}</DialogTitle>
         </DialogHeader>
-        <form id="event-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="event-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Title" htmlFor="event-title" required>
             <Input id="event-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Town hall meeting" required />

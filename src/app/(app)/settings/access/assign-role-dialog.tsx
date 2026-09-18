@@ -81,7 +81,7 @@ export function AssignRoleDialog({
         <DialogHeader>
           <DialogTitle>Assign role</DialogTitle>
         </DialogHeader>
-        <form id="assign-role-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="assign-role-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Person" value={userId} onChange={setUserId} options={members} placeholder="Select a person" required />
           <OptionSelect label="Role" value={roleId} onChange={setRoleId} options={roles} placeholder="Select a role" required />

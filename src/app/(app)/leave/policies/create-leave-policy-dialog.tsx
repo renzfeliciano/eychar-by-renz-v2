@@ -92,7 +92,7 @@ export function CreateLeavePolicyDialog({
         <DialogHeader>
           <DialogTitle>Add leave policy</DialogTitle>
         </DialogHeader>
-        <form id="create-leave-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-leave-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="leave-policy-name" required>
             <Input id="leave-policy-name" placeholder="e.g. Standard Vacation Leave Policy" value={name} onChange={(event) => setName(event.target.value)} required />

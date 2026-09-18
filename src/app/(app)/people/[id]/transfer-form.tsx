@@ -66,7 +66,7 @@ export function TransferForm({
         <CardTitle className="text-base">Transfer</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-3 sm:items-end">
+        <form onSubmit={handleSubmit} noValidate className="grid gap-4 sm:grid-cols-3 sm:items-end">
           <OptionSelect label="New position" value={positionId} onChange={setPositionId} options={positions} />
           <OptionSelect label="New project" value={projectId} onChange={setProjectId} options={projects} />
           <OptionSelect label="New manager" value={reportsToEmployeeId} onChange={setReportsToEmployeeId} options={managers} />

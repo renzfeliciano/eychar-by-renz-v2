@@ -48,7 +48,7 @@ export default function LoginPage() {
           <CardDescription>Sign in to your organization</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" aria-label="Sign in">
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4" aria-label="Sign in">
             <FormField label="Username or email" htmlFor="login">
               <Input
                 id="login"

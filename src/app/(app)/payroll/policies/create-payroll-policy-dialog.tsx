@@ -74,7 +74,7 @@ export function CreatePayrollPolicyDialog({ organizationId }: { organizationId: 
         <DialogHeader>
           <DialogTitle>Add payroll policy</DialogTitle>
         </DialogHeader>
-        <form id="create-payroll-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-payroll-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="payroll-policy-name" required>
             <Input id="payroll-policy-name" placeholder="e.g. Standard Semi-Monthly Policy" value={name} onChange={(event) => setName(event.target.value)} required />

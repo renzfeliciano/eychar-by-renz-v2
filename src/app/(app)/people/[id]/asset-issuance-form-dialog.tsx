@@ -142,7 +142,7 @@ export function AssetIssuanceFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit asset issuance" : "Log asset issuance"}</DialogTitle>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
           <RequiredFieldsHint />
           <FormField label="Asset name" htmlFor={`${formId}-name`} required>
             <Input id={`${formId}-name`} value={assetName} onChange={(event) => setAssetName(event.target.value)} placeholder="e.g. Dell Latitude 5420" required />

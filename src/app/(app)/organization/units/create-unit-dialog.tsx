@@ -80,7 +80,7 @@ export function CreateUnitDialog({ organizationId, units }: { organizationId: st
         <DialogHeader>
           <DialogTitle>Add organization unit</DialogTitle>
         </DialogHeader>
-        <form id="create-unit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-unit-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="unit-name" required>
             <Input id="unit-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Human Resources" required />

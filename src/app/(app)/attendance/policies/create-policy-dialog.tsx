@@ -84,7 +84,7 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
         <DialogHeader>
           <DialogTitle>Add attendance policy</DialogTitle>
         </DialogHeader>
-        <form id="create-attendance-policy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-attendance-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="policy-name" required>
             <Input id="policy-name" placeholder="e.g. Standard Day Shift" value={name} onChange={(event) => setName(event.target.value)} required />

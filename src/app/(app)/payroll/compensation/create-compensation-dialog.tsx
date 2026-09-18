@@ -82,7 +82,7 @@ export function CreateCompensationDialog({ organizationId, employees }: { organi
         <DialogHeader>
           <DialogTitle>Grant compensation</DialogTitle>
         </DialogHeader>
-        <form id="create-compensation-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-compensation-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
           <FormField label="Base salary / period" htmlFor="compensation-base-salary" required>

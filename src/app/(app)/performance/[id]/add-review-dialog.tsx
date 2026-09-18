@@ -81,7 +81,7 @@ export function AddReviewDialog({
         <DialogHeader>
           <DialogTitle>Add review</DialogTitle>
         </DialogHeader>
-        <form id="add-review-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="add-review-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
           <OptionSelect label="Reviewer" value={reviewerId} onChange={setReviewerId} options={employees} placeholder="Select a reviewer" required />

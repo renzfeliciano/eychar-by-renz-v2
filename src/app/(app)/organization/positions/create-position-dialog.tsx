@@ -65,7 +65,7 @@ export function CreatePositionDialog({ organizationId }: { organizationId: strin
         <DialogHeader>
           <DialogTitle>Add position</DialogTitle>
         </DialogHeader>
-        <form id="create-position-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-position-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Title" htmlFor="position-title" required>
             <Input id="position-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Front Desk Staff" required />

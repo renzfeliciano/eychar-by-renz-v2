@@ -78,7 +78,7 @@ export function CreateStaffAccountDialog({ organizationId, roles }: { organizati
         <DialogHeader>
           <DialogTitle>Add staff account</DialogTitle>
         </DialogHeader>
-        <form id="create-staff-account-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-staff-account-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="First name" htmlFor="staff-first-name" required>

@@ -66,7 +66,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
         <DialogHeader>
           <DialogTitle>Create self-service login</DialogTitle>
         </DialogHeader>
-        <form id="create-employee-account-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-employee-account-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <p className="text-sm text-muted-foreground">
             Lets this employee sign in on their own device to clock in/out with biometric confirmation and location.

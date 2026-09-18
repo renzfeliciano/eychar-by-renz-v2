@@ -80,7 +80,7 @@ export function SubmitReviewDialog({
         <DialogHeader>
           <DialogTitle>Submit review</DialogTitle>
         </DialogHeader>
-        <form id={`submit-review-form-${reviewId}`} onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id={`submit-review-form-${reviewId}`} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Rating" value={ratingCode} onChange={setRatingCode} options={ratings} placeholder="Select a rating" required />
           <FormField label="Comments" htmlFor={`review-comments-${reviewId}`}>

@@ -95,7 +95,7 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
         <DialogHeader>
           <DialogTitle>New rule version</DialogTitle>
         </DialogHeader>
-        <form id="create-rule-version-form" onSubmit={handleSubmit} className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto pr-1">
+        <form id="create-rule-version-form" onSubmit={handleSubmit} noValidate className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto pr-1">
           <FormField label="Description" htmlFor="rule-version-description">
             <Input
               id="rule-version-description"

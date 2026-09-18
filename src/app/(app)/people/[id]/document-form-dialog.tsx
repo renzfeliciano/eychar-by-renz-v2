@@ -148,7 +148,7 @@ export function DocumentFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit document" : "Upload document"}</DialogTitle>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Title" htmlFor={`${formId}-title`} required>
             <Input id={`${formId}-title`} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Government ID" required />

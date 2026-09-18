@@ -71,7 +71,7 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
         <DialogHeader>
           <DialogTitle>Add project</DialogTitle>
         </DialogHeader>
-        <form id="create-project-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="create-project-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor="project-name" required>
             <Input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. EGI Rufino" required />
