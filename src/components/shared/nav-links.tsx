@@ -91,6 +91,10 @@ export const NAV_SECTIONS = [
     items: [{ href: "/cases", label: "Case monitoring", icon: Gavel }],
   },
   {
+    label: "Events",
+    items: [{ href: "/events", label: "Calendar", icon: CalendarDays }],
+  },
+  {
     label: "Settings",
     items: [
       { href: "/settings/catalogs", label: "Catalogs", icon: Settings },

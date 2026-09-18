@@ -8,31 +8,30 @@ instructions this repository is built against.
 ## Status
 
 **Phase 8c — Case monitoring** (see AGENTS.md §57) on top of Phases 1–8b, plus several ad hoc
-enhancements ahead of the remaining Phase 8 sub-phases: employee self-service attendance
-(ADR-020), Travel Orders and Asset Issuance mirrored from the legacy v1 app (ADR-022), and custom
-roles/staff accounts (ADR-023). Implemented: Organization, User, Person, Role, Permission,
-RoleAssignment, AuditLog, OrganizationUnit, Position, Location, Project, Employee, Employment,
-EmployeeAssignment, AttendancePolicy, AttendanceRecord, WebAuthnCredential (self-service
-biometrics, ADR-020), LeaveType, LeavePolicy, LeaveBalance, LeaveRequest, PayrollPolicy,
-PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord, PayrollAdjustment, EmploymentType,
-EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory, CaseClassification,
-CaseStatus, PerformanceRating (org-managed catalogs, ADR-016), Applicant (Recruitment, ADR-015),
-ReviewCycle, PerformanceReview (Performance, ADR-017), Case (Case monitoring, ADR-018),
-TravelOrder, AssetIssuance (ADR-022); server-side authorization with a granular per-resource
-permission catalog, now with HR-editable custom Roles on top (ADR-023); append-only audit
-logging; Auth.js credentials (username-or-email) login with single-active-session + idle-timeout
-enforcement; a shadcn/ui dashboard, `/organization/{units,positions,locations,projects,chart}`,
-`/people` (with Age/Length-of-service columns, statutory ID fields, CSV export + print —
-ADR-019), `/attendance{,/policies}` (HR-recorded) plus a separate self-service `/clock` portal
-(WebAuthn biometric + geolocation + photo, ADR-020), `/leave{,/types,/policies,/balances}`,
+enhancements ahead of/beyond the remaining Phase 8 sub-phases: employee self-service attendance
+(ADR-020), Travel Orders and Asset Issuance mirrored from the legacy v1 app (ADR-022), custom
+roles/staff accounts (ADR-023), and an Events calendar (ADR-024). Implemented: Organization,
+User, Person, Role, Permission, RoleAssignment, AuditLog, OrganizationUnit, Position, Location,
+Project, Employee, Employment, EmployeeAssignment, AttendancePolicy, AttendanceRecord,
+WebAuthnCredential (self-service biometrics, ADR-020), LeaveType, LeavePolicy, LeaveBalance,
+LeaveRequest, PayrollPolicy, PayrollRuleVersion, Compensation, PayrollRun, PayrollRecord,
+PayrollAdjustment, EmploymentType, EmploymentStatus, AttendanceStatus, RecruitmentStage,
+EventCategory, CaseClassification, CaseStatus, PerformanceRating (org-managed catalogs,
+ADR-016), Applicant (Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance,
+ADR-017), Case (Case monitoring, ADR-018), TravelOrder, AssetIssuance (ADR-022), Event
+(ADR-024); server-side authorization with a granular per-resource permission catalog, now with
+HR-editable custom Roles on top (ADR-023); append-only audit logging; Auth.js credentials
+(username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
+dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people` (with
+Age/Length-of-service columns, statutory ID fields, CSV export + print — ADR-019),
+`/attendance{,/policies}` (HR-recorded) plus a separate self-service `/clock` portal (WebAuthn
+biometric + geolocation + photo, ADR-020), `/leave{,/types,/policies,/balances}`,
 `/payroll{,/policies,/rule-versions,/compensation}`, `/recruitment/tracking` (drag-and-drop
-Kanban), `/performance{,/[id]}`, `/cases` (CSV export + print), `/travel-orders`, an "Issued
-assets" section on `/people/[id]`, `/settings/catalogs`, and `/settings/access` (roles, role
-assignments, staff accounts).
+Kanban), `/performance{,/[id]}`, `/cases` (CSV export + print), `/travel-orders` (CSV export +
+print), an "Issued assets" section on `/people/[id]`, `/events` (month calendar), `/settings/
+catalogs`, and `/settings/access` (roles, role assignments, staff accounts).
 
-Not yet implemented (later Phase 8 sub-phases): Documents, Events — though their
-org-managed lookup lists (EventCategory) are already seeded and manageable under Settings >
-Catalogs, ahead of the domains that will consume them.
+Not yet implemented: Documents — the last remaining named Phase 8 sub-phase (AGENTS.md §57).
 
 ## Architecture style
 
@@ -247,6 +246,17 @@ exactly, not a catalog — `issuedDate`, `returnedDate?`, `remarks?`) is instead
 `/people/[id]` rather than v1's separate employee-lookup page, since the People roster + detail
 page already is that lookup. Neither supports v1's hard delete (AGENTS.md §53) — a travel order
 is cancelled via `status`, an asset-issuance mistake is corrected via `update()`.
+
+## Events (Phase 8, ADR-024)
+
+Mirrors the legacy v1 app's Workforce Calendar. `Event` (`title`, `date`, `time?`, `category` —
+validated against the `EventCategory` catalog, ADR-016 — `description?`, `status:
+active|cancelled`). `/events?month=YYYY-MM` follows this app's own `DateNav`-style
+URL-param-driven navigation (`MonthNav`) rather than v1's client-side re-fetch on every
+prev/next click, so a month's events are already in the initial server render.
+`EventService.listForMonth()` only ever returns `status: "active"` rows — no hard delete
+(AGENTS.md §53), a cancelled event just stops appearing on the calendar. Clicking a day opens
+`EventDayDialog`, the same list-then-form dialog shape as Travel Orders/Asset Issuance.
 
 ## Authorization (ADR-007)
 

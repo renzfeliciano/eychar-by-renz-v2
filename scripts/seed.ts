@@ -154,6 +154,10 @@ const BASELINE_PERMISSIONS = [
   { key: "roles.update", description: "Edit a role's permissions or retire it", category: "access" },
   { key: "roles.assign", description: "Assign or revoke a role for a user", category: "access" },
   { key: "staff-accounts.create", description: "Create an additional HR/admin login", category: "access" },
+
+  { key: "events.create", description: "Add a calendar event", category: "events" },
+  { key: "events.read", description: "View calendar events", category: "events" },
+  { key: "events.update", description: "Edit or cancel a calendar event", category: "events" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used

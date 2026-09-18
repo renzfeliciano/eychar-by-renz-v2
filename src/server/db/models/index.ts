@@ -39,3 +39,4 @@ export { CaseModel } from "./case";
 export { WebAuthnCredentialModel } from "./webauthn-credential";
 export { TravelOrderModel } from "./travel-order";
 export { AssetIssuanceModel } from "./asset-issuance";
+export { EventModel } from "./event";
