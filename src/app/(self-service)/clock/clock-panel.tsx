@@ -6,6 +6,7 @@ import { startAuthentication, startRegistration } from "@simplewebauthn/browser"
 import { Fingerprint, Camera, MapPin, LogIn, LogOut, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { describeWebAuthnError } from "@/lib/webauthn-error-message";
 
 export type TodayRecord = {
   checkInAt?: string | null;
@@ -89,7 +90,14 @@ export function ClockPanel({ today, hasCredential: initialHasCredential }: { tod
       if (!optionsResponse.ok) throw new Error((await optionsResponse.json().catch(() => ({}))).error ?? "Could not start registration.");
       const options = await optionsResponse.json();
 
-      const registrationResponse = await startRegistration(options);
+      let registrationResponse;
+      try {
+        registrationResponse = await startRegistration(options);
+      } catch (webAuthnError) {
+        // The browser/OS throws its own error here (often a vague, spec-quoting
+        // NotAllowedError) — translate it instead of showing that to the user.
+        throw new Error(describeWebAuthnError(webAuthnError, "registration"));
+      }
 
       const verifyResponse = await fetch("/api/self-service/webauthn/register/verify", {
         method: "POST",
@@ -119,7 +127,12 @@ export function ClockPanel({ today, hasCredential: initialHasCredential }: { tod
       const challengeResponse = await fetch("/api/self-service/webauthn/challenge", { method: "POST" });
       if (!challengeResponse.ok) throw new Error((await challengeResponse.json().catch(() => ({}))).error ?? "Could not start biometric confirmation.");
       const challengeOptions = await challengeResponse.json();
-      const webAuthn = await startAuthentication(challengeOptions);
+      let webAuthn;
+      try {
+        webAuthn = await startAuthentication(challengeOptions);
+      } catch (webAuthnError) {
+        throw new Error(describeWebAuthnError(webAuthnError, "authentication"));
+      }
 
       setStep("submitting");
       const response = await fetch(`/api/self-service/attendance/${action}`, {
