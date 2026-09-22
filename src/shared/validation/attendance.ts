@@ -34,9 +34,12 @@ export const adjustAttendanceSchema = z.object({
 // Geolocation and photo are optional at the schema level (a device without
 // a camera or that denies location access can still clock in), but the
 // WebAuthn assertion is not — self-service clock-in/out is the one flow
-// this codebase requires biometric confirmation for.
+// this codebase requires biometric confirmation for. No organizationId
+// here on purpose — requireSelfServiceEmployee() resolves it from the
+// session (the client never sends one, and the route never reads it off
+// the parsed body either); requiring it anyway made every clock-in/out
+// fail validation before it ever reached the service.
 const clockEventSchema = z.object({
-  organizationId: z.string().trim().min(1),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
   accuracy: z.coerce.number().min(0).optional(),

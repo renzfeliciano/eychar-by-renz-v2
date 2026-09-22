@@ -21,9 +21,14 @@ function humanizeFieldPath(path: readonly PropertyKey[]): string | null {
 function describeIssue(issue: core.$ZodIssue, field: string | null): string {
   const name = field ?? "This field";
   if (issue.code === "invalid_type") {
-    const received = "received" in issue ? String(issue.received) : undefined;
-    if (received === "undefined") return `${name} is required`;
-    if (received === "NaN") return `${name} must be a number`;
+    // Zod v4 dropped `received` from this issue shape in favor of `input`
+    // (the actual value that failed) — checking the old v3 field name here
+    // silently never matched, so a field the client omitted entirely fell
+    // through to Zod's own "Invalid input: expected string, received
+    // undefined" wording instead of a plain-English message.
+    const input = "input" in issue ? issue.input : undefined;
+    if (input === undefined) return `${name} is required`;
+    if (typeof input === "number" && Number.isNaN(input)) return `${name} must be a number`;
   }
   if (issue.code === "too_small") {
     if (issue.origin === "string" && issue.minimum === 1) return `${name} is required`;
