@@ -16,7 +16,12 @@ function toDateInputValue(date: Date): string {
 
 function formatTime(value?: Date | null): string {
   if (!value) return "—";
-  return `${String(new Date(value).getUTCHours()).padStart(2, "0")}:${String(new Date(value).getUTCMinutes()).padStart(2, "0")}`;
+  // Local time, matching every other date/time display in this app
+  // (toLocaleDateString() etc.) — UTC hours here previously made a genuine
+  // afternoon check-in/out look like a stale early-morning one to anyone
+  // reading the roster in the organization's own timezone.
+  const date = new Date(value);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {

@@ -9,8 +9,13 @@ import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignme
 import { AttendancePolicyService } from "./attendance-policy-service";
 import type { RecordAttendanceInput, AdjustAttendanceInput } from "@/shared/validation/attendance";
 
-function minutesSinceMidnightUtc(date: Date): number {
-  return date.getUTCHours() * 60 + date.getUTCMinutes();
+// policy.standardStartTime ("09:00") is the organization's own local
+// wall-clock time, not UTC — comparing it against UTC hours/minutes silently
+// shifts every late/present decision by the local UTC offset, and can even
+// flip an early-morning on-time check-in to "late" once that offset pushes
+// it onto the previous UTC calendar day.
+function minutesSinceMidnight(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes();
 }
 
 function parseHHmm(value: string): number {
@@ -34,7 +39,7 @@ export function toCalendarDateUtc(date: Date): Date {
 export function computeStatus(checkInAt: Date | undefined, policy: { standardStartTime: string; gracePeriodMinutes: number } | null): "present" | "late" {
   if (!checkInAt || !policy) return "present";
   const lateThreshold = parseHHmm(policy.standardStartTime) + policy.gracePeriodMinutes;
-  return minutesSinceMidnightUtc(checkInAt) > lateThreshold ? "late" : "present";
+  return minutesSinceMidnight(checkInAt) > lateThreshold ? "late" : "present";
 }
 
 export const AttendanceService = {
