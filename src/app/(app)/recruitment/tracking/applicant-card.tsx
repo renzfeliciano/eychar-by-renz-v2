@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,16 @@ export type ApplicantCardData = {
   remarks?: string | null;
   positionTitle: string;
 };
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 async function patchApplicantStage(id: string, organizationId: string, stage: string) {
   return fetch(`/api/applicants/${id}/stage`, {
@@ -72,7 +82,7 @@ export function ApplicantCard({
       className={cn("gap-2 py-3 shadow-[var(--shadow-soft)]", isDragging && "opacity-40")}
       data-testid="tracking-applicant-card"
     >
-      <CardContent className="flex flex-col gap-2 px-3">
+      <CardContent className="flex flex-col gap-3 px-3">
         <div className="flex items-start gap-1.5">
           {canUpdate && (
             <button
@@ -86,41 +96,46 @@ export function ApplicantCard({
               <GripVertical className="size-3.5" />
             </button>
           )}
-          <div>
-            <p className="text-sm font-medium">{applicant.applicantName}</p>
-            <p className="text-xs text-muted-foreground">{applicant.positionTitle}</p>
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-[0.65rem] font-semibold text-primary">
+            {initials(applicant.applicantName)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{applicant.applicantName}</p>
+            <p className="truncate text-xs text-muted-foreground">{applicant.positionTitle}</p>
             <p className="text-xs text-muted-foreground">Applied {new Date(applicant.appliedDate).toLocaleDateString()}</p>
           </div>
+          {canUpdate && (
+            <ApplicantFormDialog
+              organizationId={organizationId}
+              positions={positions}
+              initialApplicant={{
+                id: applicant._id,
+                positionId: applicant.positionId,
+                applicantName: applicant.applicantName,
+                email: applicant.email,
+                phone: applicant.phone,
+                appliedDate: applicant.appliedDate,
+                remarks: applicant.remarks,
+              }}
+            />
+          )}
         </div>
 
         {canUpdate && (
-          <div className="flex items-end gap-1.5">
-            <OptionSelect
-              label="Move to"
-              value={applicant.stage}
-              onChange={handleMove}
-              options={stageOptions}
-              placeholder="Stage"
-              testId={`move-applicant-${applicant._id}`}
-            />
+          <div className="flex items-end gap-1.5 border-t pt-2.5">
+            <div className="flex-1">
+              <OptionSelect
+                label="Move to"
+                value={applicant.stage}
+                onChange={handleMove}
+                options={stageOptions}
+                placeholder="Stage"
+                testId={`move-applicant-${applicant._id}`}
+              />
+            </div>
+            {isMoving && <Loader2 className="mb-2 size-3.5 shrink-0 animate-spin text-muted-foreground" />}
           </div>
         )}
-        {canUpdate && (
-          <ApplicantFormDialog
-            organizationId={organizationId}
-            positions={positions}
-            initialApplicant={{
-              id: applicant._id,
-              positionId: applicant.positionId,
-              applicantName: applicant.applicantName,
-              email: applicant.email,
-              phone: applicant.phone,
-              appliedDate: applicant.appliedDate,
-              remarks: applicant.remarks,
-            }}
-          />
-        )}
-        {isMoving && <p className="text-xs text-muted-foreground">Moving…</p>}
       </CardContent>
     </Card>
   );
@@ -138,6 +153,9 @@ export function ApplicantCardOverlay({ applicant }: { applicant: ApplicantCardDa
       <CardContent className="flex flex-col gap-2 px-3">
         <div className="flex items-start gap-1.5">
           <GripVertical className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-[0.65rem] font-semibold text-primary">
+            {initials(applicant.applicantName)}
+          </span>
           <div>
             <p className="text-sm font-medium">{applicant.applicantName}</p>
             <p className="text-xs text-muted-foreground">{applicant.positionTitle}</p>

@@ -100,6 +100,76 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
     expect(history[1]._id.toString()).toBe(assignment2026._id.toString());
   });
 
+  it("inherits fields the transfer didn't specify from the current assignment, instead of blanking them out", async () => {
+    const s = await seedScenario();
+    await EmployeeAssignmentService.create(
+      {
+        organizationId: s.orgId,
+        employeeId: s.employee._id.toString(),
+        positionId: s.supervisorPosition._id.toString(),
+        projectId: s.projectA._id.toString(),
+        reportsToEmployeeId: s.managerB._id.toString(),
+      },
+      {},
+    );
+
+    // Only the position is specified — project and manager should carry over.
+    const transferred = await EmployeeAssignmentService.transfer(
+      s.employee._id.toString(),
+      s.orgId,
+      { positionId: s.opsManagerPosition._id.toString() },
+      {},
+    );
+
+    expect(transferred.positionId?.toString()).toBe(s.opsManagerPosition._id.toString());
+    expect(transferred.projectId?.toString()).toBe(s.projectA._id.toString());
+    expect(transferred.reportsToEmployeeId?.toString()).toBe(s.managerB._id.toString());
+  });
+
+  it("rejects a transfer that doesn't specify anything to change", async () => {
+    const s = await seedScenario();
+    await EmployeeAssignmentService.create(
+      { organizationId: s.orgId, employeeId: s.employee._id.toString(), positionId: s.supervisorPosition._id.toString() },
+      {},
+    );
+
+    await expect(EmployeeAssignmentService.transfer(s.employee._id.toString(), s.orgId, {}, {})).rejects.toThrow(BusinessRuleError);
+  });
+
+  it("rejects a transfer that would leave position, project, or manager unset — no exceptions", async () => {
+    const s = await seedScenario();
+
+    // First-ever assignment for this employee — nothing to inherit, and
+    // only two of the three required fields are supplied.
+    await expect(
+      EmployeeAssignmentService.transfer(
+        s.employee._id.toString(),
+        s.orgId,
+        { positionId: s.supervisorPosition._id.toString(), reportsToEmployeeId: s.managerB._id.toString() },
+        {},
+      ),
+    ).rejects.toThrow(BusinessRuleError);
+  });
+
+  it("allows a transfer once position, project, and manager are all specified", async () => {
+    const s = await seedScenario();
+
+    const assignment = await EmployeeAssignmentService.transfer(
+      s.employee._id.toString(),
+      s.orgId,
+      {
+        positionId: s.supervisorPosition._id.toString(),
+        projectId: s.projectA._id.toString(),
+        reportsToEmployeeId: s.managerB._id.toString(),
+      },
+      {},
+    );
+
+    expect(assignment.positionId?.toString()).toBe(s.supervisorPosition._id.toString());
+    expect(assignment.projectId?.toString()).toBe(s.projectA._id.toString());
+    expect(assignment.reportsToEmployeeId?.toString()).toBe(s.managerB._id.toString());
+  });
+
   it("rejects a position that belongs to a different organization", async () => {
     const s = await seedScenario();
     const other = await OrganizationModel.create({ name: "Other", slug: `other-${Date.now()}-${Math.random()}` });

@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -147,6 +148,7 @@ export function DocumentFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit document" : "Upload document"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Updates details of this document record." : "Attaches a document to this employee's file."}</DialogDescription>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

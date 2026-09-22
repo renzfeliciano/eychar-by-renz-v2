@@ -66,7 +66,7 @@ const BASELINE_PERMISSIONS = [
 
   { key: "employees.create", description: "Hire employees and record new employment stints", category: "workforce" },
   { key: "employees.read", description: "View employees, employment, and assignment history", category: "workforce" },
-  { key: "employees.update", description: "Transfer employees and terminate employment", category: "workforce" },
+  { key: "employees.update", description: "Edit employee details, transfer employees, and terminate employment", category: "workforce" },
 
   { key: "attendance.create", description: "Record employee attendance", category: "attendance" },
   { key: "attendance.read", description: "View attendance records", category: "attendance" },
@@ -78,6 +78,7 @@ const BASELINE_PERMISSIONS = [
   { key: "leave-types.create", description: "Create leave types", category: "leave" },
   { key: "leave-types.read", description: "View leave types", category: "leave" },
   { key: "leave-types.update", description: "Update leave types", category: "leave" },
+  { key: "leave-types.delete", description: "Delete unused leave types", category: "leave" },
   { key: "leave-policies.create", description: "Create leave policies", category: "leave" },
   { key: "leave-policies.read", description: "View leave policies", category: "leave" },
   { key: "leave-policies.update", description: "Update leave policies", category: "leave" },

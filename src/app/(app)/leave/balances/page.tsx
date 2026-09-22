@@ -7,10 +7,15 @@ import { EmployeeService } from "@/domains/workforce/employee-service";
 import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
+import { TableSearchInput } from "@/components/shared/table-search-input";
 import { AdjustLeaveBalanceDialog } from "@/components/shared/adjust-leave-balance-dialog";
+import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
 
-export default async function LeaveBalancesPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function LeaveBalancesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -41,6 +46,22 @@ export default async function LeaveBalancesPage() {
   );
   const availableByBalanceId = new Map(balances.map((balance, index) => [balance._id.toString(), available[index]]));
 
+  const tableQuery = parseTableQuery(params, "employee");
+  const { rows: pageRows, total } = applyTableQuery(balances, tableQuery, {
+    searchFields: (balance) => [
+      employeeName(employeeById.get(balance.employeeId.toString())?.person ?? null),
+      leaveTypeNameById.get(balance.leaveTypeId.toString()),
+    ],
+    sortValues: {
+      employee: (balance) => employeeName(employeeById.get(balance.employeeId.toString())?.person ?? null),
+      leaveType: (balance) => leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "",
+      year: (balance) => balance.year,
+      entitled: (balance) => (balance.hasNoFixedAmount ? Infinity : balance.entitledDays),
+      adjustment: (balance) => balance.adjustmentDays,
+      available: (balance) => (balance.hasNoFixedAmount ? Infinity : (availableByBalanceId.get(balance._id.toString()) ?? 0)),
+    },
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -54,29 +75,50 @@ export default async function LeaveBalancesPage() {
           />
         }
       />
+      <TableSearchInput placeholder="Search by employee or leave type…" />
       <DataTable
         caption="Leave balances"
+        sort={{
+          sortBy: tableQuery.sort,
+          sortDir: tableQuery.dir,
+          buildHref: (sortKey) =>
+            buildTableHref("/leave/balances", params, {
+              sort: sortKey,
+              dir: tableQuery.sort === sortKey && tableQuery.dir === "asc" ? "desc" : "asc",
+              page: undefined,
+            }),
+        }}
+        pagination={{
+          page: tableQuery.page,
+          pageSize: tableQuery.pageSize,
+          total,
+          buildHref: (page, pageSize) => buildTableHref("/leave/balances", params, { page, pageSize }),
+        }}
         columns={[
           {
             key: "employee",
             header: "Employee",
+            sortKey: "employee",
+            className: "sticky left-0 z-10 border-r bg-card",
             render: (balance) => (
               <Link href={`/people/${balance.employeeId.toString()}`} className="font-medium text-primary hover:underline">
                 {employeeName(employeeById.get(balance.employeeId.toString())?.person ?? null)}
               </Link>
             ),
           },
-          { key: "leaveType", header: "Leave type", render: (balance) => leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—" },
-          { key: "year", header: "Year", render: (balance) => balance.year },
+          { key: "leaveType", header: "Leave type", sortKey: "leaveType", render: (balance) => leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—" },
+          { key: "year", header: "Year", sortKey: "year", render: (balance) => balance.year },
           {
             key: "entitled",
             header: "Entitled",
+            sortKey: "entitled",
             render: (balance) => (balance.hasNoFixedAmount ? "Unlimited" : balance.entitledDays.toFixed(2)),
           },
-          { key: "adjustment", header: "Adjustment", render: (balance) => balance.adjustmentDays.toFixed(2) },
+          { key: "adjustment", header: "Adjustment", sortKey: "adjustment", render: (balance) => balance.adjustmentDays.toFixed(2) },
           {
             key: "available",
             header: "Available",
+            sortKey: "available",
             render: (balance) => {
               if (balance.hasNoFixedAmount) return "Unlimited";
               const value = availableByBalanceId.get(balance._id.toString());
@@ -97,7 +139,7 @@ export default async function LeaveBalancesPage() {
               ) : null,
           },
         ]}
-        rows={balances}
+        rows={pageRows}
         getRowKey={(balance) => balance._id.toString()}
         emptyMessage="No leave balances yet."
       />

@@ -113,9 +113,9 @@ function sectionSlug(label: string): string {
 
 const COLLAPSED_SECTIONS_STORAGE_KEY = "workforcehub:nav-collapsed-sections";
 
-export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Per-viewer convenience only (which sections are collapsed) — never
   // read back by the server, safe to lose in private mode/cleared storage.
@@ -123,14 +123,14 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     try {
       const raw = window.localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a per-viewer preference on mount, not a derived/external sync
-      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]));
+      if (raw) setCollapsedSections(new Set(JSON.parse(raw) as string[]));
     } catch {
       // localStorage unavailable — sections just default to expanded.
     }
   }, []);
 
   function toggleSection(label: string) {
-    setCollapsed((previous) => {
+    setCollapsedSections((previous) => {
       const next = new Set(previous);
       if (next.has(label)) next.delete(label);
       else next.add(label);
@@ -150,12 +150,18 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         // A section containing the current page always stays visible, even
         // if the viewer previously collapsed it — collapsing your own
         // active section re-expands it instead of hiding where you are.
-        const isCollapsed = section.label ? collapsed.has(section.label) && !hasActiveItem : false;
+        // The whole notion of a collapsed *section* only exists at full
+        // width — on the icon rail every section always renders its items,
+        // there's no header left to click to reveal them again.
+        const isCollapsed = !collapsed && section.label ? collapsedSections.has(section.label) && !hasActiveItem : false;
         const slug = section.label ? sectionSlug(section.label) : `section-${index}`;
 
         return (
-          <div key={section.label ?? `section-${index}`} className="flex flex-col gap-1">
-            {section.label && (
+          <div
+            key={section.label ?? `section-${index}`}
+            className={cn("flex flex-col gap-1", collapsed && index > 0 && "border-t border-sidebar-border pt-3")}
+          >
+            {section.label && !collapsed && (
               <button
                 type="button"
                 onClick={() => toggleSection(section.label!)}
@@ -179,16 +185,21 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                       href={item.href}
                       onClick={onNavigate}
                       aria-current={isActive ? "page" : undefined}
+                      title={collapsed ? item.label : undefined}
                       data-testid={`nav-link-${slugify(item.href)}`}
                       className={cn(
                         "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                        collapsed && "justify-center px-0",
                         isActive
                           ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
-                          : "text-sidebar-foreground/70 hover:translate-x-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                          : cn(
+                              "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                              !collapsed && "hover:translate-x-0.5",
+                            ),
                       )}
                     >
                       <Icon className="size-4 shrink-0" />
-                      {item.label}
+                      <span className={cn(collapsed && "sr-only")}>{item.label}</span>
                     </Link>
                   );
                 })}

@@ -8,14 +8,18 @@ import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { GenerateRunDialog } from "./generate-run-dialog";
 import { ApproveButton } from "./approve-button";
+
+type SearchParams = Record<string, string | string[] | undefined>;
 
 function formatDate(value: Date): string {
   return new Date(value).toISOString().slice(0, 10);
 }
 
-export default async function PayrollPage() {
+export default async function PayrollPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -40,6 +44,16 @@ export default async function PayrollPage() {
     netPayByRunId.set(run._id.toString(), records.reduce((sum, record) => sum + record.netPay, 0));
   }
 
+  const tableQuery = parseTableQuery(params, "period");
+  const { rows: pageRows, total } = applyTableQuery(runs, tableQuery, {
+    searchFields: () => [],
+    sortValues: {
+      period: (run) => new Date(run.payPeriodStart),
+      netPay: (run) => netPayByRunId.get(run._id.toString()) ?? 0,
+      status: (run) => run.status,
+    },
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -56,25 +70,42 @@ export default async function PayrollPage() {
       />
 
       <DataTable
+        sort={{
+          sortBy: tableQuery.sort,
+          sortDir: tableQuery.dir,
+          buildHref: (sortKey) =>
+            buildTableHref("/payroll", params, {
+              sort: sortKey,
+              dir: tableQuery.sort === sortKey && tableQuery.dir === "asc" ? "desc" : "asc",
+              page: undefined,
+            }),
+        }}
+        pagination={{
+          page: tableQuery.page,
+          pageSize: tableQuery.pageSize,
+          total,
+          buildHref: (page, pageSize) => buildTableHref("/payroll", params, { page, pageSize }),
+        }}
         columns={[
           {
             key: "period",
             header: "Pay period",
+            sortKey: "period",
             render: (run) => (
               <Link href={`/payroll/${run._id.toString()}`} className="font-medium text-primary hover:underline">
                 {formatDate(run.payPeriodStart)} – {formatDate(run.payPeriodEnd)}
               </Link>
             ),
           },
-          { key: "netPay", header: "Total net pay", render: (run) => (netPayByRunId.get(run._id.toString()) ?? 0).toFixed(2) },
-          { key: "status", header: "Status", render: (run) => <StatusBadge status={run.status} /> },
+          { key: "netPay", header: "Total net pay", sortKey: "netPay", render: (run) => (netPayByRunId.get(run._id.toString()) ?? 0).toFixed(2) },
+          { key: "status", header: "Status", sortKey: "status", render: (run) => <StatusBadge status={run.status} /> },
           {
             key: "action",
             header: "",
             render: (run) => (canApprove && run.status === "completed" ? <ApproveButton runId={run._id.toString()} organizationId={organizationId} /> : null),
           },
         ]}
-        rows={runs}
+        rows={pageRows}
         getRowKey={(run) => run._id.toString()}
         emptyMessage="No payroll runs yet."
       />

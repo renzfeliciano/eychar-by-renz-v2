@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -91,6 +92,7 @@ export function CreateLeavePolicyDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add leave policy</DialogTitle>
+          <DialogDescription>Defines accrual rules and eligibility for a leave type.</DialogDescription>
         </DialogHeader>
         <form id="create-leave-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

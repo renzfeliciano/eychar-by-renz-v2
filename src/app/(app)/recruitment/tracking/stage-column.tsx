@@ -33,13 +33,15 @@ export function StageColumn({
       aria-label={`${stage.name}, ${applicants.length} applicant${applicants.length === 1 ? "" : "s"}`}
       data-testid={`tracking-column-${stage.code}`}
     >
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold">{stage.name}</h2>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{applicants.length}</span>
+      <div className="flex items-center gap-2 px-1">
+        <h2 className="flex-1 truncate text-sm font-semibold">{stage.name}</h2>
+        <span className="rounded-full bg-gradient-to-br from-primary/20 to-primary/5 px-2 py-0.5 text-xs font-semibold text-primary">
+          {applicants.length}
+        </span>
       </div>
       <div className="flex flex-col gap-2">
         {applicants.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">No applicants</p>
+          <p className="rounded-lg border border-dashed bg-card/50 p-4 text-center text-xs text-muted-foreground">No applicants</p>
         ) : (
           applicants.map((applicant) => (
             <ApplicantCard

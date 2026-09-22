@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -124,6 +125,7 @@ export function TravelOrderFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit travel order" : "New travel order"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Updates this travel order's details." : "Dispatches one or more employees for a date range."}</DialogDescription>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
           <RequiredFieldsHint />

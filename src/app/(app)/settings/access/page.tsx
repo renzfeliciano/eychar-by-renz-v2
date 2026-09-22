@@ -5,13 +5,18 @@ import { RoleAssignmentService } from "@/domains/authorization/role-assignment-s
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { TableSearchInput } from "@/components/shared/table-search-input";
+import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleFormDialog } from "./role-form-dialog";
 import { AssignRoleDialog } from "./assign-role-dialog";
 import { RevokeRoleAssignmentButton } from "./revoke-role-assignment-button";
 import { CreateStaffAccountDialog } from "./create-staff-account-dialog";
 
-export default async function AccessSettingsPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function AccessSettingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -44,6 +49,25 @@ export default async function AccessSettingsPage() {
   const roleOptions = roles.filter((role) => role.status !== "inactive").map((role) => ({ id: role._id.toString(), label: role.name }));
   const memberOptions = members.map((member) => ({ id: member.userId, label: `${member.name} (${member.username})` }));
 
+  const roleQuery = parseTableQuery(params, "name", "role");
+  const { rows: rolePageRows } = applyTableQuery(roles, roleQuery, {
+    searchFields: () => [],
+    sortValues: {
+      name: (role) => role.name,
+      status: (role) => role.status,
+    },
+  });
+
+  const assignmentQuery = parseTableQuery(params, undefined, "assignment");
+  const { rows: assignmentPageRows, total: assignmentTotal } = applyTableQuery(assignments, assignmentQuery, {
+    searchFields: (assignment) => [memberByUserId.get(assignment.userId.toString())?.name, roleById.get(assignment.roleId.toString())?.name],
+    sortValues: {
+      person: (assignment) => memberByUserId.get(assignment.userId.toString())?.name ?? "",
+      role: (assignment) => roleById.get(assignment.roleId.toString())?.name ?? "",
+      since: (assignment) => new Date(assignment.effectiveFrom),
+    },
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -59,11 +83,22 @@ export default async function AccessSettingsPage() {
         <CardContent>
           <DataTable
             caption="Roles"
+            sort={{
+              sortBy: roleQuery.sort,
+              sortDir: roleQuery.dir,
+              buildHref: (sortKey) =>
+                buildTableHref(
+                  "/settings/access",
+                  params,
+                  { sort: sortKey, dir: roleQuery.sort === sortKey && roleQuery.dir === "asc" ? "desc" : "asc" },
+                  "role",
+                ),
+            }}
             columns={[
-              { key: "name", header: "Name", render: (role) => <span className="font-medium">{role.name}</span> },
+              { key: "name", header: "Name", sortKey: "name", render: (role) => <span className="font-medium">{role.name}</span> },
               { key: "description", header: "Description", render: (role) => role.description || "—" },
               { key: "permissions", header: "Permissions", render: (role) => `${role.permissionKeys.length} granted` },
-              { key: "status", header: "Status", render: (role) => <StatusBadge status={role.status} /> },
+              { key: "status", header: "Status", sortKey: "status", render: (role) => <StatusBadge status={role.status} /> },
               {
                 key: "action",
                 header: "",
@@ -83,7 +118,7 @@ export default async function AccessSettingsPage() {
                   ) : null,
               },
             ]}
-            rows={roles}
+            rows={rolePageRows}
             getRowKey={(role) => role._id.toString()}
             emptyMessage="No roles yet."
           />
@@ -95,23 +130,44 @@ export default async function AccessSettingsPage() {
           <CardTitle className="text-base">Access</CardTitle>
           {canAssign && <AssignRoleDialog organizationId={organizationId} members={memberOptions} roles={roleOptions} />}
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <TableSearchInput placeholder="Search by person or role…" paramName="assignmentQ" pageParamName="assignmentPage" />
           <DataTable
             caption="Role assignments"
+            sort={{
+              sortBy: assignmentQuery.sort,
+              sortDir: assignmentQuery.dir,
+              buildHref: (sortKey) =>
+                buildTableHref(
+                  "/settings/access",
+                  params,
+                  { sort: sortKey, dir: assignmentQuery.sort === sortKey && assignmentQuery.dir === "asc" ? "desc" : "asc", page: undefined },
+                  "assignment",
+                ),
+            }}
+            pagination={{
+              page: assignmentQuery.page,
+              pageSize: assignmentQuery.pageSize,
+              total: assignmentTotal,
+              buildHref: (page, pageSize) => buildTableHref("/settings/access", params, { page, pageSize }, "assignment"),
+            }}
             columns={[
               {
                 key: "person",
                 header: "Person",
+                sortKey: "person",
                 render: (assignment) => memberByUserId.get(assignment.userId.toString())?.name ?? "—",
               },
               {
                 key: "role",
                 header: "Role",
+                sortKey: "role",
                 render: (assignment) => roleById.get(assignment.roleId.toString())?.name ?? "—",
               },
               {
                 key: "since",
                 header: "Since",
+                sortKey: "since",
                 render: (assignment) => new Date(assignment.effectiveFrom).toLocaleDateString(),
               },
               {
@@ -121,9 +177,9 @@ export default async function AccessSettingsPage() {
                   canAssign ? <RevokeRoleAssignmentButton id={assignment._id.toString()} organizationId={organizationId} /> : null,
               },
             ]}
-            rows={assignments}
+            rows={assignmentPageRows}
             getRowKey={(assignment) => assignment._id.toString()}
-            emptyMessage="No role assignments yet."
+            emptyMessage={assignmentQuery.q ? "No role assignments match this search." : "No role assignments yet."}
           />
         </CardContent>
       </Card>

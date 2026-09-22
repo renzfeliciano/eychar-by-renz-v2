@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -119,6 +120,7 @@ export function RoleFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit role" : "Add role"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Updates this role's permissions." : "Defines a new role and the permissions it grants."}</DialogDescription>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
           <RequiredFieldsHint />

@@ -58,6 +58,41 @@ export const EmployeeService = {
     return employee;
   },
 
+  async update(employeeId: string, organizationId: string, patch: { employeeNumber?: string }, actor: { userId?: string }) {
+    await connectMongoDB();
+
+    // "" clears the number via $unset — employeeNumber has a sparse unique
+    // index, so $set-ing it to "" would collide the moment a second
+    // employee also cleared theirs, the same way two empty strings would.
+    const update = patch.employeeNumber === "" ? { $unset: { employeeNumber: "" } } : { $set: { employeeNumber: patch.employeeNumber } };
+
+    let employee;
+    try {
+      employee = await EmployeeModel.findOneAndUpdate(
+        { _id: new Types.ObjectId(employeeId), organizationId: new Types.ObjectId(organizationId) },
+        update,
+        { returnDocument: "after" },
+      );
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new ConflictError(`Employee number "${patch.employeeNumber}" is already in use`);
+      }
+      throw error;
+    }
+    if (!employee) throw new NotFoundError("Employee not found in this organization");
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "employee.updated",
+      resourceType: "Employee",
+      resourceId: employee._id.toString(),
+      after: { employeeNumber: employee.employeeNumber },
+    });
+
+    return employee;
+  },
+
   /**
    * Roster view: each employee joined with their latest Employment and
    * latest EmployeeAssignment. Application-level joins, not an aggregation

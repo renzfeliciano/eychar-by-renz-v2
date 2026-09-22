@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -73,6 +74,7 @@ export function CreatePayrollPolicyDialog({ organizationId }: { organizationId: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add payroll policy</DialogTitle>
+          <DialogDescription>Defines pay computation rules and eligibility scope.</DialogDescription>
         </DialogHeader>
         <form id="create-payroll-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

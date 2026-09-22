@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -130,6 +131,7 @@ export function ApplicantFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit applicant" : "Add applicant"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Updates this candidate's application details." : "Adds a candidate to the recruitment pipeline."}</DialogDescription>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
           <RequiredFieldsHint />

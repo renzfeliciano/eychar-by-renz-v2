@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -92,6 +93,7 @@ export function GrantLeaveBalanceDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Grant leave balance</DialogTitle>
+          <DialogDescription>Adds or adjusts this employee&apos;s available balance for a leave type and year.</DialogDescription>
         </DialogHeader>
         <form id="grant-leave-balance-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

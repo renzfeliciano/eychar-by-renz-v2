@@ -4,6 +4,7 @@ import {
   OrganizationModel,
   PersonModel,
   EmployeeModel,
+  PositionModel,
   ProjectModel,
   EmployeeAssignmentModel,
   EmploymentModel,
@@ -55,6 +56,8 @@ describe("OrgChartService", () => {
     const managerB = await seedEmployee(organization._id, "B");
     const managerC = await seedEmployee(organization._id, "C");
     const employee = await seedEmployee(organization._id, "EMP");
+    const position = await PositionModel.create({ organizationId: organization._id, title: "Staff", code: `STAFF-${Date.now()}` });
+    const project = await ProjectModel.create({ organizationId: organization._id, name: "Project X", code: `PX-${Date.now()}` });
 
     const date2025 = new Date("2025-01-15T00:00:00Z");
     const date2026 = new Date("2026-01-15T00:00:00Z");
@@ -68,9 +71,19 @@ describe("OrgChartService", () => {
     await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: managerC._id.toString(), effectiveFrom: date2025 }, {});
 
     await EmployeeAssignmentService.create(
-      { organizationId: orgId, employeeId: employee._id.toString(), reportsToEmployeeId: managerB._id.toString(), effectiveFrom: date2025 },
+      {
+        organizationId: orgId,
+        employeeId: employee._id.toString(),
+        positionId: position._id.toString(),
+        projectId: project._id.toString(),
+        reportsToEmployeeId: managerB._id.toString(),
+        effectiveFrom: date2025,
+      },
       {},
     );
+    // Only the manager changes here — position and project carry over from
+    // the assignment above (EmployeeAssignmentService.transfer's own
+    // "required, no exceptions" rule is covered by its own test file).
     await EmployeeAssignmentService.transfer(
       employee._id.toString(),
       orgId,

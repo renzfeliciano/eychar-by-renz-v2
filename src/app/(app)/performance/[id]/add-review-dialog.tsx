@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -80,6 +81,7 @@ export function AddReviewDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add review</DialogTitle>
+          <DialogDescription>Records a performance review for this employee within the cycle.</DialogDescription>
         </DialogHeader>
         <form id="add-review-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

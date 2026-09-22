@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -70,6 +71,7 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add project</DialogTitle>
+          <DialogDescription>Adds a project employees can be assigned to.</DialogDescription>
         </DialogHeader>
         <form id="create-project-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

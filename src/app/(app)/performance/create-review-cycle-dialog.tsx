@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -70,6 +71,7 @@ export function CreateReviewCycleDialog({ organizationId }: { organizationId: st
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add review cycle</DialogTitle>
+          <DialogDescription>Opens a new performance review period for the organization.</DialogDescription>
         </DialogHeader>
         <form id="create-review-cycle-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

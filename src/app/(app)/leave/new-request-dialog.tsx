@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -88,6 +90,7 @@ export function NewRequestDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New leave request</DialogTitle>
+          <DialogDescription>Files a leave request on behalf of an employee, for approval.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -103,7 +106,7 @@ export function NewRequestDialog({
             </FormField>
           </div>
           <FormField label="Reason" htmlFor="request-reason">
-            <Input id="request-reason" placeholder="e.g. Family emergency" value={reason} onChange={(event) => setReason(event.target.value)} />
+            <Textarea id="request-reason" placeholder="e.g. Family emergency" value={reason} onChange={(event) => setReason(event.target.value)} />
           </FormField>
           <FormError message={error} />
         </div>

@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -94,6 +95,7 @@ export function GenerateRunDialog({ organizationId, employees }: { organizationI
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Generate payroll run</DialogTitle>
+          <DialogDescription>Computes pay for the selected period from resolved policy and attendance — review before approving.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">

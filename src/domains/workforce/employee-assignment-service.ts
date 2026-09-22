@@ -131,6 +131,26 @@ export const EmployeeAssignmentService = {
     const effectiveFrom = fields.effectiveFrom ?? new Date();
 
     const current = await EmployeeAssignmentModel.findOne({ employeeId: employeeObjectId, ...OPEN_ASSIGNMENT_FILTER });
+
+    // Anything the caller didn't specify carries over from the assignment
+    // being closed out — a transfer changes what it says it changes; it
+    // must never silently blank out everything else (AGENTS.md §15/§16).
+    const merged: AssignmentFields = {
+      positionId: fields.positionId ?? current?.positionId?.toString(),
+      organizationUnitId: fields.organizationUnitId ?? current?.organizationUnitId?.toString(),
+      projectId: fields.projectId ?? current?.projectId?.toString(),
+      locationId: fields.locationId ?? current?.locationId?.toString(),
+      reportsToEmployeeId: fields.reportsToEmployeeId ?? current?.reportsToEmployeeId?.toString(),
+      effectiveFrom,
+    };
+
+    // Position, project, and manager are all required on every assignment,
+    // no exceptions — checked before touching `current` so a rejected
+    // transfer never leaves the employee mid-move with no open assignment.
+    if (!merged.positionId || !merged.projectId || !merged.reportsToEmployeeId) {
+      throw new BusinessRuleError("Position, project, and manager are all required to complete a transfer");
+    }
+
     const before = current
       ? { positionId: current.positionId, projectId: current.projectId, reportsToEmployeeId: current.reportsToEmployeeId }
       : null;
@@ -139,9 +159,7 @@ export const EmployeeAssignmentService = {
       await current.save();
     }
 
-    const next = await EmployeeAssignmentModel.create(
-      toAssignmentDoc({ ...fields, organizationId, employeeId, effectiveFrom }),
-    );
+    const next = await EmployeeAssignmentModel.create(toAssignmentDoc({ ...merged, organizationId, employeeId }));
 
     await AuditService.record({
       organizationId,

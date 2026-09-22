@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -79,6 +80,7 @@ export function SubmitReviewDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Submit review</DialogTitle>
+          <DialogDescription>Finalizes this review — it can&apos;t be edited after submitting.</DialogDescription>
         </DialogHeader>
         <form id={`submit-review-form-${reviewId}`} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

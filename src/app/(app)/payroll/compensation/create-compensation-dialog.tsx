@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -81,6 +82,7 @@ export function CreateCompensationDialog({ organizationId, employees }: { organi
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Grant compensation</DialogTitle>
+          <DialogDescription>Adds a pay component — allowance, bonus, or deduction — to an employee&apos;s compensation.</DialogDescription>
         </DialogHeader>
         <form id="create-compensation-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

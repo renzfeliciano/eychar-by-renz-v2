@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -65,6 +66,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create self-service login</DialogTitle>
+          <DialogDescription>Sets up this employee&apos;s account for clocking in/out and viewing their own records.</DialogDescription>
         </DialogHeader>
         <form id="create-employee-account-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

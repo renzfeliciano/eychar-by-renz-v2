@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X, Ban } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -99,10 +100,11 @@ export function DecideActions({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Reject leave request</DialogTitle>
+                <DialogDescription>Records why this request is being rejected — visible to the employee.</DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-4">
                 <FormField label="Reason" htmlFor="reject-reason">
-                  <Input id="reject-reason" placeholder="e.g. Insufficient balance for requested dates" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} />
+                  <Textarea id="reject-reason" placeholder="e.g. Insufficient balance for requested dates" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} />
                 </FormField>
                 <FormError message={error} />
               </div>

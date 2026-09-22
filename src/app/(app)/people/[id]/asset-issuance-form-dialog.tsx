@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -141,6 +142,7 @@ export function AssetIssuanceFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit asset issuance" : "Log asset issuance"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Updates details of this asset issuance." : "Records equipment or property issued to this employee."}</DialogDescription>
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
           <RequiredFieldsHint />

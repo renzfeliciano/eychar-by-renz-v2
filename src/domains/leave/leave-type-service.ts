@@ -1,9 +1,9 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { LeaveTypeModel } from "@/server/db/models";
+import { LeaveTypeModel, LeaveRequestModel, LeaveBalanceModel, LeavePolicyModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
-import { ConflictError, NotFoundError } from "@/shared/errors";
+import { ConflictError, NotFoundError, BusinessRuleError } from "@/shared/errors";
 import type { CreateLeaveTypeInput } from "@/shared/validation/leave";
 
 export const LeaveTypeService = {
@@ -67,6 +67,86 @@ export const LeaveTypeService = {
     });
 
     return leaveType;
+  },
+
+  /** Renames/redescribes an existing leave type — status has its own dedicated `updateStatus` above. */
+  async update(
+    id: string,
+    organizationId: string,
+    patch: { name?: string; code?: string; description?: string },
+    actor: { userId?: string },
+  ) {
+    await connectMongoDB();
+
+    const leaveType = await LeaveTypeModel.findOne({
+      _id: new Types.ObjectId(id),
+      organizationId: new Types.ObjectId(organizationId),
+    });
+    if (!leaveType) throw new NotFoundError("Leave type not found in this organization");
+
+    const before = { name: leaveType.name, code: leaveType.code, description: leaveType.description };
+    if (patch.name !== undefined) leaveType.name = patch.name;
+    if (patch.code !== undefined) leaveType.code = patch.code;
+    if (patch.description !== undefined) leaveType.description = patch.description;
+
+    try {
+      await leaveType.save();
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new ConflictError(`Leave type code "${patch.code}" is already in use`);
+      }
+      throw error;
+    }
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "leave-type.updated",
+      resourceType: "LeaveType",
+      resourceId: leaveType._id.toString(),
+      before,
+      after: { name: leaveType.name, code: leaveType.code, description: leaveType.description },
+    });
+
+    return leaveType;
+  },
+
+  /**
+   * Permanently removes a leave type — unlike `updateStatus("inactive")`,
+   * this can't be undone, so it's blocked the moment anything (a leave
+   * request, a balance grant, a policy) actually references it. Deactivate
+   * is the right tool once a type has real history; delete is for cleaning
+   * up a type created by mistake that nothing has used yet.
+   */
+  async delete(id: string, organizationId: string, actor: { userId?: string }) {
+    await connectMongoDB();
+
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const leaveTypeId = new Types.ObjectId(id);
+    const leaveType = await LeaveTypeModel.findOne({ _id: leaveTypeId, organizationId: orgObjectId });
+    if (!leaveType) throw new NotFoundError("Leave type not found in this organization");
+
+    const [requestCount, balanceCount, policyCount] = await Promise.all([
+      LeaveRequestModel.countDocuments({ leaveTypeId }),
+      LeaveBalanceModel.countDocuments({ leaveTypeId }),
+      LeavePolicyModel.countDocuments({ leaveTypeId }),
+    ]);
+    if (requestCount > 0 || balanceCount > 0 || policyCount > 0) {
+      throw new BusinessRuleError(
+        `"${leaveType.name}" is in use (${requestCount} request(s), ${balanceCount} balance(s), ${policyCount} polic${policyCount === 1 ? "y" : "ies"}) and can't be deleted — deactivate it instead.`,
+      );
+    }
+
+    await LeaveTypeModel.deleteOne({ _id: leaveTypeId, organizationId: orgObjectId });
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "leave-type.deleted",
+      resourceType: "LeaveType",
+      resourceId: id,
+      before: { name: leaveType.name, code: leaveType.code },
+    });
   },
 
   async listCurrent(organizationId: string) {

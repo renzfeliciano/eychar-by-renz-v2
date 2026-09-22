@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -83,6 +84,7 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add attendance policy</DialogTitle>
+          <DialogDescription>Sets standard hours, grace period, and which org units or projects it applies to.</DialogDescription>
         </DialogHeader>
         <form id="create-attendance-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

@@ -5,7 +5,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
+  /* Cards were rendering flush with the page (both pure white) — a hairline
+     ring was the only thing separating a card from empty page. A faint
+     cool-tinted page background gives every card real visual presence
+     without touching --card, which stays pure white so it still pops. */
+  --background: oklch(0.97 0.006 260);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -29,7 +33,7 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.002 247.858);
+  --sidebar: oklch(0.97 0.006 260);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.546 0.245 262.881);
   --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
@@ -41,14 +45,39 @@
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.75 0.17 70);
   --warning-foreground: oklch(0.2 0 0);
+  --events: oklch(0.55 0.23 302);
+  --events-foreground: oklch(0.98 0 0);
 
   /* Complements the existing primary blue with violet rather than replacing
      it — reserved for hero surfaces (dashboard, login), not every button. */
   --gradient-brand: linear-gradient(135deg, oklch(0.546 0.245 262.881), oklch(0.55 0.23 302));
   --shadow-soft: 0 1px 2px oklch(0.145 0 0 / 4%), 0 4px 12px -4px oklch(0.145 0 0 / 8%);
   --shadow-glow: 0 0 0 1px oklch(0.546 0.245 262.881 / 15%), 0 4px 20px -2px oklch(0.546 0.245 262.881 / 35%);
+  /* A dialog sits over a blurred backdrop with nothing else to read depth
+     from, so it gets a stronger lift than a card: a real drop shadow plus
+     a faint brand-colored halo, rather than the card's barely-there
+     shadow-soft. */
+  --shadow-modal: 0 25px 50px -12px oklch(0.145 0 0 / 22%), 0 0 0 1px oklch(0.546 0.245 262.881 / 12%), 0 12px 28px -6px oklch(0.546 0.245 262.881 / 22%);
   --glass-bg: oklch(1 0 0 / 70%);
   --glass-border: oklch(1 0 0 / 40%);
+
+  /* Dashboard chart colors — the dataviz skill's validated reference palette
+     (own gate: worst adjacent CVD deltaE 9.1 light, normal-vision 19.6 light),
+     NOT the shadcn --chart-1..5 defaults above, which fail validate_palette.js
+     (chart4/chart5 sub-8 CVD delta, chart3 below the chroma floor). Kept
+     separate from --chart-* so nothing else silently starts drawing from a
+     failing set. */
+  --viz-series-1: #2a78d6;
+  --viz-series-2: #eb6834;
+  --viz-series-3: #1baf7a;
+  --viz-series-4: #eda100;
+  --viz-series-5: #e87ba4;
+  --viz-ordinal-1: #b7d3f6;
+  --viz-ordinal-2: #6da7ec;
+  --viz-ordinal-3: #2a78d6;
+  --viz-ordinal-4: #184f95;
+  --viz-ink-muted: #898781;
+  --viz-gridline: #e1e0d9;
 }
 
 .dark {
@@ -88,12 +117,29 @@
   --success-foreground: oklch(0.145 0 0);
   --warning: oklch(0.8 0.17 70);
   --warning-foreground: oklch(0.145 0 0);
+  --events: oklch(0.65 0.2 302);
+  --events-foreground: oklch(0.145 0 0);
 
   --gradient-brand: linear-gradient(135deg, oklch(0.707 0.165 254.624), oklch(0.65 0.2 302));
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 20%), 0 4px 12px -4px oklch(0 0 0 / 30%);
   --shadow-glow: 0 0 0 1px oklch(0.707 0.165 254.624 / 25%), 0 4px 20px -2px oklch(0.707 0.165 254.624 / 45%);
+  --shadow-modal: 0 25px 50px -12px oklch(0 0 0 / 55%), 0 0 0 1px oklch(0.707 0.165 254.624 / 20%), 0 12px 28px -6px oklch(0.707 0.165 254.624 / 30%);
   --glass-bg: oklch(0.205 0 0 / 65%);
   --glass-border: oklch(1 0 0 / 12%);
+
+  /* Same reference palette, dark-surface steps (own gate: worst adjacent CVD
+     deltaE 8.4, normal-vision 19.3) — not a flip of the light values. */
+  --viz-series-1: #3987e5;
+  --viz-series-2: #d95926;
+  --viz-series-3: #199e70;
+  --viz-series-4: #c98500;
+  --viz-series-5: #d55181;
+  --viz-ordinal-1: #184f95;
+  --viz-ordinal-2: #256abf;
+  --viz-ordinal-3: #3987e5;
+  --viz-ordinal-4: #86b6ef;
+  --viz-ink-muted: #898781;
+  --viz-gridline: #2c2c2a;
 }
 
 @theme inline {
@@ -134,6 +180,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-events: var(--events);
+  --color-events-foreground: var(--events-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -154,6 +202,31 @@
   html {
     @apply font-sans;
   }
+
+  /* Firefox: thin track, transparent by default so it only shows an
+     opinion on hover-capable/scrolled elements rather than tinting every
+     box with overflow. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
 }
 
 @layer utilities {
@@ -173,5 +246,69 @@
 
   .bg-gradient-brand {
     background-image: var(--gradient-brand);
+  }
+
+  /*
+   * Load-in stagger for card grids (dashboard stats/quick links). Cards sit
+   * at their final state by default; the animation only applies under
+   * no-preference, so reduced-motion users never see a from-state — no JS
+   * feature check needed.
+   */
+  .stagger-in {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stagger-in {
+    animation: stagger-in 400ms ease-out backwards;
+    animation-delay: calc(var(--stagger-index, 0) * 60ms);
+  }
+}
+
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Briefly rings the exact field a server validation error is about, after
+   focus-invalid-field.ts scrolls it into view — connects the error card's
+   message to a specific place on screen, not just a floating banner. */
+.field-error-highlight {
+  animation: field-error-ring 1.6s ease-out;
+}
+
+@keyframes field-error-ring {
+  0% {
+    box-shadow: 0 0 0 4px var(--color-destructive, oklch(0.577 0.245 27.325 / 35%));
+  }
+  70% {
+    box-shadow: 0 0 0 4px var(--color-destructive, oklch(0.577 0.245 27.325 / 35%));
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Slow background zoom on the login page's photo carousel — a static image
+   reads as a screenshot; the drift makes it feel alive without being busy. */
+@media (prefers-reduced-motion: no-preference) {
+  .login-visual-kenburns {
+    animation: login-visual-kenburns 20s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes login-visual-kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.1);
   }
 }

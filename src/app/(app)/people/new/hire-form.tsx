@@ -211,10 +211,12 @@ export function HireForm({
 
           <FormError message={error} />
 
-          <Button type="submit" disabled={isSubmitting} className="self-start">
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
-            {isSubmitting ? "Adding…" : "Add employee"}
-          </Button>
+          <div className="flex justify-end border-t pt-4">
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
+              {isSubmitting ? "Adding…" : "Add employee"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

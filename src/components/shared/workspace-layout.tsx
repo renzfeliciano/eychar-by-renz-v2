@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Menu, LogOut, Building } from "lucide-react";
+import { Menu, LogOut, Building, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,8 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { NavLinks } from "./nav-links";
 import { ThemeToggle } from "./theme-toggle";
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "workforcehub:sidebar-collapsed";
 
 function initials(name: string) {
   return name
@@ -26,7 +29,7 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export function AppShell({
+export function WorkspaceLayout({
   userName,
   organizationName,
   children,
@@ -36,23 +39,73 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Per-viewer convenience only (rail collapsed or expanded) — never read
+  // back by the server, safe to lose in private mode/cleared storage.
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a per-viewer preference on mount, not a derived/external sync
+      if (window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1") setCollapsed(true);
+    } catch {
+      // localStorage unavailable — rail just defaults to expanded.
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((previous) => {
+      const next = !previous;
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // ignore — nothing to persist to
+      }
+      return next;
+    });
+  }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex print:hidden">
+    <div className="flex h-screen overflow-hidden bg-background">
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:flex print:hidden",
+          collapsed ? "w-[72px]" : "w-64",
+        )}
+      >
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
             <Building className="size-4" />
           </div>
-          <span className="text-sm font-semibold">WorkforceHub</span>
+          {!collapsed && <span className="truncate text-sm font-semibold">WorkforceHub</span>}
         </div>
-        <div className="flex-1 overflow-y-auto px-3 py-4">
-          <NavLinks />
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+          <NavLinks collapsed={collapsed} />
+        </div>
+        <div className="border-t border-sidebar-border p-2">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className={cn(
+              "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              collapsed && "justify-center px-0",
+            )}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            data-testid="sidebar-collapse-toggle"
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="size-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <>
+                <PanelLeftClose className="size-4 shrink-0" aria-hidden="true" />
+                Collapse
+              </>
+            )}
+          </button>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass-surface sticky top-0 z-10 flex h-16 items-center gap-3 border-b px-4 md:px-6 print:hidden">
+        <header className="glass-surface sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 border-b px-4 md:px-6 print:hidden">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <Button
               variant="ghost"
@@ -104,7 +157,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>

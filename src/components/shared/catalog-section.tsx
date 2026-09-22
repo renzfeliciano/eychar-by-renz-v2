@@ -2,10 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Ban, RotateCcw } from "lucide-react";
+import { Plus, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardAction, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import {
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 export type CatalogItemRow = {
@@ -58,6 +59,7 @@ export function CatalogSection({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,13 +88,21 @@ export function CatalogSection({
 
   async function handleToggleStatus(id: string, nextStatus: "active" | "inactive") {
     setTogglingId(id);
-    await fetch(`/api/catalogs/${catalogType}/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, status: nextStatus }),
-    });
-    setTogglingId(null);
-    router.refresh();
+    setToggleError(null);
+    try {
+      const response = await fetch(`/api/catalogs/${catalogType}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId, status: nextStatus }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to update item.");
+      }
+      router.refresh();
+    } finally {
+      setTogglingId(null);
+    }
   }
 
   const formId = `catalog-form-${catalogType}`;
@@ -108,38 +118,38 @@ export function CatalogSection({
 
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between space-y-0">
-        <div>
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
         {canCreate && (
-          <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid={`catalog-${catalogType}-add-button`}>
-              <Plus className="size-3.5" />
-              Add
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add {title.toLowerCase()} item</DialogTitle>
-              </DialogHeader>
-              <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <RequiredFieldsHint />
-                <FormField label="Name" htmlFor={`${formId}-name`} required>
-                  <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Regular" required />
-                </FormField>
-                <FormField label="Description" htmlFor={`${formId}-description`}>
-                  <Input id={`${formId}-description`} value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} placeholder="e.g. Standard, full-time employment" />
-                </FormField>
-                <FormError message={error} />
-              </form>
-              <DialogFooter>
-                <Button type="submit" form={formId} disabled={isSubmitting} data-testid={`catalog-${catalogType}-add-submit-button`}>
-                  {isSubmitting ? "Adding…" : "Add"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <CardAction>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
+              <DialogTrigger className={cn(buttonVariants({ size: "sm" }))} data-testid={`catalog-${catalogType}-add-button`}>
+                <Plus className="size-3.5" />
+                Add
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add {title.toLowerCase()} item</DialogTitle>
+                </DialogHeader>
+                <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <RequiredFieldsHint />
+                  <FormField label="Name" htmlFor={`${formId}-name`} required>
+                    <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Regular" required />
+                  </FormField>
+                  <FormField label="Description" htmlFor={`${formId}-description`}>
+                    <Input id={`${formId}-description`} value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} placeholder="e.g. Standard, full-time employment" />
+                  </FormField>
+                  <FormError message={error} />
+                </form>
+                <DialogFooter>
+                  <Button type="submit" form={formId} disabled={isSubmitting} data-testid={`catalog-${catalogType}-add-submit-button`}>
+                    {isSubmitting ? "Adding…" : "Add"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardAction>
         )}
       </CardHeader>
       <CardContent>
@@ -153,24 +163,44 @@ export function CatalogSection({
             {
               key: "action",
               header: "",
-              render: (item) =>
-                canUpdate ? (
+              render: (item) => {
+                if (!canUpdate) return null;
+                const isToggling = togglingId === item._id;
+                if (item.status === "active") {
+                  return (
+                    <ConfirmDialog
+                      trigger={
+                        <Button size="sm" variant="ghost" disabled={isToggling} aria-label={isToggling ? `Deactivating ${item.name}` : `Deactivate ${item.name}`}>
+                          {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
+                        </Button>
+                      }
+                      title={`Deactivate "${item.name}"?`}
+                      description="It stops appearing as a choice in new records — anything already using it is unaffected."
+                      confirmLabel="Deactivate"
+                      confirmLoadingLabel="Deactivating…"
+                      onConfirm={() => handleToggleStatus(item._id, "inactive")}
+                    />
+                  );
+                }
+                return (
                   <Button
                     size="sm"
                     variant="ghost"
-                    disabled={togglingId === item._id}
-                    onClick={() => handleToggleStatus(item._id, item.status === "active" ? "inactive" : "active")}
-                    aria-label={item.status === "active" ? `Deactivate ${item.name}` : `Reactivate ${item.name}`}
+                    disabled={isToggling}
+                    onClick={() => handleToggleStatus(item._id, "active").catch((err) => setToggleError(err instanceof Error ? err.message : "Failed to update item."))}
+                    aria-label={isToggling ? `Reactivating ${item.name}` : `Reactivate ${item.name}`}
                   >
-                    {item.status === "active" ? <Ban className="size-3.5" /> : <RotateCcw className="size-3.5" />}
+                    {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
                   </Button>
-                ) : null,
+                );
+              },
             },
           ]}
           rows={items}
           getRowKey={(item) => item._id}
           emptyMessage="No items yet."
         />
+        <FormError message={toggleError} />
       </CardContent>
     </Card>
   );

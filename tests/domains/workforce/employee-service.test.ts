@@ -75,6 +75,73 @@ describe("EmployeeService", () => {
     expect(employeeB.employeeNumber).toBeUndefined();
   });
 
+  it("updates an employee's employee number", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-6" });
+    const person = await PersonModel.create({ organizationId: organization._id, firstName: "Jane", lastName: "Doe" });
+    const employee = await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: person._id.toString(), employeeNumber: "EMP-006" },
+      {},
+    );
+
+    const updated = await EmployeeService.update(
+      employee._id.toString(),
+      organization._id.toString(),
+      { employeeNumber: "EMP-006-B" },
+      {},
+    );
+
+    expect(updated.employeeNumber).toBe("EMP-006-B");
+  });
+
+  it("allows re-saving an employee's own unchanged employee number", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-7" });
+    const person = await PersonModel.create({ organizationId: organization._id, firstName: "Jane", lastName: "Doe" });
+    const employee = await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: person._id.toString(), employeeNumber: "EMP-007" },
+      {},
+    );
+
+    const updated = await EmployeeService.update(
+      employee._id.toString(),
+      organization._id.toString(),
+      { employeeNumber: "EMP-007" },
+      {},
+    );
+
+    expect(updated.employeeNumber).toBe("EMP-007");
+  });
+
+  it("clears an employee's employee number when patched with an empty string", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-9" });
+    const person = await PersonModel.create({ organizationId: organization._id, firstName: "Jane", lastName: "Doe" });
+    const employee = await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: person._id.toString(), employeeNumber: "EMP-009" },
+      {},
+    );
+
+    const updated = await EmployeeService.update(employee._id.toString(), organization._id.toString(), { employeeNumber: "" }, {});
+
+    expect(updated.employeeNumber).toBeUndefined();
+  });
+
+  it("rejects updating to another employee's employee number", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-8" });
+    const personA = await PersonModel.create({ organizationId: organization._id, firstName: "A", lastName: "A" });
+    const personB = await PersonModel.create({ organizationId: organization._id, firstName: "B", lastName: "B" });
+    await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: personA._id.toString(), employeeNumber: "EMP-008-A" },
+      {},
+    );
+    const employeeB = await EmployeeService.create(
+      { organizationId: organization._id.toString(), personId: personB._id.toString(), employeeNumber: "EMP-008-B" },
+      {},
+    );
+
+    await expect(
+      EmployeeService.update(employeeB._id.toString(), organization._id.toString(), { employeeNumber: "EMP-008-A" }, {}),
+    ).rejects.toThrow(ConflictError);
+  });
+
   it("lists employees with their current employment status and assignment", async () => {
     const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-emp-4" });
 

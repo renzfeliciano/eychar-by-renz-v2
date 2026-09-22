@@ -20,8 +20,8 @@ function NodeCard({ node }: { node: OrgChartNode }) {
   const showStatus = Boolean(node.employmentStatus) && node.employmentStatus !== "active";
 
   return (
-    <div className="inline-flex w-44 flex-col items-center gap-1 rounded-xl border bg-card p-3 text-center shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+    <div className="inline-flex w-44 flex-col items-center gap-1 rounded-xl border bg-card p-3 text-center shadow-[var(--shadow-soft)] transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-sm font-semibold text-primary">
         {initials(node.name)}
       </div>
       <Link href={`/people/${node.employeeId}`} className="text-sm font-semibold text-primary hover:underline">

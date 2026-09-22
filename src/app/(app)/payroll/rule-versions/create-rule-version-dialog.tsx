@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -91,9 +92,10 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
         <Plus className="size-3.5" />
         New rule version
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>New rule version</DialogTitle>
+          <DialogDescription>Adds a new statutory/tax rule version effective from a given date.</DialogDescription>
         </DialogHeader>
         <form id="create-rule-version-form" onSubmit={handleSubmit} noValidate className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto pr-1">
           <FormField label="Description" htmlFor="rule-version-description">
@@ -105,116 +107,144 @@ export function CreateRuleVersionDialog({ organizationId }: { organizationId: st
             />
           </FormField>
 
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium">Tax brackets</p>
-            {brackets.map((bracket, index) => (
-              <div key={index} className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:items-end">
-                <FormField label="Min income">
-                  <Input
-                    type="number"
-                    placeholder="e.g. 0"
-                    value={bracket.minIncome}
-                    onChange={(event) =>
-                      setBrackets(brackets.map((row, i) => (i === index ? { ...row, minIncome: event.target.value } : row)))
-                    }
-                  />
-                </FormField>
-                <FormField label="Max income">
-                  <Input
-                    type="number"
-                    placeholder="e.g. 20000"
-                    value={bracket.maxIncome}
-                    onChange={(event) =>
-                      setBrackets(brackets.map((row, i) => (i === index ? { ...row, maxIncome: event.target.value } : row)))
-                    }
-                  />
-                </FormField>
-                <FormField label="Rate (0-1)">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 0.15"
-                    value={bracket.rate}
-                    onChange={(event) => setBrackets(brackets.map((row, i) => (i === index ? { ...row, rate: event.target.value } : row)))}
-                  />
-                </FormField>
-                <FormField label="Base deduction">
-                  <Input
-                    type="number"
-                    placeholder="e.g. 0"
-                    value={bracket.baseDeduction}
-                    onChange={(event) =>
-                      setBrackets(brackets.map((row, i) => (i === index ? { ...row, baseDeduction: event.target.value } : row)))
-                    }
-                  />
-                </FormField>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Remove tax bracket ${index + 1}`}
-                  onClick={() => setBrackets(brackets.filter((_, i) => i !== index))}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setBrackets([...brackets, { ...EMPTY_BRACKET }])}>
+          <div className="flex flex-col gap-3 border-t pt-5">
+            <div>
+              <p className="text-sm font-semibold">Tax brackets</p>
+              <p className="text-xs text-muted-foreground">Income ranges and the withholding rate applied within each.</p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {brackets.map((bracket, index) => (
+                <div key={index} className="rounded-lg border bg-muted/30 p-3">
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">Bracket {index + 1}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove tax bracket ${index + 1}`}
+                      onClick={() => setBrackets(brackets.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <FormField label="Min income">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 0"
+                        value={bracket.minIncome}
+                        onChange={(event) =>
+                          setBrackets(brackets.map((row, i) => (i === index ? { ...row, minIncome: event.target.value } : row)))
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Max income">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 20000"
+                        value={bracket.maxIncome}
+                        onChange={(event) =>
+                          setBrackets(brackets.map((row, i) => (i === index ? { ...row, maxIncome: event.target.value } : row)))
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Rate (0-1)">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 0.15"
+                        value={bracket.rate}
+                        onChange={(event) => setBrackets(brackets.map((row, i) => (i === index ? { ...row, rate: event.target.value } : row)))}
+                      />
+                    </FormField>
+                    <FormField label="Base deduction">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 0"
+                        value={bracket.baseDeduction}
+                        onChange={(event) =>
+                          setBrackets(brackets.map((row, i) => (i === index ? { ...row, baseDeduction: event.target.value } : row)))
+                        }
+                      />
+                    </FormField>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit border-dashed"
+              onClick={() => setBrackets([...brackets, { ...EMPTY_BRACKET }])}
+            >
               <Plus className="size-3.5" />
               Add bracket
             </Button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium">Statutory contributions</p>
-            {contributions.map((contribution, index) => (
-              <div key={index} className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:items-end">
-                <FormField label="Name">
-                  <Input
-                    placeholder="e.g. SSS"
-                    value={contribution.name}
-                    onChange={(event) =>
-                      setContributions(contributions.map((row, i) => (i === index ? { ...row, name: event.target.value } : row)))
-                    }
-                  />
-                </FormField>
-                <FormField label="Employee rate (0-1)">
-                  <Input
-                    type="number"
-                    step="0.001"
-                    placeholder="e.g. 0.045"
-                    value={contribution.employeeRate}
-                    onChange={(event) =>
-                      setContributions(contributions.map((row, i) => (i === index ? { ...row, employeeRate: event.target.value } : row)))
-                    }
-                  />
-                </FormField>
-                <FormField label="Cap">
-                  <Input
-                    type="number"
-                    placeholder="e.g. 30000"
-                    value={contribution.cap}
-                    onChange={(event) =>
-                      setContributions(contributions.map((row, i) => (i === index ? { ...row, cap: event.target.value } : row)))
-                    }
-                  />
-                </FormField>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Remove statutory contribution ${index + 1}`}
-                  onClick={() => setContributions(contributions.filter((_, i) => i !== index))}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </div>
-            ))}
+          <div className="flex flex-col gap-3 border-t pt-5">
+            <div>
+              <p className="text-sm font-semibold">Statutory contributions</p>
+              <p className="text-xs text-muted-foreground">Employee-side contribution rates, each with an optional cap.</p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {contributions.map((contribution, index) => (
+                <div key={index} className="rounded-lg border bg-muted/30 p-3">
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">Contribution {index + 1}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove statutory contribution ${index + 1}`}
+                      onClick={() => setContributions(contributions.filter((_, i) => i !== index))}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <FormField label="Name">
+                      <Input
+                        placeholder="e.g. SSS"
+                        value={contribution.name}
+                        onChange={(event) =>
+                          setContributions(contributions.map((row, i) => (i === index ? { ...row, name: event.target.value } : row)))
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Employee rate (0-1)">
+                      <Input
+                        type="number"
+                        step="0.001"
+                        placeholder="e.g. 0.045"
+                        value={contribution.employeeRate}
+                        onChange={(event) =>
+                          setContributions(contributions.map((row, i) => (i === index ? { ...row, employeeRate: event.target.value } : row)))
+                        }
+                      />
+                    </FormField>
+                    <FormField label="Cap">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 30000"
+                        value={contribution.cap}
+                        onChange={(event) =>
+                          setContributions(contributions.map((row, i) => (i === index ? { ...row, cap: event.target.value } : row)))
+                        }
+                      />
+                    </FormField>
+                  </div>
+                </div>
+              ))}
+            </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="w-fit"
+              className="w-fit border-dashed"
               onClick={() => setContributions([...contributions, { ...EMPTY_CONTRIBUTION }])}
             >
               <Plus className="size-3.5" />

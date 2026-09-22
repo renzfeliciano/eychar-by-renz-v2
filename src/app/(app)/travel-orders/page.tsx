@@ -6,12 +6,17 @@ import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { TableSearchInput } from "@/components/shared/table-search-input";
+import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { TravelOrderFormDialog } from "./travel-order-form-dialog";
 import { CancelTravelOrderButton } from "./cancel-travel-order-button";
 import { TravelOrderExportActions, type TravelOrderExportRow } from "./travel-order-export-actions";
 import { TravelOrderPrintReport } from "./travel-order-print-report";
 
-export default async function TravelOrdersPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function TravelOrdersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -43,6 +48,18 @@ export default async function TravelOrdersPage() {
     status: order.status,
   }));
 
+  const tableQuery = parseTableQuery(params, "startDate");
+  const { rows: pageRows, total } = applyTableQuery(travelOrders, tableQuery, {
+    searchFields: (order) => [
+      ...order.employeeIds.map((id: { toString(): string }) => employeeNameById.get(id.toString())),
+      order.remarks,
+    ],
+    sortValues: {
+      startDate: (order) => new Date(order.startDate),
+      status: (order) => order.status,
+    },
+  });
+
   return (
     <>
       <div className="flex flex-col gap-6 print:hidden">
@@ -56,8 +73,25 @@ export default async function TravelOrdersPage() {
             </div>
           }
         />
+        <TableSearchInput placeholder="Search by employee or remarks…" />
         <DataTable
           caption="Travel orders"
+          sort={{
+            sortBy: tableQuery.sort,
+            sortDir: tableQuery.dir,
+            buildHref: (sortKey) =>
+              buildTableHref("/travel-orders", params, {
+                sort: sortKey,
+                dir: tableQuery.sort === sortKey && tableQuery.dir === "asc" ? "desc" : "asc",
+                page: undefined,
+              }),
+          }}
+          pagination={{
+            page: tableQuery.page,
+            pageSize: tableQuery.pageSize,
+            total,
+            buildHref: (page, pageSize) => buildTableHref("/travel-orders", params, { page, pageSize }),
+          }}
           columns={[
             {
               key: "employees",
@@ -71,10 +105,11 @@ export default async function TravelOrdersPage() {
             {
               key: "dates",
               header: "Date range",
+              sortKey: "startDate",
               render: (order) => `${new Date(order.startDate).toLocaleDateString()} – ${new Date(order.endDate).toLocaleDateString()}`,
             },
             { key: "remarks", header: "Remarks", render: (order) => order.remarks || "—" },
-            { key: "status", header: "Status", render: (order) => <StatusBadge status={order.status} /> },
+            { key: "status", header: "Status", sortKey: "status", render: (order) => <StatusBadge status={order.status} /> },
             {
               key: "action",
               header: "",
@@ -97,9 +132,9 @@ export default async function TravelOrdersPage() {
                 ) : null,
             },
           ]}
-          rows={travelOrders}
+          rows={pageRows}
           getRowKey={(order) => order._id.toString()}
-          emptyMessage="No travel orders yet."
+          emptyMessage={tableQuery.q ? "No travel orders match this search." : "No travel orders yet."}
         />
       </div>
       <TravelOrderPrintReport rows={exportRows} />

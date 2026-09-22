@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+/**
+ * Wraps a field schema so an empty string is also accepted alongside a
+ * validly-formatted value — for edit forms where every field is always
+ * submitted pre-filled, this is how the caller signals "clear this field"
+ * without also having to accept a blank value for the description-only
+ * "required, must look like X" message.
+ */
+export function clearable<T extends z.ZodTypeAny>(schema: T) {
+  return z.union([z.literal(""), schema]);
+}
+
 /** PH mobile number: XXXX-XXX-XXXX (11 digits), always starting with "09". */
 export const contactNumberSchema = z
   .string()

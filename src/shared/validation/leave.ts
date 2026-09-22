@@ -21,6 +21,17 @@ export const updateLeaveTypeStatusSchema = z.object({
   status: z.enum(["active", "inactive"]),
 });
 
+export const updateLeaveTypeSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  code: z.string().trim().min(1),
+  description: z.string().trim().optional(),
+});
+
+export const deleteLeaveTypeSchema = z.object({
+  organizationId: z.string().trim().min(1),
+});
+
 export const updateLeavePolicyStatusSchema = z.object({
   organizationId: z.string().trim().min(1),
   status: z.enum(["active", "inactive"]).optional(),

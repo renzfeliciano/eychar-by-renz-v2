@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -70,6 +71,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add location</DialogTitle>
+          <DialogDescription>Adds a physical site or branch employees can be assigned to.</DialogDescription>
         </DialogHeader>
         <form id="create-location-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

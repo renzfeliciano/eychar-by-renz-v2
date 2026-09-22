@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
@@ -75,6 +76,7 @@ export function EventDayDialog({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{formatDayTitle(date)}</DialogTitle>
+            <DialogDescription>Company-wide events scheduled for this day.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
             {events.length === 0 ? (
@@ -197,6 +199,7 @@ function EventForm({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit event" : "New event"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Updates this company-wide event." : "Adds a company-wide event to the calendar."}</DialogDescription>
         </DialogHeader>
         <form id="event-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

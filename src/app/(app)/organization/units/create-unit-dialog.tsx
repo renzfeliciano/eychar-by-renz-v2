@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -79,6 +80,7 @@ export function CreateUnitDialog({ organizationId, units }: { organizationId: st
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add organization unit</DialogTitle>
+          <DialogDescription>Adds a division, department, or team to the org structure.</DialogDescription>
         </DialogHeader>
         <form id="create-unit-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

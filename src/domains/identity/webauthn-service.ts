@@ -7,8 +7,10 @@ import {
   type VerifiedAuthenticationResponse,
 } from "@simplewebauthn/server";
 import type { RegistrationResponseJSON, AuthenticationResponseJSON, AuthenticatorTransportFuture } from "@simplewebauthn/types";
+import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { UserModel, WebAuthnCredentialModel } from "@/server/db/models";
+import { UserModel, EmployeeModel, WebAuthnCredentialModel } from "@/server/db/models";
+import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
 
 /** The domain and origin WebAuthn credentials are bound to — a credential registered on one origin never validates on another. */
@@ -162,5 +164,38 @@ export const WebAuthnService = {
   async hasRegisteredCredential(userId: string) {
     await connectMongoDB();
     return Boolean(await WebAuthnCredentialModel.exists({ userId }));
+  },
+
+  /**
+   * Removes every credential a self-service account has registered — the
+   * only recovery path when someone loses a device, switches phones, or
+   * (as happened in dev) registers in the wrong browser. `hasCredential`
+   * then goes back to false, so the self-service portal shows "Set up
+   * biometric verification" again on whichever device/browser they use
+   * next, instead of leaving them permanently locked out with no reset.
+   */
+  async resetCredentials(userId: string, organizationId: string, actor: { userId?: string }) {
+    await connectMongoDB();
+    const user = await UserModel.findById(userId);
+    if (!user?.employeeId) throw new NotFoundError("User not found in this organization");
+
+    const employeeInOrg = await EmployeeModel.exists({
+      _id: user.employeeId,
+      organizationId: new Types.ObjectId(organizationId),
+    });
+    if (!employeeInOrg) throw new NotFoundError("User not found in this organization");
+
+    const result = await WebAuthnCredentialModel.deleteMany({ userId: user._id });
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "webauthn-credentials.reset",
+      resourceType: "User",
+      resourceId: user._id.toString(),
+      after: { removedCount: result.deletedCount },
+    });
+
+    return { removedCount: result.deletedCount };
   },
 };

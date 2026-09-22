@@ -55,11 +55,16 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl bg-[linear-gradient(to_bottom,color-mix(in_oklch,var(--popover),var(--primary)_6%),var(--popover)_140px)] p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-foreground/15 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
       >
+        {/* Clipped to the popup's own rounded corners by its overflow-hidden
+            above — a radius on this 4px bar itself would exceed its height
+            and render as a floating pill instead of following the card's
+            actual corner curve. */}
+        <span aria-hidden="true" className="bg-gradient-brand -mx-4 -mt-4 mb-2 block h-1" />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
@@ -67,13 +72,12 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                className="absolute top-3 right-3 z-10 size-7 rounded-full bg-black/[0.04] text-muted-foreground backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/[0.08] hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15"
                 size="icon-sm"
               />
             }
           >
-            <XIcon
-            />
+            <XIcon className="size-3.5" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -86,7 +90,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("-mx-4 flex flex-col gap-2 border-b px-4 pb-4", className)}
       {...props}
     />
   )
@@ -104,7 +108,11 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        // Dialogs are narrow by design (max-w-sm/md) — a viewport `sm:`
+        // breakpoint doesn't reflect the dialog's own width, so this stays
+        // row + right-aligned unconditionally rather than stacking based on
+        // how wide the browser window happens to be.
+        "-mx-4 -mb-4 flex flex-row justify-end gap-2 border-t bg-muted/50 p-4",
         className
       )}
       {...props}
@@ -124,7 +132,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "font-heading text-lg leading-none font-semibold tracking-tight",
         className
       )}
       {...props}

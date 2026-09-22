@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -103,6 +104,9 @@ export function RecordDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{existingRecordId ? "Adjust attendance" : "Record attendance"}</DialogTitle>
+          <DialogDescription>
+            {existingRecordId ? "Corrects an already-recorded check-in or check-out for this date." : "Logs an employee's check-in and check-out for the selected date."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">

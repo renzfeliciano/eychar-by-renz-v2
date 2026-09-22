@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -77,6 +78,7 @@ export function CreateStaffAccountDialog({ organizationId, roles }: { organizati
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add staff account</DialogTitle>
+          <DialogDescription>Creates a login for someone who needs system access without being on the employee roster.</DialogDescription>
         </DialogHeader>
         <form id="create-staff-account-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

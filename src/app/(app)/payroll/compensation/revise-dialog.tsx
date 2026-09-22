@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -74,6 +75,7 @@ export function ReviseDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Revise compensation</DialogTitle>
+          <DialogDescription>Changes the amount of an existing compensation component going forward.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <FormField label="Base salary / period" htmlFor="revise-base-salary">

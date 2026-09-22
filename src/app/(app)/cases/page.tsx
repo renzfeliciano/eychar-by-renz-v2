@@ -7,11 +7,16 @@ import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { TableSearchInput } from "@/components/shared/table-search-input";
+import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { CaseFormDialog } from "./case-form-dialog";
 import { CaseExportActions, type CaseExportRow } from "./case-export-actions";
 import { CasePrintReport } from "./case-print-report";
 
-export default async function CasesPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function CasesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -49,6 +54,18 @@ export default async function CasesPage() {
     briefHistory: item.briefHistory ?? "",
   }));
 
+  const tableQuery = parseTableQuery(params, "caseName");
+  const { rows: pageRows, total } = applyTableQuery(cases, tableQuery, {
+    searchFields: (item) => [item.caseName, item.caseNumber, item.legalCounsel, projectNameById.get(item.projectId.toString())],
+    sortValues: {
+      project: (item) => projectNameById.get(item.projectId.toString()) ?? "",
+      caseName: (item) => item.caseName,
+      caseNumber: (item) => item.caseNumber,
+      classification: (item) => classificationNameByCode.get(item.classification) ?? item.classification,
+      status: (item) => statusNameByCode.get(item.status) ?? item.status,
+    },
+  });
+
   return (
     <>
       <div className="flex flex-col gap-6 print:hidden">
@@ -64,18 +81,36 @@ export default async function CasesPage() {
             </div>
           }
         />
+        <TableSearchInput placeholder="Search by case name, number, or counsel…" />
         <DataTable
           caption="Cases"
+          sort={{
+            sortBy: tableQuery.sort,
+            sortDir: tableQuery.dir,
+            buildHref: (sortKey) =>
+              buildTableHref("/cases", params, {
+                sort: sortKey,
+                dir: tableQuery.sort === sortKey && tableQuery.dir === "asc" ? "desc" : "asc",
+                page: undefined,
+              }),
+          }}
+          pagination={{
+            page: tableQuery.page,
+            pageSize: tableQuery.pageSize,
+            total,
+            buildHref: (page, pageSize) => buildTableHref("/cases", params, { page, pageSize }),
+          }}
           columns={[
-            { key: "project", header: "Project", render: (item) => projectNameById.get(item.projectId.toString()) ?? "—" },
-            { key: "caseName", header: "Case name", render: (item) => <span className="font-medium">{item.caseName}</span> },
-            { key: "caseNumber", header: "Case number", render: (item) => item.caseNumber },
+            { key: "project", header: "Project", sortKey: "project", render: (item) => projectNameById.get(item.projectId.toString()) ?? "—" },
+            { key: "caseName", header: "Case name", sortKey: "caseName", render: (item) => <span className="font-medium">{item.caseName}</span> },
+            { key: "caseNumber", header: "Case number", sortKey: "caseNumber", render: (item) => item.caseNumber },
             {
               key: "classification",
               header: "Classification",
+              sortKey: "classification",
               render: (item) => classificationNameByCode.get(item.classification) ?? item.classification,
             },
-            { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+            { key: "status", header: "Status", sortKey: "status", render: (item) => <StatusBadge status={item.status} /> },
             { key: "legalCounsel", header: "Legal counsel", render: (item) => item.legalCounsel || "—" },
             {
               key: "action",
@@ -101,9 +136,9 @@ export default async function CasesPage() {
                 ) : null,
             },
           ]}
-          rows={cases}
+          rows={pageRows}
           getRowKey={(item) => item._id.toString()}
-          emptyMessage="No cases recorded yet."
+          emptyMessage={tableQuery.q ? "No cases match this search." : "No cases recorded yet."}
         />
       </div>
       <CasePrintReport rows={exportRows} />

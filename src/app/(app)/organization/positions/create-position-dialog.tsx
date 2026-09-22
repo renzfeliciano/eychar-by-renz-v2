@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -64,6 +65,7 @@ export function CreatePositionDialog({ organizationId }: { organizationId: strin
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add position</DialogTitle>
+          <DialogDescription>Adds a job title employees can be assigned to.</DialogDescription>
         </DialogHeader>
         <form id="create-position-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

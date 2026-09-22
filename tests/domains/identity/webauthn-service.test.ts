@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, PersonModel, EmployeeModel, UserModel } from "@/server/db/models";
+import { OrganizationModel, PersonModel, EmployeeModel, UserModel, WebAuthnCredentialModel } from "@/server/db/models";
 import { WebAuthnService } from "@/domains/identity/webauthn-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
 
@@ -53,5 +53,37 @@ describe("WebAuthnService", () => {
     const { user } = await seedUser("3");
 
     expect(await WebAuthnService.hasRegisteredCredential(user._id.toString())).toBe(false);
+  });
+
+  it("removes every registered credential for a user, so they can register fresh on a new device/browser", async () => {
+    const { organization, user } = await seedUser("4");
+    await WebAuthnCredentialModel.create({
+      organizationId: organization._id,
+      userId: user._id,
+      credentialId: `cred-a-${Date.now()}`,
+      publicKey: "pub-a",
+      counter: 0,
+    });
+    await WebAuthnCredentialModel.create({
+      organizationId: organization._id,
+      userId: user._id,
+      credentialId: `cred-b-${Date.now()}`,
+      publicKey: "pub-b",
+      counter: 0,
+    });
+    expect(await WebAuthnService.hasRegisteredCredential(user._id.toString())).toBe(true);
+
+    await WebAuthnService.resetCredentials(user._id.toString(), organization._id.toString(), {});
+
+    expect(await WebAuthnService.hasRegisteredCredential(user._id.toString())).toBe(false);
+  });
+
+  it("rejects resetting credentials for a user outside the organization", async () => {
+    const { user } = await seedUser("5");
+    const otherOrganization = await OrganizationModel.create({ name: "Other", slug: `other-webauthn-${Date.now()}-${Math.random()}` });
+
+    await expect(WebAuthnService.resetCredentials(user._id.toString(), otherOrganization._id.toString(), {})).rejects.toThrow(
+      NotFoundError,
+    );
   });
 });

@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -80,6 +81,7 @@ export function AssignRoleDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Assign role</DialogTitle>
+          <DialogDescription>Grants a person a role and its permissions, effective immediately.</DialogDescription>
         </DialogHeader>
         <form id="assign-role-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

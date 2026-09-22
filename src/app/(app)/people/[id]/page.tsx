@@ -6,6 +6,7 @@ import { EmploymentService } from "@/domains/workforce/employment-service";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeAccountService } from "@/domains/identity/employee-account-service";
+import { WebAuthnService } from "@/domains/identity/webauthn-service";
 import { AssetIssuanceService } from "@/domains/assets/asset-issuance-service";
 import { EmployeeDocumentService } from "@/domains/documents/employee-document-service";
 import { DocumentTypeService } from "@/domains/catalog/document-type-service";
@@ -19,7 +20,9 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransferForm } from "./transfer-form";
 import { TerminateButton } from "./terminate-button";
+import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
+import { ResetBiometricButton } from "./reset-biometric-button";
 import { AssetIssuanceFormDialog } from "./asset-issuance-form-dialog";
 import { DocumentFormDialog } from "./document-form-dialog";
 import { DocumentDownloadButton } from "./document-download-button";
@@ -60,6 +63,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     LeaveBalanceService.listForEmployee(id, organizationId),
     LeaveTypeService.listCurrent(organizationId),
   ]);
+  const hasBiometricCredential = selfServiceAccount ? await WebAuthnService.hasRegisteredCredential(selfServiceAccount._id.toString()) : false;
   const documentTypeOptions = documentTypes.map((item) => ({ id: item.code, label: item.name }));
   const documentTypeNameByCode = new Map(documentTypes.map((item) => [item.code, item.name]));
   const leaveTypeOptions = leaveTypes.map((leaveType) => ({ id: leaveType._id.toString(), label: leaveType.name }));
@@ -85,7 +89,34 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={personName} description={`Employee #${detail.employee.employeeNumber ?? "—"}`} />
+      <PageHeader
+        title={personName}
+        description={`Employee #${detail.employee.employeeNumber ?? "—"}`}
+        action={
+          canUpdate &&
+          detail.person && (
+            <EditEmployeeDialog
+              organizationId={organizationId}
+              employeeId={detail.employee._id.toString()}
+              initialValue={{
+                firstName: detail.person.firstName,
+                middleName: detail.person.middleName,
+                lastName: detail.person.lastName,
+                email: detail.person.email,
+                employeeNumber: detail.employee.employeeNumber,
+                gender: detail.person.gender,
+                birthDate: detail.person.birthDate ? new Date(detail.person.birthDate).toISOString().slice(0, 10) : undefined,
+                phone: detail.person.phone,
+                address: detail.person.address,
+                sssNumber: detail.person.sssNumber,
+                philHealthNumber: detail.person.philHealthNumber,
+                pagIbigNumber: detail.person.pagIbigNumber,
+                tinNumber: detail.person.tinNumber,
+              }}
+            />
+          )
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
@@ -132,10 +163,18 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         </CardHeader>
         <CardContent className="flex items-center justify-between gap-4">
           {selfServiceAccount ? (
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{selfServiceAccount.username}</span> can sign in on their own device to
-              clock in/out with biometric confirmation.
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{selfServiceAccount.username}</span> can sign in on their own device to
+                clock in/out.{" "}
+                {hasBiometricCredential
+                  ? "Biometric verification is set up."
+                  : "Biometric verification isn't set up on any device yet."}
+              </p>
+              {canUpdate && hasBiometricCredential && (
+                <ResetBiometricButton organizationId={organizationId} userId={selfServiceAccount._id.toString()} />
+              )}
+            </>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">No self-service login yet — this employee can&apos;t clock in/out on their own device.</p>
@@ -311,6 +350,9 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
           managers={roster
             .filter((row) => row.person && row._id.toString() !== detail.employee._id.toString())
             .map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }))}
+          currentPositionId={detail.currentAssignment?.positionId?.toString()}
+          currentProjectId={detail.currentAssignment?.projectId?.toString()}
+          currentReportsToEmployeeId={detail.currentAssignment?.reportsToEmployeeId?.toString()}
         />
       )}
 
