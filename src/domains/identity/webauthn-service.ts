@@ -34,8 +34,12 @@ export const WebAuthnService = {
       userID: user._id.toString(),
       userName: user.username ?? user.email ?? user._id.toString(),
       attestationType: "none",
+      // `id` must be the raw credential bytes — the library re-encodes it to
+      // base64url itself. Passing our already-base64url-encoded string
+      // straight through (as this did before) makes it encode a string as if
+      // it were a buffer, producing "" instead of the real id.
       excludeCredentials: existingCredentials.map((credential) => ({
-        id: credential.credentialId,
+        id: Buffer.from(credential.credentialId, "base64url"),
         type: "public-key" as const,
         transports: credential.transports as AuthenticatorTransportFuture[] | undefined,
       })),
@@ -108,8 +112,12 @@ export const WebAuthnService = {
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: "required",
+      // Same raw-bytes requirement as excludeCredentials above — this is
+      // the bug that made a real, correctly-registered passkey invisible to
+      // the browser at authentication time ("no passkeys available" despite
+      // one actually being registered for the site).
       allowCredentials: credentials.map((credential) => ({
-        id: credential.credentialId,
+        id: Buffer.from(credential.credentialId, "base64url"),
         type: "public-key" as const,
         transports: credential.transports as AuthenticatorTransportFuture[] | undefined,
       })),

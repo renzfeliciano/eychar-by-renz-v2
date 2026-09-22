@@ -78,6 +78,41 @@ describe("WebAuthnService", () => {
     expect(await WebAuthnService.hasRegisteredCredential(user._id.toString())).toBe(false);
   });
 
+  it("sends the exact registered credential id in allowCredentials, not a garbled re-encoding of it", async () => {
+    const { organization, user } = await seedUser("6");
+    const credential = await WebAuthnCredentialModel.create({
+      organizationId: organization._id,
+      userId: user._id,
+      credentialId: `real-credential-id-${Date.now()}`,
+      publicKey: "pub-a",
+      counter: 0,
+    });
+
+    const options = await WebAuthnService.generateAuthenticationOptions(user._id.toString());
+
+    // The browser can only find a matching passkey if this id is byte-for-byte
+    // the same one the authenticator was given at registration — passing the
+    // base64url string straight through as if it were raw bytes silently
+    // corrupts it, and the browser reports "no passkeys available" even
+    // though a real, matching credential exists on the device.
+    expect(options.allowCredentials?.[0]?.id).toBe(credential.credentialId);
+  });
+
+  it("sends the exact existing credential id in excludeCredentials when starting a new registration", async () => {
+    const { organization, user } = await seedUser("7");
+    const credential = await WebAuthnCredentialModel.create({
+      organizationId: organization._id,
+      userId: user._id,
+      credentialId: `existing-credential-id-${Date.now()}`,
+      publicKey: "pub-a",
+      counter: 0,
+    });
+
+    const options = await WebAuthnService.generateRegistrationOptions(user._id.toString());
+
+    expect(options.excludeCredentials?.[0]?.id).toBe(credential.credentialId);
+  });
+
   it("rejects resetting credentials for a user outside the organization", async () => {
     const { user } = await seedUser("5");
     const otherOrganization = await OrganizationModel.create({ name: "Other", slug: `other-webauthn-${Date.now()}-${Math.random()}` });
