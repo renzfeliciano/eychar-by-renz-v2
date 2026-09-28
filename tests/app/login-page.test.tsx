@@ -13,7 +13,12 @@ vi.mock("next/image", () => ({
   default: ({ src, alt, className }: { src: string; alt: string; className?: string }) => <img src={src} alt={alt} className={className} />,
 }));
 
+function mockPointer(fine: boolean) {
+  vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(pointer: fine)" ? fine : false, media: query, addEventListener() {}, removeEventListener() {} }));
+}
+
 beforeEach(() => {
+  mockPointer(true);
   push.mockReset();
   signIn.mockReset();
 });
@@ -106,9 +111,16 @@ describe("LoginPage", () => {
     expect(screen.getByText("Caps Lock is on")).toBeInTheDocument();
   });
 
-  it("puts the cursor in the username field, ready to type", () => {
+  it("puts the cursor in the username field on a device with a mouse", () => {
+    mockPointer(true);
     render(<LoginPage />);
     expect(screen.getByLabelText("Username or email")).toHaveFocus();
+  });
+
+  it("doesn't focus the username on a touchscreen, so the keyboard doesn't pop up and scroll the page past the headline", () => {
+    mockPointer(false);
+    render(<LoginPage />);
+    expect(screen.getByLabelText("Username or email")).not.toHaveFocus();
   });
 
   it("explains who can help when someone can't sign in", async () => {

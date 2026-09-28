@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { ArrowBigUpDash, ArrowLeft, ArrowRight, Eye, EyeOff, Info, KeyRound, Loader2, Lock, ShieldCheck, UserRound } from "lucide-react";
@@ -43,6 +43,12 @@ function DotTexture({ mask, className }: { mask: string; className?: string }) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const loginRef = useRef<HTMLInputElement>(null);
+  // Focus the username only with a mouse/trackpad. On a touchscreen, focusing
+  // opens the keyboard and scrolls the page past the brand and headline.
+  useEffect(() => {
+    if (window.matchMedia?.("(pointer: fine)").matches) loginRef.current?.focus();
+  }, []);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +101,7 @@ export default function LoginPage() {
     // h-dvh + overflow-hidden: the page never scrolls; only the card may, on
     // a very short screen. dvh so iOS's address bar can't hide the button.
     <main className="relative min-h-dvh bg-neutral-950 lg:h-dvh lg:overflow-hidden">
-      <div className="relative grid min-h-dvh grid-rows-[minmax(40svh,1fr)_auto] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-1">
+      <div className="relative grid min-h-dvh grid-rows-[minmax(13.5rem,1fr)_auto] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-1">
         <LoginVisual />
 
         <div className="relative z-10 flex min-h-0 flex-col lg:w-[31rem] lg:justify-center lg:overflow-y-auto lg:p-10 xl:w-[34rem] xl:p-12">
@@ -149,8 +155,8 @@ export default function LoginPage() {
                           <Input
                             id="login"
                             type="text"
+                            ref={loginRef}
                             required
-                            autoFocus
                             autoComplete="username"
                             autoCapitalize="none"
                             spellCheck={false}
