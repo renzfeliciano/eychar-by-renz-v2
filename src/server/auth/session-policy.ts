@@ -35,3 +35,14 @@ export function resolveSessionState(input: SessionPolicyInput): SessionPolicyRes
 
   return { expired: false };
 }
+
+/**
+ * On a new sign-in: if the account's previous session was still live (it had
+ * a session and was active within the idle window), returns when it was last
+ * active so the new session can tell the person it was signed out. A first
+ * sign-in, or one after the old session had already gone idle, returns null.
+ */
+export function replacedSessionActivity(input: { previousSessionId?: string | null; lastActivityAt?: Date | null; now: number; inactivityMs: number }): Date | null {
+  if (!input.previousSessionId || !input.lastActivityAt) return null;
+  return input.now - input.lastActivityAt.getTime() <= input.inactivityMs ? input.lastActivityAt : null;
+}

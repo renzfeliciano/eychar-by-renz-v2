@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSessionState } from "@/server/auth/session-policy";
+import { resolveSessionState, replacedSessionActivity } from "@/server/auth/session-policy";
 
 const ONE_MINUTE = 60_000;
 const baseNow = 1_000_000_000;
@@ -75,5 +75,21 @@ describe("resolveSessionState", () => {
     });
 
     expect(result).toEqual({ expired: true, reason: "idle_timeout" });
+  });
+});
+
+describe("replacedSessionActivity", () => {
+  const now = Date.parse("2026-09-29T10:00:00.000Z");
+  const inactivityMs = 30 * 60_000;
+
+  it("reports when the account's previous session was still live, so the new sign-in can say it was ended", () => {
+    const lastActivityAt = new Date(now - 5 * 60_000);
+    expect(replacedSessionActivity({ previousSessionId: "old", lastActivityAt, now, inactivityMs })).toEqual(lastActivityAt);
+  });
+
+  it("stays quiet on a first sign-in or when the old session had already gone idle", () => {
+    expect(replacedSessionActivity({ previousSessionId: null, lastActivityAt: new Date(now - 60_000), now, inactivityMs })).toBeNull();
+    expect(replacedSessionActivity({ previousSessionId: "old", lastActivityAt: new Date(now - 31 * 60_000), now, inactivityMs })).toBeNull();
+    expect(replacedSessionActivity({ previousSessionId: "old", lastActivityAt: null, now, inactivityMs })).toBeNull();
   });
 });

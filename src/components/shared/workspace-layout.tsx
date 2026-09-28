@@ -99,7 +99,8 @@ export function WorkspaceLayout({ account, children }: { account: React.Componen
                   WorkforceHub
                 </SheetTitle>
               </SheetHeader>
-              <div className="px-3">
+              {/* Its own scroll area: the sheet is full-height, so without this the lower modules sit off-screen with no way to reach them. */}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6" data-testid="mobile-nav-scroll">
                 <NavLinks onNavigate={() => setMobileNavOpen(false)} />
               </div>
             </SheetContent>

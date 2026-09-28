@@ -94,14 +94,14 @@ export default function LoginPage() {
     // bottom as a sheet under a band of photo.
     // h-dvh + overflow-hidden: the page never scrolls; only the card may, on
     // a very short screen. dvh so iOS's address bar can't hide the button.
-    <main className="relative h-dvh overflow-hidden bg-neutral-950">
-      <div className="relative grid h-full grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-1">
+    <main className="relative min-h-dvh bg-neutral-950 lg:h-dvh lg:overflow-hidden">
+      <div className="relative grid min-h-dvh grid-rows-[minmax(40svh,1fr)_auto] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-1">
         <LoginVisual />
 
         <div className="relative z-10 flex min-h-0 flex-col lg:w-[31rem] lg:justify-center lg:overflow-y-auto lg:p-10 xl:w-[34rem] xl:p-12">
           <section
             aria-labelledby="login-title"
-            className="flex max-h-[86dvh] min-h-0 animate-in flex-col overflow-hidden overflow-y-auto rounded-t-3xl bg-background shadow-[var(--shadow-modal)] duration-500 ease-out fade-in slide-in-from-bottom-8 lg:max-h-none lg:rounded-2xl lg:ring-1 lg:ring-white/15 lg:slide-in-from-bottom-4"
+            className="flex min-h-0 animate-in flex-col overflow-hidden rounded-t-3xl lg:overflow-y-auto bg-background shadow-[var(--shadow-modal)] duration-500 ease-out fade-in slide-in-from-bottom-8 lg:max-h-none lg:rounded-2xl lg:ring-1 lg:ring-white/15 lg:slide-in-from-bottom-4"
           >
             {/* The card is framed top and bottom: a branded header band (blue top
                 edge, faint blue tint, dot texture fading left) and a matching

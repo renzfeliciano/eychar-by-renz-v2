@@ -5,7 +5,7 @@ import { signInWithPassword } from "@/domains/identity/sign-in";
 import { clientIp } from "@/domains/identity/login-guard";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
-import { resolveSessionState } from "./session-policy";
+import { replacedSessionActivity, resolveSessionState } from "./session-policy";
 import { getInactivityMs } from "./inactivity";
 
 export const authOptions: NextAuthOptions = {
@@ -46,28 +46,38 @@ export const authOptions: NextAuthOptions = {
         // Single-active-session enforcement: this login supersedes any
         // other open session on this account (src/server/auth/session-policy.ts).
         const sessionId = randomUUID();
+        const previous = await UserModel.findById(result.userId).select("activeSessionId lastActivityAt").lean();
+        const replacedAt = replacedSessionActivity({
+          previousSessionId: previous?.activeSessionId,
+          lastActivityAt: previous?.lastActivityAt,
+          now: Date.now(),
+          inactivityMs: getInactivityMs(),
+        });
         await UserModel.updateOne({ _id: result.userId }, { $set: { activeSessionId: sessionId, lastActivityAt: new Date() } });
 
-        return { id: result.userId, email: result.email, name: result.username, sessionId };
+        return { id: result.userId, email: result.email, name: result.username, sessionId, replacedSessionAt: replacedAt?.toISOString() };
       },
     }),
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.userId = user.id;
         token.sessionId = user.sessionId;
+        token.replacedSessionAt = user.replacedSessionAt;
         token.lastActivityAt = Date.now();
         token.expired = false;
         return token;
       }
 
       if (!token.userId || !token.sessionId) return token;
+      // The person has read the "signed out on your other device" notice.
+      if (trigger === "update" && session?.acknowledgeReplacedSession) delete token.replacedSessionAt;
 
       await connectMongoDB();
       const currentUser = await UserModel.findOne({ _id: token.userId, status: "active" })
-        .select("activeSessionId")
+        .select("activeSessionId lastActivityAt")
         .lean();
 
       const state = resolveSessionState({
@@ -86,6 +96,11 @@ export const authOptions: NextAuthOptions = {
 
       token.expired = false;
       token.lastActivityAt = Date.now();
+      // Keep the account's last activity roughly current (at most one write a
+      // minute), so a sign-in elsewhere can tell whether this session was live.
+      if (!currentUser?.lastActivityAt || Date.now() - new Date(currentUser.lastActivityAt).getTime() > 60_000) {
+        await UserModel.updateOne({ _id: token.userId }, { $set: { lastActivityAt: new Date() } });
+      }
       return token;
     },
 
@@ -95,6 +110,7 @@ export const authOptions: NextAuthOptions = {
         return session;
       }
       if (token.userId) session.user.id = token.userId as string;
+      if (token.replacedSessionAt) session.replacedSessionAt = token.replacedSessionAt;
       return session;
     },
   },

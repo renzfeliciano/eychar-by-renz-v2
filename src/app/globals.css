@@ -405,3 +405,15 @@
     transform: scale(1.1);
   }
 }
+
+/* Indeterminate route progress bar (PageLoader). Reduced motion: a still, full-width bar. */
+@keyframes page-loader-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.page-loader-bar {
+  animation: page-loader-slide 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-loader-bar { animation: none; width: 100%; opacity: 0.6; }
+}

@@ -46,12 +46,12 @@ export function LoginVisual() {
 
       {/* The brand lives on the sign-in card, so the photo side carries only
           the message and the carousel's progress. */}
-      <section className="relative z-10 flex min-h-0 flex-col justify-end gap-6 p-6 pb-8 text-white sm:p-8 lg:justify-between lg:p-12 xl:p-16" aria-label="About WorkforceHub">
-        <p className="hidden animate-in text-sm font-medium text-white/85 duration-500 fade-in lg:block">Project Concepts and Administrative Services, Inc.</p>
+      <section className="relative z-10 flex min-h-0 flex-col justify-between gap-5 p-5 pb-7 text-white sm:p-8 lg:justify-between lg:p-12 xl:p-16" aria-label="About WorkforceHub">
+        <p className="animate-in text-xs font-medium text-white/85 duration-500 fade-in sm:text-sm">Project Concepts and Administrative Services, Inc.</p>
 
-        <div className="flex flex-col gap-6">
-          <div className="flex max-w-2xl animate-in flex-col gap-4 duration-700 ease-out fade-in slide-in-from-bottom-4 max-lg:[@media(max-height:700px)]:hidden">
-            <p className="text-3xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl xl:text-6xl">
+        <div className="flex flex-col gap-4 sm:gap-6">
+          <div className="flex max-w-2xl animate-in flex-col gap-4 duration-700 ease-out fade-in slide-in-from-bottom-4">
+            <p className="text-[1.625rem] leading-[1.1] font-semibold tracking-tight text-balance min-[400px]:text-3xl sm:text-4xl lg:text-5xl xl:text-6xl">
               Your whole workforce,
               <span className="block text-white/55">in one place.</span>
             </p>
