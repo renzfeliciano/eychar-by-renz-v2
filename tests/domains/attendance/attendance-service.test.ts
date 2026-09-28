@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, PersonModel, EmployeeModel, AuditLogModel } from "@/server/db/models";
+import { OrganizationModel, PersonModel, EmployeeModel, AuditLogModel, AttendanceRecordModel } from "@/server/db/models";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { AttendancePolicyService } from "@/domains/attendance/attendance-policy-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
@@ -141,6 +141,25 @@ describe("AttendanceService", () => {
     expect(audits).toHaveLength(1);
     expect(audits[0].before).toMatchObject({ status: "absent" });
     expect(audits[0].after).toMatchObject({ status: "present" });
+  });
+
+  it("leaves clock photos out of list results (roster/dashboard never render them)", async () => {
+    const { organization, employee } = await seedEmployeeWithPolicy("8");
+    const date = todayUtc();
+    await AttendanceRecordModel.create({
+      organizationId: organization._id,
+      employeeId: employee._id,
+      date,
+      status: "present",
+      checkIn: { at: new Date(), photo: "data:image/jpeg;base64,/9j/4AAQ", latitude: 14.5 },
+    });
+
+    const [fromOrganization] = await AttendanceService.listForOrganization(organization._id.toString(), { date });
+    const [fromEmployee] = await AttendanceService.listForEmployee(employee._id.toString(), organization._id.toString());
+
+    expect(fromOrganization.checkIn?.photo).toBeUndefined();
+    expect(fromOrganization.checkIn?.latitude).toBe(14.5);
+    expect(fromEmployee.checkIn?.photo).toBeUndefined();
   });
 
   it("rejects a status that doesn't match the organization's configured attendance-status catalog", async () => {

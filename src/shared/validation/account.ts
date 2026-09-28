@@ -1,0 +1,20 @@
+import { z } from "zod";
+import { PASSWORD_MAX_LENGTH } from "./password-policy";
+
+/** The signed-in person managing their own two-factor sign-in. */
+export const mfaActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("start") }),
+  z.object({ action: z.literal("confirm"), code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your app.") }),
+  z.object({ action: z.literal("disable"), password: z.string().min(1, "Enter your password.").max(PASSWORD_MAX_LENGTH) }),
+  z.object({ action: z.literal("regenerate-recovery-codes"), password: z.string().min(1, "Enter your password.").max(PASSWORD_MAX_LENGTH) }),
+]);
+
+export type MfaActionInput = z.infer<typeof mfaActionSchema>;
+
+/** An administrator acting on someone's account. */
+export const accountAdminActionSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  action: z.enum(["reset-password", "unlock", "disable", "enable", "reset-mfa"]),
+});
+
+export type AccountAdminActionInput = z.infer<typeof accountAdminActionSchema>;

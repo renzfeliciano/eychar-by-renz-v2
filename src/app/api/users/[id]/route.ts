@@ -1,0 +1,41 @@
+import { NextResponse } from "next/server";
+import { requirePermission } from "@/server/authorization";
+import { AccountSecurityService } from "@/domains/identity/account-security-service";
+import { LoginGuard } from "@/domains/identity/login-guard";
+import { MfaService } from "@/domains/identity/mfa-service";
+import { accountAdminActionSchema } from "@/shared/validation/account";
+import { toErrorResponse } from "@/shared/errors/to-response";
+
+/**
+ * An administrator acting on an account in their organization: reset its
+ * password (returns a temporary one, shown once), unlock it, disable or
+ * enable it, or clear its two-factor sign-in.
+ */
+export async function PATCH(request: Request, ctx: RouteContext<"/api/users/[id]">) {
+  try {
+    const { id } = await ctx.params;
+    const input = accountAdminActionSchema.parse(await request.json());
+    const { userId } = await requirePermission("users.update", input.organizationId);
+    const actor = { userId };
+
+    switch (input.action) {
+      case "reset-password":
+        return NextResponse.json(await AccountSecurityService.resetPassword(id, input.organizationId, actor));
+      case "unlock":
+        await AccountSecurityService.requireUserInOrganization(id, input.organizationId);
+        await LoginGuard.unlock(id, actor);
+        break;
+      case "disable":
+      case "enable":
+        await AccountSecurityService.setStatus(id, input.organizationId, input.action === "disable" ? "disabled" : "active", actor);
+        break;
+      case "reset-mfa":
+        await AccountSecurityService.requireUserInOrganization(id, input.organizationId);
+        await MfaService.adminReset(id, actor);
+        break;
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+}

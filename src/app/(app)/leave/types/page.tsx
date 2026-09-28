@@ -1,7 +1,10 @@
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
+import { CircleCheck, ListChecks, ShieldQuestion, TriangleAlert } from "lucide-react";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
+import { LeavePolicyService } from "@/domains/leave/leave-policy-service";
 import { PageHeader } from "@/components/shared/page-header";
+import { MetricCard } from "@/components/shared/metric-card";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { LeaveTypeFormDialog } from "./leave-type-form-dialog";
@@ -21,7 +24,11 @@ export default async function LeaveTypesPage() {
     hasPermission("leave-types.delete", organizationId),
   ]);
 
-  const leaveTypes = await LeaveTypeService.listCurrent(organizationId);
+  const [leaveTypes, policies] = await Promise.all([LeaveTypeService.listCurrent(organizationId), LeavePolicyService.listCurrent(organizationId)]);
+  const active = leaveTypes.filter((leaveType) => leaveType.status !== "inactive");
+  const needApproval = active.filter((leaveType) => leaveType.requiresApproval).length;
+  const withPolicy = new Set(policies.filter((policy) => policy.status !== "inactive").map((policy) => policy.leaveTypeId.toString()));
+  const withoutPolicy = active.filter((leaveType) => !withPolicy.has(leaveType._id.toString())).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,16 +37,38 @@ export default async function LeaveTypesPage() {
         description="The configurable catalog of leave an organization offers."
         action={<LeaveTypeFormDialog organizationId={organizationId} />}
       />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricCard label="Active leave types" value={active.length} hint={`${leaveTypes.length - active.length} retired`} icon={ListChecks} emphasis />
+        <MetricCard label="Need approval" value={needApproval} hint="Go to an approver before they count" icon={ShieldQuestion} />
+        <MetricCard label="With an entitlement" value={active.length - withoutPolicy} hint="Days granted by a leave policy" icon={CircleCheck} tone="success" />
+        <MetricCard
+          label="Without a policy"
+          value={withoutPolicy}
+          hint={withoutPolicy ? "Add one under Leave › Policies" : "Every type has an entitlement"}
+          icon={TriangleAlert}
+          tone={withoutPolicy ? "warning" : "default"}
+          href={withoutPolicy ? "/leave/policies" : undefined}
+        />
+      </div>
       <DataTable
         caption="Leave types"
         columns={[
-          { key: "name", header: "Name", render: (leaveType) => <span className="font-medium">{leaveType.name}</span> },
-          { key: "code", header: "Code", render: (leaveType) => leaveType.code },
-          { key: "description", header: "Description", render: (leaveType) => leaveType.description ?? "—" },
+          {
+            key: "name",
+            header: "Leave type",
+            render: (leaveType) => (
+              <div className="flex flex-col">
+                <span className="font-medium">{leaveType.name}</span>
+                {leaveType.description && <span className="line-clamp-1 max-w-md text-xs whitespace-normal text-muted-foreground">{leaveType.description}</span>}
+              </div>
+            ),
+          },
+          { key: "code", header: "Code", render: (leaveType) => <span className="font-mono text-xs">{leaveType.code}</span> },
           {
             key: "approval",
-            header: "Requires approval",
-            render: (leaveType) => (leaveType.requiresApproval ? "Yes" : "No"),
+            header: "Approval",
+            render: (leaveType) =>
+              leaveType.requiresApproval ? <StatusBadge status="required" label="Required" tone="info" /> : <span className="text-sm text-muted-foreground">Automatic</span>,
           },
           { key: "status", header: "Status", render: (leaveType) => <StatusBadge status={leaveType.status} /> },
           {
@@ -67,6 +96,8 @@ export default async function LeaveTypesPage() {
         rows={leaveTypes}
         getRowKey={(leaveType) => leaveType._id.toString()}
         emptyMessage="No leave types yet."
+        emptyDescription="Add the kinds of leave you offer (vacation, sick, solo parent, …), then set entitlements under Policies."
+        emptyAction={<LeaveTypeFormDialog organizationId={organizationId} />}
       />
     </div>
   );

@@ -5,8 +5,11 @@ import {
   verifyAuthenticationResponse,
   type VerifiedRegistrationResponse,
   type VerifiedAuthenticationResponse,
+  type RegistrationResponseJSON,
+  type AuthenticationResponseJSON,
+  type AuthenticatorTransport,
 } from "@simplewebauthn/server";
-import type { RegistrationResponseJSON, AuthenticationResponseJSON, AuthenticatorTransportFuture } from "@simplewebauthn/types";
+import { isoUint8Array } from "@simplewebauthn/server/helpers";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel, EmployeeModel, WebAuthnCredentialModel } from "@/server/db/models";
@@ -31,17 +34,15 @@ export const WebAuthnService = {
     const options = await generateRegistrationOptions({
       rpName,
       rpID,
-      userID: user._id.toString(),
+      // The UTF-8 bytes of the id — the same user handle v9 derived from the
+      // string, so passkeys registered before the upgrade stay tied to this user.
+      userID: isoUint8Array.fromUTF8String(user._id.toString()),
       userName: user.username ?? user.email ?? user._id.toString(),
       attestationType: "none",
-      // `id` must be the raw credential bytes — the library re-encodes it to
-      // base64url itself. Passing our already-base64url-encoded string
-      // straight through (as this did before) makes it encode a string as if
-      // it were a buffer, producing "" instead of the real id.
+      // `id` is the base64url credential id, exactly as stored.
       excludeCredentials: existingCredentials.map((credential) => ({
-        id: Buffer.from(credential.credentialId, "base64url"),
-        type: "public-key" as const,
-        transports: credential.transports as AuthenticatorTransportFuture[] | undefined,
+        id: credential.credentialId,
+        transports: credential.transports as AuthenticatorTransport[] | undefined,
       })),
       authenticatorSelection: {
         residentKey: "preferred",
@@ -81,14 +82,14 @@ export const WebAuthnService = {
       throw new BusinessRuleError("Could not verify the biometric registration");
     }
 
-    const { credentialID, credentialPublicKey, counter, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    const { credential: registered, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
 
     const credential = await WebAuthnCredentialModel.create({
       organizationId,
       userId: user._id,
-      credentialId: Buffer.from(credentialID).toString("base64url"),
-      publicKey: Buffer.from(credentialPublicKey).toString("base64url"),
-      counter,
+      credentialId: registered.id,
+      publicKey: Buffer.from(registered.publicKey).toString("base64url"),
+      counter: registered.counter,
       deviceType: credentialDeviceType,
       backedUp: credentialBackedUp,
       transports: response.response.transports ?? [],
@@ -112,14 +113,11 @@ export const WebAuthnService = {
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: "required",
-      // Same raw-bytes requirement as excludeCredentials above — this is
-      // the bug that made a real, correctly-registered passkey invisible to
-      // the browser at authentication time ("no passkeys available" despite
-      // one actually being registered for the site).
+      // The stored base64url id, byte-for-byte what the authenticator issued —
+      // any re-encoding here makes the browser report "no passkeys available".
       allowCredentials: credentials.map((credential) => ({
-        id: Buffer.from(credential.credentialId, "base64url"),
-        type: "public-key" as const,
-        transports: credential.transports as AuthenticatorTransportFuture[] | undefined,
+        id: credential.credentialId,
+        transports: credential.transports as AuthenticatorTransport[] | undefined,
       })),
     });
 
@@ -147,11 +145,11 @@ export const WebAuthnService = {
         expectedChallenge: user.webAuthnChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
-        authenticator: {
-          credentialID: Buffer.from(credential.credentialId, "base64url"),
-          credentialPublicKey: Buffer.from(credential.publicKey, "base64url"),
+        credential: {
+          id: credential.credentialId,
+          publicKey: new Uint8Array(Buffer.from(credential.publicKey, "base64url")),
           counter: credential.counter,
-          transports: credential.transports as AuthenticatorTransportFuture[] | undefined,
+          transports: credential.transports as AuthenticatorTransport[] | undefined,
         },
       });
     } finally {

@@ -94,7 +94,7 @@ export function CreateStaffAccountDialog({ organizationId, roles }: { organizati
             <Input id="staff-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="e.g. bea.cruz" required />
           </FormField>
           <FormField label="Temporary password" htmlFor="staff-password" required>
-            <Input id="staff-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" required />
+            <Input id="staff-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 12 characters, e.g. harbor-lantern-73" required />
           </FormField>
           <OptionSelect label="Role" value={roleId} onChange={setRoleId} options={roles} placeholder="Assign later" />
           <FormError message={error} />

@@ -31,9 +31,10 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        // A frosted-glass scrim rather than a flat dark overlay — content
-        // behind the modal stays faintly legible instead of vanishing.
-        "glass-surface fixed inset-0 isolate z-50 border-none duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // A plain dim, matching the Sheet's scrim: it only has to push the
+        // page back so the dialog reads as the one thing to act on — heavy
+        // frosted glass here was decoration, not function.
+        "fixed inset-0 isolate z-50 bg-black/25 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -55,16 +56,11 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl bg-[linear-gradient(to_bottom,color-mix(in_oklch,var(--popover),var(--primary)_6%),var(--popover)_140px)] p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-foreground/15 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl bg-popover p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-foreground/15 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
       >
-        {/* Clipped to the popup's own rounded corners by its overflow-hidden
-            above — a radius on this 4px bar itself would exceed its height
-            and render as a floating pill instead of following the card's
-            actual corner curve. */}
-        <span aria-hidden="true" className="bg-gradient-brand -mx-4 -mt-4 mb-2 block h-1" />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
@@ -72,7 +68,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3 z-10 size-7 rounded-full bg-black/[0.04] text-muted-foreground backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/[0.08] hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15"
+                className="absolute top-3 right-3 z-10 size-7 rounded-full bg-black/[0.04] text-muted-foreground transition-[color,background-color,transform,translate,scale,rotate] duration-150 hover:scale-105 active:scale-[0.97] hover:bg-black/[0.08] hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15"
                 size="icon-sm"
               />
             }

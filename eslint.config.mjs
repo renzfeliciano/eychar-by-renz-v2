@@ -5,7 +5,8 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  // public/mediapipe/wasm is vendored Emscripten output copied from node_modules.
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "public/mediapipe/**"]),
 ]);
 
 export default eslintConfig;

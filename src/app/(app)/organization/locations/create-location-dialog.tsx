@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
+import { EMPTY_SITE_COORDINATES, SiteCoordinatesFields, type SiteCoordinates } from "./site-coordinates-fields";
 
 export function CreateLocationDialog({ organizationId }: { organizationId: string }) {
   const router = useRouter();
@@ -23,6 +24,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [address, setAddress] = useState("");
+  const [site, setSite] = useState<SiteCoordinates>(EMPTY_SITE_COORDINATES);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,7 +36,15 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
     const response = await fetch("/api/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, name, code, address: address || undefined }),
+      body: JSON.stringify({
+        organizationId,
+        name,
+        code,
+        address: address || undefined,
+        latitude: site.latitude.trim() || undefined,
+        longitude: site.longitude.trim() || undefined,
+        geofenceRadiusMeters: site.radius.trim() || undefined,
+      }),
     });
 
     setIsSubmitting(false);
@@ -45,9 +55,6 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
       return;
     }
 
-    setName("");
-    setCode("");
-    setAddress("");
     setOpen(false);
     router.refresh();
   }
@@ -57,6 +64,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
       setName("");
       setCode("");
       setAddress("");
+      setSite(EMPTY_SITE_COORDINATES);
       setError(null);
     }
     setOpen(nextOpen);
@@ -68,7 +76,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
         <Plus className="size-3.5" />
         Add location
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add location</DialogTitle>
           <DialogDescription>Adds a physical site or branch employees can be assigned to.</DialogDescription>
@@ -84,6 +92,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
           <FormField label="Address" htmlFor="location-address">
             <Input id="location-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
           </FormField>
+          <SiteCoordinatesFields idPrefix="location-create" value={site} onChange={setSite} />
           <FormError message={error} />
         </form>
         <DialogFooter>

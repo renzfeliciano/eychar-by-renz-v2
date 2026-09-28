@@ -38,8 +38,10 @@ export function ThemeToggle() {
       data-testid="theme-toggle"
       className="relative overflow-hidden"
     >
-      <Sun className="size-4 scale-100 rotate-0 transition-all duration-300 dark:scale-0 dark:-rotate-90" />
-      <Moon className="absolute size-4 scale-0 rotate-90 transition-all duration-300 dark:scale-100 dark:rotate-0" />
+      {/* Cross-fade from half size, never from scale(0) — an icon popping out
+          of nothing reads as a glitch, not a transition. */}
+      <Sun className="size-4 scale-100 rotate-0 opacity-100 transition-[transform,translate,scale,rotate,opacity] duration-200 dark:scale-50 dark:-rotate-45 dark:opacity-0" />
+      <Moon className="absolute size-4 scale-50 rotate-45 opacity-0 transition-[transform,translate,scale,rotate,opacity] duration-200 dark:scale-100 dark:rotate-0 dark:opacity-100" />
     </Button>
   );
 }

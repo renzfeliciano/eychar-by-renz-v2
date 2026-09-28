@@ -1,20 +1,12 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import argon2 from "argon2";
 import { randomUUID } from "crypto";
-import { findUserByLogin } from "@/domains/identity/user-lookup";
-import { loginSchema } from "@/shared/validation/auth";
+import { signInWithPassword } from "@/domains/identity/sign-in";
+import { clientIp } from "@/domains/identity/login-guard";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
-import { checkLoginRateLimit } from "./rate-limit";
 import { resolveSessionState } from "./session-policy";
 import { getInactivityMs } from "./inactivity";
-
-// Computed once per process: verify() must run with the same cost whether
-// the account exists or not, so response timing can't be used to enumerate
-// valid usernames/emails (argon2 is deliberately slow, and was previously
-// only invoked when a matching user was found).
-const dummyHashPromise = argon2.hash("not-a-real-password");
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -38,31 +30,25 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         login: { label: "Username or email", type: "text" },
         password: { label: "Password", type: "password" },
+        otp: { label: "Authentication code", type: "text" },
       },
       async authorize(credentials, req) {
-        const ip = req?.headers?.["x-forwarded-for"] ?? "unknown";
-        if (!checkLoginRateLimit(`login:${ip}`)) return null;
-
-        const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
-
-        const user = await findUserByLogin(parsed.data.login);
-
-        const passwordMatches = await argon2.verify(
-          user?.passwordHash ?? (await dummyHashPromise),
-          parsed.data.password,
-        );
-        if (!user || !passwordMatches) return null;
+        const result = await signInWithPassword(credentials, { ip: clientIp(req?.headers) });
+        if (!result.ok) {
+          // A wrong password or unknown account returns null (NextAuth's
+          // generic "CredentialsSignin"). The other outcomes are thrown so the
+          // sign-in page can show what to do next; their codes are listed in
+          // src/app/(auth)/login/sign-in-messages.ts.
+          if (result.reason === "invalid") return null;
+          throw new Error(result.reason);
+        }
 
         // Single-active-session enforcement: this login supersedes any
         // other open session on this account (src/server/auth/session-policy.ts).
         const sessionId = randomUUID();
-        await UserModel.updateOne(
-          { _id: user._id },
-          { $set: { activeSessionId: sessionId, lastActivityAt: new Date() } },
-        );
+        await UserModel.updateOne({ _id: result.userId }, { $set: { activeSessionId: sessionId, lastActivityAt: new Date() } });
 
-        return { id: user._id.toString(), email: user.email, name: user.username, sessionId };
+        return { id: result.userId, email: result.email, name: result.username, sessionId };
       },
     }),
   ],

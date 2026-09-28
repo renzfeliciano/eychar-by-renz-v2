@@ -2,42 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
-import { Menu, LogOut, Building, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Logo } from "./logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { AccountMenu } from "./account-menu";
+import { Breadcrumbs } from "./breadcrumbs";
 import { cn } from "@/lib/utils";
 import { NavLinks } from "./nav-links";
 import { ThemeToggle } from "./theme-toggle";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "workforcehub:sidebar-collapsed";
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
-export function WorkspaceLayout({
-  userName,
-  organizationName,
-  children,
-}: {
-  userName: string;
-  organizationName: string;
-  children: React.ReactNode;
-}) {
+export function WorkspaceLayout({ account, children }: { account: React.ComponentProps<typeof AccountMenu>; children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -73,9 +50,7 @@ export function WorkspaceLayout({
         )}
       >
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <Building className="size-4" />
-          </div>
+          <Logo priority />
           {!collapsed && <span className="truncate text-sm font-semibold">WorkforceHub</span>}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
@@ -119,7 +94,10 @@ export function WorkspaceLayout({
             </Button>
             <SheetContent side="left" className="w-72">
               <SheetHeader>
-                <SheetTitle>WorkforceHub</SheetTitle>
+                <SheetTitle className="flex items-center gap-2">
+                  <Logo />
+                  WorkforceHub
+                </SheetTitle>
               </SheetHeader>
               <div className="px-3">
                 <NavLinks onNavigate={() => setMobileNavOpen(false)} />
@@ -130,30 +108,13 @@ export function WorkspaceLayout({
           <Link href="/dashboard" className="text-sm font-medium text-muted-foreground md:hidden">
             WorkforceHub
           </Link>
+          <Breadcrumbs />
 
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">{organizationName}</span>
+            <span className="hidden max-w-72 truncate text-sm text-muted-foreground xl:inline">{account.organizationName}</span>
+            <span className="hidden h-5 w-px bg-border xl:block" aria-hidden="true" />
             <ThemeToggle />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label={`Account menu for ${userName}`}
-                className="flex items-center gap-2 rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring hover:scale-105"
-              >
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {initials(userName)}
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <div className="px-2 py-1.5 text-sm font-medium">{userName}</div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
-                  <LogOut className="size-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AccountMenu {...account} />
           </div>
         </header>
 

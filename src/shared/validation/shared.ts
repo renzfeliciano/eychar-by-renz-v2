@@ -11,6 +11,11 @@ export function clearable<T extends z.ZodTypeAny>(schema: T) {
   return z.union([z.literal(""), schema]);
 }
 
+/** A MongoDB ObjectId in hex form — rejected here so a bad id is a 400, not a driver exception (500) deep in a service. */
+export function objectIdSchema(message = "Select a valid option") {
+  return z.string().trim().regex(/^[a-f\d]{24}$/i, message);
+}
+
 /** PH mobile number: XXXX-XXX-XXXX (11 digits), always starting with "09". */
 export const contactNumberSchema = z
   .string()

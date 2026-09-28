@@ -1,42 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { SelectOption } from "@/components/shared/option-select";
+import { buildMonthGrid, groupByDate, shiftMonth } from "@/domains/events/calendar";
+import { addDays, formatDateKey } from "@/lib/date-key";
+import { cn } from "@/lib/utils";
 import { EventDayDialog, type EventItem } from "./event-day-dialog";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_VISIBLE_PER_DAY = 3;
+// Category identity, in a fixed order (never recycled by rank): the chart palette's categorical series.
+const CATEGORY_COLORS = ["var(--viz-series-1)", "var(--viz-series-2)", "var(--viz-series-3)", "var(--viz-series-4)", "var(--viz-series-5)"];
 
 type EventWithDate = EventItem & { date: string };
-type CalendarCell = { key: string; pad: true } | { key: string; pad: false; date: string; day: number };
-
-function buildCalendarCells(month: string): CalendarCell[] {
-  const [year, monthNum] = month.split("-").map(Number);
-  const daysInMonth = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
-  const startWeekday = new Date(Date.UTC(year, monthNum - 1, 1)).getUTCDay();
-  const cells: CalendarCell[] = Array.from({ length: startWeekday }, (_, weekday) => ({ key: `pad-${month}-${weekday}`, pad: true }));
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = `${month}-${String(day).padStart(2, "0")}`;
-    cells.push({ key: date, pad: false, date, day });
-  }
-  return cells;
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-const CATEGORY_TONES = [
-  "bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200",
-  "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
-  "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200",
-  "bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-200",
-  "bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200",
-];
+type DialogState = { date: string; mode: "list" | "create" } | null;
 
 export function EventsCalendar({
   organizationId,
   month,
+  todayKey,
   events,
   categories,
   categoryNameByCode,
@@ -44,75 +29,194 @@ export function EventsCalendar({
 }: {
   organizationId: string;
   month: string;
+  /** The organization's today (YYYY-MM-DD), from the server so both renders agree. */
+  todayKey: string;
   events: EventWithDate[];
   categories: SelectOption[];
   categoryNameByCode: Map<string, string>;
   canManage: boolean;
 }) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<DialogState>(null);
 
-  const toneByCategory = new Map(categories.map((category, index) => [category.id, CATEGORY_TONES[index % CATEGORY_TONES.length]]));
-  const eventsByDate = new Map<string, EventWithDate[]>();
-  for (const event of events) {
-    const existing = eventsByDate.get(event.date);
-    if (existing) existing.push(event);
-    else eventsByDate.set(event.date, [event]);
-  }
+  const colorByCategory = new Map(categories.map((category, index) => [category.id, CATEGORY_COLORS[index % CATEGORY_COLORS.length]]));
+  const colorOf = (code: string) => colorByCategory.get(code) ?? "var(--viz-ink-muted)";
+  const eventsByDate = new Map(groupByDate(events).map((group) => [group.date, group.items]));
+  const cells = buildMonthGrid(month);
+  const monthLabel = formatDateKey(`${month}-01`, { month: "long", year: "numeric" });
+  const isCurrentMonth = todayKey.startsWith(month);
 
-  const cells = buildCalendarCells(month);
-  const selectedEvents = selectedDate ? eventsByDate.get(selectedDate) ?? [] : [];
+  const upcoming = groupByDate(events.filter((event) => event.date >= todayKey));
+  const countByCategory = new Map<string, number>();
+  for (const event of events) countByCategory.set(event.category, (countByCategory.get(event.category) ?? 0) + 1);
+
+  const dayLabel = (date: string) => {
+    if (date === todayKey) return "Today";
+    if (date === addDays(todayKey, 1)) return "Tomorrow";
+    return formatDateKey(date, { weekday: "short", month: "short", day: "numeric" });
+  };
 
   return (
     <>
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border bg-border">
-        {WEEKDAYS.map((weekday) => (
-          <div key={weekday} className="bg-muted p-2 text-center text-xs font-semibold text-muted-foreground">
-            {weekday}
-          </div>
-        ))}
-        {cells.map((cell) => {
-          if (cell.pad) return <div key={cell.key} className="bg-card" />;
-          const dayEvents = eventsByDate.get(cell.date) ?? [];
-          const visible = dayEvents.slice(0, MAX_VISIBLE_PER_DAY);
-          const hiddenCount = dayEvents.length - visible.length;
-          const isToday = cell.date === todayIso();
-          return (
-            <button
-              type="button"
-              key={cell.key}
-              onClick={() => setSelectedDate(cell.date)}
-              className="flex min-h-24 flex-col gap-1 bg-card p-1.5 text-left transition-colors hover:bg-accent/40"
-              aria-label={`${cell.date}, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}`}
-              data-testid={`calendar-day-${cell.date}`}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+          <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5 sm:px-4">
+            <Link
+              href="/events"
+              aria-disabled={isCurrentMonth}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), isCurrentMonth && "pointer-events-none opacity-50")}
             >
-              <span className={`w-fit rounded px-1.5 text-xs font-medium ${isToday ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-                {cell.day}
-              </span>
-              {visible.map((event) => (
-                <span
-                  key={event.id}
-                  title={`${event.time ? `${event.time} ` : ""}${event.title}`}
-                  className={`truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${toneByCategory.get(event.category) ?? "bg-muted text-muted-foreground"}`}
+              Today
+            </Link>
+            <div className="flex items-center">
+              <Link href={`/events?month=${shiftMonth(month, -1)}`} aria-label="Previous month" className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
+                <ChevronLeft className="size-4" />
+              </Link>
+              <Link href={`/events?month=${shiftMonth(month, 1)}`} aria-label="Next month" className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
+                <ChevronRight className="size-4" />
+              </Link>
+            </div>
+            <h2 className="text-base font-semibold tracking-tight">{monthLabel}</h2>
+            {canManage && (
+              <Button type="button" size="sm" className="ml-auto" onClick={() => setDialog({ date: isCurrentMonth ? todayKey : `${month}-01`, mode: "create" })}>
+                <CalendarPlus className="size-3.5" aria-hidden="true" />
+                New event
+              </Button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-7 border-b bg-muted/40">
+            {WEEKDAYS.map((weekday, index) => (
+              <div key={weekday} className={cn("px-2 py-2 text-center text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:text-left", (index === 0 || index === 6) && "text-muted-foreground/70")}>
+                {weekday}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7">
+            {cells.map((cell, index) => {
+              const dayEvents = eventsByDate.get(cell.date) ?? [];
+              const visible = dayEvents.slice(0, MAX_VISIBLE_PER_DAY);
+              const hiddenCount = dayEvents.length - visible.length;
+              const isToday = cell.date === todayKey;
+              const fullDate = formatDateKey(cell.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+              return (
+                <button
+                  type="button"
+                  key={cell.date}
+                  onClick={() => setDialog({ date: cell.date, mode: "list" })}
+                  aria-label={`${fullDate}${isToday ? ", today" : ""}, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}`}
+                  aria-current={isToday ? "date" : undefined}
+                  className={cn(
+                    "group flex min-h-16 min-w-0 flex-col gap-1 border-b p-1 text-left transition-colors hover:bg-muted/50 focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-h-28 sm:p-1.5",
+                    index % 7 !== 6 && "border-r",
+                    index >= cells.length - 7 && "border-b-0",
+                    cell.isWeekend && "bg-muted/25",
+                    !cell.inMonth && "bg-muted/40",
+                  )}
+                  data-testid={`calendar-day-${cell.date}`}
                 >
-                  {event.time ? `${event.time} ` : ""}
-                  {event.title}
-                </span>
-              ))}
-              {hiddenCount > 0 && <span className="text-[11px] text-muted-foreground">+{hiddenCount} more</span>}
-            </button>
-          );
-        })}
+                  <span
+                    className={cn(
+                      "flex size-6 items-center justify-center rounded-full text-xs font-medium tabular-nums",
+                      isToday ? "bg-primary text-primary-foreground" : cell.inMonth ? "text-foreground" : "text-muted-foreground/60",
+                    )}
+                  >
+                    {cell.day}
+                  </span>
+                  {/* Phones: a dot per event. Wider: the events themselves. */}
+                  {dayEvents.length > 0 && (
+                    <span className="flex flex-wrap gap-0.5 px-1 sm:hidden" aria-hidden="true">
+                      {dayEvents.slice(0, 4).map((event) => (
+                        <span key={event.id} className="size-1.5 rounded-full" style={{ backgroundColor: colorOf(event.category) }} />
+                      ))}
+                    </span>
+                  )}
+                  <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
+                    {visible.map((event) => (
+                      <span
+                        key={event.id}
+                        title={`${event.time ? `${event.time} ` : ""}${event.title}`}
+                        className={cn("flex min-w-0 items-center gap-1.5 rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] leading-4", !cell.inMonth && "opacity-60")}
+                      >
+                        <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: colorOf(event.category) }} aria-hidden="true" />
+                        {event.time && <span className="shrink-0 text-muted-foreground tabular-nums">{event.time}</span>}
+                        <span className="truncate font-medium">{event.title}</span>
+                      </span>
+                    ))}
+                    {hiddenCount > 0 && <span className="px-1.5 text-[11px] font-medium text-muted-foreground">+{hiddenCount} more</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="flex flex-col gap-4">
+          <section aria-label="Coming up" className="rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+            <div className="border-b px-4 py-3">
+              <h2 className="text-sm font-semibold">Coming up</h2>
+              <p className="text-xs text-muted-foreground">{monthLabel}, from today</p>
+            </div>
+            <div className="flex max-h-[26rem] flex-col gap-4 overflow-y-auto p-4">
+              {upcoming.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{todayKey > `${month}-31` ? "This month is over." : "Nothing else scheduled this month."}</p>
+              ) : (
+                upcoming.map((group) => (
+                  <div key={group.date} className="flex flex-col gap-1.5">
+                    <h3 className={cn("text-xs font-semibold", group.date === todayKey ? "text-primary" : "text-muted-foreground")}>{dayLabel(group.date)}</h3>
+                    <ul className="flex flex-col gap-1">
+                      {group.items.map((event) => (
+                        <li key={event.id}>
+                          <button
+                            type="button"
+                            onClick={() => setDialog({ date: event.date, mode: "list" })}
+                            className="flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
+                          >
+                            <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ backgroundColor: colorOf(event.category) }} aria-hidden="true" />
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span className="truncate text-sm font-medium">{event.title}</span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {event.time ?? "All day"} · {categoryNameByCode.get(event.category) ?? event.category}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          {categories.length > 0 && (
+            <section className="rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]">
+              <h2 className="mb-2.5 text-sm font-semibold">Categories</h2>
+              <ul aria-label="Categories" className="flex flex-col gap-1.5">
+                {categories.map((category) => (
+                  <li key={category.id} className="flex items-center gap-2.5 text-sm">
+                    <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: colorOf(category.id) }} aria-hidden="true" />
+                    <span className="flex-1 truncate">{category.label}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{countByCategory.get(category.id) ?? 0}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </aside>
       </div>
 
-      {selectedDate && (
+      {dialog && (
         <EventDayDialog
+          key={`${dialog.date}-${dialog.mode}`}
           organizationId={organizationId}
-          date={selectedDate}
-          events={selectedEvents}
+          date={dialog.date}
+          initialMode={dialog.mode}
+          events={eventsByDate.get(dialog.date) ?? []}
           categories={categories}
           categoryNameByCode={categoryNameByCode}
           canManage={canManage}
-          onClose={() => setSelectedDate(null)}
+          onClose={() => setDialog(null)}
         />
       )}
     </>

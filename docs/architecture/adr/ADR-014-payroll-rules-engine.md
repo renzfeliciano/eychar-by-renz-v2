@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted; partly superseded by ADR-029 (2026-09-28), which rebuilt the run lifecycle,
+compensation, contributions and tax on the same principles. Decision 3 (compute in memory, then
+write, instead of a transaction) still stands.
 
 ## Context
 

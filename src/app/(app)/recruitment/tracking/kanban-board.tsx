@@ -1,75 +1,59 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import type { SelectOption } from "@/components/shared/option-select";
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { StageColumn } from "./stage-column";
-import { ApplicantCardOverlay } from "./applicant-card";
-import type { ApplicantCardData, StageInfo } from "./applicant-card";
+import { ApplicantCardOverlay, type ApplicantCardData, type StageInfo } from "./applicant-card";
 
 export function KanbanBoard({
-  organizationId,
   stages,
   applicants,
-  positions,
   canUpdate,
+  now,
+  onOpen,
+  onMove,
 }: {
-  organizationId: string;
   stages: StageInfo[];
   applicants: ApplicantCardData[];
-  positions: SelectOption[];
   canUpdate: boolean;
+  now: Date;
+  onOpen: (applicant: ApplicantCardData) => void;
+  onMove: (applicant: ApplicantCardData, stage: string) => void;
 }) {
-  const router = useRouter();
   const [activeApplicant, setActiveApplicant] = useState<ApplicantCardData | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor));
 
   function handleDragStart(event: DragStartEvent) {
     setActiveApplicant(applicants.find((applicant) => applicant._id === event.active.id) ?? null);
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     setActiveApplicant(null);
     const { active, over } = event;
     if (!over) return;
     const applicant = applicants.find((item) => item._id === active.id);
     const nextStage = String(over.id);
     if (!applicant || applicant.stage === nextStage) return;
-
-    const response = await fetch(`/api/applicants/${applicant._id}/stage`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, stage: nextStage }),
-    });
-    if (response.ok) router.refresh();
+    onMove(applicant, nextStage);
   }
 
+  // A fixed id: dnd-kit's generated one differs between the server and
+  // client render, which React reports as a hydration mismatch.
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveApplicant(null)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:overflow-x-auto sm:pb-2">
+    <DndContext id="applicant-board" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveApplicant(null)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:overflow-x-auto sm:pb-3">
         {stages.map((stage) => (
           <StageColumn
             key={stage.code}
-            organizationId={organizationId}
             stage={stage}
             stages={stages}
             applicants={applicants.filter((applicant) => applicant.stage === stage.code)}
-            positions={positions}
             canUpdate={canUpdate}
+            now={now}
+            totalInView={applicants.length}
+            onOpen={onOpen}
+            onMove={onMove}
           />
         ))}
       </div>

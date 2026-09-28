@@ -74,7 +74,7 @@ export function TransferForm({
   }
 
   return (
-    <Card>
+    <Card className="self-start">
       <CardHeader>
         <CardTitle className="text-base">Transfer</CardTitle>
         <CardDescription>
@@ -85,7 +85,7 @@ export function TransferForm({
       <CardContent className="flex flex-col gap-4">
         <RequiredFieldsHint />
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
+          <div className="grid gap-4 sm:grid-cols-3 sm:items-end xl:grid-cols-1">
             <OptionSelect label="Position" value={positionId} onChange={setPositionId} options={positions} required />
             <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} required />
             <OptionSelect label="Manager" value={reportsToEmployeeId} onChange={setReportsToEmployeeId} options={managers} required />

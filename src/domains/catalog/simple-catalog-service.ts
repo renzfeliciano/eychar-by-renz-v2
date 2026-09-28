@@ -91,6 +91,53 @@ export function createSimpleCatalogService(CatalogModel: Model<any>, resourceTyp
       return item;
     },
 
+    /**
+     * Renames the display name/description only — `code` is left untouched
+     * since it's the stable identifier other records embed directly (e.g.
+     * an AttendanceRecord's `status` field stores the code, not the _id),
+     * so the unique organizationId+code index must never shift under an
+     * existing reference. Uses findOneAndUpdate with $set/$unset rather
+     * than doc.save() so an explicitly empty description actually clears
+     * the field instead of silently no-op'ing (a plain `undefined` assign
+     * doesn't persist as unset — see PersonService/EmployeeService for the
+     * same fix).
+     */
+    async update(id: string, organizationId: string, patch: { name?: string; description?: string }, actor: { userId?: string }) {
+      await connectMongoDB();
+
+      const orgObjectId = new Types.ObjectId(organizationId);
+      const existing = await CatalogModel.findOne({ _id: new Types.ObjectId(id), organizationId: orgObjectId });
+      if (!existing) throw new NotFoundError(`${resourceType} not found in this organization`);
+
+      const before = { name: existing.name, description: existing.description };
+
+      const set: Record<string, unknown> = {};
+      const unset: Record<string, unknown> = {};
+      if (patch.name !== undefined) set.name = patch.name;
+      if (patch.description !== undefined) {
+        if (patch.description === "") unset.description = "";
+        else set.description = patch.description;
+      }
+
+      const item = await CatalogModel.findOneAndUpdate(
+        { _id: existing._id, organizationId: orgObjectId },
+        { ...(Object.keys(set).length ? { $set: set } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) },
+        { returnDocument: "after" },
+      );
+
+      await AuditService.record({
+        organizationId,
+        actorUserId: actor.userId,
+        action: `${actionPrefix}.updated`,
+        resourceType,
+        resourceId: existing._id.toString(),
+        before,
+        after: { name: item!.name, description: item!.description },
+      });
+
+      return item!;
+    },
+
     async listCurrent(organizationId: string) {
       await connectMongoDB();
       return CatalogModel.find({ organizationId: new Types.ObjectId(organizationId) }).sort({ sortOrder: 1 }).lean();

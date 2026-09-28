@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Ban, RotateCcw, Loader2 } from "lucide-react";
+import { Plus, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardAction, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -60,6 +60,11 @@ export function CatalogSection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<CatalogItemRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +110,39 @@ export function CatalogSection({
     }
   }
 
+  function openEditDialog(item: CatalogItemRow) {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditDescription(item.description ?? "");
+    setEditError(null);
+  }
+
+  async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingItem) return;
+    setEditError(null);
+    setIsEditSubmitting(true);
+
+    const response = await fetch(`/api/catalogs/${catalogType}/${editingItem._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId, name: editName, description: editDescription }),
+    });
+
+    setIsEditSubmitting(false);
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setEditError(body.error ?? "Failed to update item.");
+      return;
+    }
+
+    setEditingItem(null);
+    router.refresh();
+  }
+
   const formId = `catalog-form-${catalogType}`;
+  const editFormId = `catalog-edit-form-${catalogType}`;
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
@@ -166,32 +203,36 @@ export function CatalogSection({
               render: (item) => {
                 if (!canUpdate) return null;
                 const isToggling = togglingId === item._id;
-                if (item.status === "active") {
-                  return (
-                    <ConfirmDialog
-                      trigger={
-                        <Button size="sm" variant="ghost" disabled={isToggling} aria-label={isToggling ? `Deactivating ${item.name}` : `Deactivate ${item.name}`}>
-                          {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
-                        </Button>
-                      }
-                      title={`Deactivate "${item.name}"?`}
-                      description="It stops appearing as a choice in new records — anything already using it is unaffected."
-                      confirmLabel="Deactivate"
-                      confirmLoadingLabel="Deactivating…"
-                      onConfirm={() => handleToggleStatus(item._id, "inactive")}
-                    />
-                  );
-                }
                 return (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={isToggling}
-                    onClick={() => handleToggleStatus(item._id, "active").catch((err) => setToggleError(err instanceof Error ? err.message : "Failed to update item."))}
-                    aria-label={isToggling ? `Reactivating ${item.name}` : `Reactivate ${item.name}`}
-                  >
-                    {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openEditDialog(item)} aria-label={`Edit ${item.name}`} data-testid={`catalog-${catalogType}-edit-button-${item._id}`}>
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    {item.status === "active" ? (
+                      <ConfirmDialog
+                        trigger={
+                          <Button size="sm" variant="ghost" disabled={isToggling} aria-label={isToggling ? `Deactivating ${item.name}` : `Deactivate ${item.name}`}>
+                            {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
+                          </Button>
+                        }
+                        title={`Deactivate "${item.name}"?`}
+                        description="It stops appearing as a choice in new records — anything already using it is unaffected."
+                        confirmLabel="Deactivate"
+                        confirmLoadingLabel="Deactivating…"
+                        onConfirm={() => handleToggleStatus(item._id, "inactive")}
+                      />
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isToggling}
+                        onClick={() => handleToggleStatus(item._id, "active").catch((err) => setToggleError(err instanceof Error ? err.message : "Failed to update item."))}
+                        aria-label={isToggling ? `Reactivating ${item.name}` : `Reactivate ${item.name}`}
+                      >
+                        {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                      </Button>
+                    )}
+                  </div>
                 );
               },
             },
@@ -202,6 +243,29 @@ export function CatalogSection({
         />
         <FormError message={toggleError} />
       </CardContent>
+
+      <Dialog open={editingItem !== null} onOpenChange={(nextOpen) => !nextOpen && setEditingItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {title.toLowerCase()} item</DialogTitle>
+          </DialogHeader>
+          <form id={editFormId} onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+            <RequiredFieldsHint />
+            <FormField label="Name" htmlFor={`${editFormId}-name`} required>
+              <Input id={`${editFormId}-name`} value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="e.g. Regular" required />
+            </FormField>
+            <FormField label="Description" htmlFor={`${editFormId}-description`}>
+              <Input id={`${editFormId}-description`} value={editDescription} onChange={(event) => setEditDescription(event.target.value)} placeholder="e.g. Standard, full-time employment" />
+            </FormField>
+            <FormError message={editError} />
+          </form>
+          <DialogFooter>
+            <Button type="submit" form={editFormId} disabled={isEditSubmitting} data-testid={`catalog-${catalogType}-edit-submit-button`}>
+              {isEditSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

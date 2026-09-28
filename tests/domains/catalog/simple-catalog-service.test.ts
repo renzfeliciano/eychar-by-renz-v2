@@ -3,7 +3,7 @@ import { connectMongoDB } from "@/server/db/connection";
 import { OrganizationModel, AuditLogModel } from "@/server/db/models";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
-import { BusinessRuleError, ConflictError } from "@/shared/errors";
+import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 
 // EmploymentTypeService/EmploymentStatusService are createSimpleCatalogService(...)
 // instances bound to two different collections — exercising both here proves
@@ -61,6 +61,54 @@ describe("createSimpleCatalogService", () => {
     expect(updated.status).toBe("inactive");
     const audits = await AuditLogModel.find({ resourceId: item._id, action: "employment-type.updated" }).lean();
     expect(audits).toHaveLength(1);
+  });
+
+  describe("update", () => {
+    it("renames name/description without touching code, and audits before/after", async () => {
+      const organization = await seedOrganization("10");
+      const item = await EmploymentTypeService.create(
+        { organizationId: organization._id.toString(), code: "regular", name: "Regular", description: "Old desc" },
+        {},
+      );
+
+      const updated = await EmploymentTypeService.update(
+        item._id.toString(),
+        organization._id.toString(),
+        { name: "Regular Employee", description: "New desc" },
+        {},
+      );
+
+      expect(updated.name).toBe("Regular Employee");
+      expect(updated.description).toBe("New desc");
+      expect(updated.code).toBe("regular");
+
+      const audits = await AuditLogModel.find({ resourceId: item._id, action: "employment-type.updated" }).lean();
+      expect(audits).toHaveLength(1);
+      expect(audits[0].before).toMatchObject({ name: "Regular", description: "Old desc" });
+      expect(audits[0].after).toMatchObject({ name: "Regular Employee", description: "New desc" });
+    });
+
+    it("clears the description when given an empty string", async () => {
+      const organization = await seedOrganization("11");
+      const item = await EmploymentTypeService.create(
+        { organizationId: organization._id.toString(), code: "regular", name: "Regular", description: "Old desc" },
+        {},
+      );
+
+      const updated = await EmploymentTypeService.update(item._id.toString(), organization._id.toString(), { description: "" }, {});
+
+      expect(updated.description).toBeUndefined();
+    });
+
+    it("rejects an update for an item outside the organization", async () => {
+      const organization = await seedOrganization("12");
+      const otherOrganization = await seedOrganization("12b");
+      const item = await EmploymentTypeService.create({ organizationId: organization._id.toString(), code: "regular", name: "Regular" }, {});
+
+      await expect(
+        EmploymentTypeService.update(item._id.toString(), otherOrganization._id.toString(), { name: "Hacked" }, {}),
+      ).rejects.toThrow(NotFoundError);
+    });
   });
 
   describe("assertValidCode", () => {

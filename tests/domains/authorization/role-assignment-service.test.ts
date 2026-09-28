@@ -33,6 +33,19 @@ describe("RoleAssignmentService", () => {
     expect(assignment.roleId.toString()).toBe(role._id.toString());
   });
 
+  it("lists the names of a user's current roles in an organization, for the account menu", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-ra-names-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const hr = await RoleService.create({ organizationId: orgId, name: "HR Administrator", permissionKeys: [], status: "active" }, {});
+    const payroll = await RoleService.create({ organizationId: orgId, name: "Payroll Approver", permissionKeys: [], status: "active" }, {});
+    const user = await seedUser("names");
+    await RoleAssignmentService.assign({ organizationId: orgId, roleId: hr._id.toString(), userId: user._id.toString() }, {});
+    const revoked = await RoleAssignmentService.assign({ organizationId: orgId, roleId: payroll._id.toString(), userId: user._id.toString() }, {});
+    await RoleAssignmentService.revoke(revoked._id.toString(), orgId, {});
+
+    expect(await RoleAssignmentService.listRoleNamesForUser(user._id.toString(), orgId)).toEqual(["HR Administrator"]);
+  });
+
   it("rejects assigning a role that doesn't belong to the organization", async () => {
     const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-ra-bad-${Date.now()}-${Math.random()}` });
     const otherOrg = await OrganizationModel.create({ name: "Other", slug: `other-ra-${Date.now()}-${Math.random()}` });

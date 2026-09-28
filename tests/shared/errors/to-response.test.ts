@@ -55,6 +55,27 @@ describe("toErrorResponse", () => {
     expect(body.error).not.toMatch(/received undefined/i);
   });
 
+  it("says a non-numeric value 'must be a number', not that it's missing", async () => {
+    // Zod v4 only populates issue.input when parsing with reportInput, so a
+    // typo like "abc" in a number field used to fall into the "is required" branch.
+    const schema = z.object({ latitude: z.coerce.number() });
+    const error = parseFailure(schema, { latitude: "abc" });
+
+    const body = await toErrorResponse(error).json();
+
+    expect(body.error).toBe("Latitude must be a number");
+  });
+
+  it("uses a schema's own custom min/max message instead of the generic rewrite", async () => {
+    const schema = z.object({ geofenceRadiusMeters: z.coerce.number().min(10, "Radius must be at least 10 m") });
+    const error = parseFailure(schema, { geofenceRadiusMeters: "5" });
+
+    const body = await toErrorResponse(error).json();
+
+    expect(body.error).toBe("Radius must be at least 10 m");
+    expect(body.field).toBe("geofenceRadiusMeters");
+  });
+
   it("passes an AppError's own message straight through with its status code", async () => {
     const response = toErrorResponse(new ConflictError('Employee number "EMP-001" is already in use'));
     const body = await response.json();

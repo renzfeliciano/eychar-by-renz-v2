@@ -15,12 +15,14 @@ import {
   Users,
   Network,
   ClipboardCheck,
+  CalendarRange,
   Settings2,
   CalendarDays,
   Tags,
   ScrollText,
   Wallet,
   Banknote,
+  CalendarClock,
   FileSpreadsheet,
   Settings,
   KanbanSquare,
@@ -29,6 +31,7 @@ import {
   Gavel,
   Plane,
   ShieldCheck,
+  UserCog,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -57,6 +60,7 @@ export const NAV_SECTIONS = [
     label: "Attendance",
     items: [
       { href: "/attendance", label: "Daily roster", icon: ClipboardCheck },
+      { href: "/attendance/schedules", label: "Schedules", icon: CalendarRange },
       { href: "/attendance/policies", label: "Policies", icon: Settings2 },
     ],
   },
@@ -73,9 +77,10 @@ export const NAV_SECTIONS = [
     label: "Payroll",
     items: [
       { href: "/payroll", label: "Runs", icon: Banknote },
+      { href: "/payroll/compensation", label: "Compensation", icon: Wallet },
+      { href: "/payroll/schedules", label: "Schedules", icon: CalendarClock },
       { href: "/payroll/policies", label: "Policies", icon: ScrollText },
       { href: "/payroll/rule-versions", label: "Rule versions", icon: FileSpreadsheet },
-      { href: "/payroll/compensation", label: "Compensation", icon: Wallet },
     ],
   },
   {
@@ -99,6 +104,8 @@ export const NAV_SECTIONS = [
     items: [
       { href: "/settings/catalogs", label: "Catalogs", icon: Settings },
       { href: "/settings/access", label: "Roles & access", icon: ShieldCheck },
+      { href: "/settings/accounts", label: "Accounts", icon: UserCog },
+      { href: "/settings/audit", label: "Audit log", icon: ScrollText },
     ],
   },
 ];
@@ -111,10 +118,27 @@ function sectionSlug(label: string): string {
   return label.toLowerCase().replace(/\s+/g, "-");
 }
 
+/**
+ * The nav item a path belongs to: its own page or anything under it
+ * (a payroll run under Runs, a profile under People). The longest match
+ * wins, so /attendance/schedules is Schedules, not Daily roster.
+ */
+export function activeNavItem(pathname: string) {
+  let best: { section: (typeof NAV_SECTIONS)[number]; item: (typeof NAV_SECTIONS)[number]["items"][number] } | null = null;
+  for (const section of NAV_SECTIONS) {
+    for (const item of section.items) {
+      const matches = pathname === item.href || pathname.startsWith(`${item.href}/`);
+      if (matches && (!best || item.href.length > best.item.href.length)) best = { section, item };
+    }
+  }
+  return best;
+}
+
 const COLLAPSED_SECTIONS_STORAGE_KEY = "workforcehub:nav-collapsed-sections";
 
 export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
+  const activeHref = activeNavItem(pathname)?.item.href;
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Per-viewer convenience only (which sections are collapsed) — never
@@ -146,7 +170,7 @@ export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () =>
   return (
     <nav aria-label="Main navigation" className="flex flex-col gap-4">
       {NAV_SECTIONS.map((section, index) => {
-        const hasActiveItem = section.items.some((item) => item.href === pathname);
+        const hasActiveItem = section.items.some((item) => item.href === activeHref);
         // A section containing the current page always stays visible, even
         // if the viewer previously collapsed it — collapsing your own
         // active section re-expands it instead of hiding where you are.
@@ -177,7 +201,7 @@ export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () =>
             {!isCollapsed && (
               <div id={`nav-section-${slug}`} className="flex flex-col gap-1">
                 {section.items.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = item.href === activeHref;
                   const Icon = item.icon;
                   return (
                     <Link
@@ -188,7 +212,7 @@ export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () =>
                       title={collapsed ? item.label : undefined}
                       data-testid={`nav-link-${slugify(item.href)}`}
                       className={cn(
-                        "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                        "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-150",
                         collapsed && "justify-center px-0",
                         isActive
                           ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"

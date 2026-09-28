@@ -33,7 +33,10 @@ describe("WebAuthnService", () => {
     const options = await WebAuthnService.generateRegistrationOptions(user._id.toString());
 
     expect(options.challenge).toBeTruthy();
-    expect(options.user.id).toBe(user._id.toString());
+    // The user handle is the UTF-8 bytes of the user id (base64url in the JSON
+    // options) — the same bytes v9 sent, so passkeys registered before the
+    // upgrade still map to the same account.
+    expect(options.user.id).toBe(Buffer.from(user._id.toString(), "utf8").toString("base64url"));
 
     const reloaded = await UserModel.findById(user._id);
     expect(reloaded?.webAuthnChallenge).toBe(options.challenge);

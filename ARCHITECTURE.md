@@ -127,11 +127,35 @@ own `User.employeeId` and never touches the granular permission catalog at all.
 `SelfServiceAttendanceService.checkIn()`/`.checkOut()` (`src/domains/attendance/
 self-service-attendance-service.ts`) reuse `AttendanceService`'s `computeStatus()`, but hard-require
 a fresh `WebAuthnService.verifyAuthentication()` (platform authenticator — Face ID/fingerprint/
-screen lock, via `@simplewebauthn/server`) before writing anything; browser geolocation and a
-webcam photo snapshot are captured alongside but are best-effort metadata, never blocking the
-flow if denied. See ADR-020 for the full set of tradeoffs the user chose explicitly (full
-self-service login over a shared kiosk; both WebAuthn and photo, not one; HR-provisioned
-accounts; photos stored as base64 in MongoDB).
+screen lock, via `@simplewebauthn/server`) before writing anything. See ADR-020 for the full set
+of tradeoffs the user chose explicitly (full self-service login over a shared kiosk; both WebAuthn
+and photo, not one; HR-provisioned accounts; photos stored as base64 in MongoDB).
+
+**Geofence + liveness (ADR-026).** Clock-in now also requires the employee to pick a project that is
+a clock-in site (an active project whose active `Location` has `latitude`/`longitude` +
+`geofenceRadiusMeters`, resolved by `ClockSiteService`), to be within that radius (server-checked in
+`SelfServiceAttendanceService` via `geofence.ts`; out-of-range attempts are blocked and audited), and
+to pass a randomized blink/head-turn check (MediaPipe Face Landmarker, self-hosted under
+`public/mediapipe`, logic in `src/lib/liveness/liveness-session.ts`) whose live frame becomes the
+photo. The record stores `projectId` plus a per-event snapshot of distance, radius and challenges;
+late/present uses the selected site's attendance policy. This supersedes ADR-020's "geolocation and
+photo are best-effort" rule.
+
+**Schedules (ADR-027).** `/attendance/schedules` lets HR plan each employee's month from reusable
+`ShiftTemplate`s (work shifts with times, overnight allowed, or rest days), with an optional project
+per work day. Each `ScheduleEntry` embeds a snapshot of its shift, so editing a template never
+rewrites a planned or exported month. The plan is reference-only: late/present still follows
+`AttendancePolicy`. The clock screen pre-selects today's scheduled project. Exports are a
+print-ready Excel month grid and a long-format CSV (`/api/attendance/schedules/export`). It reuses
+`attendance.read`/`attendance.update`.
+
+**Attendance export (ADR-028).** The daily roster exports any range of up to 31 days
+(`/api/attendance/export`) as Excel (a filterable log plus a per-employee status/hours summary) or
+CSV. It has one row per employee per day, with "No record" where nothing was logged, and the
+scheduled shift beside the recorded times. `AttendanceReportService` builds it, and it lists the
+same people the schedule does (`current-staff.ts`). Every module's Export button (People, Case monitoring, Travel
+orders, Attendance, Schedules) now offers the same two formats: a formatted Excel file built from
+a shared template, or CSV. See the ADR-028 addendum.
 
 ## Leave (Phase 6, ADR-012)
 
@@ -147,6 +171,11 @@ employee; `decide()` (gated by `leave.approve`, distinct from `leave.update`) is
 request/approve state machine Phase 5 deferred — see ADR-012 for why `leave.approve` is its own
 permission and why balance consumption is derived rather than stored.
 
+`/leave/balances` shows one row per employee, with leave types as columns and a year selector. Each
+cell shows days left, a used/pending bar and the counts. `LeaveBalanceService.summarizeForYear()`
+builds the whole year in two queries. `grantMissing()` opens a leave type for everyone who doesn't
+have it yet, audited as one batch.
+
 Leave balances can be granted/adjusted from two places sharing the same components: the org-wide
 `/leave/balances` list (bulk view across every employee, e.g. year-end rollout) and a "Leave
 balances" card on `/people/[id]` (per the user's own workflow — granting one employee's balance
@@ -155,7 +184,30 @@ without hunting them down in a dropdown first). `GrantLeaveBalanceDialog` is emp
 (`src/components/shared/`) is shared by both since it only ever needs a `balanceId`, used
 identically from either page.
 
-## Payroll (Phase 7, ADR-014)
+## Payroll (Phase 7, ADR-014; rebuilt in ADR-029)
+
+**Current design (ADR-029).**
+
+- **Engine:** a pure calculation engine (`src/domains/payroll/engine/`) computes each payslip.
+  - Monthly-rated pay: the period's share of the salary, less absences and tardiness.
+  - Daily-rated pay: days worked × the rate.
+  - Contributions come from PH tables stored as rule-version data (SSS table, PhilHealth,
+    Pag-IBIG), with employer shares.
+  - Withholding tax applies to taxable pay less contributions, using the BIR table for the pay
+    frequency.
+- **Runs:**
+  - They go Draft → Submitted → Approved/Returned → Released, and can be cancelled before
+    approval.
+  - Each is scoped to the organization or one project, and guarded against paying the same people
+    twice for the same days.
+  - Each run keeps its payslips, register exports and full history.
+- **Payroll schedules** prepare each cutoff's draft automatically.
+- **Compensation:** each employee has calendar-dated pay terms (monthly or daily rate, allowances,
+  minimum-wage-earner flag). Bulk changes (e.g. a wage order for a project) are previewed, then
+  applied as one batch.
+
+The paragraphs below describe the original Phase 7 design. Where they conflict with ADR-029,
+ADR-029 wins.
 
 Same HR-recorded scoping as Attendance/Leave. `PayrollPolicy` (pay frequency, standard work
 days/period) and `PayrollRuleVersion` (tax brackets, statutory contributions) both resolve
@@ -352,9 +404,49 @@ Indexes (all justified by an actual query above): `organizations.slug` (unique),
 
 ## Audit (part of ADR-007's server-side trust boundary)
 
-`AuditService.record(...)` is the only write path onto `AuditLog`. Wired into organization
-creation today; every future mutation in Phase 2+ (assignment changes, role changes, payroll
-finalization, ...) must call it too, per AGENTS.md §35.
+`AuditService.record(...)` is the only write path onto `AuditLog`. Every mutation calls it, per
+AGENTS.md §35. Security events about accounts (sign-ins, failures, locks, password and two-step
+changes) go through `auditUserEvent` (`src/domains/identity/user-audit.ts`), which files them
+under the account's organization.
+
+`AuditQueryService` (`src/server/audit/audit-query-service.ts`) is the read side. It serves
+Settings › Audit log (`audit-logs.read`), which has filters by area and date, paging and a detail
+panel, and each person's own recent activity on their Security page. Nothing can edit or delete an
+entry.
+
+## Sign-in security (ADR-030)
+
+- **Sign-in flow:** one tested function, `signInWithPassword` (`src/domains/identity/sign-in.ts`).
+  In order, it checks:
+  1. a per-network attempt limit, kept in MongoDB (`LoginThrottle`, 30 attempts per 15 minutes)
+     so it holds across restarts and instances;
+  2. the password (argon2, with the same timing for unknown accounts);
+  3. the account lock (5 wrong passwords or codes lock it for 15 minutes);
+  4. the second step when two-step verification is on.
+
+  NextAuth's `authorize` only calls it. Every outcome is audited.
+- **Two-step verification:**
+  - TOTP per RFC 6238 (`src/server/auth/totp.ts`), tested against the RFC's vectors;
+  - replay-protected;
+  - secrets are AES-256-GCM encrypted at rest (`secret-box.ts`), keyed by `MFA_ENCRYPTION_KEY` or
+    derived from `NEXTAUTH_SECRET`;
+  - ten one-time recovery codes, stored as hashes.
+
+  People manage it on their Security page (`/account/security`, from the account menu).
+  Administrators can reset it.
+- **Passwords:**
+  - NIST 800-63B rules (`password-policy.ts`): at least 12 characters, a common-password list, and
+    not built from the username;
+  - accounts an administrator creates or resets get a temporary password and must choose their
+    own at next sign-in (`/change-password`, enforced in both layouts).
+- **Accounts:** Settings › Accounts (`users.read`, `users.update`) lists every account's security
+  state. From there an administrator can reset a password, unlock, disable or enable an account,
+  or reset two-step verification. Disabling or resetting ends the account's session.
+- **CSRF:** `src/proxy.ts` (Next.js 16's middleware) refuses data-changing `/api/*` requests whose
+  Origin, or Referer, isn't the app itself. This sits on top of the SameSite=Lax session cookie.
+  NextAuth's own routes and the CRON_SECRET-protected cron route are exempt.
+- **Client IP:** comes from `X-Forwarded-For`, so production must sit behind a proxy that
+  overwrites that header. Otherwise the network limit and the audit trail's IPs can be spoofed.
 
 ## Auth.js session strategy (ADR-010)
 
@@ -366,10 +458,17 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 
 ## Known gaps (tracked, not silently ignored)
 
-- **Rate limiting** (`src/server/auth/rate-limit.ts`) is an in-memory, single-process limiter.
-  On a multi-instance/serverless deployment each instance tracks separately, so it is a
-  best-effort mitigation, not complete brute-force protection. Revisit with Upstash/Redis only
-  when there's a concrete incident or requirement (AGENTS.md §45) — not preemptively.
+- **Two-step verification is optional.** It isn't yet required per role. Settings › Accounts
+  shows which HR accounts are missing it. An organization-wide "require for HR" switch would be
+  the next step.
+- **`@simplewebauthn/server` 9.x** has a low-severity advisory (GHSA-6hxq-p678-4hr2) about
+  attestation trust anchors. Registration uses `attestationType: "none"`, so the check it concerns
+  never runs. The v14 upgrade changes the API on server and browser and needs testing on a real
+  phone, so it's a separate task.
+- **CSP allows `'unsafe-inline'` scripts**, for Next's inline hydration data. A nonce-based CSP
+  would remove that.
+- **A temporary password is enforced by the page layouts, not the API.** Its holder could call the
+  API directly, but they already hold that account's credentials.
 - `lastActivityAt` idle tracking lives in the JWT, not rewritten to the database on every
   request — avoids write-amplification, at the cost of trusting the (signed, tamper-proof)
   token's own timestamp rather than a server-side clock.

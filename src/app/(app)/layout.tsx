@@ -2,8 +2,11 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
-import { UserModel } from "@/server/db/models";
+import { PersonModel, UserModel } from "@/server/db/models";
 import { OrganizationService } from "@/domains/organization/organization-service";
+import { RoleAssignmentService } from "@/domains/authorization/role-assignment-service";
+import { formatPersonName } from "@/lib/person-name";
+import { hasPermission } from "@/app/_shared/has-permission";
 import { WorkspaceLayout } from "@/components/shared/workspace-layout";
 import { ConcurrentSessionGuard } from "@/components/shared/concurrent-session-guard";
 
@@ -14,14 +17,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // A self-service employee account has no business in the HR admin
   // shell — send it straight to the clock-in/out portal instead.
   await connectMongoDB();
-  const user = await UserModel.findById(session.user.id).select("employeeId").lean();
+  const user = await UserModel.findById(session.user.id).select("employeeId username email personId mustChangePassword").lean();
+  // A temporary password (new account or an HR reset) must be replaced before anything else.
+  if (user?.mustChangePassword) redirect("/change-password");
   if (user?.employeeId) redirect("/clock");
 
   const organizations = await OrganizationService.listAccessibleTo(session.user.id);
-  const organizationName = organizations[0]?.name ?? "No organization";
+  const organization = organizations[0];
+  const organizationId = organization?._id.toString();
+
+  const [person, roleNames, canManageAccess] = await Promise.all([
+    user?.personId ? PersonModel.findById(user.personId).lean() : null,
+    organizationId ? RoleAssignmentService.listRoleNamesForUser(session.user.id, organizationId) : [],
+    organizationId ? hasPermission("roles.read", organizationId) : false,
+  ]);
+  const displayName = person ? formatPersonName(person) : (session.user.name ?? user?.username ?? session.user.email ?? "User");
 
   return (
-    <WorkspaceLayout userName={session.user.name ?? session.user.email ?? "User"} organizationName={organizationName}>
+    <WorkspaceLayout
+      account={{
+        displayName,
+        username: user?.username ?? null,
+        email: user?.email ?? null,
+        organizationName: organization?.name ?? "No organization",
+        roleNames,
+        canManageAccess,
+      }}
+    >
       <ConcurrentSessionGuard />
       {children}
     </WorkspaceLayout>

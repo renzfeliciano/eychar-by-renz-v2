@@ -9,6 +9,12 @@ const locationSchema = new Schema(
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, trim: true },
     address: { type: String, trim: true },
+    // Site center + allowed radius for self-service clock-in (ADR-026).
+    // Optional as a pair — a location without coordinates just isn't a
+    // clock-in site; LocationService enforces "both or neither".
+    latitude: { type: Number, min: -90, max: 90 },
+    longitude: { type: Number, min: -180, max: 180 },
+    geofenceRadiusMeters: { type: Number, min: 10, max: 5000, default: 100 },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },

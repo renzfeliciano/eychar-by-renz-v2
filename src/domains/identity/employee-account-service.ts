@@ -51,6 +51,8 @@ export const EmployeeAccountService = {
       user = await UserModel.create({
         username: input.username,
         passwordHash: await argon2.hash(input.password),
+        // The administrator chose this password, so the person picks their own at first sign-in.
+        mustChangePassword: true,
         employeeId: new Types.ObjectId(input.employeeId),
       });
     } catch (error) {

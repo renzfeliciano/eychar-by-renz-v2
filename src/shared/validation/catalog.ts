@@ -9,10 +9,20 @@ export const createSimpleCatalogItemSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const updateCatalogItemStatusSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  status: z.enum(["active", "inactive"]),
-});
+// status and name/description are independent operations on the same
+// endpoint (see the PATCH route) — a request carries whichever one the UI
+// action triggered (the activate/deactivate button vs. the rename dialog),
+// never both, but at least one is required.
+export const updateCatalogItemSchema = z
+  .object({
+    organizationId: z.string().trim().min(1),
+    status: z.enum(["active", "inactive"]).optional(),
+    name: z.string().trim().min(1).optional(),
+    description: z.string().trim().optional(),
+  })
+  .refine((data) => data.status !== undefined || data.name !== undefined || data.description !== undefined, {
+    message: "Provide a status, name, or description to update",
+  });
 
 export type CreateSimpleCatalogItemInput = z.infer<typeof createSimpleCatalogItemSchema>;
-export type UpdateCatalogItemStatusInput = z.infer<typeof updateCatalogItemStatusSchema>;
+export type UpdateCatalogItemInput = z.infer<typeof updateCatalogItemSchema>;

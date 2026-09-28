@@ -3,96 +3,119 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
-import { Fingerprint, Camera, MapPin, LogIn, LogOut, Loader2, CheckCircle2 } from "lucide-react";
+import { Fingerprint, MapPin, LogIn, LogOut, Loader2, CheckCircle2, ScanFace, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormError } from "@/components/shared/form-field";
+import { clockCheckStates, type ClockFlowStep, formatWorkedDuration, type ClockCheckState } from "@/domains/attendance/clock-progress";
+import { cn } from "@/lib/utils";
 import { describeWebAuthnError } from "@/lib/webauthn-error-message";
+import { evaluateGeofence, formatDistance } from "@/domains/attendance/geofence";
+import type { ClockSite } from "@/domains/attendance/clock-site-service";
+import { LivenessCamera, preloadFaceLandmarker, type LivenessCapture } from "./liveness-camera";
 
 export type TodayRecord = {
   checkInAt?: string | null;
   checkOutAt?: string | null;
   status?: string;
+  projectId?: string | null;
+  projectName?: string | null;
 } | null;
 
-type Step = "idle" | "location" | "camera" | "biometric" | "submitting" | "error";
+type Action = "clock-in" | "clock-out";
+type Step = ClockFlowStep;
+type Position = { latitude: number; longitude: number; accuracy: number };
 
-const STEP_LABEL: Record<Step, string> = {
-  idle: "",
-  location: "Getting your location…",
-  camera: "Taking a photo…",
+const BUSY_LABEL: Partial<Record<Step, string>> = {
+  locating: "Checking your location…",
   biometric: "Confirm with your device's biometric…",
   submitting: "Recording…",
-  error: "",
 };
 
-function getLocation(): Promise<{ latitude: number; longitude: number; accuracy: number } | undefined> {
-  return new Promise((resolve) => {
-    if (!("geolocation" in navigator)) return resolve(undefined);
+function getPosition(): Promise<Position> {
+  return new Promise((resolve, reject) => {
+    if (!("geolocation" in navigator)) {
+      reject(new Error("This browser can't share your location, which clock-in requires."));
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
-      (position) =>
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        }),
-      () => resolve(undefined),
-      { enableHighAccuracy: true, timeout: 8000 },
+      (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy }),
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          reject(new Error("Location access is blocked. Allow location for this site in your browser settings — it's how clock-in confirms you're at the site."));
+        } else if (error.code === error.TIMEOUT) {
+          reject(new Error("Getting your location took too long. Step somewhere with a clearer view of the sky and try again."));
+        } else {
+          reject(new Error("Your location couldn't be determined. Turn on location services and try again."));
+        }
+      },
+      // A fresh fix every time — a cached position from earlier could be from somewhere else entirely.
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
     );
   });
 }
 
-async function capturePhoto(videoRef: React.RefObject<HTMLVideoElement | null>): Promise<string | undefined> {
-  if (!("mediaDevices" in navigator)) return undefined;
-  let stream: MediaStream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-  } catch {
-    return undefined;
-  }
+const CHECKS = [
+  { key: "location", label: "At the site", icon: MapPin },
+  { key: "face", label: "Live face check", icon: ScanFace },
+  { key: "biometric", label: "Biometric", icon: Fingerprint },
+] as const;
+const CHECK_STATE_LABEL: Record<ClockCheckState, string> = { waiting: "(waiting)", active: "(in progress)", done: "(done)" };
 
-  const video = videoRef.current;
-  if (!video) {
-    stream.getTracks().forEach((track) => track.stop());
-    return undefined;
-  }
-
-  video.srcObject = stream;
-  await video.play();
-  // A freshly-started stream's first frame or two can be black — give the
-  // camera a brief moment to actually produce image data before capturing.
-  await new Promise((resolve) => setTimeout(resolve, 400));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth || 320;
-  canvas.height = video.videoHeight || 240;
-  canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const photo = canvas.toDataURL("image/jpeg", 0.7);
-
-  stream.getTracks().forEach((track) => track.stop());
-  video.srcObject = null;
-
-  return photo;
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-export function ClockPanel({ today, hasCredential: initialHasCredential }: { today: TodayRecord; hasCredential: boolean }) {
+async function readError(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => ({}));
+  return body.error ?? fallback;
+}
+
+export function ClockPanel({
+  today,
+  hasCredential: initialHasCredential,
+  sites,
+  defaultProjectId,
+  nowIso,
+}: {
+  today: TodayRecord;
+  hasCredential: boolean;
+  sites: ClockSite[];
+  defaultProjectId?: string;
+  /** Server render time, for "time worked so far" without a client clock read during render. */
+  nowIso?: string;
+}) {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCredential, setHasCredential] = useState(initialHasCredential);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState(defaultProjectId ?? (sites.length === 1 ? sites[0].projectId : ""));
+  // Filled before the camera opens, read once the liveness capture comes back.
+  const pendingRef = useRef<{ action: Action; position: Position; projectId?: string } | null>(null);
+
+  const hasCheckedIn = Boolean(today?.checkInAt);
+  const hasCheckedOut = Boolean(today?.checkOutAt);
+  const action: Action = hasCheckedIn ? "clock-out" : "clock-in";
+  // Clock-out is pinned to the project clocked in at; only an HR-recorded
+  // check-in (no project on it) needs the employee to pick one.
+  const needsProjectChoice = !hasCheckedIn || !today?.projectId;
+  const effectiveProjectId = needsProjectChoice ? selectedProjectId : today?.projectId ?? "";
+  const site = sites.find((candidate) => candidate.projectId === effectiveProjectId);
 
   async function handleRegisterBiometric() {
     setError(null);
     setIsRegistering(true);
     try {
       const optionsResponse = await fetch("/api/self-service/webauthn/register/options", { method: "POST" });
-      if (!optionsResponse.ok) throw new Error((await optionsResponse.json().catch(() => ({}))).error ?? "Could not start registration.");
+      if (!optionsResponse.ok) throw new Error(await readError(optionsResponse, "Could not start registration."));
       const options = await optionsResponse.json();
 
       let registrationResponse;
       try {
-        registrationResponse = await startRegistration(options);
+        registrationResponse = await startRegistration({ optionsJSON: options });
       } catch (webAuthnError) {
         // The browser/OS throws its own error here (often a vague, spec-quoting
         // NotAllowedError) — translate it instead of showing that to the user.
@@ -104,7 +127,7 @@ export function ClockPanel({ today, hasCredential: initialHasCredential }: { tod
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(registrationResponse),
       });
-      if (!verifyResponse.ok) throw new Error((await verifyResponse.json().catch(() => ({}))).error ?? "Could not verify registration.");
+      if (!verifyResponse.ok) throw new Error(await readError(verifyResponse, "Could not verify registration."));
 
       setHasCredential(true);
     } catch (err) {
@@ -114,43 +137,77 @@ export function ClockPanel({ today, hasCredential: initialHasCredential }: { tod
     }
   }
 
-  async function handleClock(action: "clock-in" | "clock-out") {
+  async function startClock() {
     setError(null);
+    preloadFaceLandmarker();
+    if (needsProjectChoice && !selectedProjectId) {
+      setError("Select the project you're working at today.");
+      return;
+    }
+
+    setStep("locating");
     try {
-      setStep("location");
-      const location = await getLocation();
+      const position = await getPosition();
+      // Same rule the server enforces — checked here first so nobody sits
+      // through the face check and biometric just to be turned away.
+      if (site) {
+        const geofence = evaluateGeofence(position, site);
+        if (!geofence.withinRadius) {
+          const accuracyHint =
+            position.accuracy > site.radiusMeters
+              ? ` Your location is only accurate to about ±${formatDistance(position.accuracy)} right now — turning on precise location or stepping outdoors may help.`
+              : "";
+          throw new Error(
+            `You're ${formatDistance(geofence.distanceMeters)} from ${site.locationName}. You need to be within ${formatDistance(site.radiusMeters)} to ${action === "clock-in" ? "clock in" : "clock out"}.${accuracyHint}`,
+          );
+        }
+      }
+      pendingRef.current = { action, position, projectId: needsProjectChoice ? selectedProjectId : undefined };
+      setStep("liveness");
+    } catch (err) {
+      setStep("idle");
+      setError(err instanceof Error ? err.message : "Couldn't check your location. Try again.");
+    }
+  }
 
-      setStep("camera");
-      const photo = await capturePhoto(videoRef);
-
+  async function finishClock(capture: LivenessCapture) {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    try {
       setStep("biometric");
       const challengeResponse = await fetch("/api/self-service/webauthn/challenge", { method: "POST" });
-      if (!challengeResponse.ok) throw new Error((await challengeResponse.json().catch(() => ({}))).error ?? "Could not start biometric confirmation.");
+      if (!challengeResponse.ok) throw new Error(await readError(challengeResponse, "Could not start biometric confirmation."));
       const challengeOptions = await challengeResponse.json();
       let webAuthn;
       try {
-        webAuthn = await startAuthentication(challengeOptions);
+        webAuthn = await startAuthentication({ optionsJSON: challengeOptions });
       } catch (webAuthnError) {
         throw new Error(describeWebAuthnError(webAuthnError, "authentication"));
       }
 
       setStep("submitting");
-      const response = await fetch(`/api/self-service/attendance/${action}`, {
+      const response = await fetch(`/api/self-service/attendance/${pending.action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...location, photo, webAuthn }),
+        body: JSON.stringify({
+          ...pending.position,
+          projectId: pending.projectId,
+          photo: capture.photo,
+          liveness: { challenges: capture.challenges },
+          webAuthn,
+        }),
       });
-      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error ?? "Failed to record attendance.");
+      if (!response.ok) throw new Error(await readError(response, "Failed to record attendance."));
 
       setStep("idle");
       router.refresh();
     } catch (err) {
-      setStep("error");
+      setStep("idle");
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+    } finally {
+      pendingRef.current = null;
     }
   }
-
-  const isBusy = step !== "idle" && step !== "error";
 
   if (!hasCredential) {
     return (
@@ -165,7 +222,7 @@ export function ClockPanel({ today, hasCredential: initialHasCredential }: { tod
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <FormError message={error} />
           <Button onClick={handleRegisterBiometric} disabled={isRegistering} data-testid="register-biometric-button">
             {isRegistering ? <Loader2 className="size-4 animate-spin" /> : <Fingerprint className="size-4" />}
             {isRegistering ? "Setting up…" : "Set up biometric verification"}
@@ -175,53 +232,131 @@ export function ClockPanel({ today, hasCredential: initialHasCredential }: { tod
     );
   }
 
-  const hasCheckedIn = Boolean(today?.checkInAt);
-  const hasCheckedOut = Boolean(today?.checkOutAt);
+  const isBusy = step !== "idle";
+  const checkStates = clockCheckStates(step);
+  const noSites = sites.length === 0 && needsProjectChoice;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Attendance</CardTitle>
-        <CardDescription>
-          {hasCheckedOut
-            ? "You're all done for today."
-            : hasCheckedIn
-              ? `Checked in at ${new Date(today!.checkInAt!).toLocaleTimeString()}`
-              : "Not clocked in yet today."}
-        </CardDescription>
+        <div className="mt-1 flex items-start gap-2.5" data-testid="clock-status">
+          <span
+            className={cn(
+              "mt-1.5 size-2 shrink-0 rounded-full",
+              hasCheckedOut ? "bg-muted-foreground" : hasCheckedIn ? "bg-success ring-4 ring-success/15" : "bg-warning ring-4 ring-warning/15",
+            )}
+            aria-hidden="true"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{hasCheckedOut ? "Done for today" : hasCheckedIn ? "On the clock" : "Not clocked in"}</p>
+            <CardDescription>
+              {hasCheckedOut
+                ? `${formatTime(today!.checkInAt!)} – ${formatTime(today!.checkOutAt!)} · ${formatWorkedDuration(today!.checkInAt!, today!.checkOutAt!)} worked`
+                : hasCheckedIn
+                  ? `Since ${formatTime(today!.checkInAt!)}${today?.projectName ? ` · ${today.projectName}` : ""}${nowIso ? ` · ${formatWorkedDuration(today!.checkInAt!, nowIso)} so far` : ""}`
+                  : "Clock in when you arrive at your site."}
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {/* Muted, off-layout video element — only needed as a source for canvas capture, never shown to the user as a live preview. */}
-        <video ref={videoRef} muted playsInline className="sr-only" aria-hidden="true" />
-
-        {isBusy && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            {step === "location" && <MapPin className="size-4 animate-pulse" />}
-            {step === "camera" && <Camera className="size-4 animate-pulse" />}
-            {step === "biometric" && <Fingerprint className="size-4 animate-pulse" />}
-            {step === "submitting" && <Loader2 className="size-4 animate-spin" />}
-            {STEP_LABEL[step]}
-          </p>
-        )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {hasCheckedOut && (
+      <CardContent className="flex flex-col gap-4">
+        {hasCheckedOut ? (
           <p className="flex items-center gap-2 text-sm text-success">
             <CheckCircle2 className="size-4" />
-            Checked out at {new Date(today!.checkOutAt!).toLocaleTimeString()}
+            Checked out at {formatTime(today!.checkOutAt!)}
           </p>
-        )}
+        ) : step === "liveness" ? (
+          <LivenessCamera
+            onCaptured={finishClock}
+            onCancel={() => {
+              pendingRef.current = null;
+              setStep("idle");
+            }}
+          />
+        ) : noSites ? (
+          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground" data-testid="clock-no-sites">
+            No clock-in sites are set up yet. Ask HR to add a location with coordinates to your project.
+          </p>
+        ) : (
+          <>
+            {needsProjectChoice ? (
+              <div className="flex flex-col gap-1.5">
+                <Label>Project</Label>
+                <Select value={selectedProjectId || null} onValueChange={(value) => setSelectedProjectId(value ?? "")} disabled={isBusy}>
+                  <SelectTrigger className="w-full" data-testid="clock-project-select">
+                    <SelectValue>{sites.find((candidate) => candidate.projectId === selectedProjectId)?.projectName ?? "Select where you're working today"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sites.map((candidate) => (
+                      <SelectItem key={candidate.projectId} value={candidate.projectId}>
+                        {candidate.projectName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5" data-testid="clock-out-site">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border" aria-hidden="true">
+                  <Building2 className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Clocking out from</p>
+                  <p className="truncate text-sm font-medium">{today?.projectName ?? "your clock-in site"}</p>
+                </div>
+              </div>
+            )}
 
-        {!hasCheckedIn && (
-          <Button onClick={() => handleClock("clock-in")} disabled={isBusy} data-testid="clock-in-button">
-            {isBusy ? <Loader2 className="size-4 animate-spin" /> : <LogIn className="size-4" />}
-            {isBusy ? "Clocking in…" : "Clock In"}
-          </Button>
-        )}
-        {hasCheckedIn && !hasCheckedOut && (
-          <Button onClick={() => handleClock("clock-out")} disabled={isBusy} variant="outline" data-testid="clock-out-button">
-            {isBusy ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-            {isBusy ? "Clocking out…" : "Clock Out"}
-          </Button>
+            {site && (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="clock-site-hint">
+                <MapPin className="size-3.5 shrink-0" />
+                {site.locationName} · you need to be within {formatDistance(site.radiusMeters)}
+              </p>
+            )}
+
+            {isBusy && (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+                {step === "biometric" ? <Fingerprint className="size-4 animate-pulse" /> : <Loader2 className="size-4 animate-spin" />}
+                {BUSY_LABEL[step]}
+              </p>
+            )}
+
+            <FormError message={error} />
+
+            <Button
+              onClick={startClock}
+              disabled={isBusy || (needsProjectChoice && !selectedProjectId)}
+              size="lg"
+              data-testid={action === "clock-in" ? "clock-in-button" : "clock-out-button"}
+            >
+              {isBusy ? <Loader2 className="size-4 animate-spin" /> : action === "clock-in" ? <LogIn className="size-4" /> : <LogOut className="size-4" />}
+              {isBusy ? (action === "clock-in" ? "Clocking in…" : "Clocking out…") : action === "clock-in" ? "Clock In" : "Clock Out"}
+            </Button>
+
+            <ol className="grid grid-cols-3 gap-2 text-center text-[0.7rem]" aria-label="What clocking in checks">
+              {CHECKS.map(({ key, label, icon: Icon }) => {
+                const state = checkStates[key];
+                return (
+                  <li
+                    key={key}
+                    data-state={state}
+                    aria-current={state === "active" ? "step" : undefined}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border px-2 py-2 transition-colors",
+                      state === "waiting" && "border-transparent bg-muted/50 text-muted-foreground",
+                      state === "active" && "border-primary/30 bg-primary/5 font-medium text-primary",
+                      state === "done" && "border-success/25 bg-success/5 text-success",
+                    )}
+                  >
+                    {state === "done" ? <CheckCircle2 className="size-4" aria-hidden="true" /> : <Icon className={cn("size-4", state === "active" && "animate-pulse")} aria-hidden="true" />}
+                    {label}
+                    <span className="sr-only">{CHECK_STATE_LABEL[state]}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
         )}
       </CardContent>
     </Card>

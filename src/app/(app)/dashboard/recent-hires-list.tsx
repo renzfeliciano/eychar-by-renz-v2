@@ -25,7 +25,7 @@ export function RecentHiresList({ hires }: { hires: RecentHire[] }) {
       {hires.map((hire) => (
         <li key={hire.employeeId}>
           <Link href={`/people/${hire.employeeId}`} className="flex items-center gap-3 rounded-lg p-1 -m-1 transition-colors hover:bg-accent/40">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-xs font-semibold text-primary">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
               {initials(hire.name)}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium">{hire.name}</span>

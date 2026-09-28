@@ -18,17 +18,25 @@ function humanizeFieldPath(path: readonly PropertyKey[]): string | null {
  * else falls back to Zod's own message, which is usually fine on its own
  * (e.g. "Invalid email address").
  */
+// Zod's own default wording for these codes — anything else was written by
+// hand in a schema (e.g. `.min(10, "Radius must be at least 10 m")`) and is
+// already better than the generic field-name rewrite below.
+const ZOD_DEFAULT_MESSAGE = /^(Invalid input|Too small|Too big)\b/;
+
 function describeIssue(issue: core.$ZodIssue, field: string | null): string {
   const name = field ?? "This field";
   if (issue.code === "invalid_type") {
-    // Zod v4 dropped `received` from this issue shape in favor of `input`
-    // (the actual value that failed) — checking the old v3 field name here
-    // silently never matched, so a field the client omitted entirely fell
-    // through to Zod's own "Invalid input: expected string, received
-    // undefined" wording instead of a plain-English message.
+    // Zod v4 only fills `issue.input` when parsing with `reportInput`, which
+    // no route does — so the value itself usually isn't available here, and
+    // "abc" in a number field is only recognizable from the default message
+    // ("…expected number, received NaN"). Checked before the missing-field
+    // case, which is otherwise what an absent `input` would look like.
     const input = "input" in issue ? issue.input : undefined;
+    if ((typeof input === "number" && Number.isNaN(input)) || /received NaN$/.test(issue.message)) return `${name} must be a number`;
     if (input === undefined) return `${name} is required`;
-    if (typeof input === "number" && Number.isNaN(input)) return `${name} must be a number`;
+  }
+  if ((issue.code === "too_small" || issue.code === "too_big") && !ZOD_DEFAULT_MESSAGE.test(issue.message)) {
+    return issue.message;
   }
   if (issue.code === "too_small") {
     if (issue.origin === "string" && issue.minimum === 1) return `${name} is required`;

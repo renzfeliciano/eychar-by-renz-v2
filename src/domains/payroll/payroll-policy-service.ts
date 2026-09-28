@@ -4,6 +4,7 @@ import { PayrollPolicyModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
+import { dateKeyToDate } from "@/lib/date-key";
 import type { CreatePayrollPolicyInput } from "@/shared/validation/payroll";
 
 export type { PolicySource };
@@ -19,7 +20,12 @@ export const PayrollPolicyService = {
       projectId: input.projectId ? new Types.ObjectId(input.projectId) : undefined,
       name: input.name,
       payFrequency: input.payFrequency,
-      standardWorkDaysPerPeriod: input.standardWorkDaysPerPeriod,
+      workDaysPerYear: input.workDaysPerYear,
+      hoursPerDay: input.hoursPerDay,
+      workWeekDays: [...new Set(input.workWeekDays)].sort(),
+      deductLateAndUndertime: input.deductLateAndUndertime,
+      contributionTiming: input.contributionTiming,
+      ...(input.effectiveFrom ? { effectiveFrom: dateKeyToDate(input.effectiveFrom) } : {}),
     });
 
     await AuditService.record({
@@ -28,24 +34,22 @@ export const PayrollPolicyService = {
       action: "payroll-policy.created",
       resourceType: "PayrollPolicy",
       resourceId: policy._id.toString(),
-      after: { name: policy.name, payFrequency: policy.payFrequency, projectId: policy.projectId },
+      after: {
+        name: policy.name,
+        payFrequency: policy.payFrequency,
+        workDaysPerYear: policy.workDaysPerYear,
+        contributionTiming: policy.contributionTiming,
+        projectId: policy.projectId,
+      },
     });
 
     return policy;
   },
 
-  async updateStatus(
-    id: string,
-    organizationId: string,
-    patch: { status?: "active" | "inactive"; effectiveTo?: Date },
-    actor: { userId?: string },
-  ) {
+  async updateStatus(id: string, organizationId: string, patch: { status?: "active" | "inactive"; effectiveTo?: Date }, actor: { userId?: string }) {
     await connectMongoDB();
 
-    const policy = await PayrollPolicyModel.findOne({
-      _id: new Types.ObjectId(id),
-      organizationId: new Types.ObjectId(organizationId),
-    });
+    const policy = await PayrollPolicyModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
     if (!policy) throw new NotFoundError("Payroll policy not found in this organization");
 
     const before = { status: policy.status, effectiveTo: policy.effectiveTo };
@@ -68,7 +72,7 @@ export const PayrollPolicyService = {
 
   async listCurrent(organizationId: string) {
     await connectMongoDB();
-    return PayrollPolicyModel.find({ organizationId: new Types.ObjectId(organizationId) }).lean();
+    return PayrollPolicyModel.find({ organizationId: new Types.ObjectId(organizationId) }).sort({ effectiveFrom: -1 }).lean();
   },
 
   /** Organization → Project override resolution (AGENTS.md §26) via the shared resolver. */

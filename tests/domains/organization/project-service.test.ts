@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, LocationModel, ProjectModel } from "@/server/db/models";
+import { OrganizationModel, LocationModel, ProjectModel, AuditLogModel } from "@/server/db/models";
 import { ProjectService } from "@/domains/organization/project-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
 
@@ -83,5 +83,70 @@ describe("ProjectService", () => {
         {},
       ),
     ).rejects.toThrow(ConflictError);
+  });
+
+  describe("update", () => {
+    it("sets a site location on an existing project and audits before/after", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-proj-5" });
+      const location = await LocationModel.create({ organizationId: organization._id, name: "Makati Site", code: "MKT" });
+      const project = await ProjectService.create({ organizationId: organization._id.toString(), name: "Project Alpha" }, {});
+
+      const updated = await ProjectService.update(
+        project._id.toString(),
+        organization._id.toString(),
+        { name: "Project Alpha II", description: "Phase two", locationId: location._id.toString() },
+        {},
+      );
+
+      expect(updated.name).toBe("Project Alpha II");
+      expect(updated.description).toBe("Phase two");
+      expect(updated.locationId?.toString()).toBe(location._id.toString());
+      expect(updated.code).toBe(project.code);
+
+      const audits = await AuditLogModel.find({ resourceId: project._id, action: "project.updated" }).lean();
+      expect(audits).toHaveLength(1);
+      expect(audits[0].before).toMatchObject({ name: "Project Alpha" });
+      expect(audits[0].after).toMatchObject({ name: "Project Alpha II" });
+    });
+
+    it("clears the location and description when given empty strings", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-proj-6" });
+      const location = await LocationModel.create({ organizationId: organization._id, name: "Makati Site", code: "MKT" });
+      const project = await ProjectService.create(
+        { organizationId: organization._id.toString(), name: "Project Alpha", description: "Old", locationId: location._id.toString() },
+        {},
+      );
+
+      const updated = await ProjectService.update(project._id.toString(), organization._id.toString(), { locationId: "", description: "" }, {});
+
+      expect(updated.locationId).toBeUndefined();
+      expect(updated.description).toBeUndefined();
+    });
+
+    it("rejects a location from another organization", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-proj-7" });
+      const otherOrganization = await OrganizationModel.create({ name: "Other", slug: "other-proj-7" });
+      const foreignLocation = await LocationModel.create({ organizationId: otherOrganization._id, name: "Other Site", code: "OTH" });
+      const project = await ProjectService.create({ organizationId: organization._id.toString(), name: "Project Alpha" }, {});
+
+      await expect(
+        ProjectService.update(project._id.toString(), organization._id.toString(), { locationId: foreignLocation._id.toString() }, {}),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it("treats a malformed project id as not found instead of crashing", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-proj-9" });
+      await expect(ProjectService.update("not-an-id", organization._id.toString(), { name: "X" }, {})).rejects.toThrow(NotFoundError);
+    });
+
+    it("rejects editing a project from another organization", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-proj-8" });
+      const otherOrganization = await OrganizationModel.create({ name: "Other", slug: "other-proj-8" });
+      const project = await ProjectService.create({ organizationId: organization._id.toString(), name: "Project Alpha" }, {});
+
+      await expect(
+        ProjectService.update(project._id.toString(), otherOrganization._id.toString(), { name: "Hijacked" }, {}),
+      ).rejects.toThrow(NotFoundError);
+    });
   });
 });

@@ -18,6 +18,11 @@ function minutesSinceMidnight(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+// Each self-service record carries up to two base64 clock photos — lists
+// (roster, dashboard, API) never render them, so they don't pull them
+// either (same list-vs-detail split as EmployeeDocument, ADR-025).
+const WITHOUT_PHOTOS = "-checkIn.photo -checkOut.photo";
+
 function parseHHmm(value: string): number {
   const [hours, minutes] = value.split(":").map(Number);
   return hours * 60 + minutes;
@@ -150,14 +155,14 @@ export const AttendanceService = {
         ...(range.to ? { $lte: range.to } : {}),
       };
     }
-    return AttendanceRecordModel.find(filter).sort({ date: -1 }).lean();
+    return AttendanceRecordModel.find(filter).select(WITHOUT_PHOTOS).sort({ date: -1 }).lean();
   },
 
   async listForOrganization(organizationId: string, filters: { date?: Date; projectId?: string } = {}) {
     await connectMongoDB();
     const filter: Record<string, unknown> = { organizationId: new Types.ObjectId(organizationId) };
     if (filters.date) filter.date = toCalendarDateUtc(filters.date);
-    const records = await AttendanceRecordModel.find(filter).sort({ date: -1 }).lean();
+    const records = await AttendanceRecordModel.find(filter).select(WITHOUT_PHOTOS).sort({ date: -1 }).lean();
     if (!filters.projectId) return records;
 
     const filtered = [];

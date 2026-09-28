@@ -32,7 +32,7 @@ export function DonutChart({
   );
 
   return (
-    <div className="flex items-center gap-6">
+    <div className="flex w-full flex-wrap items-center justify-center gap-6">
       <svg viewBox="0 0 200 200" role="img" aria-label={ariaLabel} className="size-36 shrink-0">
         <circle cx="100" cy="100" r={RADIUS} fill="none" stroke="var(--muted)" strokeWidth={STROKE_WIDTH} />
         {segments.map((segment) => (
@@ -56,7 +56,7 @@ export function DonutChart({
           {centerLabel}
         </text>
       </svg>
-      <ul className="flex flex-1 flex-col gap-2 text-sm">
+      <ul className="flex min-w-36 flex-1 flex-col gap-2 text-sm">
         {segments.map((segment) => (
           <li key={segment.label} className="flex items-center gap-2">
             <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />

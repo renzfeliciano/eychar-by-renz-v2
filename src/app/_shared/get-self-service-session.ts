@@ -18,6 +18,8 @@ export async function getSelfServiceSession() {
   await connectMongoDB();
   const user = await UserModel.findById(session.user.id).lean();
   if (!user?.employeeId) redirect("/dashboard");
+  // A temporary password (new account or an HR reset) must be replaced first.
+  if (user.mustChangePassword) redirect("/change-password");
 
   const employee = await EmployeeModel.findById(user.employeeId).lean();
   if (!employee) redirect("/login");

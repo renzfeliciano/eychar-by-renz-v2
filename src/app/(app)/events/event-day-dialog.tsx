@@ -39,6 +39,7 @@ export function EventDayDialog({
   categoryNameByCode,
   canManage,
   onClose,
+  initialMode = "list",
 }: {
   organizationId: string;
   date: string;
@@ -47,9 +48,11 @@ export function EventDayDialog({
   categoryNameByCode: Map<string, string>;
   canManage: boolean;
   onClose: () => void;
+  /** "create" opens straight into the new-event form (the calendar's New event button). */
+  initialMode?: "list" | "create";
 }) {
   const router = useRouter();
-  const [view, setView] = useState<View>({ mode: "list" });
+  const [view, setView] = useState<View>({ mode: initialMode });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -160,6 +163,7 @@ function EventForm({
   const isEdit = Boolean(initialValue);
   const router = useRouter();
   const [title, setTitle] = useState(initialValue?.title ?? "");
+  const [eventDate, setEventDate] = useState(date);
   const [time, setTime] = useState(initialValue?.time ?? "");
   const [category, setCategory] = useState(initialValue?.category ?? "");
   const [description, setDescription] = useState(initialValue?.description ?? "");
@@ -170,6 +174,10 @@ function EventForm({
     event.preventDefault();
     setError(null);
 
+    if (!eventDate) {
+      setError("Pick a date.");
+      return;
+    }
     if (!category) {
       setError("Select a category.");
       return;
@@ -179,7 +187,7 @@ function EventForm({
     const response = await fetch(isEdit ? `/api/events/${initialValue!.id}` : "/api/events", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, title, date, time: time || undefined, category, description: description || undefined }),
+      body: JSON.stringify({ organizationId, title, date: eventDate, time: time || undefined, category, description: description || undefined }),
     });
 
     setIsSubmitting(false);
@@ -207,11 +215,14 @@ function EventForm({
             <Input id="event-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Town hall meeting" required />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Date" htmlFor="event-date" required>
+              <Input id="event-date" type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} required />
+            </FormField>
             <FormField label="Time" htmlFor="event-time">
               <Input id="event-time" type="time" value={time} onChange={(event) => setTime(event.target.value)} />
             </FormField>
-            <OptionSelect label="Category" value={category} onChange={setCategory} options={categories} placeholder="Select a category" required />
           </div>
+          <OptionSelect label="Category" value={category} onChange={setCategory} options={categories} placeholder="Select a category" required />
           <FormField label="Description" htmlFor="event-description">
             <Textarea id="event-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Bring your own laptop for the workshop" />
           </FormField>

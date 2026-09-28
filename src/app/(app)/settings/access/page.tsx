@@ -1,3 +1,4 @@
+import { KeyRound, ShieldCheck, UserCog, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { RoleService } from "@/domains/authorization/role-service";
@@ -6,8 +7,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSearchInput } from "@/components/shared/table-search-input";
+import { MetricCard } from "@/components/shared/metric-card";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleFormDialog } from "./role-form-dialog";
 import { AssignRoleDialog } from "./assign-role-dialog";
 import { RevokeRoleAssignmentButton } from "./revoke-role-assignment-button";
@@ -49,6 +51,20 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
   const roleOptions = roles.filter((role) => role.status !== "inactive").map((role) => ({ id: role._id.toString(), label: role.name }));
   const memberOptions = members.map((member) => ({ id: member.userId, label: `${member.name} (${member.username})` }));
 
+  const membersByRoleId = new Map<string, number>();
+  for (const assignment of assignments) membersByRoleId.set(assignment.roleId.toString(), (membersByRoleId.get(assignment.roleId.toString()) ?? 0) + 1);
+  const peopleWithAccess = new Set(assignments.map((assignment) => assignment.userId.toString())).size;
+  const activeRoles = roles.filter((role) => role.status !== "inactive");
+  const unusedRoles = activeRoles.filter((role) => !membersByRoleId.has(role._id.toString())).length;
+  const initials = (name: string) =>
+    name
+      .split(/[\s._-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+
   const roleQuery = parseTableQuery(params, "name", "role");
   const { rows: rolePageRows } = applyTableQuery(roles, roleQuery, {
     searchFields: () => [],
@@ -75,9 +91,19 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
         description="Create custom roles with exactly the permissions they need, and assign them to people."
       />
 
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricCard label="Active roles" value={activeRoles.length} hint={`${roles.length - activeRoles.length} retired`} icon={ShieldCheck} />
+        <MetricCard label="People with access" value={peopleWithAccess} hint={`${members.length} accounts in total`} icon={Users} emphasis />
+        <MetricCard label="Role assignments" value={assignments.length} hint="Currently in effect" icon={UserCog} />
+        <MetricCard label="Unused roles" value={unusedRoles} hint={unusedRoles ? "No one holds them" : "Every role is in use"} icon={KeyRound} />
+      </div>
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Roles</CardTitle>
+          <div>
+            <CardTitle className="text-base">Roles</CardTitle>
+            <CardDescription>What each kind of user can see and do.</CardDescription>
+          </div>
           {canCreateRole && <RoleFormDialog organizationId={organizationId} availablePermissions={permissionOptions} />}
         </CardHeader>
         <CardContent>
@@ -95,9 +121,41 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                 ),
             }}
             columns={[
-              { key: "name", header: "Name", sortKey: "name", render: (role) => <span className="font-medium">{role.name}</span> },
-              { key: "description", header: "Description", render: (role) => role.description || "—" },
-              { key: "permissions", header: "Permissions", render: (role) => `${role.permissionKeys.length} granted` },
+              {
+                key: "name",
+                header: "Role",
+                sortKey: "name",
+                render: (role) => (
+                  <div className="flex flex-col">
+                    <span className="font-medium">{role.name}</span>
+                    {role.description && <span className="line-clamp-1 max-w-md text-xs whitespace-normal text-muted-foreground">{role.description}</span>}
+                  </div>
+                ),
+              },
+              {
+                key: "permissions",
+                header: "Permissions",
+                render: (role) => {
+                  const share = availablePermissions.length ? role.permissionKeys.length / availablePermissions.length : 0;
+                  return (
+                    <div className="flex w-36 flex-col gap-1">
+                      <span className="text-xs tabular-nums">
+                        <span className="font-medium">{role.permissionKeys.length}</span>
+                        <span className="text-muted-foreground"> of {availablePermissions.length}</span>
+                      </span>
+                      <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                        <span className="block h-full rounded-full bg-primary" style={{ width: `${Math.round(share * 100)}%` }} />
+                      </span>
+                    </div>
+                  );
+                },
+              },
+              {
+                key: "members",
+                header: "Members",
+                className: "text-right",
+                render: (role) => <span className="font-medium tabular-nums">{membersByRoleId.get(role._id.toString()) ?? 0}</span>,
+              },
               { key: "status", header: "Status", sortKey: "status", render: (role) => <StatusBadge status={role.status} /> },
               {
                 key: "action",
@@ -127,7 +185,10 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Access</CardTitle>
+          <div>
+            <CardTitle className="text-base">Access</CardTitle>
+            <CardDescription>Who holds which role, and since when.</CardDescription>
+          </div>
           {canAssign && <AssignRoleDialog organizationId={organizationId} members={memberOptions} roles={roleOptions} />}
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -156,19 +217,36 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                 key: "person",
                 header: "Person",
                 sortKey: "person",
-                render: (assignment) => memberByUserId.get(assignment.userId.toString())?.name ?? "—",
+                render: (assignment) => {
+                  const member = memberByUserId.get(assignment.userId.toString());
+                  const name = member?.name ?? "—";
+                  return (
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                        {initials(name)}
+                      </span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium">{name}</span>
+                        {member?.username && <span className="truncate text-xs text-muted-foreground">@{member.username}</span>}
+                      </span>
+                    </div>
+                  );
+                },
               },
               {
                 key: "role",
                 header: "Role",
                 sortKey: "role",
-                render: (assignment) => roleById.get(assignment.roleId.toString())?.name ?? "—",
+                render: (assignment) => {
+                  const role = roleById.get(assignment.roleId.toString());
+                  return role ? <StatusBadge status="role" label={role.name} tone="info" /> : "—";
+                },
               },
               {
                 key: "since",
                 header: "Since",
                 sortKey: "since",
-                render: (assignment) => new Date(assignment.effectiveFrom).toLocaleDateString(),
+                render: (assignment) => new Date(assignment.effectiveFrom).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
               },
               {
                 key: "action",
@@ -186,7 +264,10 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Staff accounts</CardTitle>
+          <div>
+            <CardTitle className="text-base">Staff accounts</CardTitle>
+            <CardDescription>Logins for HR and admin staff.</CardDescription>
+          </div>
           {canCreateStaffAccount && <CreateStaffAccountDialog organizationId={organizationId} roles={roleOptions} />}
         </CardHeader>
         <CardContent>

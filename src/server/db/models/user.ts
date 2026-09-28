@@ -29,6 +29,31 @@ const userSchema = new Schema(
     // secret in the same sense as passwordHash — a challenge is only
     // useful for one specific in-progress ceremony.
     webAuthnChallenge: { type: String },
+
+    // Sign-in protection (src/domains/identity/login-guard.ts): consecutive
+    // wrong passwords, and the lock they trigger.
+    failedSignInCount: { type: Number, default: 0 },
+    lockedUntil: { type: Date },
+    lastSignInAt: { type: Date },
+    lastSignInIp: { type: String },
+
+    // Password lifecycle: an account created or reset by an administrator
+    // must choose its own password at the next sign-in.
+    passwordChangedAt: { type: Date },
+    mustChangePassword: { type: Boolean, default: false },
+
+    // Two-factor sign-in with an authenticator app (TOTP, RFC 6238). The
+    // secret is stored encrypted (src/server/auth/secret-box.ts); recovery
+    // codes only as hashes. `pendingSecret` holds an enrollment in progress.
+    mfa: {
+      enabled: { type: Boolean, default: false },
+      secret: { type: String },
+      pendingSecret: { type: String },
+      recoveryCodeHashes: { type: [String], default: undefined },
+      enabledAt: { type: Date },
+      // The last accepted time step, so one code can't be replayed.
+      lastUsedStep: { type: Number },
+    },
   },
   { timestamps: true },
 );

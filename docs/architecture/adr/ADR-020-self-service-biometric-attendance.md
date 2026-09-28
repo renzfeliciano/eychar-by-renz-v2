@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — partially superseded by ADR-026: geolocation and the photo are no longer best-effort.
+Clock-in/out now requires a GPS fix inside the selected project's site radius and a live photo taken
+after a face-liveness challenge.
 
 ## Context
 

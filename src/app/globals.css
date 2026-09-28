@@ -48,16 +48,17 @@
   --events: oklch(0.55 0.23 302);
   --events-foreground: oklch(0.98 0 0);
 
-  /* Complements the existing primary blue with violet rather than replacing
-     it — reserved for hero surfaces (dashboard, login), not every button. */
-  --gradient-brand: linear-gradient(135deg, oklch(0.546 0.245 262.881), oklch(0.55 0.23 302));
+  /* Restrained by design (impeccable Operate mode, taste-skill): one brand
+     blue, used for primary actions, selection and state — no blue→violet
+     brand gradient and no brand-colored glow halos. Depth comes from
+     neutral shadows with a real offset, the way physical light works. */
   --shadow-soft: 0 1px 2px oklch(0.145 0 0 / 4%), 0 4px 12px -4px oklch(0.145 0 0 / 8%);
-  --shadow-glow: 0 0 0 1px oklch(0.546 0.245 262.881 / 15%), 0 4px 20px -2px oklch(0.546 0.245 262.881 / 35%);
-  /* A dialog sits over a blurred backdrop with nothing else to read depth
-     from, so it gets a stronger lift than a card: a real drop shadow plus
-     a faint brand-colored halo, rather than the card's barely-there
-     shadow-soft. */
-  --shadow-modal: 0 25px 50px -12px oklch(0.145 0 0 / 22%), 0 0 0 1px oklch(0.546 0.245 262.881 / 12%), 0 12px 28px -6px oklch(0.546 0.245 262.881 / 22%);
+  /* One step up from shadow-soft, for surfaces that float over content
+     (the login card, a dragged applicant card). */
+  --shadow-raised: 0 1px 2px oklch(0.145 0 0 / 5%), 0 12px 32px -12px oklch(0.145 0 0 / 22%);
+  /* A dialog has nothing but a dimmed page to read depth from, so it gets
+     the strongest neutral lift. */
+  --shadow-modal: 0 25px 50px -12px oklch(0.145 0 0 / 22%), 0 12px 28px -6px oklch(0.145 0 0 / 12%);
   --glass-bg: oklch(1 0 0 / 70%);
   --glass-border: oklch(1 0 0 / 40%);
 
@@ -120,10 +121,9 @@
   --events: oklch(0.65 0.2 302);
   --events-foreground: oklch(0.145 0 0);
 
-  --gradient-brand: linear-gradient(135deg, oklch(0.707 0.165 254.624), oklch(0.65 0.2 302));
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 20%), 0 4px 12px -4px oklch(0 0 0 / 30%);
-  --shadow-glow: 0 0 0 1px oklch(0.707 0.165 254.624 / 25%), 0 4px 20px -2px oklch(0.707 0.165 254.624 / 45%);
-  --shadow-modal: 0 25px 50px -12px oklch(0 0 0 / 55%), 0 0 0 1px oklch(0.707 0.165 254.624 / 20%), 0 12px 28px -6px oklch(0.707 0.165 254.624 / 30%);
+  --shadow-raised: 0 1px 2px oklch(0 0 0 / 25%), 0 12px 32px -12px oklch(0 0 0 / 60%);
+  --shadow-modal: 0 25px 50px -12px oklch(0 0 0 / 55%), 0 12px 28px -6px oklch(0 0 0 / 35%);
   --glass-bg: oklch(0.205 0 0 / 65%);
   --glass-border: oklch(1 0 0 / 12%);
 
@@ -189,7 +189,16 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --color-gradient-brand: var(--gradient-brand);
+
+  /* Motion (emil-design-eng): the built-in CSS curves are too soft to feel
+     intentional. These replace Tailwind's `ease-out`/`ease-in-out` and are
+     the default for every `transition-*` utility, so the whole app moves
+     with one voice. `ease-in` is deliberately left unused — it delays the
+     first frame, the exact moment the user is watching. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --default-transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 @layer base {
@@ -201,6 +210,39 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* Anything clickable shows the hand cursor. Tailwind v4's preflight
+     resets buttons to the default arrow, so this sets it once for every
+     button, link and interactive role instead of per component. Disabled
+     controls say so with not-allowed. Utilities (cursor-grab on drag
+     handles, etc.) still win, since they sit in a later layer. */
+  button,
+  a[href],
+  summary,
+  select,
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="date"],
+  input[type="month"],
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="switch"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="menuitemcheckbox"],
+  [role="option"],
+  [role="combobox"] {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"],
+  [data-disabled] {
+    cursor: not-allowed;
   }
 
   /* Firefox: thin track, transparent by default so it only shows an
@@ -227,25 +269,52 @@
   ::-webkit-scrollbar-thumb:hover {
     background-color: var(--muted-foreground);
   }
+
+  /* Browser-drawn surfaces carry the palette too (impeccable craft floor):
+     the default blue selection and black caret belong to no design system. */
+  ::selection {
+    background-color: color-mix(in oklch, var(--primary) 24%, transparent);
+    color: var(--foreground);
+  }
+  input,
+  textarea {
+    caret-color: var(--primary);
+  }
+}
+
+/* Reduced motion means gentler, not none (emil-design-eng): keep the fades
+   that help comprehension, drop the movement. tw-animate-css drives every
+   enter/exit (dialogs, dropdowns, toasts, the login card) through these
+   variables, so zeroing them removes slide/zoom app-wide while opacity
+   still eases. !important because the utility classes set them per element. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+    --tw-enter-scale: 1 !important;
+    --tw-enter-rotate: 0 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+    --tw-exit-scale: 1 !important;
+    --tw-exit-rotate: 0 !important;
+  }
 }
 
 @layer utilities {
   /*
-   * Glassmorphism, used sparingly: the topbar, dialog overlays, and the
-   * login card. Never on data tables — translucency over dense tabular
-   * data hurts legibility, which would cut against our own accessibility
-   * bar. backdrop-filter degrades gracefully to a plain translucent panel
-   * in browsers/print contexts that don't support it.
+   * Glass only where it does a job (impeccable: never as decoration): the
+   * sticky top bars, where page content scrolls underneath and the blur
+   * keeps the bar legible while showing there's more above. Not dialogs,
+   * not cards, never data tables. backdrop-filter degrades gracefully to a
+   * plain translucent panel where unsupported.
    */
   .glass-surface {
     background-color: var(--glass-bg);
     border-color: var(--glass-border);
     backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
-  }
-
-  .bg-gradient-brand {
-    background-image: var(--gradient-brand);
   }
 
   /*
@@ -259,10 +328,13 @@
   }
 }
 
+/* Short and tight (≤250ms, 40ms steps): this is a product surface people
+   land on every day, so the cascade must read as "settled", never as a
+   sequence to wait through (impeccable Operate mode; emil stagger rule). */
 @media (prefers-reduced-motion: no-preference) {
   .stagger-in {
-    animation: stagger-in 400ms ease-out backwards;
-    animation-delay: calc(var(--stagger-index, 0) * 60ms);
+    animation: stagger-in 250ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+    animation-delay: calc(var(--stagger-index, 0) * 40ms);
   }
 }
 
@@ -301,6 +373,27 @@
 @media (prefers-reduced-motion: no-preference) {
   .login-visual-kenburns {
     animation: login-visual-kenburns 20s ease-in-out infinite alternate;
+  }
+}
+
+/* The active photo's progress bar fills over its turn (scaleX: compositor-only).
+   Reduced motion shows it full and still: the position still reads, nothing moves. */
+.login-progress-fill {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .login-progress-fill {
+    animation: login-progress var(--login-slide-ms, 7000ms) linear both;
+  }
+}
+
+@keyframes login-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 

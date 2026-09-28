@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       organizationId: request.nextUrl.searchParams.get("organizationId"),
     });
     await requirePermission("compensation.read", organizationId);
-    const compensationRecords = await CompensationService.listCurrent(organizationId);
+    const compensationRecords = await CompensationService.listForOrganization(organizationId);
     return NextResponse.json({ compensationRecords });
   } catch (error) {
     return toErrorResponse(error);

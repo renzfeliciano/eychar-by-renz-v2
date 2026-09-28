@@ -10,6 +10,7 @@ import {
   PersonModel,
   RoleAssignmentModel,
   PayrollRuleVersionModel,
+  PayrollPolicyModel,
   EmploymentTypeModel,
   EmploymentStatusModel,
   AttendanceStatusModel,
@@ -23,6 +24,9 @@ import {
   ProjectModel,
 } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
+import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
+import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
+import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
 import type { Model } from "mongoose";
 
 config({ path: ".env.local", override: true });
@@ -99,9 +103,14 @@ const BASELINE_PERMISSIONS = [
   { key: "compensation.create", description: "Grant employee compensation", category: "payroll" },
   { key: "compensation.read", description: "View employee compensation", category: "payroll" },
   { key: "compensation.update", description: "Revise employee compensation", category: "payroll" },
-  { key: "payroll-runs.create", description: "Generate payroll runs", category: "payroll" },
-  { key: "payroll-runs.read", description: "View payroll runs and records", category: "payroll" },
-  { key: "payroll.approve", description: "Approve payroll runs", category: "payroll" },
+  { key: "payroll-runs.create", description: "Prepare payroll runs", category: "payroll" },
+  { key: "payroll-runs.read", description: "View payroll runs, payslips and registers", category: "payroll" },
+  { key: "payroll-runs.update", description: "Edit, recompute, submit and cancel draft payroll runs", category: "payroll" },
+  { key: "payroll.approve", description: "Approve or return payroll runs", category: "payroll" },
+  { key: "payroll.release", description: "Release approved payroll runs as paid", category: "payroll" },
+  { key: "payroll-schedules.create", description: "Create payroll schedules", category: "payroll" },
+  { key: "payroll-schedules.read", description: "View payroll schedules", category: "payroll" },
+  { key: "payroll-schedules.update", description: "Update payroll schedules", category: "payroll" },
 
   { key: "employment-types.create", description: "Add employment type catalog items", category: "settings" },
   { key: "employment-types.read", description: "View employment type catalog items", category: "settings" },
@@ -156,6 +165,9 @@ const BASELINE_PERMISSIONS = [
   { key: "roles.update", description: "Edit a role's permissions or retire it", category: "access" },
   { key: "roles.assign", description: "Assign or revoke a role for a user", category: "access" },
   { key: "staff-accounts.create", description: "Create an additional HR/admin login", category: "access" },
+  { key: "users.read", description: "View accounts and their security state", category: "access" },
+  { key: "users.update", description: "Reset passwords, unlock, disable accounts and reset two-step verification", category: "access" },
+  { key: "audit-logs.read", description: "View the audit log", category: "access" },
 
   { key: "events.create", description: "Add a calendar event", category: "events" },
   { key: "events.read", description: "View calendar events", category: "events" },
@@ -304,33 +316,48 @@ async function seed() {
     });
   }
 
-  // One illustrative example PayrollRuleVersion, seeded only once (never
-  // re-created on a later seed run, since PayrollRuleVersionService.create
-  // always auto-increments — re-running this unconditionally would pile up
-  // a new version every time). PH-shaped tax brackets and named statutory
-  // contributions (SSS/PhilHealth/Pag-IBIG-shaped) live here as pure seeded
-  // DATA, never as hardcoded formulas in application code (AGENTS.md §28)
-  // — the numbers are illustrative, not authoritative rates or tax advice.
-  const hasRuleVersion = await PayrollRuleVersionModel.exists({ organizationId: organization._id });
-  if (!hasRuleVersion) {
-    await PayrollRuleVersionModel.create({
-      organizationId: organization._id,
-      versionNumber: 1,
-      description: "Illustrative example rule version — not authoritative tax or contribution rates.",
-      taxBrackets: [
-        { minIncome: 0, maxIncome: 20833, rate: 0, baseDeduction: 0 },
-        { minIncome: 20833, maxIncome: 33333, rate: 0.15, baseDeduction: 0 },
-        { minIncome: 33333, maxIncome: 66667, rate: 0.2, baseDeduction: 1875 },
-        { minIncome: 66667, maxIncome: 166667, rate: 0.25, baseDeduction: 13541.8 },
-        { minIncome: 166667, maxIncome: 666667, rate: 0.3, baseDeduction: 38541.8 },
-        { minIncome: 666667, rate: 0.35, baseDeduction: 188541.8 },
-      ],
-      statutoryContributions: [
-        { name: "SSS", employeeRate: 0.045, cap: 30000 },
-        { name: "PhilHealth", employeeRate: 0.025, cap: 100000 },
-        { name: "Pag-IBIG", employeeRate: 0.02, cap: 10000 },
-      ],
+  // Payroll starters (ADR-029), as editable DATA, never formulas in code
+  // (AGENTS.md §28): the Philippine 2025 statutory tables as a rule version,
+  // and a semi-monthly policy. Each is created only when the organization
+  // has none of its own. Older rule versions without withholding tables
+  // (the pre-ADR-029 example) are retired so they can't resolve for a run.
+  const legacyRuleVersions = await PayrollRuleVersionModel.find({ organizationId: organization._id, status: "active", "taxTables.0": { $exists: false } });
+  for (const legacy of legacyRuleVersions) {
+    legacy.status = "inactive";
+    legacy.effectiveTo = new Date();
+    await legacy.save({ validateBeforeSave: false });
+    await AuditService.record({
+      organizationId: organization._id.toString(),
+      action: "payroll-rule-version.updated",
+      resourceType: "PayrollRuleVersion",
+      resourceId: legacy._id.toString(),
+      before: { status: "active" },
+      after: { status: "inactive" },
+      metadata: { source: "seed", reason: "Replaced by the rule version format with withholding tables" },
     });
+  }
+  const hasCurrentRuleVersion = await PayrollRuleVersionModel.exists({ organizationId: organization._id, "taxTables.0": { $exists: true } });
+  if (!hasCurrentRuleVersion) {
+    await PayrollRuleVersionService.create(
+      { organizationId: organization._id.toString(), ...PH_STATUTORY_2025, effectiveFrom: "2025-01-01" },
+      {},
+    );
+  }
+  if (!(await PayrollPolicyModel.exists({ organizationId: organization._id }))) {
+    await PayrollPolicyService.create(
+      {
+        organizationId: organization._id.toString(),
+        name: "Standard semi-monthly",
+        payFrequency: "semi-monthly",
+        workDaysPerYear: 261,
+        hoursPerDay: 8,
+        workWeekDays: [1, 2, 3, 4, 5],
+        deductLateAndUndertime: true,
+        contributionTiming: "every_cutoff",
+        effectiveFrom: "2025-01-01",
+      },
+      {},
+    );
   }
 
   // Default catalog items, sourced from the v1 (legacy) app's real

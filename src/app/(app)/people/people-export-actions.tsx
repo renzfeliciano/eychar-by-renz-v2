@@ -1,8 +1,7 @@
 "use client";
 
-import { Download, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { downloadCsv } from "@/lib/csv";
+import { TableExportActions } from "@/components/shared/table-export-actions";
+import type { TableExportSpec } from "@/lib/export/table-export";
 
 export type PeopleExportRow = {
   employeeNumber: string;
@@ -23,60 +22,39 @@ export type PeopleExportRow = {
   tinNumber: string;
 };
 
-const CSV_HEADERS = [
-  "#",
-  "Employee number",
-  "Employee name",
-  "Gender",
-  "Position",
-  "Project/site",
-  "Employment status",
-  "Age",
-  "Length of service",
-  "Date hired",
-  "Birth date",
-  "Contact number",
-  "Address",
-  "SSS no",
-  "PhilHealth no",
-  "Pag-IBIG no",
-  "TIN no",
-];
+const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
+  title: "Employee roster",
+  sheetName: "Employees",
+  noun: ["employee", "employees"],
+  columns: [
+    { header: "Employee number", width: 16, value: (row) => row.employeeNumber },
+    { header: "Employee name", width: 28, value: (row) => row.name },
+    { header: "Gender", width: 10, value: (row) => row.gender },
+    { header: "Position", width: 22, value: (row) => row.position },
+    { header: "Project/site", width: 22, value: (row) => row.project },
+    { header: "Employment status", width: 18, value: (row) => row.employmentStatus },
+    { header: "Age", width: 6, value: (row) => (row.age ? Number(row.age) : null) },
+    { header: "Length of service", width: 18, value: (row) => row.lengthOfService },
+    { header: "Date hired", width: 12, value: (row) => row.dateHired },
+    { header: "Birth date", width: 12, value: (row) => row.birthDate },
+    { header: "Contact number", width: 16, value: (row) => row.contactNumber },
+    { header: "Address", width: 40, wrap: true, value: (row) => row.address },
+    { header: "SSS no", width: 15, value: (row) => row.sssNumber },
+    { header: "PhilHealth no", width: 16, value: (row) => row.philHealthNumber },
+    { header: "Pag-IBIG no", width: 16, value: (row) => row.pagIbigNumber },
+    { header: "TIN no", width: 16, value: (row) => row.tinNumber },
+  ],
+};
 
-function exportPeopleCsv(rows: PeopleExportRow[]) {
-  const csvRows = rows.map((row, index) => [
-    index + 1,
-    row.employeeNumber,
-    row.name,
-    row.gender,
-    row.position,
-    row.project,
-    row.employmentStatus,
-    row.age,
-    row.lengthOfService,
-    row.dateHired,
-    row.birthDate,
-    row.contactNumber,
-    row.address,
-    row.sssNumber,
-    row.philHealthNumber,
-    row.pagIbigNumber,
-    row.tinNumber,
-  ]);
-  downloadCsv(CSV_HEADERS, csvRows, "workforcehub-employees.csv");
-}
-
-export function PeopleExportActions({ rows }: { rows: PeopleExportRow[] }) {
+export function PeopleExportActions({ rows, organizationName }: { rows: PeopleExportRow[]; organizationName: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={() => exportPeopleCsv(rows)} disabled={rows.length === 0} data-testid="people-export-csv-button">
-        <Download className="size-3.5" />
-        Export CSV
-      </Button>
-      <Button type="button" variant="outline" size="sm" onClick={() => window.print()} disabled={rows.length === 0} data-testid="people-print-button">
-        <Printer className="size-3.5" />
-        Print
-      </Button>
-    </div>
+    <TableExportActions
+      spec={PEOPLE_EXPORT}
+      rows={rows}
+      organizationName={organizationName}
+      fileKey="employees"
+      testIdPrefix="people"
+      note="It includes statutory IDs and contact details, so share it only with people who need them."
+    />
   );
 }

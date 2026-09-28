@@ -59,18 +59,36 @@ export default async function CatalogsSettingsPage() {
         title="Catalogs"
         description="Org-managed option lists used across employee records — add or retire values without touching code."
       />
-      {visibleSections.map((section) => (
-        <CatalogSection
-          key={section.catalogType}
-          organizationId={organizationId}
-          catalogType={section.catalogType}
-          title={section.title}
-          description={section.description}
-          items={section.items}
-          canCreate={section.canCreate}
-          canUpdate={section.canUpdate}
-        />
-      ))}
+      {/* A sticky index of every list with its size, so a long settings page is one jump away from any catalog. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <nav aria-label="Catalogs" className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-2 shadow-[var(--shadow-soft)] lg:sticky lg:top-0 lg:flex-col lg:overflow-visible">
+          {visibleSections.map((section) => (
+            <a
+              key={section.catalogType}
+              href={`#${section.catalogType}`}
+              className="flex shrink-0 items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <span className="truncate">{section.title}</span>
+              <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{section.items.filter((item) => item.status === "active").length}</span>
+            </a>
+          ))}
+        </nav>
+        <div className="flex min-w-0 flex-col gap-6">
+          {visibleSections.map((section) => (
+            <section key={section.catalogType} id={section.catalogType} className="scroll-mt-4">
+              <CatalogSection
+                organizationId={organizationId}
+                catalogType={section.catalogType}
+                title={section.title}
+                description={section.description}
+                items={section.items}
+                canCreate={section.canCreate}
+                canUpdate={section.canUpdate}
+              />
+            </section>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

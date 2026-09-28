@@ -1,8 +1,7 @@
 "use client";
 
-import { Download, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { downloadCsv } from "@/lib/csv";
+import { TableExportActions } from "@/components/shared/table-export-actions";
+import type { TableExportSpec } from "@/lib/export/table-export";
 
 export type TravelOrderExportRow = {
   employees: string;
@@ -12,24 +11,21 @@ export type TravelOrderExportRow = {
   status: string;
 };
 
-const CSV_HEADERS = ["#", "Employees", "Start date", "End date", "Remarks", "Status"];
+const TRAVEL_ORDER_EXPORT: TableExportSpec<TravelOrderExportRow> = {
+  title: "Travel orders",
+  sheetName: "Travel orders",
+  noun: ["travel order", "travel orders"],
+  columns: [
+    { header: "Employees", width: 40, wrap: true, value: (row) => row.employees },
+    { header: "Start date", width: 13, value: (row) => row.startDate },
+    { header: "End date", width: 13, value: (row) => row.endDate },
+    { header: "Remarks", width: 50, wrap: true, value: (row) => row.remarks },
+    { header: "Status", width: 13, value: (row) => row.status },
+  ],
+};
 
-function exportTravelOrdersCsv(rows: TravelOrderExportRow[]) {
-  const csvRows = rows.map((row, index) => [index + 1, row.employees, row.startDate, row.endDate, row.remarks, row.status]);
-  downloadCsv(CSV_HEADERS, csvRows, "workforcehub-travel-orders.csv");
-}
-
-export function TravelOrderExportActions({ rows }: { rows: TravelOrderExportRow[] }) {
+export function TravelOrderExportActions({ rows, organizationName }: { rows: TravelOrderExportRow[]; organizationName: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={() => exportTravelOrdersCsv(rows)} disabled={rows.length === 0} data-testid="travel-orders-export-csv-button">
-        <Download className="size-3.5" />
-        Export CSV
-      </Button>
-      <Button type="button" variant="outline" size="sm" onClick={() => window.print()} disabled={rows.length === 0} data-testid="travel-orders-print-button">
-        <Printer className="size-3.5" />
-        Print
-      </Button>
-    </div>
+    <TableExportActions spec={TRAVEL_ORDER_EXPORT} rows={rows} organizationName={organizationName} fileKey="travel-orders" testIdPrefix="travel-orders" />
   );
 }

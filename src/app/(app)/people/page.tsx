@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserPlus, Users2 } from "lucide-react";
+import { CalendarClock, IdCard, UserPlus, Users2 } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSearchInput } from "@/components/shared/table-search-input";
+import { MetricCard } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { calculateAge, formatLengthOfService } from "@/lib/employee-dates";
 import { formatPersonName } from "@/lib/person-name";
@@ -89,6 +90,19 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     .filter((status) => statusCounts.has(status.code))
     .map((status) => ({ code: status.code, name: status.name, count: statusCounts.get(status.code)! }));
 
+  // The summary strip: headcount, recent hires, contracts about to end, and
+  // records missing government IDs (a compliance to-do, not a statistic).
+  const activeCodes = new Set(employmentStatuses.filter((status) => status.metadata?.isActiveHeadcount).map((status) => status.code));
+  const currentStaff = fullRoster.filter((row) => activeCodes.size === 0 || activeCodes.has(row.currentEmployment?.status ?? ""));
+  const now = new Date().getTime();
+  const DAY_MS = 86_400_000;
+  const newHires = currentStaff.filter((row) => row.currentEmployment?.effectiveFrom && now - new Date(row.currentEmployment.effectiveFrom).getTime() <= 90 * DAY_MS).length;
+  const endingSoon = currentStaff.filter((row) => {
+    const end = row.currentEmployment?.endOfContract ? new Date(row.currentEmployment.endOfContract).getTime() : null;
+    return end !== null && end >= now - DAY_MS && end - now <= 30 * DAY_MS;
+  }).length;
+  const missingIds = currentStaff.filter((row) => !row.person?.sssNumber || !row.person?.philHealthNumber || !row.person?.pagIbigNumber || !row.person?.tinNumber).length;
+
   const exportRows: PeopleExportRow[] = roster.map((row) => {
     const dateHired = row.currentEmployment?.effectiveFrom;
     const birthDate = row.person?.birthDate;
@@ -120,7 +134,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           description="Search and manage every employee — statutory IDs are included in exports and prints."
           action={
             <div className="flex items-center gap-2">
-              <PeopleExportActions rows={exportRows} />
+              <PeopleExportActions rows={exportRows} organizationName={organization.name} />
               <Link href="/people/new" className={buttonVariants()}>
                 <UserPlus className="size-4" />
                 Add employee
@@ -129,25 +143,35 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           }
         />
 
-        {statusSummary.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-card px-4 py-3 text-sm shadow-[var(--shadow-soft)]">
-            <span className="flex items-center gap-2 font-semibold">
-              <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
-                <Users2 className="size-3.5" />
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard
+            label="Active headcount"
+            value={currentStaff.length}
+            hint={
+              <span className="flex items-center gap-2">
+                {statusSummary.slice(0, 3).map((status) => (
+                  <span key={status.code} className="flex items-center gap-1">
+                    <span aria-hidden="true" className={`size-1.5 rounded-full ${STATUS_DOT_TONE[status.code] ?? "bg-muted-foreground"}`} />
+                    {status.name} {status.count}
+                  </span>
+                ))}
               </span>
-              {fullRoster.length} employee{fullRoster.length === 1 ? "" : "s"}
-            </span>
-            <span aria-hidden="true" className="h-4 w-px bg-border" />
-            {statusSummary.map((status) => (
-              <span key={status.code} className="flex items-center gap-1.5 text-muted-foreground">
-                <span aria-hidden="true" className={`size-2 rounded-full ${STATUS_DOT_TONE[status.code] ?? "bg-muted-foreground"}`} />
-                {status.name} <span className="font-medium text-foreground">{status.count}</span>
-              </span>
-            ))}
-          </div>
-        )}
+            }
+            icon={Users2}
+            emphasis
+          />
+          <MetricCard label="New hires" value={newHires} hint="In the last 90 days" icon={UserPlus} />
+          <MetricCard label="Contracts ending" value={endingSoon} hint="In the next 30 days" icon={CalendarClock} tone={endingSoon ? "warning" : "default"} />
+          <MetricCard
+            label="Incomplete gov't IDs"
+            value={missingIds}
+            hint={missingIds ? "Missing SSS, PhilHealth, Pag-IBIG or TIN" : "All IDs on file"}
+            icon={IdCard}
+            tone={missingIds ? "warning" : "success"}
+          />
+        </div>
 
-        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-[var(--shadow-soft)] sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-[var(--shadow-soft)] sm:flex-row sm:items-end">
           <TableSearchInput placeholder="Search by name, employee #, or position…" />
           <span aria-hidden="true" className="hidden h-9 w-px bg-border sm:block" />
           <PeopleFilters employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))} />
@@ -179,11 +203,26 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               // scrolling right through position/project/tenure — otherwise
               // every column past "Employee #" is anonymous while scrolled.
               className: "sticky left-0 z-10 border-r bg-card",
-              render: (row) => (
-                <Link href={`/people/${row._id.toString()}`} className="font-medium text-primary hover:underline">
-                  {row.person ? formatPersonName(row.person) : "—"}
-                </Link>
-              ),
+              render: (row) => {
+                const name = row.person ? formatPersonName(row.person) : "—";
+                return (
+                  <Link href={`/people/${row._id.toString()}`} className="group flex items-center gap-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                      {name
+                        .split(" ")
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((part) => part[0])
+                        .join("")
+                        .toUpperCase()}
+                    </span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-foreground group-hover:text-primary group-hover:underline">{name}</span>
+                      {row.person?.email && <span className="truncate text-xs text-muted-foreground">{row.person.email}</span>}
+                    </span>
+                  </Link>
+                );
+              },
             },
             { key: "employeeNumber", header: "Employee #", sortKey: "employeeNumber", render: (row) => row.employeeNumber ?? "—" },
             { key: "status", header: "Employment status", sortKey: "status", render: (row) => <StatusBadge status={row.currentEmployment?.status} /> },

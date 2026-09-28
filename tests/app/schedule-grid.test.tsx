@@ -1,0 +1,171 @@
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ScheduleGrid } from "@/app/(app)/attendance/schedules/schedule-grid";
+import { monthDays, type ScheduleMonthView } from "@/domains/attendance/schedule-service";
+
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
+
+const VIEW: ScheduleMonthView = {
+  month: "2026-10",
+  label: "October 2026",
+  days: monthDays("2026-10"),
+  rows: [
+    {
+      employeeId: "e1",
+      employeeNumber: "EMP-001",
+      name: "Angela Santos",
+      cells: { "2026-10-01": { shiftTemplateId: "s1", code: "D", name: "Day", kind: "work", startTime: "08:00", endTime: "17:00", projectId: "p1", projectName: "EGI Rufino" } },
+    },
+    { employeeId: "e2", employeeNumber: "EMP-002", name: "Carlos Villanueva", cells: {} },
+  ],
+};
+
+const SHIFTS = [
+  { id: "s1", name: "Day", code: "D", kind: "work" as const, startTime: "08:00", endTime: "17:00", status: "active" },
+  { id: "s2", name: "Rest day", code: "RD", kind: "rest" as const, startTime: null, endTime: null, status: "active" },
+];
+
+function renderGrid(overrides: Partial<Parameters<typeof ScheduleGrid>[0]> = {}) {
+  return render(
+    <ScheduleGrid organizationId="org1" view={VIEW} shifts={SHIFTS} projects={[{ id: "p1", label: "EGI Rufino" }]} canUpdate todayKey="2026-10-01" {...overrides} />,
+  );
+}
+
+let fetchMock: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  refresh.mockReset();
+  fetchMock = vi.fn(async () => new Response(JSON.stringify({ saved: 1, cleared: 0 }), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+});
+
+describe("ScheduleGrid", () => {
+  it("shows each scheduled day's shift code and site, with a readable label", () => {
+    renderGrid();
+    const cell = screen.getByRole("button", { name: /Angela Santos, Thursday 1: Day 08:00–17:00 at EGI Rufino/ });
+    expect(within(cell).getByText("D")).toBeInTheDocument();
+    expect(within(cell).getByText("EGI Rufino")).toBeInTheDocument();
+  });
+
+  it("selects a range within a row with shift-click", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.click(screen.getByRole("button", { name: "Carlos Villanueva, Monday 5: not scheduled" }));
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByRole("button", { name: "Carlos Villanueva, Friday 9: not scheduled" }));
+    await user.keyboard("{/Shift}");
+
+    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("5 days selected");
+  });
+
+  it("selects a whole row from the name, and a whole column from the date", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.click(screen.getByTitle("Select all of Carlos Villanueva's days"));
+    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("31 days selected");
+
+    await user.click(screen.getByTitle("Select all of Carlos Villanueva's days"));
+    await user.click(screen.getByTitle("Select everyone on 2026-10-05"));
+    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("2 days selected");
+  });
+
+  it("assigns the chosen shift and project to every selected day", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.click(screen.getByTitle("Select everyone on 2026-10-05"));
+    await user.click(screen.getByTestId("schedule-assign-button"));
+    await user.click(screen.getByTestId("schedule-shift-select"));
+    await user.click(await screen.findByRole("option", { name: /D · Day/ }));
+    await user.click(screen.getByTestId("schedule-project-select"));
+    await user.click(await screen.findByRole("option", { name: "EGI Rufino" }));
+    await user.click(screen.getByTestId("schedule-assign-submit-button"));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/attendance/schedules");
+    expect(JSON.parse(init.body)).toEqual({
+      organizationId: "org1",
+      entries: [
+        { employeeId: "e1", date: "2026-10-05", shiftTemplateId: "s1", projectId: "p1" },
+        { employeeId: "e2", date: "2026-10-05", shiftTemplateId: "s1", projectId: "p1" },
+      ],
+    });
+  });
+
+  it("is read-only without edit permission", () => {
+    renderGrid({ canUpdate: false });
+    expect(screen.queryByRole("button", { name: /not scheduled/ })).not.toBeInTheDocument();
+    expect(within(screen.getByTitle(/Angela Santos, Thursday 1: Day/)).getByText("D")).toBeInTheDocument();
+  });
+
+  it("keeps the how-to hint on screen while days are selected", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+    const hint = /Select days to schedule\. Shift-click selects a range; click a name or date to select the whole row or column\./;
+
+    expect(screen.getByText(hint)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Carlos Villanueva, Monday 5: not scheduled" }));
+    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("1 day selected");
+    expect(screen.getByText(hint)).toBeInTheDocument();
+  });
+
+  it("drags across cells to select a block spanning several employees", () => {
+    renderGrid();
+    const start = screen.getByRole("button", { name: "Angela Santos, Monday 5: not scheduled" });
+    const end = screen.getByRole("button", { name: "Carlos Villanueva, Wednesday 7: not scheduled" });
+
+    fireEvent.pointerDown(start, { button: 0, pointerType: "mouse" });
+    fireEvent.pointerEnter(end, { pointerType: "mouse" });
+    fireEvent.pointerUp(window);
+    fireEvent.click(end);
+
+    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("6 days selected");
+  });
+
+  it("extends a shift-click selection across employees as a block", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.click(screen.getByRole("button", { name: "Angela Santos, Monday 5: not scheduled" }));
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByRole("button", { name: "Carlos Villanueva, Tuesday 6: not scheduled" }));
+    await user.keyboard("{/Shift}");
+
+    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("4 days selected");
+  });
+
+  it("applies a shift in one click, keeping each day's project", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.click(screen.getByTitle("Select everyone on 2026-10-01"));
+    await user.click(screen.getByRole("button", { name: "Apply D · Day" }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).entries).toEqual([
+      { employeeId: "e1", date: "2026-10-01", shiftTemplateId: "s1", projectId: "p1" },
+      { employeeId: "e2", date: "2026-10-01", shiftTemplateId: "s1" },
+    ]);
+  });
+
+  it("filters the roster by name or employee number", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.type(screen.getByRole("searchbox", { name: "Find employee" }), "emp-002");
+    expect(screen.queryByTestId("schedule-row-e1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("schedule-row-e2")).toBeInTheDocument();
+  });
+
+  it("explains how to start when no shifts exist yet", () => {
+    renderGrid({ shifts: [] });
+    expect(screen.getByText(/Add shifts first/)).toBeInTheDocument();
+  });
+});

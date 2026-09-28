@@ -8,14 +8,9 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, employeeId, organizationId } = await requireSelfServiceEmployee();
     const input = selfServiceClockInSchema.parse(await request.json());
-    const record = await SelfServiceAttendanceService.checkIn(
-      employeeId,
-      organizationId,
-      userId,
-      { latitude: input.latitude, longitude: input.longitude, accuracy: input.accuracy, photo: input.photo, webAuthn: input.webAuthn },
-      { userId },
-    );
-    return NextResponse.json({ record }, { status: 201 });
+    const record = await SelfServiceAttendanceService.checkIn(employeeId, organizationId, userId, input, { userId });
+    // Not the whole record — that would echo the just-uploaded photo back.
+    return NextResponse.json({ record: { checkInAt: record.checkInAt, status: record.status } }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);
   }

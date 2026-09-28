@@ -188,4 +188,54 @@ describe("LeaveBalanceService", () => {
     expect(balances).toHaveLength(2);
     expect(balances.every((balance) => balance.employeeId.toString() === employee._id.toString())).toBe(true);
   });
+
+  it("summarizes a year's balances with used, pending and available days, in one pass", async () => {
+    const { organization, employee, leaveType } = await seedOrgEmployeeAndType("6");
+    const organizationId = organization._id.toString();
+    const sick = await LeaveTypeService.create({ organizationId, name: "Sick", code: "SICK-6" }, {});
+    const vacation = await LeaveBalanceService.create({ organizationId, employeeId: employee._id.toString(), leaveTypeId: leaveType._id.toString(), year: 2026, entitledDays: 15 }, {});
+    await LeaveBalanceService.adjust(vacation._id.toString(), organizationId, { adjustmentDays: 1.5 }, {});
+    await LeaveBalanceService.create({ organizationId, employeeId: employee._id.toString(), leaveTypeId: sick._id.toString(), year: 2026, hasNoFixedAmount: true }, {});
+    const request = (leaveTypeId: unknown, startDate: string, totalDays: number, status: string) =>
+      LeaveRequestModel.create({ organizationId, employeeId: employee._id, leaveTypeId, startDate: new Date(startDate), endDate: new Date(startDate), totalDays, status });
+    await request(leaveType._id, "2026-02-01", 3, "approved");
+    await request(leaveType._id, "2026-03-01", 2, "pending");
+    await request(leaveType._id, "2025-12-01", 4, "approved"); // another year
+    await request(sick._id, "2026-05-01", 1, "approved");
+
+    const summary = await LeaveBalanceService.summarizeForYear(organizationId, 2026);
+
+    expect(summary.find((row) => row.leaveTypeId === leaveType._id.toString())).toMatchObject({
+      employeeId: employee._id.toString(),
+      balanceId: vacation._id.toString(),
+      entitledDays: 15,
+      adjustmentDays: 1.5,
+      usedDays: 3,
+      pendingDays: 2,
+      availableDays: 13.5,
+      unlimited: false,
+    });
+    expect(summary.find((row) => row.leaveTypeId === sick._id.toString())).toMatchObject({ usedDays: 1, availableDays: null, unlimited: true });
+  });
+
+  it("grants a leave type to every current employee who doesn't have it for the year yet", async () => {
+    const { organization, employee, leaveType } = await seedOrgEmployeeAndType("7");
+    const organizationId = organization._id.toString();
+    const second = await EmployeeModel.create({
+      organizationId,
+      personId: (await PersonModel.create({ organizationId, firstName: "Second", lastName: "Person" }))._id,
+      employeeNumber: `EMP-7-B-${Math.random()}`,
+    });
+    await LeaveBalanceService.create({ organizationId, employeeId: employee._id.toString(), leaveTypeId: leaveType._id.toString(), year: 2026, entitledDays: 20 }, {});
+
+    const result = await LeaveBalanceService.grantMissing({ organizationId, leaveTypeId: leaveType._id.toString(), year: 2026, entitledDays: 15 }, {});
+
+    expect(result).toEqual({ granted: 1, alreadyHad: 1 });
+    const summary = await LeaveBalanceService.summarizeForYear(organizationId, 2026);
+    expect(summary.find((row) => row.employeeId === second._id.toString())?.entitledDays).toBe(15);
+    expect(summary.find((row) => row.employeeId === employee._id.toString())?.entitledDays).toBe(20);
+    const audits = await AuditLogModel.find({ organizationId, action: "leave-balance.granted-in-bulk" }).lean();
+    expect(audits).toHaveLength(1);
+    expect(audits[0].metadata).toMatchObject({ granted: 1, year: 2026, entitledDays: 15 });
+  });
 });

@@ -1,8 +1,7 @@
 "use client";
 
-import { Download, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { downloadCsv } from "@/lib/csv";
+import { TableExportActions } from "@/components/shared/table-export-actions";
+import type { TableExportSpec } from "@/lib/export/table-export";
 
 export type CaseExportRow = {
   caseName: string;
@@ -14,33 +13,21 @@ export type CaseExportRow = {
   briefHistory: string;
 };
 
-const CSV_HEADERS = ["#", "Project", "Case name", "Case number", "Classification", "Status", "Legal counsel", "Brief history"];
+const CASE_EXPORT: TableExportSpec<CaseExportRow> = {
+  title: "Case monitoring",
+  sheetName: "Cases",
+  noun: ["case", "cases"],
+  columns: [
+    { header: "Project", width: 24, value: (row) => row.project },
+    { header: "Case name", width: 30, value: (row) => row.caseName },
+    { header: "Case number", width: 16, value: (row) => row.caseNumber },
+    { header: "Classification", width: 16, value: (row) => row.classification },
+    { header: "Status", width: 14, value: (row) => row.status },
+    { header: "Legal counsel", width: 22, value: (row) => row.legalCounsel },
+    { header: "Brief history", width: 60, wrap: true, value: (row) => row.briefHistory },
+  ],
+};
 
-function exportCasesCsv(rows: CaseExportRow[]) {
-  const csvRows = rows.map((row, index) => [
-    index + 1,
-    row.project,
-    row.caseName,
-    row.caseNumber,
-    row.classification,
-    row.status,
-    row.legalCounsel,
-    row.briefHistory,
-  ]);
-  downloadCsv(CSV_HEADERS, csvRows, "workforcehub-case-monitoring.csv");
-}
-
-export function CaseExportActions({ rows }: { rows: CaseExportRow[] }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={() => exportCasesCsv(rows)} disabled={rows.length === 0} data-testid="cases-export-csv-button">
-        <Download className="size-3.5" />
-        Export CSV
-      </Button>
-      <Button type="button" variant="outline" size="sm" onClick={() => window.print()} disabled={rows.length === 0} data-testid="cases-print-button">
-        <Printer className="size-3.5" />
-        Print
-      </Button>
-    </div>
-  );
+export function CaseExportActions({ rows, organizationName }: { rows: CaseExportRow[]; organizationName: string }) {
+  return <TableExportActions spec={CASE_EXPORT} rows={rows} organizationName={organizationName} fileKey="case-monitoring" testIdPrefix="cases" />;
 }

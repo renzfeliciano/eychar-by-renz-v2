@@ -5,8 +5,12 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 // proxy-recording flow (AttendanceService.record()) never sets these.
 // `verified` reflects whether the device's own WebAuthn platform
 // authenticator (Face ID/Touch ID/Android biometric/Windows Hello)
-// confirmed this action; `photo` is a webcam snapshot, a visual record
-// alongside that confirmation, not itself a biometric match.
+// confirmed this action; `photo` is a live webcam snapshot taken right after
+// a randomized face-liveness challenge (`liveness.challenges`), a visual
+// record alongside that confirmation, not itself a biometric match.
+// locationId/distanceMeters/radiusMeters snapshot the geofence judgement as
+// it was at that moment (ADR-026) — HR later moving the site or changing
+// its radius must not rewrite what an old clock-in was measured against.
 const clockEventSchema = new Schema(
   {
     at: { type: Date, required: true },
@@ -15,6 +19,12 @@ const clockEventSchema = new Schema(
     accuracy: { type: Number },
     photo: { type: String },
     verified: { type: Boolean, default: false },
+    locationId: { type: Schema.Types.ObjectId, ref: "Location" },
+    distanceMeters: { type: Number },
+    radiusMeters: { type: Number },
+    liveness: {
+      type: new Schema({ challenges: { type: [String], default: undefined } }, { _id: false }),
+    },
   },
   { _id: false },
 );
@@ -40,6 +50,10 @@ const attendanceRecordSchema = new Schema(
     // AttendanceService/PayrollService by literal code, same as before.
     status: { type: String, required: true, trim: true },
     policyId: { type: Schema.Types.ObjectId, ref: "AttendancePolicy" },
+    // The project/site the employee actually clocked in at that day — can
+    // differ from their EmployeeAssignment's project for people who rotate
+    // between sites. Unset on HR-recorded records.
+    projectId: { type: Schema.Types.ObjectId, ref: "Project" },
     notes: { type: String, trim: true },
     checkIn: { type: clockEventSchema },
     checkOut: { type: clockEventSchema },

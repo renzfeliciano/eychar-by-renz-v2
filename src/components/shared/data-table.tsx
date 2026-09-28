@@ -43,6 +43,8 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
   rows,
   getRowKey,
   emptyMessage,
+  emptyDescription,
+  emptyAction,
   caption,
   testId,
   sort,
@@ -52,6 +54,10 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
   rows: T[];
   getRowKey: (row: T) => string;
   emptyMessage: string;
+  /** A line on what to do next, under the empty message. */
+  emptyDescription?: string;
+  /** The action that fills the table (e.g. the page's "Add" button). */
+  emptyAction?: React.ReactNode;
   caption?: string;
   testId?: string;
   sort?: DataTableSort;
@@ -60,26 +66,30 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
   if (rows.length === 0) {
     return (
       <div
-        className="flex flex-col items-center gap-3 rounded-lg border border-dashed bg-card px-10 py-14 text-center shadow-[var(--shadow-soft)]"
+        className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-card px-6 py-14 text-center shadow-[var(--shadow-soft)]"
         role="status"
         data-testid={testId}
       >
-        <div className="flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-primary">
-          <Inbox className="size-6" />
+        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Inbox className="size-6" aria-hidden="true" />
         </div>
-        <p className="text-sm font-medium text-foreground">{emptyMessage}</p>
+        <div className="flex max-w-md flex-col gap-1">
+          <p className="text-sm font-medium text-foreground">{emptyMessage}</p>
+          {emptyDescription && <p className="text-sm text-muted-foreground">{emptyDescription}</p>}
+        </div>
+        {emptyAction && <div className="mt-1">{emptyAction}</div>}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]" data-testid={testId}>
+    <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]" data-testid={testId}>
       <Table>
         {caption && <TableCaption className="sr-only">{caption}</TableCaption>}
         <TableHeader className="bg-muted/40">
-          <TableRow>
+          <TableRow className="hover:bg-transparent">
             {columns.map((column) => (
-              <TableHead key={column.key} className={column.className}>
+              <TableHead key={column.key} className={cn("h-10 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase", column.className)}>
                 {column.sortKey && sort ? (
                   <Link
                     href={sort.buildHref(column.sortKey)}
@@ -108,7 +118,7 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
           {rows.map((row) => (
             <TableRow key={getRowKey(row)} data-testid="data-table-row">
               {columns.map((column) => (
-                <TableCell key={column.key} className={column.className}>
+                <TableCell key={column.key} className={cn("px-3 py-2.5", column.className)}>
                   {column.render(row)}
                 </TableCell>
               ))}

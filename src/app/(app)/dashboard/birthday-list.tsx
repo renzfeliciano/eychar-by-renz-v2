@@ -17,7 +17,7 @@ export function BirthdayList({ celebrants }: { celebrants: Celebrant[] }) {
     <ul className="flex flex-col gap-3">
       {celebrants.map((celebrant) => (
         <li key={celebrant.employeeId} className="flex items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-events/35 to-events/10 text-events">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-events/12 text-events">
             <PartyPopper className="size-4" />
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium">{celebrant.name}</span>

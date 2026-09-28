@@ -10,15 +10,14 @@ export function PageHeader({
   testId?: string;
 }) {
   return (
-    <header className="flex flex-col gap-4 min-[421px]:flex-row min-[421px]:items-start min-[421px]:justify-between" data-testid={testId}>
-      <div className="flex min-w-0 items-start gap-3">
-        <span aria-hidden="true" className="bg-gradient-brand mt-1 h-6 w-1 shrink-0 rounded-full" />
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-balance">{title}</h1>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
-        </div>
+    // The title block keeps a sensible minimum width; when the actions don't
+    // fit beside it they wrap below instead of squeezing the title.
+    <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3" data-testid={testId}>
+      <div className="min-w-0 flex-1 basis-72">
+        <h1 className="text-2xl font-bold tracking-tight text-balance">{title}</h1>
+        {description && <p className="mt-1 max-w-[65ch] text-sm text-muted-foreground">{description}</p>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
     </header>
   );
 }

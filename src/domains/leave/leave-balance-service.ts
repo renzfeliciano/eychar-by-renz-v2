@@ -4,7 +4,23 @@ import { LeaveBalanceModel, LeaveRequestModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
+import { EmployeeService } from "@/domains/workforce/employee-service";
+import { loadCurrentStaffCheck } from "@/domains/attendance/current-staff";
 import type { CreateLeaveBalanceInput } from "@/shared/validation/leave";
+
+export type LeaveBalanceSummary = {
+  balanceId: string;
+  employeeId: string;
+  leaveTypeId: string;
+  year: number;
+  entitledDays: number;
+  adjustmentDays: number;
+  usedDays: number;
+  pendingDays: number;
+  unlimited: boolean;
+  /** null when the balance is unlimited. */
+  availableDays: number | null;
+};
 
 export const LeaveBalanceService = {
   async create(input: CreateLeaveBalanceInput, actor: { userId?: string }) {
@@ -80,6 +96,98 @@ export const LeaveBalanceService = {
     })
       .sort({ year: -1 })
       .lean();
+  },
+
+  /**
+   * Every balance for a year with what's been used (approved), what's
+   * waiting (pending) and what's left, from two queries: the whole-roster
+   * view on Leave › Balances. Requests count toward the year they start in,
+   * the same rule as getAvailable. Unlimited balances have no "available".
+   */
+  async summarizeForYear(organizationId: string, year: number): Promise<LeaveBalanceSummary[]> {
+    await connectMongoDB();
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const [balances, requests] = await Promise.all([
+      LeaveBalanceModel.find({ organizationId: orgObjectId, year }).lean(),
+      LeaveRequestModel.find({
+        organizationId: orgObjectId,
+        status: { $in: ["approved", "pending"] },
+        startDate: { $gte: new Date(Date.UTC(year, 0, 1)), $lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)) },
+      })
+        .select("employeeId leaveTypeId status totalDays")
+        .lean(),
+    ]);
+
+    const daysByKey = new Map<string, { used: number; pending: number }>();
+    for (const request of requests) {
+      const key = `${request.employeeId.toString()}|${request.leaveTypeId.toString()}`;
+      const entry = daysByKey.get(key) ?? { used: 0, pending: 0 };
+      if (request.status === "approved") entry.used += request.totalDays;
+      else entry.pending += request.totalDays;
+      daysByKey.set(key, entry);
+    }
+
+    return balances.map((balance) => {
+      const employeeId = balance.employeeId.toString();
+      const leaveTypeId = balance.leaveTypeId.toString();
+      const days = daysByKey.get(`${employeeId}|${leaveTypeId}`) ?? { used: 0, pending: 0 };
+      return {
+        balanceId: balance._id.toString(),
+        employeeId,
+        leaveTypeId,
+        year: balance.year,
+        entitledDays: balance.entitledDays,
+        adjustmentDays: balance.adjustmentDays,
+        usedDays: days.used,
+        pendingDays: days.pending,
+        unlimited: balance.hasNoFixedAmount,
+        availableDays: balance.hasNoFixedAmount ? null : balance.entitledDays + balance.adjustmentDays - days.used,
+      };
+    });
+  },
+
+  /**
+   * Opens a leave type for the year for every current employee who doesn't
+   * have it yet (how HR usually starts a year), skipping anyone who does.
+   * One audit entry for the batch, plus the usual one per balance created.
+   */
+  async grantMissing(
+    input: { organizationId: string; leaveTypeId: string; year: number; entitledDays?: number; hasNoFixedAmount?: boolean },
+    actor: { userId?: string },
+  ) {
+    await connectMongoDB();
+    const [roster, isCurrentStaff, existing] = await Promise.all([
+      EmployeeService.listWithCurrentStatus(input.organizationId),
+      loadCurrentStaffCheck(input.organizationId),
+      LeaveBalanceModel.find({ organizationId: new Types.ObjectId(input.organizationId), leaveTypeId: new Types.ObjectId(input.leaveTypeId), year: input.year })
+        .select("employeeId")
+        .lean(),
+    ]);
+    const alreadyHas = new Set(existing.map((balance) => balance.employeeId.toString()));
+    const staff = roster.filter((row) => isCurrentStaff(row.currentEmployment?.status));
+
+    let granted = 0;
+    for (const employee of staff) {
+      if (alreadyHas.has(employee._id.toString())) continue;
+      await this.create(
+        { organizationId: input.organizationId, employeeId: employee._id.toString(), leaveTypeId: input.leaveTypeId, year: input.year, entitledDays: input.entitledDays, hasNoFixedAmount: input.hasNoFixedAmount },
+        actor,
+      );
+      granted += 1;
+    }
+    const alreadyHad = staff.filter((employee) => alreadyHas.has(employee._id.toString())).length;
+
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "leave-balance.granted-in-bulk",
+      resourceType: "LeaveType",
+      resourceId: input.leaveTypeId,
+      after: { granted },
+      metadata: { granted, alreadyHad, year: input.year, entitledDays: input.hasNoFixedAmount ? null : input.entitledDays, unlimited: Boolean(input.hasNoFixedAmount) },
+    });
+
+    return { granted, alreadyHad };
   },
 
   /**

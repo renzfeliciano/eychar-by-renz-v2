@@ -82,7 +82,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
               type="text"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="e.g. a random 8+ character password"
+              placeholder="At least 12 characters, e.g. harbor-lantern-73"
               required
             />
           </FormField>

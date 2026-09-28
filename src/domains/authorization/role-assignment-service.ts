@@ -64,6 +64,24 @@ export const RoleAssignmentService = {
     return assignment;
   },
 
+  /** Names of the user's roles in effect now (for display, e.g. the account menu), not for authorization. */
+  async listRoleNamesForUser(userId: string, organizationId: string): Promise<string[]> {
+    await connectMongoDB();
+    const now = new Date();
+    const assignments = await RoleAssignmentModel.find({
+      userId: new Types.ObjectId(userId),
+      organizationId: new Types.ObjectId(organizationId),
+      $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }, { effectiveTo: { $gt: now } }],
+    })
+      .select("roleId")
+      .lean();
+    if (assignments.length === 0) return [];
+    const roles = await RoleModel.find({ _id: { $in: assignments.map((assignment) => assignment.roleId) }, status: { $ne: "inactive" } })
+      .select("name")
+      .lean();
+    return roles.map((role) => role.name as string).sort((a, b) => a.localeCompare(b));
+  },
+
   async listForOrganization(organizationId: string) {
     await connectMongoDB();
     const now = new Date();
