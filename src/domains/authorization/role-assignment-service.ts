@@ -3,7 +3,8 @@ import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { RoleAssignmentModel, RoleModel, UserModel, PersonModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
-import { ConflictError, NotFoundError } from "@/shared/errors";
+import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
+import { SuperAdminService } from "./super-admin-service";
 import { formatPersonName } from "@/lib/person-name";
 import type { AssignRoleInput } from "@/shared/validation/roles";
 
@@ -11,8 +12,10 @@ export const RoleAssignmentService = {
   async assign(input: AssignRoleInput, actor: { userId?: string }) {
     await connectMongoDB();
 
-    const role = await RoleModel.exists({ _id: new Types.ObjectId(input.roleId), organizationId: new Types.ObjectId(input.organizationId) });
+    const role = await RoleModel.findOne({ _id: new Types.ObjectId(input.roleId), organizationId: new Types.ObjectId(input.organizationId) }).select("system permissionKeys").lean();
     if (!role) throw new NotFoundError("Role not found in this organization");
+    if (role.system === "super_admin") throw new BusinessRuleError("The Super Administrator role can't be assigned from the app");
+    await SuperAdminService.assertCanManageAdminRole(actor.userId, input.organizationId, role.permissionKeys);
 
     const userExists = await UserModel.exists({ _id: new Types.ObjectId(input.userId) });
     if (!userExists) throw new NotFoundError("User not found");
@@ -49,6 +52,9 @@ export const RoleAssignmentService = {
 
     const assignment = await RoleAssignmentModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
     if (!assignment) throw new NotFoundError("Role assignment not found in this organization");
+    const role = await RoleModel.findById(assignment.roleId).select("system permissionKeys").lean();
+    if (role?.system === "super_admin") throw new BusinessRuleError("The Super Administrator role can't be revoked from the app");
+    await SuperAdminService.assertCanManageAdminRole(actor.userId, organizationId, role?.permissionKeys);
 
     assignment.effectiveTo = new Date();
     await assignment.save();

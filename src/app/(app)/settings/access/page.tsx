@@ -10,6 +10,9 @@ import { TableSearchInput } from "@/components/shared/table-search-input";
 import { MetricCard } from "@/components/shared/metric-card";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/server/auth/options";
+import { SuperAdminService, grantsAdminPower } from "@/domains/authorization/super-admin-service";
 import { RoleFormDialog } from "./role-form-dialog";
 import { AssignRoleDialog } from "./assign-role-dialog";
 import { RevokeRoleAssignmentButton } from "./revoke-role-assignment-button";
@@ -34,6 +37,11 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
     hasPermission("staff-accounts.create", organizationId),
   ]);
 
+  const session = await getServerSession(authOptions);
+  const isSuperAdmin = await SuperAdminService.isSuperAdmin(session?.user?.id, organizationId);
+  // The system role is never managed here; admin-power roles only by the Super Administrator.
+  const canManageRole = (role: { system?: string | null; permissionKeys?: string[] | null }) => role.system !== "super_admin" && (isSuperAdmin || !grantsAdminPower(role.permissionKeys));
+
   const [roles, availablePermissions, assignments, members] = await Promise.all([
     RoleService.listCurrent(organizationId),
     RoleService.listAvailablePermissions(),
@@ -48,7 +56,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
   }));
   const roleById = new Map(roles.map((role) => [role._id.toString(), role]));
   const memberByUserId = new Map(members.map((member) => [member.userId, member]));
-  const roleOptions = roles.filter((role) => role.status !== "inactive").map((role) => ({ id: role._id.toString(), label: role.name }));
+  const roleOptions = roles.filter((role) => role.status !== "inactive" && canManageRole(role)).map((role) => ({ id: role._id.toString(), label: role.name }));
   const memberOptions = members.map((member) => ({ id: member.userId, label: `${member.name} (${member.username})` }));
 
   const membersByRoleId = new Map<string, number>();
@@ -136,11 +144,17 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                 key: "permissions",
                 header: "Permissions",
                 render: (role) => {
-                  const share = availablePermissions.length ? role.permissionKeys.length / availablePermissions.length : 0;
+                  if (role.system === "super_admin") {
+                    return <span className="text-xs font-medium text-primary">All permissions, including delete</span>;
+                  }
+                  // Count only what the editor offers, so a stray key can never read "126 of 125".
+                  const offered = new Set(availablePermissions.map((permission) => permission.key));
+                  const granted = role.permissionKeys.filter((key: string) => offered.has(key)).length;
+                  const share = offered.size ? granted / offered.size : 0;
                   return (
                     <div className="flex w-36 flex-col gap-1">
                       <span className="text-xs tabular-nums">
-                        <span className="font-medium">{role.permissionKeys.length}</span>
+                        <span className="font-medium">{granted}</span>
                         <span className="text-muted-foreground"> of {availablePermissions.length}</span>
                       </span>
                       <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
@@ -161,7 +175,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                 key: "action",
                 header: "",
                 render: (role) =>
-                  canUpdateRole ? (
+                  canUpdateRole && canManageRole(role) ? (
                     <RoleFormDialog
                       organizationId={organizationId}
                       availablePermissions={permissionOptions}
@@ -252,7 +266,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                 key: "action",
                 header: "",
                 render: (assignment) =>
-                  canAssign ? <RevokeRoleAssignmentButton id={assignment._id.toString()} organizationId={organizationId} /> : null,
+                  canAssign && canManageRole(roleById.get(assignment.roleId.toString()) ?? {}) ? <RevokeRoleAssignmentButton id={assignment._id.toString()} organizationId={organizationId} /> : null,
               },
             ]}
             rows={assignmentPageRows}

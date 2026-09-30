@@ -72,7 +72,7 @@ export default async function ClearancePage({ searchParams }: { searchParams: Pr
         description="Offboarding sign-off across departments. Final pay can go to approval once every blocking item is resolved."
         action={
           <div className="flex items-center gap-2">
-            {canManage && <ChecklistDialog organizationId={organizationId} departments={departmentOptions} items={checklist.map((item) => ({ id: item._id.toString(), departmentCode: item.departmentCode, title: item.title, blocking: item.blocking, dueDaysAfterLastDay: item.dueDaysAfterLastDay, status: item.status }))} />}
+            {canManage && <ChecklistDialog organizationId={organizationId} departments={departmentOptions} items={checklist.map((item) => ({ id: item._id.toString(), departmentCode: item.departmentCode, title: item.title, blocking: item.blocking, dueDaysAfterLastDay: item.dueDaysAfterLastDay, status: item.status, autoSource: item.autoSource ?? null }))} />}
             {canCreate && <OpenClearanceDialog organizationId={organizationId} employees={employeeOptions} separationTypes={typeOptions} todayKey={localDateKey()} />}
           </div>
         }

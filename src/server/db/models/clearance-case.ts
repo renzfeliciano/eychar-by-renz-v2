@@ -12,6 +12,7 @@ const clearanceCaseItemSchema = new Schema({
   title: { type: String, required: true },
   description: { type: String },
   blocking: { type: Boolean, required: true },
+  autoSource: { type: String, enum: ["assets", "account_access", "travel_orders"] },
   dueDate: { type: Date },
   status: { type: String, enum: CLEARANCE_ITEM_STATUSES, required: true, default: "pending" },
   // Flagged items: what the employee owes for it (becomes a settlement deduction, ADR-032).

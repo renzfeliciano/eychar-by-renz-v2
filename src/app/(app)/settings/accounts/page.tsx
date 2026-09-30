@@ -12,6 +12,7 @@ import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { formatRelativeDays } from "@/lib/relative-time";
+import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { AccountActions } from "./account-actions";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -55,6 +56,10 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
 
   const now = new Date();
   const accounts = await AccountSecurityService.listForOrganization(organizationId, now);
+  // The Super Administrator's own account is theirs alone to manage.
+  const superAdminIds = new Set(
+    (await Promise.all(accounts.map(async (account) => ((await SuperAdminService.isSuperAdmin(account.id, organizationId)) ? account.id : null)))).filter(Boolean),
+  );
   const active = accounts.filter((account) => account.status === "active");
   const staffActive = active.filter((account) => account.kind === "staff");
   const staffWithMfa = staffActive.filter((account) => account.mfaEnabled).length;
@@ -145,10 +150,19 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
             key: "actions",
             header: "",
             render: (account) =>
-              canUpdate ? (
+              canUpdate && (!superAdminIds.has(account.id) || account.id === session?.user?.id) ? (
                 <AccountActions
                   organizationId={organizationId}
-                  account={{ id: account.id, displayName: account.displayName, status: account.status, locked: account.locked, mfaEnabled: account.mfaEnabled }}
+                  account={{
+                    id: account.id,
+                    displayName: account.displayName,
+                    firstName: account.firstName,
+                    lastName: account.lastName,
+                    kind: account.kind,
+                    status: account.status,
+                    locked: account.locked,
+                    mfaEnabled: account.mfaEnabled,
+                  }}
                   isSelf={account.id === session?.user?.id}
                 />
               ) : null,

@@ -14,7 +14,10 @@ export type MfaActionInput = z.infer<typeof mfaActionSchema>;
 /** An administrator acting on someone's account. */
 export const accountAdminActionSchema = z.object({
   organizationId: z.string().trim().min(1),
-  action: z.enum(["reset-password", "unlock", "disable", "enable", "reset-mfa"]),
+  action: z.enum(["reset-password", "unlock", "disable", "enable", "reset-mfa", "rename"]),
+  // Only for "rename" (staff accounts).
+  firstName: z.string().trim().max(60).optional(),
+  lastName: z.string().trim().max(60).optional(),
 });
 
 export type AccountAdminActionInput = z.infer<typeof accountAdminActionSchema>;

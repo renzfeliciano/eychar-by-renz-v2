@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { config } from "dotenv";
 import argon2 from "argon2";
 import { connectMongoDB } from "@/server/db/connection";
+import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import {
   OrganizationModel,
   PermissionModel,
@@ -282,10 +283,16 @@ async function seed() {
         description: "Full administrative access within the organization",
       },
       $addToSet: {
-        permissionKeys: { $each: BASELINE_PERMISSIONS.map((permission) => permission.key) },
+        // Delete permissions are the Super Administrator's alone (ADR-033), never an ordinary role's.
+        permissionKeys: { $each: BASELINE_PERMISSIONS.map((permission) => permission.key).filter((key) => !key.endsWith(".delete")) },
       },
     },
     { upsert: true, returnDocument: "after" },
+  );
+  // Take any delete permission back from every ordinary role (e.g. leave-types.delete granted before this rule).
+  await RoleModel.updateMany(
+    { organizationId: organization._id, system: { $ne: "super_admin" } },
+    { $pull: { permissionKeys: { $in: BASELINE_PERMISSIONS.map((permission) => permission.key).filter((key) => key.endsWith(".delete")) } } },
   );
 
   // Backfills `status` onto every role seeded before that field existed
@@ -518,14 +525,23 @@ async function seed() {
     const CHECKLIST = [
       { departmentCode: "supervisor", title: "Turnover of work and files", blocking: true, dueDaysAfterLastDay: 0 },
       { departmentCode: "admin", title: "Return company ID, keys and uniforms", blocking: true, dueDaysAfterLastDay: 0 },
-      { departmentCode: "it", title: "Return laptop, phone and accessories", blocking: true, dueDaysAfterLastDay: 0 },
-      { departmentCode: "it", title: "Revoke system and email access", blocking: true, dueDaysAfterLastDay: 1 },
-      { departmentCode: "finance", title: "Liquidate cash advances and travel orders", blocking: true, dueDaysAfterLastDay: 3 },
+      { departmentCode: "it", title: "Return all issued company assets", blocking: true, dueDaysAfterLastDay: 0, autoSource: "assets" },
+      { departmentCode: "it", title: "Revoke system and email access", blocking: true, dueDaysAfterLastDay: 1, autoSource: "account_access" },
+      { departmentCode: "finance", title: "Liquidate cash advances and travel orders", blocking: true, dueDaysAfterLastDay: 3, autoSource: "travel_orders" },
       { departmentCode: "finance", title: "Compute accountabilities (lost or damaged items, loans)", blocking: true, dueDaysAfterLastDay: 5 },
       { departmentCode: "hr", title: "Review leave balance", blocking: false, dueDaysAfterLastDay: 3 },
       { departmentCode: "hr", title: "Exit interview", blocking: false, dueDaysAfterLastDay: 3 },
     ];
     await ClearanceChecklistItemModel.insertMany(CHECKLIST.map((item, index) => ({ organizationId: organization._id, ...item, sortOrder: index })));
+  }
+  // Phase 2 (automatic checks): wire the original default items to their sources, only where
+  // HR hasn't changed them (same title, no source yet).
+  for (const [title, update] of [
+    ["Return laptop, phone and accessories", { title: "Return all issued company assets", autoSource: "assets" }],
+    ["Revoke system and email access", { autoSource: "account_access" }],
+    ["Liquidate cash advances and travel orders", { autoSource: "travel_orders" }],
+  ] as const) {
+    await ClearanceChecklistItemModel.updateOne({ organizationId: organization._id, title, autoSource: { $exists: false } }, { $set: update });
   }
 
   // Real Position/Project data from the v1 app, seeded as a starter set for
@@ -583,6 +599,9 @@ async function seed() {
       { upsert: true },
     );
   }
+
+  // The one Super Administrator: the seed's HR account. Refuses if someone else already holds it.
+  await SuperAdminService.ensure(organization._id.toString(), hrUser._id.toString());
 
   console.log(`Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrUsername}.`);
 }

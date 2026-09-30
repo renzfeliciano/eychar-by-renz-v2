@@ -4,7 +4,9 @@ import { Types } from "mongoose";
 import argon2 from "argon2";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, PersonModel, RoleAssignmentModel, RoleModel, UserModel } from "@/server/db/models";
-import { NotFoundError, ValidationError } from "@/shared/errors";
+import { AuthorizationError, BusinessRuleError, NotFoundError, ValidationError } from "@/shared/errors";
+import { AuditService } from "@/server/audit/audit-service";
+import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { checkPassword } from "@/shared/validation/password-policy";
 import type { ChangePasswordInput } from "@/shared/validation/auth";
 import { formatPersonName } from "@/lib/person-name";
@@ -17,6 +19,8 @@ export type AccountSummary = {
   username: string | null;
   email: string | null;
   displayName: string;
+  firstName: string;
+  lastName: string;
   kind: "staff" | "self-service";
   roleNames: string[];
   status: AccountStatus;
@@ -124,6 +128,8 @@ export const AccountSecurityService = {
           username: user.username ?? null,
           email: user.email ?? null,
           displayName: person ? formatPersonName(person) : (user.username ?? user.email ?? "Unnamed account"),
+          firstName: person?.firstName ?? "",
+          lastName: person?.lastName ?? "",
           kind: user.employeeId ? ("self-service" as const) : ("staff" as const),
           roleNames: (roleNamesByUser.get(user._id.toString()) ?? []).sort((a, b) => a.localeCompare(b)),
           status: user.status as AccountStatus,
@@ -135,5 +141,44 @@ export const AccountSecurityService = {
         };
       })
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  },
+
+  /** Only the Super Administrator can act on the Super Administrator's own account (rename, reset, disable…). */
+  async assertCanAdminister(targetUserId: string, organizationId: string, actor: { userId?: string }) {
+    if (!(await SuperAdminService.isSuperAdmin(targetUserId, organizationId))) return;
+    if (actor.userId !== targetUserId) throw new AuthorizationError("Only the Super Administrator can change the Super Administrator's account");
+  },
+
+  /** Renames a staff account (its person record). Employees' names are changed on their profile instead. */
+  async rename(targetUserId: string, organizationId: string, input: { firstName: string; lastName: string }, actor: { userId?: string }) {
+    const firstName = input.firstName.trim();
+    const lastName = input.lastName.trim();
+    if (!firstName || !lastName) throw new ValidationError("Enter both a first and a last name");
+    const user = await requireUserInOrganization(targetUserId, organizationId);
+    await AccountSecurityService.assertCanAdminister(targetUserId, organizationId, actor);
+    if (user.employeeId) throw new BusinessRuleError("This is an employee's account; change their name on their profile in People");
+
+    let before: { firstName?: string; lastName?: string } = {};
+    if (user.personId) {
+      const person = await PersonModel.findById(user.personId);
+      if (!person) throw new NotFoundError("Account person record not found");
+      before = { firstName: person.firstName, lastName: person.lastName };
+      person.firstName = firstName;
+      person.lastName = lastName;
+      await person.save();
+    } else {
+      const person = await PersonModel.create({ organizationId: new Types.ObjectId(organizationId), firstName, lastName });
+      await UserModel.updateOne({ _id: user._id }, { $set: { personId: person._id } });
+    }
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "account.renamed",
+      resourceType: "User",
+      resourceId: targetUserId,
+      before,
+      after: { firstName, lastName },
+    });
   },
 };

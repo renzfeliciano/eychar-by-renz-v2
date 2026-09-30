@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlarmClock, CalendarClock, CircleDollarSign, ListChecks } from "lucide-react";
+import { AlarmClock, CalendarClock, CircleDollarSign, ListChecks, Zap } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { ClearanceService } from "@/domains/clearance/clearance-service";
 import { caseProgress, isItemOverdue } from "@/domains/clearance/clearance-summary";
+import { evaluateSource, type ClearanceAutoSource } from "@/domains/clearance/clearance-sources";
 import { userDisplayNames } from "@/domains/identity/user-directory";
 import { AuditLogModel } from "@/server/db/models";
 import { NotFoundError } from "@/shared/errors";
@@ -40,8 +41,12 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const clearance = cases.find((candidate) => candidate._id.toString() === id);
-  if (!clearance) notFound();
+  const listed = cases.find((candidate) => candidate._id.toString() === id);
+  if (!listed) notFound();
+  // Automatic items (assets returned, accounts disabled) catch up with live data on every view.
+  const synced = await ClearanceService.syncAutomaticItems(id, organizationId);
+  const clearance = { ...listed, status: synced.status, items: synced.items };
+  const facts = clearance.items.some((item) => item.autoSource) ? await ClearanceService.sourceFacts(organizationId, clearance.employeeId.toString()) : null;
 
   const now = new Date();
   const progress = caseProgress(clearance.items, now);
@@ -118,6 +123,24 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
                             {overdue ? "Overdue · " : ""}Due {item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-US", SHORT) : "—"}
                             {item.actedAt && item.status !== "pending" && ` · ${ITEM_STATUS_LABELS[item.status].toLowerCase()} by ${names.get(item.actedBy?.toString() ?? "") ?? "system"} on ${new Date(item.actedAt).toLocaleDateString("en-US", SHORT)}`}
                           </p>
+                          {item.autoSource && facts && item.status === "pending" && (() => {
+                            const evaluation = evaluateSource(item.autoSource as ClearanceAutoSource, facts);
+                            return (
+                              <div className="mt-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+                                <p className="flex items-center gap-1.5 font-medium">
+                                  <Zap className="size-3 text-primary" aria-hidden="true" />
+                                  {evaluation.autoClears ? "Checked automatically" : "For reference"} · {evaluation.summary}
+                                </p>
+                                {evaluation.details.length > 0 && (
+                                  <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+                                    {evaluation.details.map((detail) => (
+                                      <li key={detail}>{detail}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {(item.note || item.amount) && (
                             <p className="mt-1 text-sm text-muted-foreground">
                               {item.note}

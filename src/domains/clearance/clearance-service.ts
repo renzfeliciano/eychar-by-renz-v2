@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { ClearanceCaseModel, ClearanceChecklistItemModel, EmployeeModel, PersonModel, UserModel } from "@/server/db/models";
+import { AssetIssuanceModel, ClearanceCaseModel, ClearanceChecklistItemModel, EmployeeModel, PersonModel, TravelOrderModel, UserModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { ClearanceDepartmentService } from "@/domains/catalog/clearance-department-service";
@@ -10,6 +10,9 @@ import { dateKeyToDate } from "@/lib/date-key";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import type { ClearanceItemActionInput, OpenClearanceInput } from "@/shared/validation/clearance";
 import { deriveCaseStatus } from "./clearance-summary";
+import { evaluateSource, type ClearanceAutoSource, type SourceFacts } from "./clearance-sources";
+import { travelTiming } from "@/domains/travel-orders/travel-timing";
+import { dateToDateKey } from "@/lib/date-key";
 
 const DAY_MS = 86_400_000;
 const ACTION_STATUS = { clear: "cleared", flag: "flagged", waive: "waived", not_applicable: "not_applicable", reopen: "pending" } as const;
@@ -76,6 +79,7 @@ export const ClearanceService = {
         title: item.title,
         description: item.description,
         blocking: item.blocking,
+        autoSource: item.autoSource,
         dueDate: new Date(lastWorkingDay.getTime() + item.dueDaysAfterLastDay * DAY_MS),
         status: "pending",
       }));
@@ -113,7 +117,8 @@ export const ClearanceService = {
       resourceId: clearance._id.toString(),
       after: { caseNumber: clearance.caseNumber, employeeId: input.employeeId, separationType: input.separationTypeCode, lastWorkingDay: input.lastWorkingDay, items: items.length },
     });
-    return clearance;
+    // Anything already true (e.g. nothing was ever issued) clears right away.
+    return ClearanceService.syncAutomaticItems(clearance._id.toString(), input.organizationId);
   },
 
   async getById(id: string, organizationId: string) {
@@ -153,6 +158,10 @@ export const ClearanceService = {
 
     const item = clearance.items.id(itemId);
     if (!item) throw new NotFoundError("Checklist item not found on this clearance");
+    if (input.action === "clear" && item.autoSource) {
+      const evaluation = evaluateSource(item.autoSource as ClearanceAutoSource, await ClearanceService.sourceFacts(organizationId, clearance.employeeId.toString()));
+      if (evaluation.autoClears && !evaluation.satisfied) throw new BusinessRuleError(`${evaluation.summary}. It clears by itself once that's resolved, or it can be waived.`);
+    }
     const note = input.note?.trim();
     if ((input.action === "flag" || input.action === "waive" || input.action === "reopen") && !note) {
       throw new BusinessRuleError(input.action === "flag" ? "Describe the issue when flagging an item" : `Give a reason to ${input.action === "waive" ? "waive" : "reopen"} this item`);
@@ -177,6 +186,73 @@ export const ClearanceService = {
       after: { status: item.status, amount: item.amount, note: item.note },
       metadata: { itemId, department: item.departmentName, title: item.title, action: input.action },
     });
+    return clearance;
+  },
+
+  /** What the automatic checks see for this employee right now. */
+  async sourceFacts(organizationId: string, employeeId: string, now: Date = new Date()): Promise<SourceFacts> {
+    await connectMongoDB();
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const employeeObjectId = new Types.ObjectId(employeeId);
+    const employee = await EmployeeModel.findOne({ _id: employeeObjectId, organizationId: orgObjectId }).select("personId").lean();
+    const [assets, travel, accounts] = await Promise.all([
+      AssetIssuanceModel.find({ organizationId: orgObjectId, employeeId: employeeObjectId, returnedDate: { $exists: false } }).sort({ issuedDate: 1 }).lean(),
+      TravelOrderModel.find({ organizationId: orgObjectId, employeeIds: employeeObjectId, status: { $ne: "cancelled" } }).sort({ startDate: 1 }).lean(),
+      UserModel.find({ status: "active", $or: [{ employeeId: employeeObjectId }, ...(employee ? [{ personId: employee.personId }] : [])] }).select("username email").lean(),
+    ]);
+    const todayKey = dateToDateKey(now);
+    const range = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
+    return {
+      unreturnedAssets: assets.map((asset) => ({ id: asset._id.toString(), label: `${asset.assetName}${asset.serialNumber ? ` (${asset.serialNumber})` : ""}` })),
+      unfinishedTravel: travel
+        .map((order) => ({ order, timing: travelTiming(order, todayKey) }))
+        .filter(({ timing }) => timing === "scheduled" || timing === "ongoing")
+        .map(({ order, timing }) => ({
+          id: order._id.toString(),
+          label: `${new Date(order.startDate).toLocaleDateString("en-US", range)} – ${new Date(order.endDate).toLocaleDateString("en-US", range)} (${timing})`,
+        })),
+      activeAccounts: accounts.map((account) => ({ id: account._id.toString(), label: account.username ?? account.email ?? "account" })),
+    };
+  },
+
+  /**
+   * Clears pending automatic items whose facts are now true (all assets
+   * returned, all accounts disabled). Runs when a case is opened and each
+   * time it's viewed; a daily job can call it too. Never un-clears.
+   */
+  async syncAutomaticItems(caseId: string, organizationId: string) {
+    const clearance = await requireCase(caseId, organizationId);
+    if (clearance.status === "cancelled" || clearance.status === "closed") return clearance;
+    const pending = clearance.items.filter((item) => item.autoSource && item.status === "pending");
+    if (pending.length === 0) return clearance;
+
+    const facts = await ClearanceService.sourceFacts(organizationId, clearance.employeeId.toString());
+    const cleared: { itemId: string; title: string; department: string; summary: string }[] = [];
+    for (const item of pending) {
+      const evaluation = evaluateSource(item.autoSource as ClearanceAutoSource, facts);
+      if (!evaluation.autoClears || !evaluation.satisfied) continue;
+      item.status = "cleared";
+      item.note = `Cleared automatically: ${evaluation.summary.toLowerCase()}`;
+      item.actedBy = undefined;
+      item.actedAt = new Date();
+      cleared.push({ itemId: item._id.toString(), title: item.title, department: item.departmentName, summary: evaluation.summary });
+    }
+    if (cleared.length === 0) return clearance;
+
+    clearance.status = deriveCaseStatus(clearance.items);
+    await clearance.save();
+    await Promise.all(
+      cleared.map((entry) =>
+        AuditService.record({
+          organizationId,
+          action: "clearance.item-auto-cleared",
+          resourceType: "ClearanceCase",
+          resourceId: clearance._id.toString(),
+          after: { status: "cleared", note: `Cleared automatically: ${entry.summary.toLowerCase()}` },
+          metadata: { itemId: entry.itemId, department: entry.department, title: entry.title, action: "auto-clear" },
+        }),
+      ),
+    );
     return clearance;
   },
 

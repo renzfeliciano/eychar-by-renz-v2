@@ -5,6 +5,11 @@ import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import type { CreateRoleInput, UpdateRoleInput } from "@/shared/validation/roles";
+import { SUPER_ADMIN_ROLE_NAME, SuperAdminService, isDeletePermission, isReservedRoleName } from "./super-admin-service";
+
+function assertNoDeletePermissions(permissionKeys: string[]) {
+  if (permissionKeys.some(isDeletePermission)) throw new BusinessRuleError("Delete access belongs to the Super Administrator only and can't be added to a role");
+}
 
 async function assertPermissionKeysValid(permissionKeys: string[]) {
   if (permissionKeys.length === 0) return;
@@ -18,6 +23,9 @@ export const RoleService = {
   async create(input: CreateRoleInput, actor: { userId?: string }) {
     await connectMongoDB();
     await assertPermissionKeysValid(input.permissionKeys);
+    if (isReservedRoleName(input.name)) throw new BusinessRuleError(`"${input.name.trim()}" is reserved for the ${SUPER_ADMIN_ROLE_NAME}`);
+    assertNoDeletePermissions(input.permissionKeys);
+    await SuperAdminService.assertCanManageAdminRole(actor.userId, input.organizationId, input.permissionKeys);
 
     let role;
     try {
@@ -54,6 +62,11 @@ export const RoleService = {
 
     const role = await RoleModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
     if (!role) throw new NotFoundError("Role not found in this organization");
+    if (role.system === "super_admin") throw new BusinessRuleError("The Super Administrator role can't be changed");
+    if (isReservedRoleName(patch.name)) throw new BusinessRuleError(`"${patch.name.trim()}" is reserved for the ${SUPER_ADMIN_ROLE_NAME}`);
+    assertNoDeletePermissions(patch.permissionKeys);
+    // Both the role as it is and as it would become: HR can't strip or add admin power.
+    await SuperAdminService.assertCanManageAdminRole(actor.userId, organizationId, [...(role.permissionKeys ?? []), ...patch.permissionKeys]);
 
     const before = { permissionKeys: role.permissionKeys, status: role.status };
     role.name = patch.name;
@@ -98,6 +111,7 @@ export const RoleService = {
   /** The full permission catalog, for the role editor's checkbox list — not org-scoped, Permission is a global seeded catalog. */
   async listAvailablePermissions() {
     await connectMongoDB();
-    return PermissionModel.find().sort({ category: 1, key: 1 }).lean();
+    // Delete permissions never appear in the role editor: they're the Super Administrator's alone.
+    return PermissionModel.find({ key: { $not: /\.delete$/ } }).sort({ category: 1, key: 1 }).lean();
   },
 };

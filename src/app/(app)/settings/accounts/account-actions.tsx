@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Copy, KeyRound, Loader2, LockOpen, MoreHorizontal, ShieldOff, UserCheck, UserX } from "lucide-react";
+import { Copy, KeyRound, Loader2, LockOpen, MoreHorizontal, PencilLine, ShieldOff, UserCheck, UserX } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FormError } from "@/components/shared/form-field";
+import { FormError, FormField } from "@/components/shared/form-field";
 
 type Action = "reset-password" | "unlock" | "disable" | "enable" | "reset-mfa";
 
@@ -50,7 +51,16 @@ export function AccountActions({
   isSelf,
 }: {
   organizationId: string;
-  account: { id: string; displayName: string; status: "active" | "disabled"; locked: boolean; mfaEnabled: boolean };
+  account: {
+    id: string;
+    displayName: string;
+    firstName?: string;
+    lastName?: string;
+    kind?: "staff" | "self-service";
+    status: "active" | "disabled";
+    locked: boolean;
+    mfaEnabled: boolean;
+  };
   isSelf: boolean;
 }) {
   const router = useRouter();
@@ -58,6 +68,26 @@ export function AccountActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+
+  async function saveName() {
+    if (!firstName.trim() || !lastName.trim()) return setError("Enter both a first and a last name.");
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/users/${account.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId, action: "rename", firstName: firstName.trim(), lastName: lastName.trim() }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) return setError(body.error ?? "That didn't work. Please try again.");
+    setRenaming(false);
+    toast.success("Name updated");
+    router.refresh();
+  }
 
   async function run(action: Action) {
     setBusy(true);
@@ -88,6 +118,19 @@ export function AccountActions({
           <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          {account.kind !== "self-service" && (
+            <DropdownMenuItem
+              onClick={() => {
+                setFirstName(account.firstName ?? "");
+                setLastName(account.lastName ?? "");
+                setError(null);
+                setRenaming(true);
+              }}
+            >
+              <PencilLine className="size-4" aria-hidden="true" />
+              Edit name
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => setPending("reset-password")}>
             <KeyRound className="size-4" aria-hidden="true" />
             Reset password
@@ -138,6 +181,35 @@ export function AccountActions({
               <Button type="button" variant={confirm.destructive ? "destructive" : "default"} onClick={() => run(pending)} disabled={busy}>
                 {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
                 {busy ? confirm.busy : confirm.label}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {renaming && (
+        <Dialog open onOpenChange={(open) => !open && !busy && setRenaming(false)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit name</DialogTitle>
+              <DialogDescription>The name shown for this account across the app. The username stays the same.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="First name" htmlFor={`rename-first-${account.id}`} required>
+                <Input id={`rename-first-${account.id}`} value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="e.g. Juan" maxLength={60} />
+              </FormField>
+              <FormField label="Last name" htmlFor={`rename-last-${account.id}`} required>
+                <Input id={`rename-last-${account.id}`} value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="e.g. Dela Cruz" maxLength={60} />
+              </FormField>
+            </div>
+            <FormError message={error} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRenaming(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={saveName} disabled={busy}>
+                {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+                {busy ? "Saving…" : "Save name"}
               </Button>
             </DialogFooter>
           </DialogContent>

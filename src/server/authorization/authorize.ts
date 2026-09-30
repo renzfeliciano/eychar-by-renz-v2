@@ -39,7 +39,8 @@ export async function authorize({ userId, organizationId, permission }: Authoriz
     // treated as active, the same permissive-when-unconfigured fallback
     // used for employment/attendance status metadata elsewhere.
     $or: [{ status: "active" }, { status: { $exists: false } }],
-    permissionKeys: permission,
+    // The Super Administrator's system role passes every check, including permissions added later.
+    $and: [{ $or: [{ permissionKeys: permission }, { system: "super_admin" }] }],
   });
 
   if (!grantingRole) {

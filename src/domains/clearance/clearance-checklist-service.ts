@@ -25,6 +25,7 @@ export const ClearanceChecklistService = {
       description: input.description,
       blocking: input.blocking,
       dueDaysAfterLastDay: input.dueDaysAfterLastDay,
+      autoSource: input.autoSource,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     });
 

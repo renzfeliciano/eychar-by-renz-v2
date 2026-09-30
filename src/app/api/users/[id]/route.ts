@@ -17,8 +17,13 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/users/[id]
     const input = accountAdminActionSchema.parse(await request.json());
     const { userId } = await requirePermission("users.update", input.organizationId);
     const actor = { userId };
+    // Nobody but the Super Administrator acts on the Super Administrator's account.
+    await AccountSecurityService.assertCanAdminister(id, input.organizationId, actor);
 
     switch (input.action) {
+      case "rename":
+        await AccountSecurityService.rename(id, input.organizationId, { firstName: input.firstName ?? "", lastName: input.lastName ?? "" }, actor);
+        break;
       case "reset-password":
         return NextResponse.json(await AccountSecurityService.resetPassword(id, input.organizationId, actor));
       case "unlock":

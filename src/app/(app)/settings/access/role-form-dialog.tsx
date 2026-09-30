@@ -59,6 +59,14 @@ export function RoleFormDialog({
     setPermissionKeys((current) => (checked ? [...current, key] : current.filter((existing) => existing !== key)));
   }
 
+  // A group's own checkbox: all on if any are off, otherwise all off.
+  function toggleGroup(keys: string[]) {
+    setPermissionKeys((current) => {
+      const allOn = keys.every((key) => current.includes(key));
+      return allOn ? current.filter((key) => !keys.includes(key)) : [...new Set([...current, ...keys])];
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -132,11 +140,28 @@ export function RoleFormDialog({
           </FormField>
           <FormField label="Permissions" htmlFor={`${formId}-permissions`}>
             <div id={`${formId}-permissions`} className="flex max-h-64 flex-col gap-3 overflow-y-auto rounded-lg border p-3">
-              {[...permissionsByCategory.entries()].map(([category, permissions]) => (
+              {[...permissionsByCategory.entries()].map(([category, permissions]) => {
+                const keys = permissions.map((permission) => permission.key);
+                const selected = keys.filter((key) => permissionKeys.includes(key)).length;
+                return (
                 <div key={category} className="flex flex-col gap-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">{category}</p>
+                  <div className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-accent/40">
+                    <Checkbox
+                      aria-label={`All ${category} permissions`}
+                      checked={selected === keys.length}
+                      indeterminate={selected > 0 && selected < keys.length}
+                      onCheckedChange={() => toggleGroup(keys)}
+                    />
+                    {/* The checkbox carries the accessible name; the heading text is a larger click target. */}
+                    <span aria-hidden="true" onClick={() => toggleGroup(keys)} className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase select-none">
+                      {category}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                      {selected} of {keys.length}
+                    </span>
+                  </div>
                   {permissions.map((permission) => (
-                    <label key={permission.key} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-accent/40">
+                    <label key={permission.key} className="ml-5 flex items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-accent/40">
                       <Checkbox
                         checked={permissionKeys.includes(permission.key)}
                         onCheckedChange={(checked) => togglePermission(permission.key, checked === true)}
@@ -145,7 +170,8 @@ export function RoleFormDialog({
                     </label>
                   ))}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </FormField>
           {isEdit && (

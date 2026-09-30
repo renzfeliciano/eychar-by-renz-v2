@@ -12,6 +12,9 @@ const roleSchema = new Schema(
     description: { type: String, trim: true },
     permissionKeys: { type: [String], default: [] },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
+    // "super_admin": the one protected role that passes every check (SuperAdminService).
+    // Set only by the seed script; never created, edited or assigned through the app.
+    system: { type: String, enum: ["super_admin"] },
   },
   { timestamps: true },
 );

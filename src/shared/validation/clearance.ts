@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { objectIdSchema } from "./shared";
 import { calendarDateSchema } from "./schedule";
+import { CLEARANCE_AUTO_SOURCES } from "@/domains/clearance/clearance-sources";
 
 export const CLEARANCE_ITEM_ACTIONS = ["clear", "flag", "waive", "not_applicable", "reopen"] as const;
 export type ClearanceItemAction = (typeof CLEARANCE_ITEM_ACTIONS)[number];
@@ -35,6 +36,7 @@ export const createChecklistItemSchema = z.object({
   description: z.string().trim().max(500).optional(),
   blocking: z.boolean(),
   dueDaysAfterLastDay: z.number().int().min(0).max(60),
+  autoSource: z.enum(CLEARANCE_AUTO_SOURCES).optional(),
 });
 
 export const updateChecklistItemSchema = z.object({

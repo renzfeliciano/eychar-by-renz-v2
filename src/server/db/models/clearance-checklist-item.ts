@@ -14,6 +14,8 @@ const clearanceChecklistItemSchema = new Schema(
     blocking: { type: Boolean, required: true, default: true },
     // Due this many days after the last working day (0 = on the last day).
     dueDaysAfterLastDay: { type: Number, required: true, default: 0, min: 0 },
+    // Checked against live data (src/domains/clearance/clearance-sources.ts): assets, account_access, travel_orders.
+    autoSource: { type: String, enum: ["assets", "account_access", "travel_orders"] },
     sortOrder: { type: Number, required: true, default: 0 },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
   },

@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const ACCOUNT = { id: "u1", displayName: "Ana Reyes", status: "active" as const, locked: true, mfaEnabled: true };
+const ACCOUNT = { id: "u1", displayName: "Ana Reyes", firstName: "Ana", lastName: "Reyes", kind: "staff" as const, status: "active" as const, locked: true, mfaEnabled: true };
 
 async function openMenuAndPick(user: ReturnType<typeof userEvent.setup>, item: string) {
   await user.click(screen.getByRole("button", { name: "Actions for Ana Reyes" }));
@@ -61,5 +61,31 @@ describe("AccountActions", () => {
     render(<AccountActions organizationId="org1" account={ACCOUNT} isSelf />);
     await user.click(screen.getByRole("button", { name: "Actions for Ana Reyes" }));
     expect(screen.queryByRole("menuitem", { name: "Disable account" })).not.toBeInTheDocument();
+  });
+
+  it("edits a staff account's name", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+    render(<AccountActions organizationId="org1" account={ACCOUNT} isSelf={false} />);
+
+    await openMenuAndPick(user, "Edit name");
+    const dialog = await screen.findByRole("dialog");
+    const first = within(dialog).getByLabelText(/First name/);
+    await user.clear(first);
+    await user.type(first, "Anabelle");
+    await user.click(within(dialog).getByRole("button", { name: "Save name" }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/users/u1",
+      expect.objectContaining({ body: JSON.stringify({ organizationId: "org1", action: "rename", firstName: "Anabelle", lastName: "Reyes" }) }),
+    );
+  });
+
+  it("doesn't offer a name edit for an employee's self-service account", async () => {
+    const user = userEvent.setup();
+    render(<AccountActions organizationId="org1" account={{ ...ACCOUNT, kind: "self-service" }} isSelf={false} />);
+    await user.click(screen.getByRole("button", { name: "Actions for Ana Reyes" }));
+    expect(screen.queryByRole("menuitem", { name: "Edit name" })).not.toBeInTheDocument();
   });
 });

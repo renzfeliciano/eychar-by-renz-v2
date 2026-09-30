@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { AuditLogModel, EmployeeModel, OrganizationModel, PersonModel, UserModel } from "@/server/db/models";
+import { AssetIssuanceModel, AuditLogModel, EmployeeModel, OrganizationModel, PersonModel, UserModel } from "@/server/db/models";
 import { ClearanceDepartmentService } from "@/domains/catalog/clearance-department-service";
 import { SeparationTypeService } from "@/domains/catalog/separation-type-service";
 import { ClearanceChecklistService } from "@/domains/clearance/clearance-checklist-service";
@@ -144,5 +144,70 @@ describe("ClearanceService", () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0]).toMatchObject({ employeeName: "Ana Reyes", separationTypeName: "Resignation" });
+  });
+});
+
+describe("ClearanceService automatic checks", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  async function seedWithSources(suffix: string) {
+    const base = await seed(suffix);
+    await ClearanceChecklistService.create(
+      { organizationId: base.organizationId, departmentCode: "it", title: "Return all issued assets", blocking: true, dueDaysAfterLastDay: 0, autoSource: "assets" },
+      {},
+    );
+    await ClearanceChecklistService.create(
+      { organizationId: base.organizationId, departmentCode: "it", title: "Revoke system access", blocking: true, dueDaysAfterLastDay: 1, autoSource: "account_access" },
+      {},
+    );
+    const asset = await AssetIssuanceModel.create({
+      organizationId: base.organizationId,
+      employeeId: base.employeeId,
+      assetName: "Dell Latitude 5440",
+      serialNumber: "SN-123",
+      condition: "Good",
+      issuedDate: new Date("2025-01-10"),
+    });
+    return { ...base, assetId: asset._id };
+  }
+
+  it("won't let anyone clear an asset item by hand while an asset is still out", async () => {
+    const { organizationId, employeeId } = await seedWithSources("a1");
+    const opened = await ClearanceService.open({ organizationId, employeeId, ...OPEN }, {});
+    const assetItem = opened.items.find((entry) => entry.autoSource === "assets")!;
+
+    await expect(ClearanceService.actOnItem(opened._id.toString(), organizationId, assetItem._id.toString(), { action: "clear" }, {})).rejects.toThrow(
+      "1 asset still issued",
+    );
+  });
+
+  it("clears asset and access items by itself once the facts are true, and says so in the audit trail", async () => {
+    const { organizationId, employeeId, assetId, selfUserId } = await seedWithSources("a2");
+    const opened = await ClearanceService.open({ organizationId, employeeId, ...OPEN }, {});
+    await UserModel.updateOne({ _id: selfUserId }, { employeeId });
+
+    let synced = await ClearanceService.syncAutomaticItems(opened._id.toString(), organizationId);
+    expect(synced.items.find((entry) => entry.autoSource === "assets")?.status).toBe("pending");
+
+    await AssetIssuanceModel.updateOne({ _id: assetId }, { returnedDate: new Date("2026-10-09") });
+    await UserModel.updateOne({ _id: selfUserId }, { status: "disabled" });
+    synced = await ClearanceService.syncAutomaticItems(opened._id.toString(), organizationId);
+
+    const assetItem = synced.items.find((entry) => entry.autoSource === "assets")!;
+    expect(assetItem).toMatchObject({ status: "cleared", note: "Cleared automatically: all issued assets returned" });
+    expect(synced.items.find((entry) => entry.autoSource === "account_access")?.status).toBe("cleared");
+    expect(await AuditLogModel.countDocuments({ resourceId: opened._id, action: "clearance.item-auto-cleared" })).toBe(2);
+  });
+
+  it("describes what each automatic item is waiting on", async () => {
+    const { organizationId, employeeId } = await seedWithSources("a3");
+    const opened = await ClearanceService.open({ organizationId, employeeId, ...OPEN }, {});
+
+    const facts = await ClearanceService.sourceFacts(organizationId, employeeId, new Date("2026-10-01T00:00:00.000Z"));
+
+    expect(facts.unreturnedAssets).toEqual([{ id: expect.any(String), label: "Dell Latitude 5440 (SN-123)" }]);
+    expect(opened.items.some((entry) => entry.autoSource === "account_access")).toBe(true);
   });
 });

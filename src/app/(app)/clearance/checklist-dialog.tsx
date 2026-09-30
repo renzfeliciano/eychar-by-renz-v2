@@ -9,9 +9,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { AUTO_SOURCE_LABELS, CLEARANCE_AUTO_SOURCES } from "@/domains/clearance/clearance-sources";
 import { cn } from "@/lib/utils";
 
-export type ChecklistRow = { id: string; departmentCode: string; title: string; blocking: boolean; dueDaysAfterLastDay: number; status: string };
+const AUTO_OPTIONS = CLEARANCE_AUTO_SOURCES.map((source) => ({ id: source, label: AUTO_SOURCE_LABELS[source] }));
+
+export type ChecklistRow = { id: string; departmentCode: string; title: string; blocking: boolean; dueDaysAfterLastDay: number; status: string; autoSource?: string | null };
 
 /**
  * The organization's clearance checklist. New clearances copy the active
@@ -24,6 +27,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
   const [title, setTitle] = useState("");
   const [blocking, setBlocking] = useState(true);
   const [dueDays, setDueDays] = useState("0");
+  const [autoSource, setAutoSource] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -44,7 +48,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
     const response = await fetch("/api/clearance/checklist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, departmentCode, title: title.trim(), blocking, dueDaysAfterLastDay: Number(dueDays) || 0 }),
+      body: JSON.stringify({ organizationId, departmentCode, title: title.trim(), blocking, dueDaysAfterLastDay: Number(dueDays) || 0, autoSource: autoSource || undefined }),
     });
     setIsSubmitting(false);
     if (!response.ok) {
@@ -53,6 +57,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
       return;
     }
     setTitle("");
+    setAutoSource("");
     router.refresh();
   }
 
@@ -98,6 +103,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
               <Input id="checklist-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Return company laptop and charger" maxLength={120} required />
             </FormField>
           </div>
+          <OptionSelect label="Automatic check" value={autoSource} onChange={setAutoSource} options={AUTO_OPTIONS} placeholder="None (signed off by hand)" testId="checklist-auto-select" />
           <div className="flex flex-wrap items-end gap-4">
             <FormField label="Due (days after last day)" htmlFor="checklist-due">
               <Input id="checklist-due" type="number" min={0} max={60} value={dueDays} onChange={(event) => setDueDays(event.target.value)} placeholder="e.g. 0" className="w-28" />
@@ -127,6 +133,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{item.title}</p>
                         <p className="text-xs text-muted-foreground">
+                          {item.autoSource ? `${AUTO_SOURCE_LABELS[item.autoSource as keyof typeof AUTO_SOURCE_LABELS] ?? item.autoSource} · ` : ""}
                           {item.blocking ? "Blocks final pay" : "Doesn't block final pay"} · due {item.dueDaysAfterLastDay === 0 ? "on the last day" : `${item.dueDaysAfterLastDay} day${item.dueDaysAfterLastDay === 1 ? "" : "s"} after`}
                         </p>
                       </div>
