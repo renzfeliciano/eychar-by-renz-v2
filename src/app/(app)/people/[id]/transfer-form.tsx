@@ -41,9 +41,8 @@ export function TransferForm({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Position, project, and manager are all required on every assignment,
-  // no exceptions — matches the same rule the API enforces server-side.
-  const allFieldsFilled = Boolean(positionId && projectId && reportsToEmployeeId);
+  // Position and project are required; the manager is optional (same rule as the API).
+  const allFieldsFilled = Boolean(positionId && projectId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,8 +56,8 @@ export function TransferForm({
         organizationId,
         positionId: positionId !== (currentPositionId ?? "") ? positionId || undefined : undefined,
         projectId: projectId !== (currentProjectId ?? "") ? projectId || undefined : undefined,
-        reportsToEmployeeId:
-          reportsToEmployeeId !== (currentReportsToEmployeeId ?? "") ? reportsToEmployeeId || undefined : undefined,
+        // "" (None) removes the manager; unchanged sends nothing.
+        reportsToEmployeeId: reportsToEmployeeId !== (currentReportsToEmployeeId ?? "") ? reportsToEmployeeId : undefined,
       }),
     });
 
@@ -78,8 +77,7 @@ export function TransferForm({
       <CardHeader>
         <CardTitle className="text-base">Transfer</CardTitle>
         <CardDescription>
-          Change this employee&apos;s position, project, or manager — position, project, and manager must all be set to complete a
-          transfer.
+          Change this employee&apos;s position, project, or manager. Position and project are required; the manager is optional.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -88,7 +86,7 @@ export function TransferForm({
           <div className="grid gap-4 sm:grid-cols-3 sm:items-end xl:grid-cols-1">
             <OptionSelect label="Position" value={positionId} onChange={setPositionId} options={positions} required />
             <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} required />
-            <OptionSelect label="Manager" value={reportsToEmployeeId} onChange={setReportsToEmployeeId} options={managers} required />
+            <OptionSelect label="Manager" value={reportsToEmployeeId} onChange={setReportsToEmployeeId} options={managers} placeholder="No manager" />
           </div>
           <Button type="submit" disabled={isSubmitting || !allFieldsFilled} className="w-fit">
             {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <ArrowRightLeft className="size-4" />}

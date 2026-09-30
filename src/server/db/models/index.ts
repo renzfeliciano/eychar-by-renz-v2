@@ -46,3 +46,7 @@ export { EmployeeDocumentModel } from "./employee-document";
 export { ShiftTemplateModel } from "./shift-template";
 export { ScheduleEntryModel } from "./schedule-entry";
 export { LoginThrottleModel } from "./login-throttle";
+export { ClearanceDepartmentModel } from "./clearance-department";
+export { SeparationTypeModel } from "./separation-type";
+export { ClearanceChecklistItemModel } from "./clearance-checklist-item";
+export { ClearanceCaseModel } from "./clearance-case";

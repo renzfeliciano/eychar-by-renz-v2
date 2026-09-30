@@ -32,6 +32,7 @@ import {
   Plane,
   ShieldCheck,
   UserCog,
+  UserMinus,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -54,6 +55,7 @@ export const NAV_SECTIONS = [
     items: [
       { href: "/people", label: "People", icon: Users },
       { href: "/travel-orders", label: "Travel orders", icon: Plane },
+      { href: "/clearance", label: "Clearance", icon: UserMinus },
     ],
   },
   {

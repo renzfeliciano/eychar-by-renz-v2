@@ -212,10 +212,32 @@ All of these are exportable, in the same Excel and CSV style as attendance.
 
 Each phase ships behind its own tests (TDD) and is usable on its own.
 
-## Open questions
+## Decisions on the open questions (2026-09-30)
 
-- Should a resignation request start in self-service, or only from HR?
-- Which documents are issued at release (COE, clearance certificate, quitclaim), and do they need
-  the company's letterhead template?
-- Leave conversion: which leave types convert to cash, and at what rate?
-- Who is the "department head" for escalation: a role, or a person per organization unit?
+- **How a separation starts:** only HR opens a case. Employees don't file resignations in the app;
+  the resignation is documented and sent by email. The case records how and when notice was
+  received (for example, "Resignation letter by email, 28 Sep 2026") and can hold the letter as
+  evidence.
+- **Documents at release:** flexible. The organization picks which documents it issues from a
+  catalog seeded with Certificate of Employment, Clearance Certificate and Quitclaim. Each uses a
+  standard, minimal template with the company name and logo in the header and plain body text. It
+  is generated at release (phase 4).
+- **Escalation:** no rule yet. Overdue items are highlighted on the list, the case page and the
+  department inbox. Automatic escalation to a named person or role waits for a business rule.
+- **Leave conversion:** each leave type has an HR-controlled "convertible to cash" toggle (see
+  ADR-032).
+- **Department scoping of sign-off:** no rule yet. Anyone with `clearance.sign-off` can sign off any
+  department's items. Waiving still needs `clearance.waive`, and nobody can sign off their own
+  clearance. Per-department scoping waits for a rule on which department a user belongs to.
+
+## Implementation status
+
+- **Phase 1 (done, 2026-09-30):**
+  - Catalogs: clearance departments and separation types.
+  - Checklist template, with a Checklist dialog on the Clearance page.
+  - `ClearanceCase` with the checklist items copied in, and the one-active-case-per-employee rule.
+  - Item actions: clear, flag, waive, not applicable, reopen.
+  - Cancelling a case, with a reason.
+  - Permissions: `clearance.read/create/sign-off/waive/update`.
+  - Audit timeline.
+  - List page and case page.

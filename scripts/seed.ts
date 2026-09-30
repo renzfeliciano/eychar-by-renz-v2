@@ -20,6 +20,9 @@ import {
   CaseStatusModel,
   PerformanceRatingModel,
   DocumentTypeModel,
+  ClearanceDepartmentModel,
+  SeparationTypeModel,
+  ClearanceChecklistItemModel,
   PositionModel,
   ProjectModel,
 } from "@/server/db/models";
@@ -180,6 +183,19 @@ const BASELINE_PERMISSIONS = [
   { key: "employee-documents.create", description: "Upload an employee document", category: "documents" },
   { key: "employee-documents.read", description: "View and download an employee's documents", category: "documents" },
   { key: "employee-documents.update", description: "Edit an employee document's details", category: "documents" },
+
+  // Workforce clearance (ADR-031).
+  { key: "clearance.read", description: "View clearances", category: "clearance" },
+  { key: "clearance.create", description: "Open a clearance for a separating employee", category: "clearance" },
+  { key: "clearance.sign-off", description: "Clear, flag or mark checklist items not applicable", category: "clearance" },
+  { key: "clearance.waive", description: "Waive a clearance item (with a reason)", category: "clearance" },
+  { key: "clearance.update", description: "Cancel a clearance and manage the clearance checklist", category: "clearance" },
+  { key: "clearance-departments.create", description: "Add clearance departments", category: "settings" },
+  { key: "clearance-departments.read", description: "View clearance departments", category: "settings" },
+  { key: "clearance-departments.update", description: "Retire clearance departments", category: "settings" },
+  { key: "separation-types.create", description: "Add separation types", category: "settings" },
+  { key: "separation-types.read", description: "View separation types", category: "settings" },
+  { key: "separation-types.update", description: "Retire separation types", category: "settings" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -478,6 +494,39 @@ async function seed() {
     { code: "resume", name: "Resume", sortOrder: 3 },
     { code: "other", name: "Other", sortOrder: 4 },
   ]);
+
+  await seedCatalogDefaults(ClearanceDepartmentModel, [
+    { code: "supervisor", name: "Immediate supervisor", sortOrder: 0 },
+    { code: "admin", name: "Admin", sortOrder: 1 },
+    { code: "it", name: "IT", sortOrder: 2 },
+    { code: "finance", name: "Finance", sortOrder: 3 },
+    { code: "hr", name: "HR", sortOrder: 4 },
+  ]);
+
+  await seedCatalogDefaults(SeparationTypeModel, [
+    { code: "resignation", name: "Resignation", sortOrder: 0 },
+    { code: "end_of_contract", name: "End of contract", sortOrder: 1 },
+    { code: "termination", name: "Termination", sortOrder: 2 },
+    { code: "retirement", name: "Retirement", sortOrder: 3 },
+    { code: "redundancy", name: "Redundancy", sortOrder: 4 },
+    { code: "death", name: "Death", sortOrder: 5 },
+  ]);
+
+  // Starter clearance checklist (ADR-031), only for an organization that has none yet,
+  // so re-running the seed never re-adds items HR has edited or retired.
+  if (!(await ClearanceChecklistItemModel.exists({ organizationId: organization._id }))) {
+    const CHECKLIST = [
+      { departmentCode: "supervisor", title: "Turnover of work and files", blocking: true, dueDaysAfterLastDay: 0 },
+      { departmentCode: "admin", title: "Return company ID, keys and uniforms", blocking: true, dueDaysAfterLastDay: 0 },
+      { departmentCode: "it", title: "Return laptop, phone and accessories", blocking: true, dueDaysAfterLastDay: 0 },
+      { departmentCode: "it", title: "Revoke system and email access", blocking: true, dueDaysAfterLastDay: 1 },
+      { departmentCode: "finance", title: "Liquidate cash advances and travel orders", blocking: true, dueDaysAfterLastDay: 3 },
+      { departmentCode: "finance", title: "Compute accountabilities (lost or damaged items, loans)", blocking: true, dueDaysAfterLastDay: 5 },
+      { departmentCode: "hr", title: "Review leave balance", blocking: false, dueDaysAfterLastDay: 3 },
+      { departmentCode: "hr", title: "Exit interview", blocking: false, dueDaysAfterLastDay: 3 },
+    ];
+    await ClearanceChecklistItemModel.insertMany(CHECKLIST.map((item, index) => ({ organizationId: organization._id, ...item, sortOrder: index })));
+  }
 
   // Real Position/Project data from the v1 app, seeded as a starter set for
   // the "pcas" organization. Codes are generated (v1's own admin screen

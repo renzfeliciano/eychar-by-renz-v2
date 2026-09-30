@@ -65,11 +65,11 @@ used), so anyone reviewing it can trace every peso.
 | --- | --- | --- | --- |
 | Earnings | Salary balance | Attendance + compensation (ADR-029) | Engine proration for days worked in the last partial period |
 | Earnings | Unpaid prior periods | Payroll runs | Any period between the last released run and separation |
-| Earnings | Leave encashment | `LeaveBalance`, leave policy | Convertible days × daily rate; which types convert, and caps, come from the leave policy |
+| Earnings | Leave encashment | `LeaveBalance`, leave type toggle | Unused days of leave types HR marked convertible × daily rate |
 | Earnings | Pro-rated 13th month | Released payroll records this year + salary balance | Basic salary earned in the calendar year ÷ 12, less 13th month already paid |
 | Earnings | Bonuses / incentives | HR entry, with a document | Only earned, approved amounts; each needs a reason and an attachment |
 | Earnings | Reimbursements | Approved claims, liquidated travel orders | Amounts owed back to the employee |
-| Earnings | Separation / retirement pay | Separation type, tenure, rule version | By separation type and years of service, per the rule version (see Compliance) |
+| Earnings | Separation pay | Separation type, tenure, rule version | By separation type and years of service, per the rule version (see Compliance). Retirement pay is a manual line for now (see Decisions) |
 | Deductions | Accountabilities | Clearance items flagged with amounts | Linked to the clearance item; can't exist without one |
 | Deductions | Loans and advances | Payroll adjustments, cash advances | Remaining balance |
 | Deductions | Statutory contributions | Engine contribution rules | For the final period, same as a regular run |
@@ -91,7 +91,7 @@ Draft → Computed → HR reviewed → Finance approved → Disbursed → Closed
   version**; earlier versions are kept for comparison.
 - **HR reviewed:** HR confirms the separation facts: type, last day, leave, bonuses.
 - **Finance approved:** a *different* Finance user approves, with maker-checker enforced as in
-  payroll runs. Amounts above an organization threshold need a second approver.
+  payroll runs. (A second approver above a set amount can be added later; see Decisions.)
 - **Disbursed:** release creates the `final` payroll run, and the payslip and register export
   follow the normal payroll path. The bank or payment reference is recorded.
 - **Closed:** the documents are issued:
@@ -243,10 +243,22 @@ These phases fit after ADR-031's foundation phase.
 
 Each phase is test-first (TDD) and usable on its own.
 
-## Open questions
+## Decisions on the open questions (2026-09-30)
 
-- Which leave types convert to cash, and at what rate or cap? (Shared with ADR-031.)
-- Does the company have a retirement plan that overrides the RA 7641 minimum?
-- The approval threshold for a second Finance approver.
-- Payment channel: bank transfer file, check or cash, and whether we generate a bank file.
-- Should a small balance due from the employee be auto-waived below a threshold?
+- **Leave encashment:** each leave type gets a **"Convertible to cash at separation"** toggle that
+  HR sets in Leave › Types. It is off by default. Converted days are paid at the employee's daily
+  rate: unused convertible days × daily rate, from the compensation in force on the last day. The
+  toggle is snapshotted on the settlement, so changing it later doesn't alter approved settlements.
+- **Retirement plan:** there's no company rule yet. There is no automatic retirement-pay line;
+  when it applies, HR adds it as a manual earning with a reason and an attachment. A rule-based
+  line can come later when a policy exists.
+- **Second approver threshold:** no rule yet. One Finance approver, different from the preparer
+  (maker-checker), is always required. A threshold setting can be added later without changing the
+  flow.
+- **Payment method:** flexible. An organization catalog of payment methods (Settings › Catalogs),
+  seeded with Bank transfer, Check and Cash. Each settlement records the method and its reference
+  (transfer reference, check number, or acknowledgment receipt number). No bank file is generated
+  for now.
+- **Balances owed by the employee:** never waived automatically. A negative net shows as a balance
+  due from the employee. Finance either records its collection or waives it explicitly, with a
+  reason and an approver, both audited.

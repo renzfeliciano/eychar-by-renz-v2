@@ -136,11 +136,11 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
     await expect(EmployeeAssignmentService.transfer(s.employee._id.toString(), s.orgId, {}, {})).rejects.toThrow(BusinessRuleError);
   });
 
-  it("rejects a transfer that would leave position, project, or manager unset — no exceptions", async () => {
+  it("rejects a transfer that would leave position or project unset", async () => {
     const s = await seedScenario();
 
     // First-ever assignment for this employee — nothing to inherit, and
-    // only two of the three required fields are supplied.
+    // the project is missing.
     await expect(
       EmployeeAssignmentService.transfer(
         s.employee._id.toString(),
@@ -149,6 +149,31 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
         {},
       ),
     ).rejects.toThrow(BusinessRuleError);
+  });
+
+  it("allows a transfer with no manager (position and project are what's required)", async () => {
+    const s = await seedScenario();
+
+    const assignment = await EmployeeAssignmentService.transfer(
+      s.employee._id.toString(),
+      s.orgId,
+      { positionId: s.supervisorPosition._id.toString(), projectId: s.projectA._id.toString() },
+      {},
+    );
+
+    expect(assignment.positionId?.toString()).toBe(s.supervisorPosition._id.toString());
+    expect(assignment.reportsToEmployeeId).toBeUndefined();
+  });
+
+  it("removes the manager when the transfer sets it to none", async () => {
+    const s = await seedScenario();
+    const base = { positionId: s.supervisorPosition._id.toString(), projectId: s.projectA._id.toString() };
+    await EmployeeAssignmentService.transfer(s.employee._id.toString(), s.orgId, { ...base, reportsToEmployeeId: s.managerB._id.toString() }, {});
+
+    const next = await EmployeeAssignmentService.transfer(s.employee._id.toString(), s.orgId, { reportsToEmployeeId: "" }, {});
+
+    expect(next.reportsToEmployeeId).toBeUndefined();
+    expect(next.positionId?.toString()).toBe(base.positionId);
   });
 
   it("allows a transfer once position, project, and manager are all specified", async () => {

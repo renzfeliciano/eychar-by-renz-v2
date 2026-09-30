@@ -6,7 +6,8 @@ const assignmentFields = {
   organizationUnitId: z.string().trim().min(1).optional(),
   projectId: z.string().trim().min(1).optional(),
   locationId: z.string().trim().min(1).optional(),
-  reportsToEmployeeId: z.string().trim().min(1).optional(),
+  // "" removes the manager on transfer.
+  reportsToEmployeeId: z.string().trim().optional(),
   effectiveFrom: z.coerce.date().optional(),
 };
 
