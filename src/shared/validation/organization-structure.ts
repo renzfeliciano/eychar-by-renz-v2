@@ -45,11 +45,13 @@ export const createLocationSchema = z.object({
 });
 
 // Edit forms submit every field pre-filled; "" means "clear it" (see
-// clearable()). `code` isn't editable — it's the stable identifier.
+// clearable()). `code` can be renamed but never cleared; other records
+// reference a location by id, so a rename doesn't break them.
 export const updateLocationSchema = z.object({
   organizationId: z.string().trim().min(1),
   status: z.enum(["active", "inactive"]).optional(),
   name: z.string().trim().min(1).optional(),
+  code: z.string().trim().min(1, "Enter a code").optional(),
   address: clearable(z.string().trim()).optional(),
   latitude: clearable(latitudeSchema).optional(),
   longitude: clearable(longitudeSchema).optional(),

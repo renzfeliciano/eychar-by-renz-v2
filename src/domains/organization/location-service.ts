@@ -20,6 +20,7 @@ function assertCoordinatePair(latitude: unknown, longitude: unknown) {
 
 function siteSnapshot(location: {
   name: string;
+  code?: string | null;
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -27,6 +28,7 @@ function siteSnapshot(location: {
 }) {
   return {
     name: location.name,
+    code: location.code,
     address: location.address,
     latitude: location.latitude,
     longitude: location.longitude,
@@ -63,7 +65,7 @@ export const LocationService = {
       action: "location.created",
       resourceType: "Location",
       resourceId: location._id.toString(),
-      after: { code: location.code, ...siteSnapshot(location) },
+      after: siteSnapshot(location),
     });
 
     return location;
@@ -99,11 +101,17 @@ export const LocationService = {
     const resultingLongitude = "longitude" in unset ? undefined : (set.longitude ?? existing.longitude);
     assertCoordinatePair(resultingLatitude, resultingLongitude);
 
-    const location = await LocationModel.findOneAndUpdate(
-      { _id: existing._id, organizationId: orgObjectId },
-      { ...(Object.keys(set).length ? { $set: set } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) },
-      { returnDocument: "after", runValidators: true },
-    );
+    let location;
+    try {
+      location = await LocationModel.findOneAndUpdate(
+        { _id: existing._id, organizationId: orgObjectId },
+        { ...(Object.keys(set).length ? { $set: set } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) },
+        { returnDocument: "after", runValidators: true },
+      );
+    } catch (error) {
+      if (isDuplicateKeyError(error)) throw new ConflictError(`Location code "${patch.code}" is already in use`);
+      throw error;
+    }
     if (!location) throw new NotFoundError("Location not found in this organization");
 
     await AuditService.record({

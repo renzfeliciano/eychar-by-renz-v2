@@ -109,6 +109,28 @@ describe("LocationService", () => {
       expect(audits[0].after).toMatchObject({ name: "Manila HQ", latitude: 14.5826 });
     });
 
+    it("renames the code and audits the old and new value", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-loc-code-1" });
+      const location = await LocationService.create({ organizationId: organization._id.toString(), name: "Estrella Condo", code: "Estrellavcondo" }, {});
+
+      const updated = await LocationService.update(location._id.toString(), organization._id.toString(), { code: "EST-CONDO" }, {});
+
+      expect(updated.code).toBe("EST-CONDO");
+      const [audit] = await AuditLogModel.find({ resourceId: location._id, action: "location.updated" }).lean();
+      expect(audit.before).toMatchObject({ code: "Estrellavcondo" });
+      expect(audit.after).toMatchObject({ code: "EST-CONDO" });
+    });
+
+    it("rejects a code another location in the organization already uses", async () => {
+      const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-loc-code-2" });
+      await LocationService.create({ organizationId: organization._id.toString(), name: "Head Office", code: "HO" }, {});
+      const other = await LocationService.create({ organizationId: organization._id.toString(), name: "Makati Site", code: "MKT" }, {});
+
+      await expect(LocationService.update(other._id.toString(), organization._id.toString(), { code: "HO" }, {})).rejects.toThrow(
+        'Location code "HO" is already in use',
+      );
+    });
+
     it("clears coordinates and address when given empty strings", async () => {
       const organization = await OrganizationModel.create({ name: "Acme", slug: "acme-loc-8" });
       const location = await LocationService.create(

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,6 +40,7 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(location.name);
+  const [code, setCode] = useState(location.code);
   const [address, setAddress] = useState(location.address ?? "");
   const [site, setSite] = useState<SiteCoordinates>(toSiteCoordinates(location));
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
       body: JSON.stringify({
         organizationId,
         name,
+        code,
         address: address.trim(),
         latitude: site.latitude.trim(),
         longitude: site.longitude.trim(),
@@ -79,6 +81,7 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
       setName(location.name);
+      setCode(location.code);
       setAddress(location.address ?? "");
       setSite(toSiteCoordinates(location));
       setError(null);
@@ -98,14 +101,24 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit location</DialogTitle>
-          <DialogDescription>
-            Code <span className="font-medium text-foreground">{location.code}</span> stays fixed; everything else can change.
-          </DialogDescription>
+          <DialogDescription>Update the site&apos;s details and clock-in area. Projects and records linked to it stay linked.</DialogDescription>
         </DialogHeader>
         <form id={`edit-location-form-${location.id}`} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor={`location-edit-name-${location.id}`} required>
             <Input id={`location-edit-name-${location.id}`} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. PCAS Head Office" required />
+          </FormField>
+          <FormField label="Code" htmlFor={`location-edit-code-${location.id}`} required>
+            <Input
+              id={`location-edit-code-${location.id}`}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder="e.g. HO"
+              autoCapitalize="characters"
+              spellCheck={false}
+              required
+              data-testid="locations-edit-code-input"
+            />
           </FormField>
           <FormField label="Address" htmlFor={`location-edit-address-${location.id}`}>
             <Input
@@ -120,6 +133,7 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
         </form>
         <DialogFooter>
           <Button type="submit" form={`edit-location-form-${location.id}`} disabled={isSubmitting} data-testid="locations-edit-submit-button">
+            {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>
