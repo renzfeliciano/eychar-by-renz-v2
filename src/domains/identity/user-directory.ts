@@ -1,7 +1,26 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { PersonModel, UserModel } from "@/server/db/models";
+import { EmployeeModel, PersonModel, RoleAssignmentModel, UserModel } from "@/server/db/models";
 import { formatPersonName } from "@/lib/person-name";
+
+/**
+ * Every account that belongs to an organization: anyone with a role there,
+ * any employee's self-service account, and any staff account whose person
+ * record is the organization's (a staff account created with "assign a role
+ * later" has only that link, and would otherwise be invisible everywhere).
+ */
+export async function organizationUserIds(organizationId: string): Promise<Types.ObjectId[]> {
+  await connectMongoDB();
+  const orgId = new Types.ObjectId(organizationId);
+  const [fromRoles, employeeIds, personIds] = await Promise.all([
+    RoleAssignmentModel.distinct("userId", { organizationId: orgId }),
+    EmployeeModel.find({ organizationId: orgId }).distinct("_id"),
+    PersonModel.find({ organizationId: orgId }).distinct("_id"),
+  ]);
+  const linked = await UserModel.find({ $or: [{ employeeId: { $in: employeeIds } }, { personId: { $in: personIds } }] }).distinct("_id");
+  const unique = new Map([...fromRoles, ...linked].map((id: Types.ObjectId) => [id.toString(), id]));
+  return [...unique.values()];
+}
 
 /**
  * Display names for user ids (who prepared, approved, released …): the

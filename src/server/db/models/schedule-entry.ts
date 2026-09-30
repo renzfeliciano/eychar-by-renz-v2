@@ -10,8 +10,14 @@ const scheduledShiftSchema = new Schema(
     code: { type: String, required: true },
     name: { type: String, required: true },
     kind: { type: String, enum: ["work", "rest"], required: true },
+    color: { type: String },
+    pattern: { type: String, enum: ["fixed", "flexible"] },
     startTime: { type: String },
     endTime: { type: String },
+    latestStartTime: { type: String },
+    requiredHours: { type: Number },
+    // HR set this day's own hours instead of the shift's.
+    customTimes: { type: Boolean },
   },
   { _id: false },
 );

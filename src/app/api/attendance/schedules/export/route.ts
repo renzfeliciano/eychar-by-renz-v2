@@ -29,7 +29,17 @@ export async function GET(request: NextRequest) {
     const usedCodes = new Set(view.rows.flatMap((row) => Object.values(row.cells).map((cell) => cell.code)));
     const legend = shifts
       .filter((shift) => shift.status === "active" || usedCodes.has(shift.code))
-      .map((shift) => ({ code: shift.code, name: shift.name, kind: shift.kind as "work" | "rest", startTime: shift.startTime ?? null, endTime: shift.endTime ?? null }));
+      .map((shift) => ({
+        code: shift.code,
+        name: shift.name,
+        kind: shift.kind as "work" | "rest",
+        color: shift.color ?? null,
+        pattern: (shift.pattern ?? "fixed") as "fixed" | "flexible",
+        startTime: shift.startTime ?? null,
+        endTime: shift.endTime ?? null,
+        latestStartTime: shift.latestStartTime ?? null,
+        requiredHours: shift.requiredHours ?? null,
+      }));
 
     return await xlsxResponse(buildScheduleWorkbook(view, { organizationName, shifts: legend }), filename);
   } catch (error) {

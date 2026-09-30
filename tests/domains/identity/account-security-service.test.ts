@@ -6,6 +6,7 @@ import { RoleService } from "@/domains/authorization/role-service";
 import { StaffAccountService } from "@/domains/identity/staff-account-service";
 import { AccountSecurityService } from "@/domains/identity/account-security-service";
 import { MfaService } from "@/domains/identity/mfa-service";
+import { RoleAssignmentService } from "@/domains/authorization/role-assignment-service";
 import { generateTotp } from "@/server/auth/totp";
 import { checkPassword } from "@/shared/validation/password-policy";
 import { NotFoundError, ValidationError } from "@/shared/errors";
@@ -91,5 +92,29 @@ describe("AccountSecurityService", () => {
     const accounts = await AccountSecurityService.listForOrganization(organizationId);
     const row = accounts.find((account) => account.id === user._id.toString());
     expect(row).toMatchObject({ kind: "staff", status: "active", mfaEnabled: true, locked: true, mustChangePassword: true, displayName: "Ana Reyes" });
+  });
+});
+
+describe("staff accounts created without a role", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("still belong to the organization: they're listed on Accounts and can be picked for a role", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-norole-${Date.now()}-${Math.random()}` });
+    const organizationId = organization._id.toString();
+    const user = await StaffAccountService.create(
+      { organizationId, firstName: "Rosa", lastName: "Dizon", username: `rosa.${Date.now()}`.slice(0, 30), password: PASSWORD },
+      {},
+    );
+
+    const accounts = await AccountSecurityService.listForOrganization(organizationId);
+    expect(accounts.map((account) => account.id)).toContain(user._id.toString());
+
+    const members = await RoleAssignmentService.listOrganizationMembers(organizationId);
+    expect(members).toContainEqual(expect.objectContaining({ userId: user._id.toString(), name: "Rosa Dizon" }));
+
+    const otherOrganization = await OrganizationModel.create({ name: "Other", slug: `other-norole-${Date.now()}-${Math.random()}` });
+    expect((await AccountSecurityService.listForOrganization(otherOrganization._id.toString())).map((account) => account.id)).not.toContain(user._id.toString());
   });
 });

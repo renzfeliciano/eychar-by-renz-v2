@@ -14,6 +14,7 @@ import { FormError } from "@/components/shared/form-field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import type { ScheduleMonthView } from "@/domains/attendance/schedule-service";
+import { shiftColor } from "@/domains/attendance/shift-colors";
 import { formatHours, type ShiftOption } from "./shift-templates-dialog";
 
 const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -31,7 +32,7 @@ type Props = {
 };
 
 type CellPosition = { employeeId: string; dayIndex: number };
-type EntryPayload = { employeeId: string; date: string; shiftTemplateId: string | null; projectId?: string };
+type EntryPayload = { employeeId: string; date: string; shiftTemplateId: string | null; projectId?: string; startTime?: string; endTime?: string };
 
 // A drag paints a rectangle on top of whatever was selected when it began;
 // starting on an already-selected day erases instead, like a spreadsheet.
@@ -45,6 +46,9 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   const [assignOpen, setAssignOpen] = useState(false);
   const [shiftId, setShiftId] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [customHours, setCustomHours] = useState(false);
+  const [customStart, setCustomStart] = useState("08:00");
+  const [customEnd, setCustomEnd] = useState("17:00");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [quickSavingId, setQuickSavingId] = useState<string | null>(null);
@@ -191,12 +195,18 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
       setError("Choose a shift.");
       return;
     }
+    const isWork = chosenShift?.kind === "work";
+    if (isWork && customHours && (!customStart || !customEnd || customStart === customEnd)) {
+      setError("Enter a custom start and end that aren't the same.");
+      return;
+    }
     setError(null);
     setIsSaving(true);
-    const project = chosenShift?.kind === "work" ? projectId : "";
+    const project = isWork ? projectId : "";
+    const hours = isWork && customHours ? { startTime: customStart, endTime: customEnd } : {};
     try {
       await save(
-        selectedPositions().map(({ employeeId, date }) => ({ employeeId, date, shiftTemplateId: shiftId, ...(project ? { projectId: project } : {}) })),
+        selectedPositions().map(({ employeeId, date }) => ({ employeeId, date, shiftTemplateId: shiftId, ...(project ? { projectId: project } : {}), ...hours })),
         false,
       );
       setAssignOpen(false);
@@ -214,7 +224,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   if (view.rows.length === 0) {
     return (
       <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground" data-testid="schedule-empty">
-        No active employees to schedule yet.
+        No one is on the schedule yet. Add active employees, or put them on the schedule from Roster.
       </p>
     );
   }
@@ -341,18 +351,23 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
                     const position = { employeeId: row.employeeId, dayIndex };
                     const isSelected = selected.has(cellKey(row.employeeId, day.date));
                     const label = cell
-                      ? `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: ${cell.name}${cell.kind === "work" ? ` ${formatHours(cell)}` : ""}${cell.projectName ? ` at ${cell.projectName}` : ""}`
+                      ? `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: ${cell.name}${cell.kind === "work" ? ` ${formatHours(cell)}` : ""}${cell.customTimes ? " (custom hours)" : ""}${cell.projectName ? ` at ${cell.projectName}` : ""}`
                       : `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: not scheduled`;
                     const content = cell ? (
                       <>
+                        {cell.customTimes && (
+                          <span className="absolute top-1 right-1 size-1.5 rounded-full bg-current opacity-70" aria-hidden="true" data-testid="schedule-custom-marker" />
+                        )}
                         <span className="block font-mono text-xs font-semibold">{cell.code}</span>
-                        {cell.projectName && <span className="block max-w-10 truncate text-[9px] leading-tight text-muted-foreground">{cell.projectName}</span>}
+                        {cell.projectName && <span className="block max-w-10 truncate text-[9px] leading-tight opacity-75">{cell.projectName}</span>}
                       </>
                     ) : null;
+                    // Each shift wears its own tint (the code is always printed too, so color is never the only cue).
                     const cellClass = cn(
-                      "h-11 w-11 min-w-11 border-b p-0 text-center align-middle",
+                      "relative h-11 w-11 min-w-11 border-b border-background p-0 text-center align-middle",
+                      !cell && "border-border",
                       day.isWeekend && !cell && "bg-muted/40",
-                      cell?.kind === "rest" && "bg-muted text-muted-foreground",
+                      cell && shiftColor(cell.color).cellClassName,
                     );
                     return (
                       <td key={day.date} className={cellClass} title={label}>
@@ -365,14 +380,14 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
                             onPointerEnter={() => handlePointerEnter(position)}
                             onClick={(event) => handleCellClick(position, event.shiftKey)}
                             className={cn(
-                              "flex size-full flex-col items-center justify-center transition-[background-color,box-shadow] duration-100 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+                              "relative flex size-full flex-col items-center justify-center transition-[background-color,box-shadow] duration-100 hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-white/5",
                               isSelected && "bg-primary/12 ring-2 ring-primary ring-inset hover:bg-primary/15",
                             )}
                           >
                             {content}
                           </button>
                         ) : (
-                          <div className="flex size-full flex-col items-center justify-center">{content}</div>
+                          <div className="relative flex size-full flex-col items-center justify-center">{content}</div>
                         )}
                       </td>
                     );
@@ -388,10 +403,18 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
         <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground" aria-label="Shift legend">
           {activeShifts.map((shift) => (
             <li key={shift.id} className="flex items-center gap-1.5">
-              <span className={cn("rounded px-1 font-mono font-semibold text-foreground", shift.kind === "rest" && "bg-muted")}>{shift.code}</span>
+              <span className={cn("inline-flex min-w-7 justify-center rounded px-1 font-mono font-semibold", shiftColor(shift.color).cellClassName)}>{shift.code}</span>
               {shift.name} · <span className="tabular-nums">{formatHours(shift)}</span>
             </li>
           ))}
+          {view.rows.some((row) => Object.values(row.cells).some((cell) => cell.customTimes)) && (
+            <li className="flex items-center gap-1.5">
+              <span className="relative inline-flex size-4 rounded bg-muted" aria-hidden="true">
+                <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-foreground/60" />
+              </span>
+              Custom hours that day
+            </li>
+          )}
         </ul>
       )}
 
@@ -419,7 +442,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
                     onClick={() => applyQuick(shift)}
                     aria-label={`Apply ${shift.code} · ${shift.name}`}
                     title={`${shift.name} · ${formatHours(shift)}`}
-                    className={cn("min-w-10 font-mono font-semibold", shift.kind === "rest" && "bg-muted")}
+                    className={cn("min-w-10 border-transparent font-mono font-semibold hover:opacity-90", shiftColor(shift.color).cellClassName)}
                     data-testid={`schedule-quick-shift-${shift.code}`}
                   >
                     {quickSavingId === shift.id ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : shift.code}
@@ -431,12 +454,13 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
                   disabled={isBusy}
                   onClick={() => {
                     setError(null);
+                    setCustomHours(false);
                     setAssignOpen(true);
                   }}
                   data-testid="schedule-assign-button"
                 >
                   <SlidersHorizontal className="size-3.5" />
-                  With project…
+                  More options…
                 </Button>
               </div>
             )}
@@ -494,6 +518,29 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
             </div>
             {chosenShift?.kind !== "rest" && (
               <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="No specific project" testId="schedule-project-select" />
+            )}
+            {chosenShift?.kind === "work" && (
+              <div className="flex flex-col gap-3 rounded-lg border p-3">
+                <label className="flex items-start gap-2.5 text-sm">
+                  <input type="checkbox" checked={customHours} onChange={(event) => setCustomHours(event.target.checked)} className="mt-0.5 size-4 shrink-0 accent-primary" />
+                  <span>
+                    <span className="font-medium">Custom hours for these days</span>
+                    <span className="block text-xs text-muted-foreground">Keeps the {chosenShift.code} shift, with different start and end times on just these days.</span>
+                  </span>
+                </label>
+                {customHours && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="schedule-custom-start">Starts</Label>
+                      <Input id="schedule-custom-start" type="time" aria-label="Custom start" value={customStart} onChange={(event) => setCustomStart(event.target.value)} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="schedule-custom-end">Ends</Label>
+                      <Input id="schedule-custom-end" type="time" aria-label="Custom end" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} />
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             <FormError message={error} />
           </div>

@@ -2,12 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
+import { Check, Clock, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SHIFT_COLORS, nextShiftColor, shiftColor } from "@/domains/attendance/shift-colors";
+import { describeShiftHours } from "@/domains/attendance/shift-display";
 import { cn } from "@/lib/utils";
 
 export type ShiftOption = {
@@ -15,38 +17,107 @@ export type ShiftOption = {
   name: string;
   code: string;
   kind: "work" | "rest";
+  pattern: "fixed" | "flexible";
+  color: string;
   startTime: string | null;
   endTime: string | null;
+  latestStartTime: string | null;
+  requiredHours: number | null;
   status: string;
 };
 
-type Draft = { name: string; code: string; kind: "work" | "rest"; startTime: string; endTime: string };
-const EMPTY_DRAFT: Draft = { name: "", code: "", kind: "work", startTime: "08:00", endTime: "17:00" };
+type Draft = {
+  name: string;
+  code: string;
+  kind: "work" | "rest";
+  pattern: "fixed" | "flexible";
+  color: string;
+  startTime: string;
+  endTime: string;
+  latestStartTime: string;
+  requiredHours: string;
+};
 
-export function formatHours(shift: Pick<ShiftOption, "kind" | "startTime" | "endTime">): string {
-  if (shift.kind === "rest" || !shift.startTime || !shift.endTime) return "Day off";
-  return `${shift.startTime}–${shift.endTime}${shift.endTime < shift.startTime ? " (+1 day)" : ""}`;
+const DEFAULT_TIMES = { startTime: "08:00", endTime: "17:00", latestStartTime: "10:00", requiredHours: "8" };
+
+export function formatHours(shift: Pick<ShiftOption, "kind" | "pattern" | "startTime" | "endTime" | "latestStartTime" | "requiredHours">): string {
+  return describeShiftHours(shift);
+}
+
+function SegmentedControl<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-lg bg-muted p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-150",
+            value === option.value ? "bg-background text-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationId: string; shifts: ShiftOption[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<Draft>(() => emptyDraft(null));
+  // Once HR picks a color, switching work/rest no longer re-suggests one.
+  const [colorChosen, setColorChosen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  function emptyDraft(excludeId: string | null, kind: "work" | "rest" = "work"): Draft {
+    const used = shifts.filter((shift) => shift.id !== excludeId).map((shift) => shift.color);
+    return { name: "", code: "", kind, pattern: "fixed", color: nextShiftColor(used, kind), ...DEFAULT_TIMES };
+  }
+
   function startEdit(shift: ShiftOption) {
     setEditingId(shift.id);
-    setDraft({ name: shift.name, code: shift.code, kind: shift.kind, startTime: shift.startTime ?? "08:00", endTime: shift.endTime ?? "17:00" });
+    setColorChosen(true);
+    setDraft({
+      name: shift.name,
+      code: shift.code,
+      kind: shift.kind,
+      pattern: shift.pattern,
+      color: shift.color,
+      startTime: shift.startTime ?? DEFAULT_TIMES.startTime,
+      endTime: shift.endTime ?? DEFAULT_TIMES.endTime,
+      latestStartTime: shift.latestStartTime ?? DEFAULT_TIMES.latestStartTime,
+      requiredHours: shift.requiredHours?.toString() ?? DEFAULT_TIMES.requiredHours,
+    });
     setError(null);
   }
 
   function resetForm() {
     setEditingId(null);
-    setDraft(EMPTY_DRAFT);
+    setColorChosen(false);
+    setDraft(emptyDraft(null));
     setError(null);
+  }
+
+  function setKind(kind: "work" | "rest") {
+    setDraft((current) => ({ ...current, kind, color: colorChosen ? current.color : emptyDraft(editingId, kind).color }));
+  }
+
+  // Only the fields for the chosen shape are sent; on edit, "" clears the others server-side.
+  function timesPayload() {
+    const clear = editingId ? "" : undefined;
+    if (draft.kind === "rest") return { startTime: clear, endTime: clear, latestStartTime: clear, requiredHours: clear };
+    if (draft.pattern === "flexible") {
+      return { startTime: draft.startTime, latestStartTime: draft.latestStartTime, requiredHours: Number(draft.requiredHours), endTime: clear };
+    }
+    return { startTime: draft.startTime, endTime: draft.endTime, latestStartTime: clear, requiredHours: clear };
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -54,12 +125,18 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
     setError(null);
     setIsSubmitting(true);
 
-    // A rest day carries no times; on edit, "" tells the server to clear them.
-    const times = draft.kind === "work" ? { startTime: draft.startTime, endTime: draft.endTime } : editingId ? { startTime: "", endTime: "" } : {};
     const response = await fetch(editingId ? `/api/attendance/shifts/${editingId}` : "/api/attendance/shifts", {
       method: editingId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, name: draft.name, code: draft.code, kind: draft.kind, ...times }),
+      body: JSON.stringify({
+        organizationId,
+        name: draft.name,
+        code: draft.code,
+        kind: draft.kind,
+        pattern: draft.kind === "work" ? draft.pattern : "fixed",
+        color: draft.color,
+        ...timesPayload(),
+      }),
     });
 
     setIsSubmitting(false);
@@ -88,6 +165,8 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
     }
     router.refresh();
   }
+
+  const preview = shiftColor(draft.color);
 
   return (
     <Dialog
@@ -127,38 +206,114 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
 
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Type</span>
-            <div role="radiogroup" aria-label="Shift type" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-              {(["work", "rest"] as const).map((kind) => (
-                <button
-                  key={kind}
-                  type="button"
-                  role="radio"
-                  aria-checked={draft.kind === kind}
-                  onClick={() => setDraft({ ...draft, kind })}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-150",
-                    draft.kind === kind ? "bg-background text-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {kind === "work" ? "Work shift" : "Rest day"}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              label="Shift type"
+              value={draft.kind}
+              onChange={setKind}
+              options={[
+                { value: "work", label: "Work shift" },
+                { value: "rest", label: "Rest day" },
+              ]}
+            />
           </div>
 
           {draft.kind === "work" && (
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Starts" htmlFor="shift-start" required>
-                <Input id="shift-start" type="time" value={draft.startTime} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} required />
-              </FormField>
-              <FormField label="Ends" htmlFor="shift-end" required>
-                <Input id="shift-end" type="time" value={draft.endTime} onChange={(event) => setDraft({ ...draft, endTime: event.target.value })} required />
-              </FormField>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Hours</span>
+              <SegmentedControl
+                label="Shift hours"
+                value={draft.pattern}
+                onChange={(pattern) => setDraft({ ...draft, pattern })}
+                options={[
+                  { value: "fixed", label: "Fixed hours" },
+                  { value: "flexible", label: "Flexi-time" },
+                ]}
+              />
             </div>
           )}
-          {draft.kind === "work" && draft.endTime < draft.startTime && (
-            <p className="-mt-2 text-xs text-muted-foreground">Ends the next morning (overnight shift).</p>
+
+          {draft.kind === "work" && draft.pattern === "fixed" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Starts" htmlFor="shift-start" required>
+                  <Input id="shift-start" type="time" value={draft.startTime} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} required />
+                </FormField>
+                <FormField label="Ends" htmlFor="shift-end" required>
+                  <Input id="shift-end" type="time" value={draft.endTime} onChange={(event) => setDraft({ ...draft, endTime: event.target.value })} required />
+                </FormField>
+              </div>
+              {draft.endTime < draft.startTime && <p className="-mt-2 text-xs text-muted-foreground">Ends the next morning (overnight shift).</p>}
+            </>
           )}
+
+          {draft.kind === "work" && draft.pattern === "flexible" && (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <FormField label="Earliest start" htmlFor="shift-flex-start" required>
+                  <Input id="shift-flex-start" type="time" value={draft.startTime} onChange={(event) => setDraft({ ...draft, startTime: event.target.value })} required />
+                </FormField>
+                <FormField label="Latest start" htmlFor="shift-flex-latest" required>
+                  <Input
+                    id="shift-flex-latest"
+                    type="time"
+                    value={draft.latestStartTime}
+                    onChange={(event) => setDraft({ ...draft, latestStartTime: event.target.value })}
+                    required
+                  />
+                </FormField>
+                <FormField label="Hours to work" htmlFor="shift-flex-hours" required>
+                  <Input
+                    id="shift-flex-hours"
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    max={16}
+                    step={0.5}
+                    value={draft.requiredHours}
+                    onChange={(event) => setDraft({ ...draft, requiredHours: event.target.value })}
+                    placeholder="e.g. 8"
+                    required
+                  />
+                </FormField>
+              </div>
+              <p className="-mt-2 text-xs text-muted-foreground">Employees start any time in the window and work the set hours.</p>
+            </>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Color</span>
+              <span className={cn("inline-flex min-w-9 justify-center rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold", preview.cellClassName)} aria-hidden="true">
+                {draft.code || "D"}
+              </span>
+            </div>
+            <div role="radiogroup" aria-label="Shift color" className="flex flex-wrap gap-2">
+              {SHIFT_COLORS.map((color) => {
+                const selected = draft.color === color.key;
+                return (
+                  <button
+                    key={color.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={color.label}
+                    title={color.label}
+                    onClick={() => {
+                      setColorChosen(true);
+                      setDraft({ ...draft, color: color.key });
+                    }}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full ring-offset-2 ring-offset-background transition-[box-shadow,transform] duration-150 hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      color.swatchClassName,
+                      selected && "ring-2 ring-foreground",
+                    )}
+                  >
+                    {selected && <Check className="size-3.5 text-white" aria-hidden="true" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <FormError message={error} />
           <div className="flex justify-end gap-2">
@@ -178,7 +333,9 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
           <ul className="-mx-4 divide-y border-t" data-testid="shift-list">
             {shifts.map((shift) => (
               <li key={shift.id} className={cn("flex items-center gap-3 px-4 py-2.5", editingId === shift.id && "bg-accent/50")}>
-                <span className="inline-flex min-w-9 justify-center rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold">{shift.code}</span>
+                <span className={cn("inline-flex min-w-9 justify-center rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold", shiftColor(shift.color).cellClassName)}>
+                  {shift.code}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{shift.name}</p>
                   <p className="text-xs text-muted-foreground tabular-nums">{formatHours(shift)}</p>

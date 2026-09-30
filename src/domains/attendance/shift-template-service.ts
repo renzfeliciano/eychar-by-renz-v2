@@ -4,38 +4,81 @@ import { ShiftTemplateModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
-import type { CreateShiftTemplateInput, ShiftKind, UpdateShiftTemplateInput } from "@/shared/validation/schedule";
+import { nextShiftColor } from "./shift-colors";
+import type { CreateShiftTemplateInput, ShiftKind, ShiftPattern, UpdateShiftTemplateInput } from "@/shared/validation/schedule";
 
-type ShiftShape = { kind: ShiftKind; startTime?: string | null; endTime?: string | null };
+type ShiftShape = {
+  kind: ShiftKind;
+  pattern?: ShiftPattern | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  latestStartTime?: string | null;
+  requiredHours?: number | null;
+};
 
-/** A work shift needs a real time span (overnight is fine: 22:00→07:00); a rest day has none. */
-function assertShiftShape({ kind, startTime, endTime }: ShiftShape) {
-  if (kind === "work") {
-    if (!startTime || !endTime) throw new BusinessRuleError("A work shift needs both a start and an end time");
-    if (startTime === endTime) throw new BusinessRuleError("A work shift can't start and end at the same time");
-  } else if (startTime || endTime) {
-    throw new BusinessRuleError("A rest day doesn't have start or end times");
+/**
+ * A fixed work shift needs a real time span (overnight is fine: 22:00→07:00);
+ * a flexi one needs a same-day start window and required hours instead of an
+ * end; a rest day has no times at all.
+ */
+function assertShiftShape({ kind, pattern, startTime, endTime, latestStartTime, requiredHours }: ShiftShape) {
+  if (kind === "rest") {
+    if (startTime || endTime || latestStartTime || requiredHours) throw new BusinessRuleError("A rest day doesn't have start or end times");
+    return;
   }
+  if (pattern === "flexible") {
+    if (!startTime || !latestStartTime) throw new BusinessRuleError("A flexi shift needs the earliest and latest start time");
+    if (latestStartTime <= startTime) throw new BusinessRuleError("The latest start must be after the earliest start");
+    if (!requiredHours) throw new BusinessRuleError("A flexi shift needs the number of hours to work");
+    if (endTime) throw new BusinessRuleError("A flexi shift has no fixed end time");
+    return;
+  }
+  if (!startTime || !endTime) throw new BusinessRuleError("A work shift needs both a start and an end time");
+  if (startTime === endTime) throw new BusinessRuleError("A work shift can't start and end at the same time");
+  if (latestStartTime || requiredHours) throw new BusinessRuleError("Only a flexi shift has a start window");
 }
 
-function snapshot(shift: { name: string; code: string; kind: string; startTime?: string | null; endTime?: string | null }) {
-  return { name: shift.name, code: shift.code, kind: shift.kind, startTime: shift.startTime, endTime: shift.endTime };
+function snapshot(shift: ShiftShape & { name: string; code: string; color?: string | null }) {
+  return {
+    name: shift.name,
+    code: shift.code,
+    kind: shift.kind,
+    pattern: shift.pattern,
+    color: shift.color,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    latestStartTime: shift.latestStartTime,
+    requiredHours: shift.requiredHours,
+  };
 }
 
 export const ShiftTemplateService = {
   async create(input: CreateShiftTemplateInput, actor: { userId?: string }) {
     await connectMongoDB();
-    assertShiftShape(input);
+    const pattern = input.kind === "work" ? (input.pattern ?? "fixed") : "fixed";
+    assertShiftShape({ ...input, pattern });
+
+    const organizationObjectId = new Types.ObjectId(input.organizationId);
+    const color =
+      input.color ??
+      nextShiftColor(
+        (await ShiftTemplateModel.find({ organizationId: organizationObjectId }).select("color").lean()).map((shift) => shift.color).filter(Boolean) as string[],
+        input.kind,
+      );
 
     let shift;
     try {
       shift = await ShiftTemplateModel.create({
-        organizationId: new Types.ObjectId(input.organizationId),
+        organizationId: organizationObjectId,
         name: input.name,
         code: input.code.toUpperCase(),
         kind: input.kind,
+        pattern,
+        color,
         startTime: input.startTime,
         endTime: input.endTime,
+        latestStartTime: input.latestStartTime,
+        requiredHours: input.requiredHours,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) throw new ConflictError(`Shift code "${input.code.toUpperCase()}" is already in use`);
@@ -57,7 +100,21 @@ export const ShiftTemplateService = {
   /** Work shifts in start-time order, then rest days — the order HR scans them in a picker. */
   async listCurrent(organizationId: string) {
     await connectMongoDB();
-    const shifts = await ShiftTemplateModel.find({ organizationId: new Types.ObjectId(organizationId) }).lean();
+    const shifts = await ShiftTemplateModel.find({ organizationId: new Types.ObjectId(organizationId) }).sort({ createdAt: 1 }).lean();
+
+    // Shifts made before colors existed get their own palette color once, in creation order.
+    const uncolored = shifts.filter((shift) => !shift.color);
+    if (uncolored.length) {
+      const used = shifts.map((shift) => shift.color).filter(Boolean) as string[];
+      for (const shift of uncolored) {
+        shift.color = nextShiftColor(used, shift.kind as ShiftKind);
+        used.push(shift.color);
+      }
+      await ShiftTemplateModel.bulkWrite(
+        uncolored.map((shift) => ({ updateOne: { filter: { _id: shift._id, color: { $exists: false } }, update: { $set: { color: shift.color } } } })),
+      );
+    }
+
     return shifts.sort((a, b) => {
       if (a.kind !== b.kind) return a.kind === "work" ? -1 : 1;
       return (a.startTime ?? "").localeCompare(b.startTime ?? "") || a.name.localeCompare(b.name);
@@ -81,10 +138,14 @@ export const ShiftTemplateService = {
       else set[key] = key === "code" ? String(value).toUpperCase() : value;
     }
 
+    const resulting = <T,>(key: string, current: T): T | undefined => (key in unset ? undefined : ((set[key] as T | undefined) ?? current));
     assertShiftShape({
       kind: (set.kind as ShiftKind | undefined) ?? existing.kind,
-      startTime: "startTime" in unset ? undefined : ((set.startTime as string | undefined) ?? existing.startTime),
-      endTime: "endTime" in unset ? undefined : ((set.endTime as string | undefined) ?? existing.endTime),
+      pattern: resulting<ShiftPattern>("pattern", existing.pattern),
+      startTime: resulting<string>("startTime", existing.startTime),
+      endTime: resulting<string>("endTime", existing.endTime),
+      latestStartTime: resulting<string>("latestStartTime", existing.latestStartTime),
+      requiredHours: resulting<number>("requiredHours", existing.requiredHours),
     });
 
     let shift;

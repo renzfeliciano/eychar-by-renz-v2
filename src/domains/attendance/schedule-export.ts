@@ -1,18 +1,28 @@
 import ExcelJS from "exceljs";
 import { buildCsvContent } from "@/lib/csv";
 import type { ScheduleMonthView } from "./schedule-service";
+import { shiftColor } from "./shift-colors";
+import { describeShiftHours, type ShiftHoursShape } from "./shift-display";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DETAIL_HEADERS = ["Employee #", "Employee", "Date", "Day", "Shift code", "Shift", "Hours", "Project"];
+const DETAIL_HEADERS = ["Employee #", "Employee", "Date", "Day", "Shift code", "Shift", "Hours", "Custom hours", "Project"];
 
-// Neutral fills only: rest days read as "off" at a glance, weekends are
-// found without counting columns. No brand color in a document that gets
-// printed and posted.
-const REST_FILL = "FFE5E7EB";
+// Headers stay neutral; each scheduled day wears its shift's own color (the
+// same light tint as the grid on screen), with the code always printed so
+// the sheet still reads in black and white.
 const WEEKEND_HEADER_FILL = "FFF3F4F6";
 const HEADER_FILL = "FFF9FAFB";
+const CUSTOM_MARK = "*";
 
-export type LegendShift = { code: string; name: string; kind: "work" | "rest"; startTime: string | null; endTime: string | null };
+export type LegendShift = ShiftHoursShape & { code: string; name: string; color?: string | null };
+
+const exportHours = (shift: ShiftHoursShape) => describeShiftHours(shift, { dash: "-", restLabel: "" });
+
+function colorCell(cell: ExcelJS.Cell, colorKey: string | null | undefined) {
+  const color = shiftColor(colorKey);
+  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color.excelFill } };
+  cell.font = { ...(cell.font ?? {}), color: { argb: color.excelFont } };
+}
 
 /** "22:00-07:00 (+1 day)" — an end before the start means the shift ends the next morning. */
 export function formatShiftHours(startTime: string | null, endTime: string | null): string {
@@ -33,7 +43,8 @@ function detailRows(view: ScheduleMonthView): string[][] {
         WEEKDAYS[day.weekday],
         cell.code,
         cell.name,
-        formatShiftHours(cell.startTime, cell.endTime),
+        exportHours(cell),
+        cell.customTimes ? "Yes" : "",
         cell.projectName ?? "",
       ]);
     }
@@ -101,9 +112,11 @@ export function buildScheduleWorkbook(view: ScheduleMonthView, options: { organi
       const scheduled = row.cells[day.date];
       if (!scheduled) return;
       const cell = grid.getCell(rowNumber, 3 + dayIndex);
-      cell.value = scheduled.code;
+      cell.value = scheduled.customTimes ? `${scheduled.code}${CUSTOM_MARK}` : scheduled.code;
       cell.alignment = { horizontal: "center" };
-      if (scheduled.kind === "rest") cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REST_FILL } };
+      colorCell(cell, scheduled.color);
+      cell.font = { ...cell.font, bold: true };
+      if (scheduled.customTimes) cell.note = `Custom hours: ${exportHours(scheduled)}`;
     });
   });
 
@@ -112,17 +125,32 @@ export function buildScheduleWorkbook(view: ScheduleMonthView, options: { organi
   grid.getCell(legendRow, 1).font = { bold: true };
   for (const shift of options.shifts) {
     legendRow += 1;
-    grid.getCell(legendRow, 1).value = shift.code;
+    const swatch = grid.getCell(legendRow, 1);
+    swatch.value = shift.code;
+    swatch.alignment = { horizontal: "center" };
+    colorCell(swatch, shift.color);
+    swatch.font = { ...swatch.font, bold: true };
     grid.getCell(legendRow, 2).value = shift.name;
-    grid.getCell(legendRow, 3).value = shift.kind === "rest" ? "Rest day" : formatShiftHours(shift.startTime, shift.endTime);
+    grid.getCell(legendRow, 3).value = shift.kind === "rest" ? "Rest day" : exportHours(shift);
+  }
+  const customUsed = view.rows.some((row) => Object.values(row.cells).some((cell) => cell.customTimes));
+  if (customUsed) {
+    legendRow += 2;
+    grid.getCell(legendRow, 1).value = `${CUSTOM_MARK} Custom hours for that day; hover the cell or see Details for the times.`;
+    grid.getCell(legendRow, 1).font = { italic: true, color: { argb: "FF475569" } };
   }
 
   const details = workbook.addWorksheet("Details", { views: [{ state: "frozen", ySplit: 1 }] });
   details.addRow(DETAIL_HEADERS);
   details.getRow(1).font = { bold: true };
-  for (const row of detailRows(view)) details.addRow(row);
+  // Shift code cells carry the shift color, matching the grid sheet.
+  const colors = view.rows.flatMap((row) => view.days.map((day) => row.cells[day.date]).filter(Boolean).map((cell) => cell.color));
+  detailRows(view).forEach((row, index) => {
+    details.addRow(row);
+    colorCell(details.getCell(index + 2, 5), colors[index]);
+  });
   details.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: DETAIL_HEADERS.length } };
-  [14, 28, 12, 6, 11, 18, 20, 28].forEach((width, index) => {
+  [14, 28, 12, 6, 11, 18, 28, 13, 28].forEach((width, index) => {
     details.getColumn(index + 1).width = width;
   });
 

@@ -1,3 +1,4 @@
+import { organizationUserIds } from "./user-directory";
 import { randomInt } from "crypto";
 import { Types } from "mongoose";
 import argon2 from "argon2";
@@ -36,14 +37,6 @@ function temporaryPassword(): string {
 }
 
 /** User ids that belong to the organization: anyone with a role there, or a self-service account of one of its employees. */
-async function organizationUserIds(organizationId: string): Promise<Types.ObjectId[]> {
-  const orgId = new Types.ObjectId(organizationId);
-  const [fromRoles, employees] = await Promise.all([RoleAssignmentModel.distinct("userId", { organizationId: orgId }), EmployeeModel.find({ organizationId: orgId }).select("_id").lean()]);
-  const fromEmployees = await UserModel.find({ employeeId: { $in: employees.map((employee) => employee._id) } }).distinct("_id");
-  const unique = new Map([...fromRoles, ...fromEmployees].map((id: Types.ObjectId) => [id.toString(), id]));
-  return [...unique.values()];
-}
-
 async function requireUserInOrganization(userId: string, organizationId: string) {
   await connectMongoDB();
   if (!Types.ObjectId.isValid(userId)) throw new NotFoundError("Account not found in this organization");

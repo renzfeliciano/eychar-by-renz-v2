@@ -6,6 +6,7 @@ import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignme
 import { WebAuthnService } from "@/domains/identity/webauthn-service";
 import { CalendarClock } from "lucide-react";
 import { greetingFor } from "@/domains/dashboard/dashboard-summary";
+import { describeShiftHours } from "@/domains/attendance/shift-display";
 import { ClockPanel } from "./clock-panel";
 
 export default async function ClockPage() {
@@ -52,7 +53,7 @@ export default async function ClockPage() {
                 ? "No shift scheduled"
                 : shift.kind === "rest"
                   ? "Rest day"
-                  : `${shift.name}${shift.startTime && shift.endTime ? ` · ${shift.startTime}–${shift.endTime}` : ""}${shiftSite ? ` · ${shiftSite}` : ""}`}
+                  : [shift.name, describeShiftHours({ ...shift, kind: "work", pattern: shift.pattern as "fixed" | "flexible" | undefined }), shiftSite].filter(Boolean).join(" · ")}
             </p>
           </div>
         </div>

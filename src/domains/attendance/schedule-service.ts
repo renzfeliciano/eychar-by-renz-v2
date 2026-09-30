@@ -7,7 +7,7 @@ import { loadCurrentStaffCheck } from "./current-staff";
 import { formatPersonName } from "@/lib/person-name";
 import { dateKeyToDate, dateToDateKey } from "@/lib/date-key";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
-import type { ScheduleEntryInput, ShiftKind } from "@/shared/validation/schedule";
+import type { ScheduleEntryInput, ShiftKind, ShiftPattern } from "@/shared/validation/schedule";
 
 // Calendar-day keys ("2026-10-05" ↔ UTC midnight) are shared with payroll;
 // re-exported here so existing imports keep working.
@@ -20,8 +20,16 @@ export type ScheduleCell = {
   code: string;
   name: string;
   kind: ShiftKind;
+  /** Palette key (src/domains/attendance/shift-colors.ts). */
+  color: string;
+  pattern: ShiftPattern;
   startTime: string | null;
   endTime: string | null;
+  /** Flexi shifts: the latest start and hours to work (startTime is the earliest start). */
+  latestStartTime: string | null;
+  requiredHours: number | null;
+  /** HR set this day's own hours instead of the shift's. */
+  customTimes: boolean;
   projectId: string | null;
   projectName: string | null;
 };
@@ -34,6 +42,41 @@ export type ScheduleRow = {
 };
 
 export type ScheduleMonthView = { month: string; label: string; days: ScheduleDay[]; rows: ScheduleRow[] };
+
+export type RosterMember = { employeeId: string; employeeNumber: string; name: string; included: boolean };
+
+type ShiftTemplateLike = {
+  code: string;
+  name: string;
+  kind: string;
+  color?: string | null;
+  pattern?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  latestStartTime?: string | null;
+  requiredHours?: number | null;
+};
+
+/**
+ * What gets stored on the day: the shift as it is now (so later template
+ * edits never rewrite a planned month), or, with custom hours, a fixed
+ * start/end for that one day, flagged as custom.
+ */
+function snapshotShift(shift: ShiftTemplateLike, entry: Pick<ScheduleEntryInput, "startTime" | "endTime">) {
+  const base = { code: shift.code, name: shift.name, kind: shift.kind, color: shift.color ?? undefined };
+  if (entry.startTime && entry.endTime) {
+    return { ...base, pattern: "fixed", startTime: entry.startTime, endTime: entry.endTime, customTimes: true };
+  }
+  return {
+    ...base,
+    pattern: shift.pattern ?? "fixed",
+    startTime: shift.startTime ?? undefined,
+    endTime: shift.endTime ?? undefined,
+    latestStartTime: shift.latestStartTime ?? undefined,
+    requiredHours: shift.requiredHours ?? undefined,
+    customTimes: false,
+  };
+}
 
 
 export function monthDays(month: string): ScheduleDay[] {
@@ -66,7 +109,7 @@ export const ScheduleService = {
     const orgObjectId = new Types.ObjectId(organizationId);
     const days = monthDays(month);
 
-    const [roster, isCurrentStaff, entries, projects] = await Promise.all([
+    const [roster, isCurrentStaff, entries, projects, templates] = await Promise.all([
       EmployeeService.listWithCurrentStatus(organizationId),
       loadCurrentStaffCheck(organizationId),
       ScheduleEntryModel.find({
@@ -74,8 +117,11 @@ export const ScheduleService = {
         date: { $gte: dateKeyToDate(days[0].date), $lte: dateKeyToDate(days[days.length - 1].date) },
       }).lean(),
       ProjectModel.find({ organizationId: orgObjectId }).select("name").lean(),
+      ShiftTemplateModel.find({ organizationId: orgObjectId }).select("color").lean(),
     ]);
 
+    // Days scheduled before shifts had colors take the shift's current one.
+    const templateColorById = new Map(templates.map((template) => [template._id.toString(), template.color as string | undefined]));
     const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
     const cellsByEmployee = new Map<string, Record<string, ScheduleCell>>();
     for (const entry of entries) {
@@ -87,17 +133,23 @@ export const ScheduleService = {
         code: entry.shift.code,
         name: entry.shift.name,
         kind: entry.shift.kind as ShiftKind,
+        color: entry.shift.color ?? templateColorById.get(entry.shiftTemplateId.toString()) ?? (entry.shift.kind === "rest" ? "slate" : "blue"),
+        pattern: (entry.shift.pattern as ShiftPattern | undefined) ?? "fixed",
         startTime: entry.shift.startTime ?? null,
         endTime: entry.shift.endTime ?? null,
+        latestStartTime: entry.shift.latestStartTime ?? null,
+        requiredHours: entry.shift.requiredHours ?? null,
+        customTimes: Boolean(entry.shift.customTimes),
         projectId,
         projectName: projectId ? (projectNameById.get(projectId) ?? null) : null,
       };
       cellsByEmployee.set(employeeKey, cells);
     }
 
-    // Current staff, plus anyone with shifts this month so a past month still reads complete.
-
+    // Current staff, plus anyone with shifts this month so a past month still
+    // reads complete, minus anyone HR has taken off the schedule roster.
     const rows = roster
+      .filter((row) => !row.excludedFromSchedule)
       .filter((row) => isCurrentStaff(row.currentEmployment?.status) || cellsByEmployee.has(row._id.toString()))
       .map((row) => ({
         employeeId: row._id.toString(),
@@ -142,6 +194,13 @@ export const ScheduleService = {
     if (inactiveProject) throw new BusinessRuleError(`"${inactiveProject.name}" is an inactive project`);
 
     const shiftById = new Map(shifts.map((shift) => [shift._id.toString(), shift]));
+    for (const entry of batch) {
+      if (!entry.startTime && !entry.endTime) continue;
+      const shift = entry.shiftTemplateId ? shiftById.get(entry.shiftTemplateId) : undefined;
+      if (!shift || shift.kind !== "work") throw new BusinessRuleError("Custom hours only apply to a work shift");
+      if (!entry.startTime || !entry.endTime) throw new BusinessRuleError("Custom hours need both a start and an end time");
+      if (entry.startTime === entry.endTime) throw new BusinessRuleError("Custom hours can't start and end at the same time");
+    }
     const operations: AnyBulkWriteOperation[] = [];
     const changesByEmployee = new Map<string, { date: string; shift: string | null; projectId: string | null }[]>();
     let saved = 0;
@@ -164,7 +223,7 @@ export const ScheduleService = {
             update: {
               $set: {
                 shiftTemplateId: shift._id,
-                shift: { code: shift.code, name: shift.name, kind: shift.kind, startTime: shift.startTime, endTime: shift.endTime },
+                shift: snapshotShift(shift, entry),
                 ...(projectId ? { projectId: new Types.ObjectId(projectId) } : {}),
               },
               ...(projectId ? {} : { $unset: { projectId: "" } }),
@@ -175,7 +234,12 @@ export const ScheduleService = {
       }
 
       const changes = changesByEmployee.get(entry.employeeId) ?? [];
-      changes.push({ date: entry.date, shift: shift?.code ?? null, projectId });
+      changes.push({
+        date: entry.date,
+        shift: shift?.code ?? null,
+        projectId,
+        ...(shift && entry.startTime ? { customHours: `${entry.startTime}-${entry.endTime}` } : {}),
+      });
       changesByEmployee.set(entry.employeeId, changes);
     }
 
@@ -195,6 +259,56 @@ export const ScheduleService = {
     );
 
     return { saved, cleared };
+  },
+
+  /** Current staff with whether they're on the schedule; HR manages this from the Schedules page. */
+  async getRoster(organizationId: string): Promise<RosterMember[]> {
+    const [roster, isCurrentStaff] = await Promise.all([EmployeeService.listWithCurrentStatus(organizationId), loadCurrentStaffCheck(organizationId)]);
+    return roster
+      .filter((row) => row.person && isCurrentStaff(row.currentEmployment?.status))
+      .map((row) => ({
+        employeeId: row._id.toString(),
+        employeeNumber: row.employeeNumber ?? "",
+        name: formatPersonName(row.person),
+        included: !row.excludedFromSchedule,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  /** Puts employees on (or takes them off) the schedule. Their scheduled days stay stored either way. */
+  async setRosterMembership(organizationId: string, changes: { employeeId: string; included: boolean }[], actor: { userId?: string }) {
+    await connectMongoDB();
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const byEmployee = new Map(changes.map((change) => [change.employeeId, change.included]));
+    const employeeIds = uniqueIds([...byEmployee.keys()]);
+
+    const employees = await EmployeeModel.find({ _id: { $in: employeeIds }, organizationId: orgObjectId }).select("excludedFromSchedule").lean();
+    if (employees.length !== employeeIds.length) throw new NotFoundError("Employee not found in this organization");
+
+    const changed = employees.filter((employee) => !employee.excludedFromSchedule !== byEmployee.get(employee._id.toString()));
+    if (changed.length === 0) return { updated: 0 };
+
+    await EmployeeModel.bulkWrite(
+      changed.map((employee) => ({
+        updateOne: { filter: { _id: employee._id, organizationId: orgObjectId }, update: { $set: { excludedFromSchedule: !byEmployee.get(employee._id.toString()) } } },
+      })),
+    );
+
+    await Promise.all(
+      changed.map((employee) =>
+        AuditService.record({
+          organizationId,
+          actorUserId: actor.userId,
+          action: "schedule.roster-updated",
+          resourceType: "Employee",
+          resourceId: employee._id.toString(),
+          before: { includedInSchedule: !employee.excludedFromSchedule },
+          after: { includedInSchedule: byEmployee.get(employee._id.toString()) },
+        }),
+      ),
+    );
+
+    return { updated: changed.length };
   },
 
   async getEntryForDate(organizationId: string, employeeId: string, dateKey: string) {

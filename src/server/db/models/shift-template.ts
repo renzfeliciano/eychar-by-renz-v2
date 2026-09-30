@@ -10,8 +10,14 @@ const shiftTemplateSchema = new Schema(
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, trim: true, uppercase: true },
     kind: { type: String, enum: ["work", "rest"], required: true },
+    // "flexible": start anytime from startTime to latestStartTime, work requiredHours; no fixed end.
+    pattern: { type: String, enum: ["fixed", "flexible"], default: "fixed" },
+    // A key from src/domains/attendance/shift-colors.ts, shown in the grid and the Excel export.
+    color: { type: String, trim: true },
     startTime: { type: String, trim: true },
     endTime: { type: String, trim: true },
+    latestStartTime: { type: String, trim: true },
+    requiredHours: { type: Number },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
   },
   { timestamps: true },

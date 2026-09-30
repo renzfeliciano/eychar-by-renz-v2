@@ -9,6 +9,20 @@ const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
+const CELL = {
+  shiftTemplateId: "s1",
+  code: "D",
+  name: "Day",
+  kind: "work" as const,
+  color: "blue",
+  pattern: "fixed" as const,
+  startTime: "08:00",
+  endTime: "17:00",
+  latestStartTime: null,
+  requiredHours: null,
+  customTimes: false,
+};
+
 const VIEW: ScheduleMonthView = {
   month: "2026-10",
   label: "October 2026",
@@ -18,15 +32,19 @@ const VIEW: ScheduleMonthView = {
       employeeId: "e1",
       employeeNumber: "EMP-001",
       name: "Angela Santos",
-      cells: { "2026-10-01": { shiftTemplateId: "s1", code: "D", name: "Day", kind: "work", startTime: "08:00", endTime: "17:00", projectId: "p1", projectName: "EGI Rufino" } },
+      cells: {
+        "2026-10-01": { ...CELL, projectId: "p1", projectName: "EGI Rufino" },
+        "2026-10-02": { ...CELL, startTime: "10:00", endTime: "19:00", customTimes: true, projectId: null, projectName: null },
+      },
     },
     { employeeId: "e2", employeeNumber: "EMP-002", name: "Carlos Villanueva", cells: {} },
   ],
 };
 
+const SHIFT_EXTRA = { pattern: "fixed" as const, latestStartTime: null, requiredHours: null };
 const SHIFTS = [
-  { id: "s1", name: "Day", code: "D", kind: "work" as const, startTime: "08:00", endTime: "17:00", status: "active" },
-  { id: "s2", name: "Rest day", code: "RD", kind: "rest" as const, startTime: null, endTime: null, status: "active" },
+  { id: "s1", name: "Day", code: "D", kind: "work" as const, startTime: "08:00", endTime: "17:00", status: "active", color: "blue", ...SHIFT_EXTRA },
+  { id: "s2", name: "Rest day", code: "RD", kind: "rest" as const, startTime: null, endTime: null, status: "active", color: "slate", ...SHIFT_EXTRA },
 ];
 
 function renderGrid(overrides: Partial<Parameters<typeof ScheduleGrid>[0]> = {}) {
@@ -49,6 +67,35 @@ describe("ScheduleGrid", () => {
     const cell = screen.getByRole("button", { name: /Angela Santos, Thursday 1: Day 08:00–17:00 at EGI Rufino/ });
     expect(within(cell).getByText("D")).toBeInTheDocument();
     expect(within(cell).getByText("EGI Rufino")).toBeInTheDocument();
+  });
+
+  it("tints each scheduled day with its shift color, and marks a day with custom hours", () => {
+    renderGrid();
+
+    const day = screen.getByRole("button", { name: /Angela Santos, Thursday 1: Day/ });
+    expect(day.closest("td")!.className).toMatch(/bg-blue-100/);
+
+    const custom = screen.getByRole("button", { name: /Angela Santos, Friday 2: Day 10:00–19:00 \(custom hours\)/ });
+    expect(within(custom).getByTestId("schedule-custom-marker")).toBeInTheDocument();
+  });
+
+  it("assigns custom hours for the selected days when HR sets them", async () => {
+    const user = userEvent.setup();
+    renderGrid();
+
+    await user.click(screen.getByRole("button", { name: "Carlos Villanueva, Monday 5: not scheduled" }));
+    await user.click(screen.getByTestId("schedule-assign-button"));
+    await user.click(screen.getByTestId("schedule-shift-select"));
+    await user.click(await screen.findByRole("option", { name: /D · Day/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Custom hours for these days/ }));
+    fireEvent.change(screen.getByLabelText("Custom start"), { target: { value: "10:00" } });
+    fireEvent.change(screen.getByLabelText("Custom end"), { target: { value: "19:00" } });
+    await user.click(screen.getByTestId("schedule-assign-submit-button"));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).entries).toEqual([
+      { employeeId: "e2", date: "2026-10-05", shiftTemplateId: "s1", startTime: "10:00", endTime: "19:00" },
+    ]);
   });
 
   it("selects a range within a row with shift-click", async () => {

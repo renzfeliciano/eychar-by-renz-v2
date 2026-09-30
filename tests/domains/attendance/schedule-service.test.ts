@@ -168,6 +168,91 @@ describe("ScheduleService", () => {
     expect(audits[0].metadata).toMatchObject({ changes: [{ date: "2026-10-05", shift: "D" }] });
   });
 
+  it("saves custom hours for a day without changing the shift, and marks them as custom", async () => {
+    const { organizationId, dayId } = await seedOrganization("11");
+    const employeeId = await seedEmployee(organizationId, "Ivy");
+
+    await ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: dayId, startTime: "10:00", endTime: "19:00" }], {});
+
+    const cell = (await ScheduleService.getMonthView(organizationId, "2026-10")).rows[0].cells["2026-10-05"];
+    expect(cell).toMatchObject({ code: "D", startTime: "10:00", endTime: "19:00", customTimes: true });
+  });
+
+  it("rejects custom hours that are half-set, zero-length, or on a rest day", async () => {
+    const { organizationId, dayId, restId } = await seedOrganization("12");
+    const employeeId = await seedEmployee(organizationId, "Jo");
+
+    await expect(ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: dayId, startTime: "10:00" }], {})).rejects.toThrow(
+      BusinessRuleError,
+    );
+    await expect(
+      ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: dayId, startTime: "10:00", endTime: "10:00" }], {}),
+    ).rejects.toThrow(BusinessRuleError);
+    await expect(
+      ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: restId, startTime: "10:00", endTime: "19:00" }], {}),
+    ).rejects.toThrow(BusinessRuleError);
+  });
+
+  it("carries the shift's color and flexi window into the month view", async () => {
+    const { organizationId } = await seedOrganization("13");
+    const employeeId = await seedEmployee(organizationId, "Kim");
+    const flexi = await ShiftTemplateService.create(
+      { organizationId, name: "Flexi", code: "FX", kind: "work", pattern: "flexible", startTime: "07:00", latestStartTime: "10:00", requiredHours: 8, color: "violet" },
+      {},
+    );
+
+    await ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: flexi._id.toString() }], {});
+
+    const cell = (await ScheduleService.getMonthView(organizationId, "2026-10")).rows[0].cells["2026-10-05"];
+    expect(cell).toMatchObject({ color: "violet", pattern: "flexible", startTime: "07:00", latestStartTime: "10:00", requiredHours: 8, customTimes: false });
+  });
+
+  it("uses the shift's current color for days scheduled before shifts had colors", async () => {
+    const { organizationId, dayId } = await seedOrganization("14");
+    const employeeId = await seedEmployee(organizationId, "Leo");
+    await ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: dayId }], {});
+    await ScheduleEntryModel.updateMany({ employeeId }, { $unset: { "shift.color": "" } });
+    await ShiftTemplateService.update(dayId, organizationId, { color: "amber" }, {});
+
+    const cell = (await ScheduleService.getMonthView(organizationId, "2026-10")).rows[0].cells["2026-10-05"];
+    expect(cell.color).toBe("amber");
+  });
+
+  describe("roster", () => {
+    it("leaves an employee out of the schedule once HR excludes them, and brings them back when included", async () => {
+      const { organizationId } = await seedOrganization("r1");
+      const tracked = await seedEmployee(organizationId, "Tracked");
+      const untracked = await seedEmployee(organizationId, "Office");
+
+      await ScheduleService.setRosterMembership(organizationId, [{ employeeId: untracked, included: false }], {});
+
+      const ids = (await ScheduleService.getMonthView(organizationId, "2026-10")).rows.map((row) => row.employeeId);
+      expect(ids).toContain(tracked);
+      expect(ids).not.toContain(untracked);
+
+      const roster = await ScheduleService.getRoster(organizationId);
+      expect(roster.find((member) => member.employeeId === untracked)).toMatchObject({ name: "Office Santos", included: false });
+      expect(roster.find((member) => member.employeeId === tracked)?.included).toBe(true);
+
+      await ScheduleService.setRosterMembership(organizationId, [{ employeeId: untracked, included: true }], {});
+      expect((await ScheduleService.getMonthView(organizationId, "2026-10")).rows.map((row) => row.employeeId)).toContain(untracked);
+    });
+
+    it("audits roster changes and rejects employees from another organization", async () => {
+      const { organizationId } = await seedOrganization("r2");
+      const other = await seedOrganization("r2b");
+      const employeeId = await seedEmployee(organizationId, "Mae");
+      const foreignId = await seedEmployee(other.organizationId, "Foreign");
+
+      await ScheduleService.setRosterMembership(organizationId, [{ employeeId, included: false }], {});
+      const audits = await AuditLogModel.find({ resourceId: employeeId, action: "schedule.roster-updated" }).lean();
+      expect(audits).toHaveLength(1);
+      expect(audits[0].after).toMatchObject({ includedInSchedule: false });
+
+      await expect(ScheduleService.setRosterMembership(organizationId, [{ employeeId: foreignId, included: false }], {})).rejects.toThrow(NotFoundError);
+    });
+  });
+
   it("finds a single day's entry (used to pre-select the clock-in project)", async () => {
     const { organizationId, dayId, projectId } = await seedOrganization("10");
     const employeeId = await seedEmployee(organizationId, "Tess");

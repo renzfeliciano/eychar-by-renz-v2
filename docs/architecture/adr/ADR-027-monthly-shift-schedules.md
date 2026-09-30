@@ -70,3 +70,21 @@ export. Asked directly, the user chose:
 - `exceljs` brings a transitive `uuid` advisory (moderate; buffer bounds in v3/v5/v6 when a buffer
   is passed). The export only writes workbooks and never calls those functions.
 - The whole selection is saved in one request, capped at 6,200 employee-days (31 days × 200 people).
+
+## Addendum: colors, custom hours, flexi-time, roster (2026-09-30)
+
+- **Colors**: each shift has a palette color (`src/domains/attendance/shift-colors.ts`, 12 curated
+  tints; a new shift takes the next unused one, rest days default to gray). The color is snapshotted
+  on each scheduled day; older days fall back to the shift's current color. The grid and the Excel
+  export (grid, legend and Details shift-code cells) use it; the code is always printed too, so
+  color is never the only cue. CSV can't carry color.
+- **Custom hours**: a scheduled work day can carry its own start/end (`customTimes: true` on the
+  snapshot). Shown with a dot in the grid and `D*` plus a cell note in Excel, and a "Custom hours"
+  column in Details/CSV.
+- **Flexi-time**: a work shift can be `pattern: "flexible"`: start between `startTime` and
+  `latestStartTime`, work `requiredHours`, no fixed end. Like every shift it is reference-only:
+  late/present still follow the attendance policy. Making lateness follow a flexi window would
+  mean attendance reading the schedule instead of the policy, which also moves payroll deductions,
+  so it's a separate decision.
+- **Roster**: `Employee.excludedFromSchedule` (default false) takes a person off the monthly
+  schedule; HR manages it from Schedules › Roster. Their stored days are kept, just not shown.

@@ -9,6 +9,9 @@ const employeeSchema = new Schema(
     personId: { type: Schema.Types.ObjectId, required: true, ref: "Person" },
     employeeNumber: { type: String, trim: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
+    // HR's call: some staff (e.g. office roles) aren't planned on the monthly
+    // schedule. Default false, so everyone is on it until taken off.
+    excludedFromSchedule: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

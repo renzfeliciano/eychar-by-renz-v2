@@ -2,10 +2,25 @@ import { describe, it, expect } from "vitest";
 import ExcelJS from "exceljs";
 import { buildScheduleCsv, buildScheduleWorkbook, formatShiftHours } from "@/domains/attendance/schedule-export";
 import { monthDays, type ScheduleMonthView } from "@/domains/attendance/schedule-service";
+import { shiftColor } from "@/domains/attendance/shift-colors";
 
-const DAY = { shiftTemplateId: "s1", code: "D", name: "Day", kind: "work" as const, startTime: "08:00", endTime: "17:00" };
-const NIGHT = { shiftTemplateId: "s2", code: "N", name: "Night", kind: "work" as const, startTime: "22:00", endTime: "07:00" };
-const REST = { shiftTemplateId: "s3", code: "RD", name: "Rest day", kind: "rest" as const, startTime: null, endTime: null };
+const EXTRA = { pattern: "fixed" as const, latestStartTime: null, requiredHours: null, customTimes: false };
+const DAY = { shiftTemplateId: "s1", code: "D", name: "Day", kind: "work" as const, startTime: "08:00", endTime: "17:00", color: "blue", ...EXTRA };
+const NIGHT = { shiftTemplateId: "s2", code: "N", name: "Night", kind: "work" as const, startTime: "22:00", endTime: "07:00", color: "violet", ...EXTRA };
+const REST = { shiftTemplateId: "s3", code: "RD", name: "Rest day", kind: "rest" as const, startTime: null, endTime: null, color: "slate", ...EXTRA };
+const FLEXI = {
+  shiftTemplateId: "s4",
+  code: "FX",
+  name: "Flexi",
+  kind: "work" as const,
+  color: "teal",
+  pattern: "flexible" as const,
+  startTime: "07:00",
+  endTime: null,
+  latestStartTime: "10:00",
+  requiredHours: 8,
+  customTimes: false,
+};
 
 const VIEW: ScheduleMonthView = {
   month: "2026-10",
@@ -20,6 +35,8 @@ const VIEW: ScheduleMonthView = {
         "2026-10-01": { ...DAY, projectId: "p1", projectName: "EGI Rufino" },
         "2026-10-02": { ...NIGHT, projectId: null, projectName: null },
         "2026-10-03": { ...REST, projectId: null, projectName: null },
+        "2026-10-04": { ...DAY, startTime: "10:00", endTime: "19:00", customTimes: true, projectId: null, projectName: null },
+        "2026-10-05": { ...FLEXI, projectId: null, projectName: null },
       },
     },
     { employeeId: "e2", employeeNumber: "EMP-002", name: "Carlos Villanueva, Jr.", cells: {} },
@@ -27,9 +44,10 @@ const VIEW: ScheduleMonthView = {
 };
 
 const SHIFTS = [
-  { code: "D", name: "Day", kind: "work" as const, startTime: "08:00", endTime: "17:00" },
-  { code: "N", name: "Night", kind: "work" as const, startTime: "22:00", endTime: "07:00" },
-  { code: "RD", name: "Rest day", kind: "rest" as const, startTime: null, endTime: null },
+  { code: "D", name: "Day", kind: "work" as const, startTime: "08:00", endTime: "17:00", color: "blue" },
+  { code: "N", name: "Night", kind: "work" as const, startTime: "22:00", endTime: "07:00", color: "violet" },
+  { code: "FX", name: "Flexi", kind: "work" as const, pattern: "flexible" as const, startTime: "07:00", endTime: null, latestStartTime: "10:00", requiredHours: 8, color: "teal" },
+  { code: "RD", name: "Rest day", kind: "rest" as const, startTime: null, endTime: null, color: "slate" },
 ];
 
 describe("formatShiftHours", () => {
@@ -46,10 +64,12 @@ describe("buildScheduleCsv", () => {
     const lines = csv.replace(/^﻿/, "").split("\n");
 
     expect(csv.startsWith("﻿")).toBe(true);
-    expect(lines[0]).toBe('"Employee #","Employee","Date","Day","Shift code","Shift","Hours","Project"');
-    expect(lines).toHaveLength(4);
-    expect(lines[1]).toBe('"EMP-001","Angela Santos","2026-10-01","Thu","D","Day","08:00-17:00","EGI Rufino"');
-    expect(lines[3]).toBe('"EMP-001","Angela Santos","2026-10-03","Sat","RD","Rest day","",""');
+    expect(lines[0]).toBe('"Employee #","Employee","Date","Day","Shift code","Shift","Hours","Custom hours","Project"');
+    expect(lines).toHaveLength(6);
+    expect(lines[1]).toBe('"EMP-001","Angela Santos","2026-10-01","Thu","D","Day","08:00-17:00","","EGI Rufino"');
+    expect(lines[3]).toBe('"EMP-001","Angela Santos","2026-10-03","Sat","RD","Rest day","","",""');
+    expect(lines[4]).toBe('"EMP-001","Angela Santos","2026-10-04","Sun","D","Day","10:00-19:00","Yes",""');
+    expect(lines[5]).toBe('"EMP-001","Angela Santos","2026-10-05","Mon","FX","Flexi","Flexi: start 07:00-10:00, 8h","",""');
   });
 });
 
@@ -75,13 +95,36 @@ describe("buildScheduleWorkbook", () => {
     expect(reloaded.getWorksheet("Schedule")!.getCell("B5").value).toBe("Angela Santos");
   });
 
-  it("shades rest days and weekend columns so the month reads at a glance", () => {
+  it("fills each scheduled day with its shift's color, and shades weekend headers", () => {
     const grid = buildScheduleWorkbook(VIEW, { organizationName: "Acme", shifts: SHIFTS }).getWorksheet("Schedule")!;
     const fillOf = (address: string) => (grid.getCell(address).fill as ExcelJS.FillPattern | undefined)?.fgColor?.argb;
 
-    expect(fillOf("E5")).toBeDefined(); // Oct 3, rest day
-    expect(fillOf("C5")).toBeUndefined(); // Oct 1, a normal work shift
+    expect(fillOf("C5")).toBe(shiftColor("blue").excelFill); // Oct 1, Day
+    expect(fillOf("D5")).toBe(shiftColor("violet").excelFill); // Oct 2, Night
+    expect(fillOf("E5")).toBe(shiftColor("slate").excelFill); // Oct 3, rest day
+    expect(grid.getCell("C5").font?.color?.argb).toBe(shiftColor("blue").excelFont);
+    expect(fillOf("C6")).toBeUndefined(); // unscheduled
     expect(fillOf("E3")).toBeDefined(); // Oct 3 is a Saturday header
+  });
+
+  it("marks a day with custom hours and notes the actual times on the cell", () => {
+    const grid = buildScheduleWorkbook(VIEW, { organizationName: "Acme", shifts: SHIFTS }).getWorksheet("Schedule")!;
+
+    expect(grid.getCell("F5").value).toBe("D*");
+    expect(JSON.stringify(grid.getCell("F5").note)).toContain("10:00-19:00");
+    expect(grid.getCell("F5").fill).toMatchObject({ fgColor: { argb: shiftColor("blue").excelFill } });
+  });
+
+  it("colors the legend swatches and explains custom hours and flexi shifts", () => {
+    const grid = buildScheduleWorkbook(VIEW, { organizationName: "Acme", shifts: SHIFTS }).getWorksheet("Schedule")!;
+    const legend = new Map<string, ExcelJS.Row>();
+    grid.eachRow((row) => {
+      if (row.number > 6 && typeof row.getCell(1).value === "string") legend.set(String(row.getCell(1).value), row);
+    });
+
+    expect((legend.get("D")!.getCell(1).fill as ExcelJS.FillPattern).fgColor?.argb).toBe(shiftColor("blue").excelFill);
+    expect(legend.get("FX")!.getCell(3).value).toBe("Flexi: start 07:00-10:00, 8h");
+    expect([...legend.keys()].some((text) => text.startsWith("*"))).toBe(true);
   });
 
   it("adds a legend of the shifts under the grid", () => {
@@ -98,9 +141,10 @@ describe("buildScheduleWorkbook", () => {
   it("includes a filterable Details sheet with the project for each day", () => {
     const details = buildScheduleWorkbook(VIEW, { organizationName: "Acme", shifts: SHIFTS }).getWorksheet("Details")!;
 
-    expect(details.getRow(1).values).toEqual([undefined, "Employee #", "Employee", "Date", "Day", "Shift code", "Shift", "Hours", "Project"]);
-    expect(details.getCell("H2").value).toBe("EGI Rufino");
-    expect(details.rowCount).toBe(4);
+    expect(details.getRow(1).values).toEqual([undefined, "Employee #", "Employee", "Date", "Day", "Shift code", "Shift", "Hours", "Custom hours", "Project"]);
+    expect(details.getCell("I2").value).toBe("EGI Rufino");
+    expect((details.getCell("E2").fill as ExcelJS.FillPattern).fgColor?.argb).toBe(shiftColor("blue").excelFill);
+    expect(details.rowCount).toBe(6);
     expect(details.autoFilter).toBeTruthy();
   });
 });

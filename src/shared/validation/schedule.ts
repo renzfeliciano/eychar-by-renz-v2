@@ -1,13 +1,18 @@
 import { z } from "zod";
 import { clearable, objectIdSchema } from "./shared";
+import { SHIFT_COLOR_KEYS } from "@/domains/attendance/shift-colors";
 
 export const SHIFT_KINDS = ["work", "rest"] as const;
 export type ShiftKind = (typeof SHIFT_KINDS)[number];
+export const SHIFT_PATTERNS = ["fixed", "flexible"] as const;
+export type ShiftPattern = (typeof SHIFT_PATTERNS)[number];
 
 /** Rows × days in one save. 31 days × ~200 employees — a full month for a large site. */
 export const MAX_SCHEDULE_ENTRIES_PER_SAVE = 6200;
 
 const timeSchema = z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm, e.g. 08:00");
+const shiftColorSchema = z.enum(SHIFT_COLOR_KEYS, "Choose a color from the palette");
+const requiredHoursSchema = z.number().min(1, "At least 1 hour").max(16, "At most 16 hours");
 const shiftCodeSchema = z
   .string()
   .trim()
@@ -39,8 +44,13 @@ export const createShiftTemplateSchema = z.object({
   name: z.string().trim().min(1).max(60),
   code: shiftCodeSchema,
   kind: z.enum(SHIFT_KINDS),
+  // "flexible" = a start window (startTime → latestStartTime) plus required hours, no fixed end.
+  pattern: z.enum(SHIFT_PATTERNS).optional(),
+  color: shiftColorSchema.optional(),
   startTime: timeSchema.optional(),
   endTime: timeSchema.optional(),
+  latestStartTime: timeSchema.optional(),
+  requiredHours: requiredHoursSchema.optional(),
 });
 
 // Pre-filled edit form; "" clears a time (needed when switching a shift to a rest day).
@@ -50,8 +60,12 @@ export const updateShiftTemplateSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   code: shiftCodeSchema.optional(),
   kind: z.enum(SHIFT_KINDS).optional(),
+  pattern: z.enum(SHIFT_PATTERNS).optional(),
+  color: shiftColorSchema.optional(),
   startTime: clearable(timeSchema).optional(),
   endTime: clearable(timeSchema).optional(),
+  latestStartTime: clearable(timeSchema).optional(),
+  requiredHours: clearable(requiredHoursSchema).optional(),
 });
 
 export const scheduleEntryInputSchema = z.object({
@@ -60,6 +74,9 @@ export const scheduleEntryInputSchema = z.object({
   // null clears that day back to unscheduled.
   shiftTemplateId: objectIdSchema("Select a valid shift").nullable(),
   projectId: objectIdSchema("Select a valid project").optional(),
+  // Custom hours for this one day (both or neither), overriding the shift's own.
+  startTime: timeSchema.optional(),
+  endTime: timeSchema.optional(),
 });
 
 export const saveScheduleEntriesSchema = z.object({
@@ -71,6 +88,14 @@ export const scheduleExportQuerySchema = z.object({
   organizationId: z.string().trim().min(1),
   month: monthSchema,
   format: z.enum(["xlsx", "csv"]),
+});
+
+export const scheduleRosterSchema = z.object({
+  organizationId: z.string().trim().min(1),
+  changes: z
+    .array(z.object({ employeeId: objectIdSchema("Select a valid employee"), included: z.boolean() }))
+    .min(1, "Nothing to change")
+    .max(2000),
 });
 
 export type CreateShiftTemplateInput = z.infer<typeof createShiftTemplateSchema>;

@@ -1,3 +1,4 @@
+import { organizationUserIds } from "@/domains/identity/user-directory";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { RoleAssignmentModel, RoleModel, UserModel, PersonModel } from "@/server/db/models";
@@ -104,8 +105,9 @@ export const RoleAssignmentService = {
    */
   async listOrganizationMembers(organizationId: string) {
     await connectMongoDB();
-    const userIds = await RoleAssignmentModel.distinct("userId", { organizationId: new Types.ObjectId(organizationId) });
-    const users = await UserModel.find({ _id: { $in: userIds } }).lean();
+    // Includes staff with no role yet, so they can be given one.
+    const userIds = await organizationUserIds(organizationId);
+    const users = await UserModel.find({ _id: { $in: userIds }, employeeId: { $exists: false } }).lean();
     const persons = await PersonModel.find({ _id: { $in: users.map((user) => user.personId).filter(Boolean) } }).lean();
     const personById = new Map(persons.map((person) => [person._id.toString(), person]));
 
