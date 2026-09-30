@@ -70,6 +70,26 @@ export const LeaveTypeService = {
   },
 
   /** Renames/redescribes an existing leave type — status has its own dedicated `updateStatus` above. */
+  /** HR's switch: whether unused days of this type are paid out at separation (ADR-032). */
+  async setConvertible(id: string, organizationId: string, convertible: boolean, actor: { userId?: string }) {
+    await connectMongoDB();
+    const leaveType = await LeaveTypeModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
+    if (!leaveType) throw new NotFoundError("Leave type not found in this organization");
+    const before = { convertibleAtSeparation: Boolean(leaveType.convertibleAtSeparation) };
+    leaveType.convertibleAtSeparation = convertible;
+    await leaveType.save();
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "leave-type.updated",
+      resourceType: "LeaveType",
+      resourceId: id,
+      before,
+      after: { convertibleAtSeparation: convertible },
+    });
+    return leaveType;
+  },
+
   async update(
     id: string,
     organizationId: string,

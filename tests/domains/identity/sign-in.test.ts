@@ -64,7 +64,8 @@ describe("signInWithPassword", () => {
     let last;
     for (let attempt = 0; attempt < 31; attempt += 1) last = await signInWithPassword({ login: username, password: "wrong-password-here" }, { ip: shared });
     expect(last).toEqual({ ok: false, reason: "rate_limited" });
-  });
+    // 31 real argon2 verifications: deliberately slow hashing, so allow more than the default 5 s under a busy parallel run.
+  }, 20_000);
 
   it("flags accounts that must choose a new password", async () => {
     const { username } = await makeUser({ mustChangePassword: true });

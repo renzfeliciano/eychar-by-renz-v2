@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   UserCog,
   UserMinus,
+  Calculator,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -56,6 +57,7 @@ export const NAV_SECTIONS = [
       { href: "/people", label: "People", icon: Users },
       { href: "/travel-orders", label: "Travel orders", icon: Plane },
       { href: "/clearance", label: "Clearance", icon: UserMinus },
+      { href: "/final-settlements", label: "Final settlement", icon: Calculator },
     ],
   },
   {

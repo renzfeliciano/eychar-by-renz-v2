@@ -50,3 +50,5 @@ export { ClearanceDepartmentModel } from "./clearance-department";
 export { SeparationTypeModel } from "./separation-type";
 export { ClearanceChecklistItemModel } from "./clearance-checklist-item";
 export { ClearanceCaseModel } from "./clearance-case";
+export { PaymentMethodModel } from "./payment-method";
+export { FinalSettlementModel } from "./final-settlement";

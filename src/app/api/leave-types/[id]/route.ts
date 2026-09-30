@@ -10,6 +10,13 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/leave-type
     const { id } = await ctx.params;
     const body = await request.json();
 
+    if (typeof body?.convertibleAtSeparation === "boolean") {
+      const { organizationId } = updateLeaveTypeStatusSchema.pick({ organizationId: true }).parse(body);
+      const { userId } = await requirePermission("leave-types.update", organizationId);
+      const leaveType = await LeaveTypeService.setConvertible(id, organizationId, body.convertibleAtSeparation, { userId });
+      return NextResponse.json({ leaveType });
+    }
+
     if (typeof body?.name === "string") {
       const input = updateLeaveTypeSchema.parse(body);
       const { userId } = await requirePermission("leave-types.update", input.organizationId);

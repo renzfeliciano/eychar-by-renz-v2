@@ -6,6 +6,7 @@ import { LeavePolicyService } from "@/domains/leave/leave-policy-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard } from "@/components/shared/metric-card";
 import { DataTable } from "@/components/shared/data-table";
+import { ConvertibleToggle } from "./convertible-toggle";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { LeaveTypeFormDialog } from "./leave-type-form-dialog";
 import { DeleteLeaveTypeButton } from "./delete-leave-type-button";
@@ -69,6 +70,19 @@ export default async function LeaveTypesPage() {
             header: "Approval",
             render: (leaveType) =>
               leaveType.requiresApproval ? <StatusBadge status="required" label="Required" tone="info" /> : <span className="text-sm text-muted-foreground">Automatic</span>,
+          },
+          {
+            key: "convertible",
+            header: "Paid out at separation",
+            render: (leaveType) => (
+              <ConvertibleToggle
+                organizationId={organizationId}
+                leaveTypeId={leaveType._id.toString()}
+                name={leaveType.name}
+                checked={Boolean(leaveType.convertibleAtSeparation)}
+                disabled={!canUpdate}
+              />
+            ),
           },
           { key: "status", header: "Status", render: (leaveType) => <StatusBadge status={leaveType.status} /> },
           {

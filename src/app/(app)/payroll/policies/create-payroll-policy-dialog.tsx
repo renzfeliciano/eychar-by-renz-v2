@@ -29,6 +29,7 @@ const EMPTY = {
   payFrequency: "semi-monthly",
   workDaysPerYear: "261",
   hoursPerDay: "8",
+  finalPayDeadlineDays: "30",
   workWeekDays: [1, 2, 3, 4, 5],
   deductLateAndUndertime: true,
   contributionTiming: "every_cutoff",
@@ -64,6 +65,7 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
         payFrequency: form.payFrequency,
         workDaysPerYear: Number(form.workDaysPerYear),
         hoursPerDay: Number(form.hoursPerDay),
+        finalPayDeadlineDays: Number(form.finalPayDeadlineDays),
         workWeekDays: form.workWeekDays,
         deductLateAndUndertime: form.deductLateAndUndertime,
         contributionTiming: form.contributionTiming,
@@ -138,6 +140,19 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
             </FormField>
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">Paid days a year turn a monthly salary into a daily rate (monthly × 12 ÷ days) for absences and lates.</p>
+          <FormField label="Final pay due (days after separation)" htmlFor="policy-final-pay-days" required>
+            <Input
+              id="policy-final-pay-days"
+              type="number"
+              min={1}
+              max={365}
+              value={form.finalPayDeadlineDays}
+              onChange={(event) => setForm({ ...form, finalPayDeadlineDays: event.target.value })}
+              placeholder="e.g. 30"
+              className="w-32"
+            />
+          </FormField>
+          <p className="-mt-2 text-xs text-muted-foreground">In the Philippines this is 30 days (DOLE Labor Advisory No. 06-2020). Final settlements count down to it.</p>
           <OptionSelect label="Government contributions" value={form.contributionTiming} onChange={(value) => setForm({ ...form, contributionTiming: value || "every_cutoff" })} options={TIMING} placeholder="Split across cutoffs" required />
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={form.deductLateAndUndertime} onCheckedChange={(checked) => setForm({ ...form, deductLateAndUndertime: checked === true })} />

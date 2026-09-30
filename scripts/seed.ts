@@ -24,6 +24,7 @@ import {
   ClearanceDepartmentModel,
   SeparationTypeModel,
   ClearanceChecklistItemModel,
+  PaymentMethodModel,
   PositionModel,
   ProjectModel,
 } from "@/server/db/models";
@@ -197,6 +198,16 @@ const BASELINE_PERMISSIONS = [
   { key: "separation-types.create", description: "Add separation types", category: "settings" },
   { key: "separation-types.read", description: "View separation types", category: "settings" },
   { key: "separation-types.update", description: "Retire separation types", category: "settings" },
+
+  // Final settlement (ADR-032).
+  { key: "final-settlements.read", description: "View final settlements", category: "final settlement" },
+  { key: "final-settlements.prepare", description: "Prepare, recompute and submit a final settlement", category: "final settlement" },
+  { key: "final-settlements.review", description: "Review a final settlement (or return it for correction)", category: "final settlement" },
+  { key: "final-settlements.approve", description: "Approve a final settlement", category: "final settlement" },
+  { key: "final-settlements.disburse", description: "Record a final settlement as paid", category: "final settlement" },
+  { key: "payment-methods.create", description: "Add payment methods", category: "settings" },
+  { key: "payment-methods.read", description: "View payment methods", category: "settings" },
+  { key: "payment-methods.update", description: "Retire payment methods", category: "settings" },
 ] as const;
 
 // Superseded by the granular create/read/update keys above (this seed used
@@ -366,6 +377,8 @@ async function seed() {
       {},
     );
   }
+  // Policies made before the final-pay deadline setting existed get the PH statutory 30 days (editable per policy).
+  await PayrollPolicyModel.updateMany({ organizationId: organization._id, finalPayDeadlineDays: { $exists: false } }, { $set: { finalPayDeadlineDays: 30 } });
   if (!(await PayrollPolicyModel.exists({ organizationId: organization._id }))) {
     await PayrollPolicyService.create(
       {
@@ -374,6 +387,7 @@ async function seed() {
         payFrequency: "semi-monthly",
         workDaysPerYear: 261,
         hoursPerDay: 8,
+        finalPayDeadlineDays: 30,
         workWeekDays: [1, 2, 3, 4, 5],
         deductLateAndUndertime: true,
         contributionTiming: "every_cutoff",
@@ -517,6 +531,12 @@ async function seed() {
     { code: "retirement", name: "Retirement", sortOrder: 3 },
     { code: "redundancy", name: "Redundancy", sortOrder: 4 },
     { code: "death", name: "Death", sortOrder: 5 },
+  ]);
+
+  await seedCatalogDefaults(PaymentMethodModel, [
+    { code: "bank_transfer", name: "Bank transfer", sortOrder: 0 },
+    { code: "check", name: "Check", sortOrder: 1 },
+    { code: "cash", name: "Cash", sortOrder: 2 },
   ]);
 
   // Starter clearance checklist (ADR-031), only for an organization that has none yet,

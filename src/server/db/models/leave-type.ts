@@ -9,6 +9,8 @@ const leaveTypeSchema = new Schema(
     code: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     requiresApproval: { type: Boolean, required: true, default: true },
+    // HR's switch: unused days of this type are paid out at separation (ADR-032).
+    convertibleAtSeparation: { type: Boolean, required: true, default: false },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
   },
   { timestamps: true },

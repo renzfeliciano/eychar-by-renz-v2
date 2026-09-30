@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { CLEARANCE_STATUS_LABELS, CLEARANCE_STATUS_TONES, ITEM_STATUS_LABELS, ITEM_STATUS_TONES } from "../clearance-labels";
 import { ClearanceItemActions } from "./clearance-item-actions";
 import { CancelClearanceButton } from "./cancel-clearance-button";
+import { PrepareSettlementButton } from "../../final-settlements/prepare-settlement-button";
+import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
 
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
 const WHEN = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;
@@ -32,6 +34,10 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view clearances.</p>;
   }
 
+  const [settlement, canPrepareSettlement] = await Promise.all([
+    FinalSettlementService.getByClearance(id, organizationId),
+    hasPermission("final-settlements.prepare", organizationId),
+  ]);
   const [cases, canSignOff, canWaive, canUpdate] = await Promise.all([
     ClearanceService.listForOrganization(organizationId),
     hasPermission("clearance.sign-off", organizationId),
@@ -66,6 +72,9 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
           <div className="flex items-center gap-2">
             <StatusBadge status={clearance.status} label={CLEARANCE_STATUS_LABELS[clearance.status]} tone={CLEARANCE_STATUS_TONES[clearance.status]} />
             {canUpdate && editable && <CancelClearanceButton organizationId={organizationId} caseId={id} />}
+            {(settlement || (canPrepareSettlement && editable)) && (
+              <PrepareSettlementButton organizationId={organizationId} clearanceCaseId={id} existingId={settlement?._id.toString()} />
+            )}
           </div>
         }
       />

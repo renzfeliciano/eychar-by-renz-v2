@@ -262,3 +262,12 @@ Each phase is test-first (TDD) and usable on its own.
 - **Balances owed by the employee:** never waived automatically. A negative net shows as a balance
   due from the employee. Finance either records its collection or waives it explicitly, with a
   reason and an approver, both audited.
+
+## Implementation status
+
+- **Phases 1–2 (done, 2026-10-01):**
+  - `FinalSettlement` with lines, manual lines, frozen inputs and history, one per clearance case.
+  - Calculator: salary balance for unpaid workdays, leave encashment (per leave type "paid out at separation" switch), pro-rated 13th month, clearance accountabilities, manual lines with a reason.
+  - Flow: submit (needs clearance cleared) → review → approve (not the preparer) → disburse (payment method catalog and reference), which closes the clearance.
+  - The final pay deadline is `PayrollPolicy.finalPayDeadlineDays` (seeded at 30), recorded on each settlement, not a code constant.
+- **Not yet:** tax true-up and statutory contributions (phase 3), documents (phase 4), variance checks, version comparison and reports (phase 5).

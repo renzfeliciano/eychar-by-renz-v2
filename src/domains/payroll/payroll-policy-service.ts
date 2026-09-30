@@ -22,6 +22,7 @@ export const PayrollPolicyService = {
       payFrequency: input.payFrequency,
       workDaysPerYear: input.workDaysPerYear,
       hoursPerDay: input.hoursPerDay,
+      finalPayDeadlineDays: input.finalPayDeadlineDays,
       workWeekDays: [...new Set(input.workWeekDays)].sort(),
       deductLateAndUndertime: input.deductLateAndUndertime,
       contributionTiming: input.contributionTiming,

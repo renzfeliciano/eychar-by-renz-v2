@@ -15,6 +15,8 @@ const payrollPolicySchema = new Schema(
     // equivalent for contributions.
     workDaysPerYear: { type: Number, required: true, min: 1, max: 366, default: 261 },
     hoursPerDay: { type: Number, required: true, min: 1, max: 24, default: 8 },
+    // Final pay is due this many days after separation (PH default: 30, DOLE Labor Advisory No. 06-2020).
+    finalPayDeadlineDays: { type: Number, required: true, min: 1, max: 365, default: 30 },
     // Workdays counted in a period (0 = Sunday … 6 = Saturday).
     workWeekDays: { type: [Number], default: [1, 2, 3, 4, 5] },
     deductLateAndUndertime: { type: Boolean, required: true, default: true },

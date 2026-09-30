@@ -29,6 +29,7 @@ export async function seedPayrollOrganization(options: { withPolicy?: boolean; w
         payFrequency: "semi-monthly",
         workDaysPerYear: 261,
         hoursPerDay: 8,
+        finalPayDeadlineDays: 30,
         workWeekDays: [1, 2, 3, 4, 5],
         deductLateAndUndertime: true,
         contributionTiming: options.contributionTiming ?? "every_cutoff",

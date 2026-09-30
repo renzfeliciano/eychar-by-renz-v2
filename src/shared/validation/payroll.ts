@@ -50,6 +50,7 @@ export const createPayrollPolicySchema = z.object({
   payFrequency: PAY_FREQUENCY,
   workDaysPerYear: z.coerce.number().int().min(1).max(366).default(261),
   hoursPerDay: z.coerce.number().min(1).max(24).default(8),
+  finalPayDeadlineDays: z.coerce.number().int().min(1).max(365).default(30),
   workWeekDays: z.array(z.number().int().min(0).max(6)).min(1, "Pick at least one workday").default([1, 2, 3, 4, 5]),
   deductLateAndUndertime: z.boolean().default(true),
   contributionTiming: z.enum(["every_cutoff", "last_cutoff_of_month"]).default("every_cutoff"),

@@ -133,4 +133,15 @@ describe("LeaveTypeService", () => {
     const types = await LeaveTypeService.listCurrent(organization._id.toString());
     expect(types).toHaveLength(1);
   });
+
+  it("lets HR mark a leave type as paid out at separation, off by default, and audits the change", async () => {
+    const organization = await seedOrganization(`conv-${Date.now()}`);
+    const organizationId = organization._id.toString();
+    const leaveType = await LeaveTypeService.create({ organizationId, name: "Vacation Leave", code: `VL-${Date.now()}` }, {});
+    expect(leaveType.convertibleAtSeparation).toBe(false);
+
+    const updated = await LeaveTypeService.setConvertible(leaveType._id.toString(), organizationId, true, {});
+
+    expect(updated.convertibleAtSeparation).toBe(true);
+  });
 });
