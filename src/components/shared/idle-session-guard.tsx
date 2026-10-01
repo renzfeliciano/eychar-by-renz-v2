@@ -10,6 +10,11 @@ import { ACTIVITY_PING_MS, SESSION_IDLE_MS, SESSION_IDLE_WARNING_MS, idleState }
 import { BRAND } from "@/lib/brand";
 
 const STORAGE_KEY = `${BRAND.storagePrefix}:last-activity`;
+/** Set when one tab signs out for inactivity, so every other open tab leaves too. */
+const SIGNED_OUT_KEY = `${BRAND.storagePrefix}:idle-signed-out`;
+const IDLE_LOGIN_URL = "/login?reason=idle";
+/** How long to wait for the sign-out request before leaving the page anyway. */
+const SIGN_OUT_TIMEOUT_MS = 5_000;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "scroll", "touchstart", "wheel", "mousemove"] as const;
 
 const RING_RADIUS = 34;
@@ -47,39 +52,100 @@ function writeShared(value: number) {
   }
 }
 
+function readSignedOutAt(): number {
+  try {
+    return Number(window.localStorage.getItem(SIGNED_OUT_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Ends the session and always lands on the sign-in page. next-auth's own
+ * redirect only happens if its sign-out request succeeds; when that request
+ * failed or hung, the page stayed put and the warning came back. Here the
+ * request gets a few seconds, and the page leaves either way (the server's
+ * own idle check ends a session that couldn't be ended here).
+ */
+export async function forceIdleSignOut(leave: (url: string) => void = (url) => window.location.replace(url)): Promise<void> {
+  try {
+    window.localStorage.setItem(SIGNED_OUT_KEY, String(Date.now()));
+  } catch {
+    // Storage unavailable: other tabs fall back to their own clocks and the server check.
+  }
+  try {
+    await Promise.race([signOut({ redirect: false }), new Promise((resolve) => window.setTimeout(resolve, SIGN_OUT_TIMEOUT_MS))]);
+  } catch {
+    // Leave anyway.
+  }
+  leave(IDLE_LOGIN_URL);
+}
+
 /**
  * Signs the person out after the organization's idle limit (default 1
  * minute), warning them with a live countdown for the last seconds (default
  * 15). Activity in any open tab counts. While active, the browser pings the
  * server so its own idle check (the real enforcement) stays in step.
  */
-export function IdleSessionGuard({ idleMs = SESSION_IDLE_MS, warningMs = SESSION_IDLE_WARNING_MS }: { idleMs?: number; warningMs?: number }) {
-  const { update } = useSession();
+export function IdleSessionGuard({
+  idleMs = SESSION_IDLE_MS,
+  warningMs = SESSION_IDLE_WARNING_MS,
+  onSignOut = forceIdleSignOut,
+}: {
+  idleMs?: number;
+  warningMs?: number;
+  /** Test seam; defaults to the real forced sign-out. */
+  onSignOut?: () => Promise<void> | void;
+}) {
+  const { data: session, update } = useSession();
+  // Held in a ref: `update` changes identity whenever the session is
+  // refetched (every minute, and on tab focus). Depending on it directly
+  // restarted the timer effect, which reset the idle clock to "now", so the
+  // countdown never reached zero and the warning kept coming back.
+  const updateRef = useRef(update);
+  useEffect(() => {
+    updateRef.current = update;
+  }, [update]);
   const lastActivity = useRef(0);
   const lastPing = useRef(0);
+  // Once set, nothing (activity, another tab, a refetch) can bring the session back.
   const signingOut = useRef(false);
+  const onSignOutRef = useRef(onSignOut);
+  useEffect(() => {
+    onSignOutRef.current = onSignOut;
+  }, [onSignOut]);
   const stayButton = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<ReturnType<typeof idleState>>({ phase: "active", remainingMs: idleMs });
 
+  const expire = useCallback(() => {
+    if (signingOut.current) return;
+    signingOut.current = true;
+    setState({ phase: "expired", remainingMs: 0 });
+    void onSignOutRef.current();
+  }, []);
+
   const markActive = useCallback(
     (fromUser: boolean) => {
+      if (signingOut.current) return;
       const now = Date.now();
       lastActivity.current = now;
       writeShared(now);
       setState(idleState(now, now, idleMs, warningMs));
       if (fromUser && now - lastPing.current >= ACTIVITY_PING_MS) {
         lastPing.current = now;
-        void update({ activity: true });
+        void updateRef.current({ activity: true });
       }
     },
-    [idleMs, warningMs, update],
+    [idleMs, warningMs],
   );
 
   useEffect(() => {
     // The clock starts when the page mounts (reading the time during render isn't allowed).
-    lastActivity.current = Math.max(Date.now(), readShared());
+    const mountedAt = Date.now();
+    lastActivity.current = Math.max(mountedAt, readShared());
     writeShared(lastActivity.current);
     const onActivity = () => {
+      if (signingOut.current) return;
       // Once the warning is up, only an explicit "Stay signed in" counts.
       if (idleState(Math.max(lastActivity.current, readShared()), Date.now(), idleMs, warningMs).phase !== "active") return;
       markActive(true);
@@ -87,25 +153,44 @@ export function IdleSessionGuard({ idleMs = SESSION_IDLE_MS, warningMs = SESSION
     for (const name of ACTIVITY_EVENTS) window.addEventListener(name, onActivity, { passive: true });
 
     const timer = window.setInterval(() => {
+      if (signingOut.current) return;
+      // Another tab already signed out for inactivity: the session is gone here too.
+      if (readSignedOutAt() > mountedAt) return expire();
       const shared = readShared();
       if (shared > lastActivity.current) lastActivity.current = shared;
       const next = idleState(lastActivity.current, Date.now(), idleMs, warningMs);
+      if (next.phase === "expired") return expire();
       setState(next);
-      if (next.phase === "expired" && !signingOut.current) {
-        signingOut.current = true;
-        void signOut({ callbackUrl: "/login?reason=idle" });
-      }
     }, 1000);
 
     return () => {
       for (const name of ACTIVITY_EVENTS) window.removeEventListener(name, onActivity);
       window.clearInterval(timer);
     };
-  }, [idleMs, warningMs, markActive]);
+  }, [idleMs, warningMs, markActive, expire]);
+
+  // Loading a page counts as activity, so tell the server once the session has
+  // loaded. Without this its idle clock (still counting from the last ping)
+  // could run out before this page's, and the two disagreed.
+  const sessionLive = Boolean(session && !session.error);
+  const pingedOnLoad = useRef(false);
+  useEffect(() => {
+    if (!sessionLive || pingedOnLoad.current || signingOut.current) return;
+    pingedOnLoad.current = true;
+    lastPing.current = Date.now();
+    void updateRef.current({ activity: true });
+  }, [sessionLive]);
+
+  // The server's own idle check ended the session first: leave now rather than count down to nothing.
+  const serverExpired = session?.error === "SessionExpired";
+  useEffect(() => {
+    if (serverExpired) expire();
+  }, [serverExpired, expire]);
 
   const seconds = Math.ceil(state.remainingMs / 1000);
   const warningSeconds = Math.round(warningMs / 1000);
   const open = state.phase !== "active";
+  const expired = state.phase === "expired";
   const fraction = Math.max(0, Math.min(1, state.remainingMs / warningMs));
   // The last third (at least the last 5 seconds) turns red; the shrinking
   // number and ring say the same thing for anyone who can't tell the colors apart.
@@ -145,13 +230,15 @@ export function IdleSessionGuard({ idleMs = SESSION_IDLE_MS, warningMs = SESSION
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <DialogTitle className="text-lg">Are you still there?</DialogTitle>
+            <DialogTitle className="text-lg">{expired ? "Signing you out…" : "Are you still there?"}</DialogTitle>
             <DialogDescription className="text-balance">
-              For your security, you&apos;ll be signed out when the timer runs out. Anything you haven&apos;t saved will be lost.
+              {expired
+                ? "You were inactive for too long. Taking you to the sign-in page."
+                : "For your security, you’ll be signed out when the timer runs out. Anything you haven’t saved will be lost."}
             </DialogDescription>
           </div>
           <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {open ? countdownAnnouncement(seconds, warningSeconds) : ""}
+            {expired ? "Signing you out." : open ? countdownAnnouncement(seconds, warningSeconds) : ""}
           </p>
         </div>
 
@@ -159,16 +246,14 @@ export function IdleSessionGuard({ idleMs = SESSION_IDLE_MS, warningMs = SESSION
           <Button
             variant="ghost"
             className="flex-1 text-muted-foreground"
-            onClick={() => {
-              signingOut.current = true;
-              void signOut({ callbackUrl: "/login?reason=idle" });
-            }}
+            disabled={expired}
+            onClick={expire}
             data-testid="idle-sign-out-button"
           >
             <LogOut className="size-3.5" aria-hidden="true" />
             Sign out now
           </Button>
-          <Button ref={stayButton} className="flex-1" onClick={() => markActive(true)} data-testid="idle-stay-button">
+          <Button ref={stayButton} className="flex-1" disabled={expired} onClick={() => markActive(true)} data-testid="idle-stay-button">
             <ShieldCheck className="size-3.5" aria-hidden="true" />
             Stay signed in
           </Button>
