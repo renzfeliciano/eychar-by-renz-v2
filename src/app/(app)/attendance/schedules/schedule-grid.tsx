@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eraser, Loader2, MousePointerClick, Search, SlidersHorizontal, X } from "lucide-react";
@@ -21,11 +21,10 @@ import { dayHeadcount } from "@/domains/attendance/day-headcount";
 import { HOLIDAY_TYPE_LABELS } from "@/domains/holidays/holiday-types";
 import { DayDetailsDialog } from "./day-details-dialog";
 import { HOLIDAY_DOT, strongestHolidayType } from "./holiday-badge";
+import { cellKey, useGridSelection } from "./use-grid-selection";
 
 const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-const cellKey = (employeeId: string, date: string) => `${employeeId}|${date}`;
 
 type Props = {
   organizationId: string;
@@ -39,17 +38,10 @@ type Props = {
   canReadEvents?: boolean;
 };
 
-type CellPosition = { employeeId: string; dayIndex: number };
 type EntryPayload = { employeeId: string; date: string; shiftTemplateId: string | null; projectId?: string; startTime?: string; endTime?: string };
-
-// A drag paints a rectangle on top of whatever was selected when it began;
-// starting on an already-selected day erases instead, like a spreadsheet.
-type DragState = { start: CellPosition; base: Set<string>; mode: "add" | "remove"; moved: boolean };
 
 export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate, todayKey, dayInfo = {}, canReadEvents = false }: Props) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [anchor, setAnchor] = useState<CellPosition | null>(null);
   const [query, setQuery] = useState("");
   const [assignOpen, setAssignOpen] = useState(false);
   const [shiftId, setShiftId] = useState("");
@@ -61,8 +53,6 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   const [isSaving, setIsSaving] = useState(false);
   const [quickSavingId, setQuickSavingId] = useState<string | null>(null);
   const [openDay, setOpenDay] = useState<string | null>(null);
-  const dragRef = useRef<DragState | null>(null);
-  const suppressClickRef = useRef(false);
 
   const activeShifts = shifts.filter((shift) => shift.status === "active");
   const chosenShift = activeShifts.find((shift) => shift.id === shiftId);
@@ -73,97 +63,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   const visibleRows = normalizedQuery
     ? view.rows.filter((row) => row.name.toLowerCase().includes(normalizedQuery) || row.employeeNumber.toLowerCase().includes(normalizedQuery))
     : view.rows;
-
-  /** Every day between two cells, across every visible employee between them. */
-  function blockKeys(from: CellPosition, to: CellPosition): string[] {
-    const fromRow = visibleRows.findIndex((row) => row.employeeId === from.employeeId);
-    const toRow = visibleRows.findIndex((row) => row.employeeId === to.employeeId);
-    if (fromRow < 0 || toRow < 0) return [cellKey(to.employeeId, view.days[to.dayIndex].date)];
-    const [rowStart, rowEnd] = fromRow < toRow ? [fromRow, toRow] : [toRow, fromRow];
-    const [dayStart, dayEnd] = from.dayIndex < to.dayIndex ? [from.dayIndex, to.dayIndex] : [to.dayIndex, from.dayIndex];
-    const keys: string[] = [];
-    for (let r = rowStart; r <= rowEnd; r++) {
-      for (let d = dayStart; d <= dayEnd; d++) keys.push(cellKey(visibleRows[r].employeeId, view.days[d].date));
-    }
-    return keys;
-  }
-
-  function clearSelection() {
-    setSelected(new Set());
-    setAnchor(null);
-  }
-
-  function handleCellClick(position: CellPosition, extendRange: boolean) {
-    // The click that ends a drag lands on the last cell; the drag already selected it.
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    setSelected((current) => {
-      const next = new Set(current);
-      if (extendRange && anchor) {
-        for (const key of blockKeys(anchor, position)) next.add(key);
-      } else {
-        const key = cellKey(position.employeeId, view.days[position.dayIndex].date);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-      }
-      return next;
-    });
-    setAnchor(position);
-  }
-
-  function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>, position: CellPosition) {
-    // Touch keeps its native sideways scroll of the grid; taps and the row/column headers cover selection there.
-    if (event.pointerType === "touch" || event.button > 0 || event.shiftKey) return;
-    const key = cellKey(position.employeeId, view.days[position.dayIndex].date);
-    dragRef.current = { start: position, base: new Set(selected), mode: selected.has(key) ? "remove" : "add", moved: false };
-
-    const endDrag = () => {
-      const drag = dragRef.current;
-      dragRef.current = null;
-      if (drag?.moved) {
-        suppressClickRef.current = true;
-        // Released outside a cell means no click follows to consume the flag.
-        setTimeout(() => (suppressClickRef.current = false), 0);
-      }
-    };
-    window.addEventListener("pointerup", endDrag, { once: true });
-  }
-
-  function handlePointerEnter(position: CellPosition) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    if (!drag.moved && drag.start.employeeId === position.employeeId && drag.start.dayIndex === position.dayIndex) return;
-    drag.moved = true;
-    const next = new Set(drag.base);
-    for (const key of blockKeys(drag.start, position)) {
-      if (drag.mode === "add") next.add(key);
-      else next.delete(key);
-    }
-    setSelected(next);
-    setAnchor(position);
-  }
-
-  // Row/column headers toggle as a group: select all, or deselect if already all selected.
-  function toggleGroup(keys: string[]) {
-    setSelected((current) => {
-      const next = new Set(current);
-      const allSelected = keys.every((key) => next.has(key));
-      for (const key of keys) {
-        if (allSelected) next.delete(key);
-        else next.add(key);
-      }
-      return next;
-    });
-  }
-
-  function selectedPositions() {
-    return [...selected].map((key) => {
-      const [employeeId, date] = key.split("|");
-      return { employeeId, date };
-    });
-  }
+  const { selected, setAnchor, clearSelection, handleCellClick, handlePointerDown, handlePointerEnter, toggleGroup, selectedPositions } = useGridSelection({ visibleRows, days: view.days });
 
   async function save(entries: EntryPayload[], cleared: boolean) {
     const response = await fetch("/api/attendance/schedules", {
