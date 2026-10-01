@@ -11,13 +11,12 @@ import { TableSearchInput } from "@/components/shared/table-search-input";
 import { MetricCard } from "@/components/shared/metric-card";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { SuperAdminService, grantsAdminPower } from "@/domains/authorization/super-admin-service";
 import { RoleFormDialog } from "./role-form-dialog";
 import { AssignRoleDialog } from "./assign-role-dialog";
 import { RevokeRoleAssignmentButton } from "./revoke-role-assignment-button";
 import { CreateStaffAccountDialog } from "./create-staff-account-dialog";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Roles & access" };
 
@@ -40,7 +39,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
     hasPermission("staff-accounts.create", organizationId),
   ]);
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isSuperAdmin = await SuperAdminService.isSuperAdmin(session?.user?.id, organizationId);
   // The system role is never managed here; admin-power roles only by the Super Administrator.
   const canManageRole = (role: { system?: string | null; permissionKeys?: string[] | null }) => role.system !== "super_admin" && (isSuperAdmin || !grantsAdminPower(role.permissionKeys));

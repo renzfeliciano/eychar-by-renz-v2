@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { hourInAppZone } from "@/lib/app-time";
 import Link from "next/link";
-import { getServerSession } from "next-auth";
 import { Banknote, CalendarCheck2, Palmtree, UserCheck } from "lucide-react";
-import { authOptions } from "@/server/auth/options";
 import { OrganizationService } from "@/domains/organization/organization-service";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { userDisplayNames } from "@/domains/identity/user-directory";
@@ -38,6 +36,7 @@ import { AttentionList } from "./attention-list";
 import { TodayPanel } from "./today-panel";
 import { UpcomingEventsList } from "./upcoming-events-list";
 import type { ColoredBucket, HiringTrendPoint } from "./dashboard-types";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -243,7 +242,7 @@ function CardLink({ href, children }: { href: string; children: React.ReactNode 
 }
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [organizations, displayNames] = await Promise.all([OrganizationService.listAccessibleTo(session.user.id), userDisplayNames([session.user.id])]);

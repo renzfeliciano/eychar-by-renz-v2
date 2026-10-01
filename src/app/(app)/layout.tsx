@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { PersonModel, UserModel } from "@/server/db/models";
 import { OrganizationService } from "@/domains/organization/organization-service";
@@ -13,12 +11,13 @@ import { ConcurrentSessionGuard } from "@/components/shared/concurrent-session-g
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { SecuritySettingsService } from "@/domains/identity/security-settings-service";
 import { IdleSessionGuard } from "@/components/shared/idle-session-guard";
+import { getSession } from "@/server/auth/session";
 
 // Everything here is behind sign-in and holds personal data: never list it in search.
 export const metadata: Metadata = { robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } } };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   // A self-service employee account has no business in the HR admin

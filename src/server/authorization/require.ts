@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, UserModel } from "@/server/db/models";
 import { AuthenticationError, AuthorizationError } from "@/shared/errors";
 import { authorize, hasActiveRoleAssignment } from "./authorize";
+import { getSession } from "@/server/auth/session";
 
 export const PENDING_PASSWORD_CHANGE_MESSAGE = "Choose a new password before continuing: you signed in with a temporary one.";
 
@@ -32,7 +31,7 @@ export type RequireAuthenticatedUserOptions = {
  * refused everywhere else until it has, not just redirected by the pages.
  */
 export async function requireAuthenticatedUser(options: RequireAuthenticatedUserOptions = {}): Promise<{ userId: string }> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new AuthenticationError();
   if (session.mustChangePassword && !options.allowPendingPasswordChange) throw new AuthorizationError(PENDING_PASSWORD_CHANGE_MESSAGE);
   if (session.mustSetUpTwoStep && !options.allowPendingTwoStepSetup) throw new AuthorizationError(PENDING_TWO_STEP_MESSAGE);

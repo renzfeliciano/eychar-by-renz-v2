@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, PersonModel, UserModel } from "@/server/db/models";
 import { formatPersonName } from "@/lib/person-name";
+import { getSession } from "@/server/auth/session";
 
 /**
  * Resolves the logged-in session to its own linked Employee record — never
@@ -12,7 +11,7 @@ import { formatPersonName } from "@/lib/person-name";
  * employeeId) rather than a self-service one.
  */
 export async function getSelfServiceSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   await connectMongoDB();

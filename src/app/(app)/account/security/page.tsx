@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 import { AlertTriangle, History, KeyRound, LogIn, ShieldCheck } from "lucide-react";
-import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
 import { AuditQueryService } from "@/server/audit/audit-query-service";
@@ -14,6 +12,7 @@ import { formatRelativeDays } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { PasswordSection } from "./password-section";
 import { MfaPanel } from "./mfa-panel";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Security & sign-in" };
 
@@ -21,7 +20,7 @@ const DATE_TIME = { month: "short", day: "numeric", year: "numeric", hour: "nume
 
 /** The signed-in person's own account security: password, two-step verification, and recent activity. */
 export default async function AccountSecurityPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   await connectMongoDB();

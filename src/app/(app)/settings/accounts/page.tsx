@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { AccountSecurityService, type AccountSummary } from "@/domains/identity/account-security-service";
@@ -15,6 +13,7 @@ import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-qu
 import { formatRelativeDays } from "@/lib/relative-time";
 import { RoleService } from "@/domains/authorization/role-service";
 import { AccountActions } from "./account-actions";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Accounts" };
 
@@ -55,7 +54,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   if (!(await hasPermission("users.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view accounts.</p>;
   }
-  const [canUpdate, session] = await Promise.all([hasPermission("users.update", organizationId), getServerSession(authOptions)]);
+  const [canUpdate, session] = await Promise.all([hasPermission("users.update", organizationId), getSession()]);
 
   const now = new Date();
   const accounts = await AccountSecurityService.listForOrganization(organizationId, now);

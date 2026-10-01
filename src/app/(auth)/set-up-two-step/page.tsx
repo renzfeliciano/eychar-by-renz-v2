@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 import { LogOut, ShieldCheck } from "lucide-react";
-import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
 import { SecuritySettingsService } from "@/domains/identity/security-settings-service";
@@ -10,6 +8,7 @@ import { Logo } from "@/components/shared/logo";
 import { BrandName } from "@/components/shared/brand-name";
 import { MfaPanel } from "@/app/(app)/account/security/mfa-panel";
 import { SignOutLink } from "./sign-out-link";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Set up two-step verification", robots: { index: false, follow: false } };
 
@@ -19,7 +18,7 @@ export const metadata: Metadata = { title: "Set up two-step verification", robot
  * redirects here until it is; once on, this page sends the person onward.
  */
 export default async function SetUpTwoStepPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   await connectMongoDB();
   const user = await UserModel.findById(session.user.id).select("mustChangePassword employeeId username mfa.enabled").lean();

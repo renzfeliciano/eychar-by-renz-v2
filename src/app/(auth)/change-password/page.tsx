@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 import { ShieldCheck } from "lucide-react";
-import { authOptions } from "@/server/auth/options";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
 import { Logo } from "@/components/shared/logo";
 import { ForcedPasswordChange } from "./forced-password-change";
 import { BrandName } from "@/components/shared/brand-name";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Choose your password", robots: { index: false, follow: false } };
 
@@ -16,7 +15,7 @@ export const metadata: Metadata = { title: "Choose your password", robots: { ind
  * after signing in. Every other page redirects here until it's replaced.
  */
 export default async function ChangePasswordPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   await connectMongoDB();
   const user = await UserModel.findById(session.user.id).select("mustChangePassword employeeId username").lean();

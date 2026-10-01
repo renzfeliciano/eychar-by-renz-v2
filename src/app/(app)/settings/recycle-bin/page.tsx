@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { DeletionService, RECYCLE_BIN_DAYS } from "@/domains/deletion/deletion-service";
@@ -10,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { BinActions } from "./bin-actions";
+import { getSession } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Recycle bin" };
 
@@ -25,7 +24,7 @@ export default async function RecycleBinPage() {
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
   const organizationId = organization._id.toString();
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!(await SuperAdminService.isSuperAdmin(session?.user?.id, organizationId))) {
     return <p className="text-sm text-muted-foreground">Only the Super Administrator can see the recycle bin.</p>;
   }

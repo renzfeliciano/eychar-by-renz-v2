@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { RoleAssignmentModel, RoleModel } from "@/server/db/models";
@@ -16,7 +17,21 @@ export type AuthorizeInput = {
  * check `user.role === "..."` anywhere else — call this instead.
  */
 export async function authorize({ userId, organizationId, permission }: AuthorizeInput): Promise<void> {
+  const { superAdmin, keys } = await activeGrants(userId, organizationId);
+  if (!superAdmin && !keys.has(permission)) {
+    throw new AuthorizationError(`Missing permission "${permission}" in this organization`);
+  }
+}
+
+/**
+ * The user's active roles in this organization, read once per server render
+ * (a page checks several permissions; each used to re-read the same roles).
+ * Outside a render (route handlers, tests) React's cache doesn't memoize,
+ * so an API call always sees the current roles.
+ */
+const activeGrants = cache(async (userId: string, organizationId: string): Promise<{ superAdmin: boolean; keys: Set<string> }> => {
   await connectMongoDB();
+  if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(organizationId)) return { superAdmin: false, keys: new Set() };
 
   const now = new Date();
   const assignments = await RoleAssignmentModel.find({
@@ -27,26 +42,24 @@ export async function authorize({ userId, organizationId, permission }: Authoriz
   })
     .select("roleId")
     .lean();
+  if (assignments.length === 0) return { superAdmin: false, keys: new Set() };
 
-  if (assignments.length === 0) {
-    throw new AuthorizationError(`Missing permission "${permission}" in this organization`);
-  }
-
-  const roleIds = assignments.map((assignment) => assignment.roleId);
-  const grantingRole = await RoleModel.exists({
-    _id: { $in: roleIds },
+  const roles = await RoleModel.find({
+    _id: { $in: assignments.map((assignment) => assignment.roleId) },
     // Missing status (any role seeded before this field existed) is
     // treated as active, the same permissive-when-unconfigured fallback
     // used for employment/attendance status metadata elsewhere.
     $or: [{ status: "active" }, { status: { $exists: false } }],
-    // The Super Administrator's system role passes every check, including permissions added later.
-    $and: [{ $or: [{ permissionKeys: permission }, { system: "super_admin" }] }],
-  });
+  })
+    .select("permissionKeys system")
+    .lean<{ permissionKeys?: string[]; system?: string }[]>();
 
-  if (!grantingRole) {
-    throw new AuthorizationError(`Missing permission "${permission}" in this organization`);
-  }
-}
+  return {
+    // The Super Administrator's system role passes every check, including permissions added later.
+    superAdmin: roles.some((role) => role.system === "super_admin"),
+    keys: new Set(roles.flatMap((role) => role.permissionKeys ?? [])),
+  };
+});
 
 /**
  * Organization *membership* — any active role assignment in this
@@ -81,22 +94,5 @@ export async function heldPermissions({
   userId,
   organizationId,
 }: Pick<AuthorizeInput, "userId" | "organizationId">): Promise<{ superAdmin: boolean; keys: Set<string> }> {
-  await connectMongoDB();
-  if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(organizationId)) return { superAdmin: false, keys: new Set() };
-
-  const now = new Date();
-  const roleIds = await RoleAssignmentModel.find({
-    userId: new Types.ObjectId(userId),
-    organizationId: new Types.ObjectId(organizationId),
-    effectiveFrom: { $lte: now },
-    $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }, { effectiveTo: { $gte: now } }],
-  }).distinct("roleId");
-  if (roleIds.length === 0) return { superAdmin: false, keys: new Set() };
-
-  const roles = await RoleModel.find({ _id: { $in: roleIds }, $or: [{ status: "active" }, { status: { $exists: false } }] })
-    .select("permissionKeys system")
-    .lean();
-  const keys = new Set<string>();
-  for (const role of roles) for (const key of (role.permissionKeys ?? []) as string[]) keys.add(key);
-  return { superAdmin: roles.some((role) => role.system === "super_admin"), keys };
+  return activeGrants(userId, organizationId);
 }
