@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // An org-defined, reusable shift HR picks per day on the monthly schedule
 // (ADR-027): "Day 08:00–17:00", "Night 22:00–07:00" (end before start
@@ -24,6 +25,9 @@ const shiftTemplateSchema = new Schema(
 );
 
 shiftTemplateSchema.index({ organizationId: 1, code: 1 }, { unique: true });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+shiftTemplateSchema.plugin(hiddenPlugin);
 
 export type ShiftTemplate = InferSchemaType<typeof shiftTemplateSchema>;
 

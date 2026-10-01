@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2, UserMinus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export function OpenClearanceDialog({
     }
     const { clearance } = await response.json();
     setOpen(false);
+    toast.success("Clearance opened");
     router.push(`/clearance/${clearance._id}`);
   }
 

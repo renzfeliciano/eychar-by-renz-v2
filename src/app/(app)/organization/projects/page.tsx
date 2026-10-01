@@ -1,4 +1,5 @@
 import { FolderKanban, MapPin, Navigation, Users } from "lucide-react";
+import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -123,7 +124,12 @@ export default async function ProjectsPage() {
             header: "",
             className: "w-10",
             render: (row) =>
-              superAdmin ? <DeleteRecordButton organizationId={organizationId} type="project" id={row._id.toString()} iconOnly /> : null,
+              superAdmin ? (
+                <span className="flex items-center justify-end gap-0.5">
+                  <HideToggle organizationId={organizationId} type="project" id={row._id.toString()} label={String(row.name)} hidden={Boolean(row.hiddenFromOthers)} />
+                  <DeleteRecordButton organizationId={organizationId} type="project" id={row._id.toString()} iconOnly />
+                </span>
+              ) : null,
           },
         ]}
         rows={projects}

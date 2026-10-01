@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +46,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
     }
 
     setOpen(false);
+    toast.success("Self-service login created");
     router.refresh();
   }
 
@@ -90,6 +92,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
         </form>
         <DialogFooter>
           <Button type="submit" form="create-employee-account-form" disabled={isSubmitting} data-testid="create-employee-account-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Creating…" : "Create login"}
           </Button>
         </DialogFooter>

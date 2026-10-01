@@ -16,6 +16,8 @@ const userSchema = new Schema(
     // session's own employee record", instead of trusting a client-
     // supplied employeeId. Absent for every HR/admin account.
     employeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
+    // Test account the Super Administrator hid from everyone else (ADR-034); filtered in the account lists.
+    hiddenFromOthers: { type: Boolean, default: false },
     status: { type: String, enum: ["active", "disabled"], default: "active", required: true },
     // Single-active-session enforcement (src/server/auth/session-policy.ts):
     // each login overwrites this, so an older session's token stops

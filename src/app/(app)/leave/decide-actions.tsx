@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Check, X, Ban } from "lucide-react";
+import { Check, X, Ban, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -50,7 +51,10 @@ export function DecideActions({
     setPendingAction("approve");
     const response = await patchRequest(requestId, organizationId, { action: "approve" });
     setPendingAction(null);
-    if (response.ok) router.refresh();
+    if (response.ok) {
+      toast.success("Leave request updated");
+      router.refresh();
+    }
   }
 
   async function handleReject() {
@@ -65,6 +69,7 @@ export function DecideActions({
     }
     setRejectOpen(false);
     setRejectionReason("");
+    toast.success("Leave request updated");
     router.refresh();
   }
 
@@ -72,7 +77,10 @@ export function DecideActions({
     setPendingAction("cancel");
     const response = await patchRequest(requestId, organizationId, { action: "cancel" });
     setPendingAction(null);
-    if (response.ok) router.refresh();
+    if (response.ok) {
+      toast.success("Leave request updated");
+      router.refresh();
+    }
   }
 
   return (
@@ -87,6 +95,7 @@ export function DecideActions({
             data-testid="leave-approve-request-button"
           >
             <Check className="size-3.5" />
+            {pendingAction === "approve" && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {pendingAction === "approve" ? "Approving…" : "Approve"}
           </Button>
           <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
@@ -115,7 +124,8 @@ export function DecideActions({
                   disabled={pendingAction !== null}
                   data-testid="leave-reject-request-submit-button"
                 >
-                  {pendingAction === "reject" ? "Rejecting…" : "Reject"}
+                  {pendingAction === "reject" && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+            {pendingAction === "reject" ? "Rejecting…" : "Reject"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -131,7 +141,8 @@ export function DecideActions({
           data-testid="leave-cancel-request-button"
         >
           <Ban className="size-3.5" />
-          {pendingAction === "cancel" ? "Cancelling…" : "Cancel"}
+          {pendingAction === "cancel" && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+            {pendingAction === "cancel" ? "Cancelling…" : "Cancel"}
         </Button>
       )}
     </div>

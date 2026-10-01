@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -54,6 +55,7 @@ export function CreateStaffAccountDialog({ organizationId, roles }: { organizati
     setPassword("");
     setRoleId("");
     setOpen(false);
+    toast.success("Staff account created");
     router.refresh();
   }
 
@@ -101,6 +103,7 @@ export function CreateStaffAccountDialog({ organizationId, roles }: { organizati
         </form>
         <DialogFooter>
           <Button type="submit" form="create-staff-account-form" disabled={isSubmitting} data-testid="staff-accounts-create-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Adding…" : "Add staff account"}
           </Button>
         </DialogFooter>

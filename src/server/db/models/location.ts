@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // No effective dating — not in AGENTS.md's example schemas, and locations
 // don't have the "reconstruct historical org state" requirement that
@@ -22,6 +23,9 @@ const locationSchema = new Schema(
 );
 
 locationSchema.index({ organizationId: 1, code: 1 }, { unique: true });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+locationSchema.plugin(hiddenPlugin);
 
 export type Location = InferSchemaType<typeof locationSchema>;
 

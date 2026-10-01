@@ -1,4 +1,6 @@
 import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
+
 
 export const CLEARANCE_CASE_STATUSES = ["in_clearance", "cleared", "cancelled", "closed"] as const;
 export const CLEARANCE_ITEM_STATUSES = ["pending", "cleared", "flagged", "waived", "not_applicable"] as const;
@@ -48,6 +50,9 @@ const clearanceCaseSchema = new Schema(
 clearanceCaseSchema.index({ organizationId: 1, caseNumber: 1 }, { unique: true });
 clearanceCaseSchema.index({ organizationId: 1, employeeId: 1 }, { unique: true, partialFilterExpression: { active: true } });
 clearanceCaseSchema.index({ organizationId: 1, status: 1, lastWorkingDay: 1 });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+clearanceCaseSchema.plugin(hiddenPlugin);
 
 export type ClearanceCase = InferSchemaType<typeof clearanceCaseSchema>;
 

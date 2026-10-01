@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,8 @@ export function HireForm({
       setError(body.error ?? "Failed to add employee.");
       return;
     }
+
+    toast.success("Employee added");
 
     router.push("/people");
   }

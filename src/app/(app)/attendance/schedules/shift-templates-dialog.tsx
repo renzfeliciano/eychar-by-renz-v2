@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Check, Clock, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
       return;
     }
     resetForm();
+    toast.success("Shift saved");
     router.refresh();
   }
 
@@ -163,6 +165,7 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
       setError(body.error ?? "Failed to update the shift.");
       return;
     }
+    toast.success("Shift saved");
     router.refresh();
   }
 

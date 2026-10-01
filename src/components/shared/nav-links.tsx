@@ -35,6 +35,7 @@ import {
   UserMinus,
   Calculator,
   Trash2,
+  LockKeyhole,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -111,6 +112,7 @@ export const NAV_SECTIONS = [
       { href: "/settings/access", label: "Roles & access", icon: ShieldCheck },
       { href: "/settings/accounts", label: "Accounts", icon: UserCog },
       { href: "/settings/audit", label: "Audit log", icon: ScrollText },
+      { href: "/settings/security", label: "Security", icon: LockKeyhole, superAdminOnly: true },
       { href: "/settings/recycle-bin", label: "Recycle bin", icon: Trash2, superAdminOnly: true },
     ],
   },

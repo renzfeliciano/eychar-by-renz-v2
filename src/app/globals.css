@@ -417,3 +417,93 @@
 @media (prefers-reduced-motion: reduce) {
   .page-loader-bar { animation: none; width: 100%; opacity: 0.6; }
 }
+
+/* ── Toasts (house style, components/ui/sonner.tsx) ─────────────────────────
+   Accent bar + tinted icon chip + countdown, colored by type. Type colors are
+   theme tokens with their own dark-mode values and the card is the popover
+   surface, so every type stays legible in light and dark. Scoped under the
+   toaster and forced where sonner's own (more specific) rules would win. */
+[data-sonner-toaster] [data-sonner-toast].app-toast {
+  --toast-accent: var(--primary);
+  width: 380px !important;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  padding: 14px 44px 16px 20px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.28), 0 2px 6px rgb(0 0 0 / 0.06) !important;
+}
+.dark [data-sonner-toaster] [data-sonner-toast].app-toast { box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04) !important; }
+[data-sonner-toaster] [data-sonner-toast].app-toast[data-type="success"] { --toast-accent: var(--success); }
+[data-sonner-toaster] [data-sonner-toast].app-toast[data-type="info"] { --toast-accent: var(--primary); }
+[data-sonner-toaster] [data-sonner-toast].app-toast[data-type="warning"] { --toast-accent: var(--warning); }
+[data-sonner-toaster] [data-sonner-toast].app-toast[data-type="error"] { --toast-accent: var(--destructive); }
+
+/* Accent bar */
+[data-sonner-toaster] [data-sonner-toast].app-toast::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  height: auto;
+  background: var(--toast-accent);
+}
+/* Countdown: runs for the toast's 6 s, pauses while hovered (as the toast's own timer does). */
+[data-sonner-toaster] [data-sonner-toast].app-toast::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  height: 3px;
+  width: 100%;
+  background: color-mix(in oklch, var(--toast-accent) 75%, transparent);
+  transform-origin: left;
+  animation: app-toast-countdown 6s linear forwards;
+}
+[data-sonner-toaster]:hover [data-sonner-toast].app-toast::after { animation-play-state: paused; }
+@keyframes app-toast-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toaster] [data-sonner-toast].app-toast::after { animation: none; transform: scaleX(0); }
+}
+
+/* Tinted icon chip */
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-icon] {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 !important;
+  flex: none;
+  border-radius: 9px;
+  color: var(--toast-accent) !important;
+  background: color-mix(in oklch, var(--toast-accent) 14%, transparent);
+}
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-icon] svg { width: 18px; height: 18px; margin: 0; }
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-content] { gap: 3px; padding-top: 1px; }
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-title] { font-weight: 600; font-size: 0.875rem; line-height: 1.35; color: var(--popover-foreground); }
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-description] { font-size: 0.8125rem; line-height: 1.45; color: var(--muted-foreground) !important; }
+
+/* Close button: top-right, quiet until hovered */
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-close-button] {
+  left: auto !important;
+  right: 10px !important;
+  top: 12px !important;
+  transform: none !important;
+  width: 24px;
+  height: 24px;
+  border: none !important;
+  border-radius: 6px;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+}
+[data-sonner-toaster] [data-sonner-toast].app-toast [data-close-button]:hover { background: var(--muted) !important; color: var(--foreground) !important; }

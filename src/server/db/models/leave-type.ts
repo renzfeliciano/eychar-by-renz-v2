@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // Configurable catalog data (AGENTS.md §54) — leave type names/codes are
 // never hardcoded; an organization defines its own (Vacation, Sick, ...).
@@ -17,6 +18,9 @@ const leaveTypeSchema = new Schema(
 );
 
 leaveTypeSchema.index({ organizationId: 1, code: 1 }, { unique: true });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+leaveTypeSchema.plugin(hiddenPlugin);
 
 export type LeaveType = InferSchemaType<typeof leaveTypeSchema>;
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,6 +59,7 @@ export function EditProjectDialog({
     }
 
     setOpen(false);
+    toast.success("Project updated");
     router.refresh();
   }
 
@@ -103,6 +105,7 @@ export function EditProjectDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form={`edit-project-form-${project.id}`} disabled={isSubmitting} data-testid="projects-edit-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Saving…" : "Save"}
           </Button>
         </DialogFooter>

@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // A Position is a data record only (AGENTS.md §11/§12) — it is never used
 // for authorization or to derive reporting relationships anywhere in this
@@ -18,6 +19,9 @@ const positionSchema = new Schema(
 );
 
 positionSchema.index({ organizationId: 1, code: 1 }, { unique: true });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+positionSchema.plugin(hiddenPlugin);
 
 export type Position = InferSchemaType<typeof positionSchema>;
 

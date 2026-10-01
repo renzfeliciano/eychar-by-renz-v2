@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export function CancelClearanceButton({ organizationId, caseId }: { organization
       return;
     }
     setOpen(false);
+    toast.success("Clearance cancelled");
     router.refresh();
   }
 

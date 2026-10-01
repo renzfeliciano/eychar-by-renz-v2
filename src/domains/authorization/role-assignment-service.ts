@@ -5,6 +5,7 @@ import { RoleAssignmentModel, RoleModel, UserModel, PersonModel } from "@/server
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import { SuperAdminService } from "./super-admin-service";
+import { viewerSeesHidden } from "@/server/db/visibility-context";
 import { formatPersonName } from "@/lib/person-name";
 import type { AssignRoleInput } from "@/shared/validation/roles";
 
@@ -113,7 +114,8 @@ export const RoleAssignmentService = {
     await connectMongoDB();
     // Includes staff with no role yet, so they can be given one.
     const userIds = await organizationUserIds(organizationId);
-    const users = await UserModel.find({ _id: { $in: userIds }, employeeId: { $exists: false } }).lean();
+    const seesHidden = await viewerSeesHidden();
+    const users = await UserModel.find({ _id: { $in: userIds }, employeeId: { $exists: false }, ...(seesHidden ? {} : { hiddenFromOthers: { $ne: true } }) }).lean();
     const persons = await PersonModel.find({ _id: { $in: users.map((user) => user.personId).filter(Boolean) } }).lean();
     const personById = new Map(persons.map((person) => [person._id.toString(), person]));
 

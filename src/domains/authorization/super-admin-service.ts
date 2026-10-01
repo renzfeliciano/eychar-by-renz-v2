@@ -48,6 +48,15 @@ export const SuperAdminService = {
     return Boolean(await RoleAssignmentModel.exists({ organizationId: new Types.ObjectId(organizationId), roleId: role._id, userId: new Types.ObjectId(userId), ...activeAssignment() }));
   },
 
+  /** Whether the user holds the Super Administrator role in any organization (for the session token). */
+  async isSuperAdminAnywhere(userId: string | undefined): Promise<boolean> {
+    if (!userId || !Types.ObjectId.isValid(userId)) return false;
+    await connectMongoDB();
+    const roles = await RoleModel.find({ system: "super_admin" }).distinct("_id");
+    if (!roles.length) return false;
+    return Boolean(await RoleAssignmentModel.exists({ roleId: { $in: roles }, userId: new Types.ObjectId(userId), ...activeAssignment() }));
+  },
+
   /** Creates the role (idempotent) and gives it to `userId`. Refuses if someone else already holds it. */
   async ensure(organizationId: string, userId: string) {
     await connectMongoDB();

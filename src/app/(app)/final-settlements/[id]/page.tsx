@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
@@ -115,6 +116,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
         action={
           <div className="flex items-center gap-2">
             <StatusBadge status={settlement.status} label={SETTLEMENT_STATUS_LABELS[settlement.status]} tone={SETTLEMENT_STATUS_TONES[settlement.status]} />
+            {superAdmin && <HideToggle organizationId={organizationId} type="final-settlement" id={id} label="This settlement" hidden={Boolean((settlement as { hiddenFromOthers?: boolean }).hiddenFromOthers)} />}
             {superAdmin && <DeleteRecordButton organizationId={organizationId} type="final-settlement" id={id} afterDeleteHref="/final-settlements" />}
           </div>
         }

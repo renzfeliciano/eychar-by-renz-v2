@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
@@ -75,6 +76,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
           <div className="flex items-center gap-2">
             <StatusBadge status={clearance.status} label={CLEARANCE_STATUS_LABELS[clearance.status]} tone={CLEARANCE_STATUS_TONES[clearance.status]} />
             {canUpdate && editable && <CancelClearanceButton organizationId={organizationId} caseId={id} />}
+            {superAdmin && <HideToggle organizationId={organizationId} type="clearance" id={id} label={clearance.caseNumber} hidden={Boolean((clearance as { hiddenFromOthers?: boolean }).hiddenFromOthers)} />}
             {superAdmin && <DeleteRecordButton organizationId={organizationId} type="clearance" id={id} afterDeleteHref="/clearance" />}
             {(settlement || (canPrepareSettlement && editable)) && (
               <PrepareSettlementButton organizationId={organizationId} clearanceCaseId={id} existingId={settlement?._id.toString()} />

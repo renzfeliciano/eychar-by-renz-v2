@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -18,6 +19,7 @@ export function TerminateButton({ employeeId, organizationId }: { employeeId: st
       const body = await response.json().catch(() => ({}));
       throw new Error(body.error ?? "Failed to terminate employment.");
     }
+    toast.success("Employment ended");
     router.refresh();
   }
 

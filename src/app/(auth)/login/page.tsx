@@ -59,6 +59,13 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Why the person landed back here (set by the idle guard), shown once above the form.
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL on arrival
+    if (reason === "idle") setNotice("You were signed out after a period of inactivity. Sign in again to continue.");
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -281,6 +288,12 @@ export default function LoginPage() {
                   </div>
                 )}
 
+                {notice && !error && (
+                  <p role="status" className="flex items-start gap-2 rounded-lg border bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                    <Info className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                    {notice}
+                  </p>
+                )}
                 <FormError message={error} />
 
                 <div {...stagger(4)}>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +46,7 @@ export function CreatePositionDialog({ organizationId }: { organizationId: strin
 
     setTitle("");
     setOpen(false);
+    toast.success("Position added");
     router.refresh();
   }
 
@@ -76,6 +78,7 @@ export function CreatePositionDialog({ organizationId }: { organizationId: strin
         </form>
         <DialogFooter>
           <Button type="submit" form="create-position-form" disabled={isSubmitting} data-testid="positions-create-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Adding…" : "Add position"}
           </Button>
         </DialogFooter>

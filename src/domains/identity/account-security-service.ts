@@ -7,6 +7,7 @@ import { EmployeeModel, PersonModel, RoleAssignmentModel, RoleModel, UserModel }
 import { AuthorizationError, BusinessRuleError, NotFoundError, ValidationError } from "@/shared/errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
+import { viewerSeesHidden } from "@/server/db/visibility-context";
 import { checkPassword } from "@/shared/validation/password-policy";
 import type { ChangePasswordInput } from "@/shared/validation/auth";
 import { formatPersonName } from "@/lib/person-name";
@@ -25,6 +26,8 @@ export type AccountSummary = {
   /** Distinct permissions the account's active roles grant (delete permissions excluded: they're the Super Administrator's alone). */
   permissionCount: number;
   isSuperAdmin: boolean;
+  /** Hidden as a test account (only the Super Administrator sees it listed). */
+  hidden: boolean;
   roleNames: string[];
   status: AccountStatus;
   locked: boolean;
@@ -100,8 +103,9 @@ export const AccountSecurityService = {
   async listForOrganization(organizationId: string, now: Date = new Date()): Promise<AccountSummary[]> {
     await connectMongoDB();
     const ids = await organizationUserIds(organizationId);
-    const users = await UserModel.find({ _id: { $in: ids } })
-      .select("username email personId employeeId status lockedUntil mfa.enabled mustChangePassword lastSignInAt createdAt")
+    const seesHidden = await viewerSeesHidden();
+    const users = await UserModel.find({ _id: { $in: ids }, ...(seesHidden ? {} : { hiddenFromOthers: { $ne: true } }) })
+      .select("username email personId employeeId status lockedUntil mfa.enabled mustChangePassword lastSignInAt createdAt hiddenFromOthers")
       .lean();
 
     const employees = await EmployeeModel.find({ _id: { $in: users.map((user) => user.employeeId).filter(Boolean) } }).select("personId").lean();
@@ -146,6 +150,7 @@ export const AccountSecurityService = {
           kind: user.employeeId ? ("self-service" as const) : ("staff" as const),
           permissionCount: permissionsByUser.get(user._id.toString())?.size ?? 0,
           isSuperAdmin: superAdminUsers.has(user._id.toString()),
+          hidden: Boolean(user.hiddenFromOthers),
           roleNames: (roleNamesByUser.get(user._id.toString()) ?? []).sort((a, b) => a.localeCompare(b)),
           status: user.status as AccountStatus,
           locked: Boolean(user.lockedUntil && new Date(user.lockedUntil) > now),

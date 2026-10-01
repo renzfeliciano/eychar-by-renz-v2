@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // Mirrors the legacy v1 app's Workforce Calendar module. `category` is a
 // plain trimmed String validated at the service layer against the
@@ -20,6 +21,9 @@ const eventSchema = new Schema(
 );
 
 eventSchema.index({ organizationId: 1, date: 1 });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+eventSchema.plugin(hiddenPlugin);
 
 export type Event = InferSchemaType<typeof eventSchema>;
 

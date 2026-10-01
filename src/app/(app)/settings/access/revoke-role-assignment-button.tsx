@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -18,6 +19,7 @@ export function RevokeRoleAssignmentButton({ id, organizationId }: { id: string;
       const body = await response.json().catch(() => ({}));
       throw new Error(body.error ?? "Failed to revoke role.");
     }
+    toast.success("Role revoked");
     router.refresh();
   }
 

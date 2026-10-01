@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // `type` is a free-form string, not a hardcoded enum (AGENTS.md §10) — a
 // seeded organizationUnitTypes catalog is deferred until a UI actually
@@ -21,6 +22,9 @@ const organizationUnitSchema = new Schema(
 
 organizationUnitSchema.index({ organizationId: 1, code: 1 }, { unique: true });
 organizationUnitSchema.index({ parentUnitId: 1 });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+organizationUnitSchema.plugin(hiddenPlugin);
 
 export type OrganizationUnit = InferSchemaType<typeof organizationUnitSchema>;
 

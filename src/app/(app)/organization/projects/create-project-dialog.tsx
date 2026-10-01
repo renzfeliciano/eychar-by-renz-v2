@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,6 +51,7 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
     setName("");
     setLocationId("");
     setOpen(false);
+    toast.success("Project added");
     router.refresh();
   }
 
@@ -88,6 +90,7 @@ export function CreateProjectDialog({ organizationId, locations }: { organizatio
         </form>
         <DialogFooter>
           <Button type="submit" form="create-project-form" disabled={isSubmitting} data-testid="projects-create-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Adding…" : "Add project"}
           </Button>
         </DialogFooter>

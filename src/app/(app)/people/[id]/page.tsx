@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
@@ -170,6 +171,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {superAdmin && <HideToggle organizationId={organizationId} type="employee" id={employeeId} label={personName} hidden={Boolean(detail.employee.hiddenFromOthers)} />}
             {superAdmin && <DeleteRecordButton organizationId={organizationId} type="employee" id={employeeId} afterDeleteHref="/people" />}
             {canUpdate && detail.person && (
               <EditEmployeeDialog

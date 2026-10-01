@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // classification/status are plain trimmed Strings, validated at the
 // service layer via CaseClassificationService/CaseStatusService.assertValidCode
@@ -23,6 +24,9 @@ const caseSchema = new Schema(
 
 caseSchema.index({ organizationId: 1, status: 1 });
 caseSchema.index({ projectId: 1 });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+caseSchema.plugin(hiddenPlugin);
 
 export type Case = InferSchemaType<typeof caseSchema>;
 

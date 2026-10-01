@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -59,6 +60,7 @@ export function SubmitReviewDialog({
     }
 
     setOpen(false);
+    toast.success("Review submitted");
     router.refresh();
   }
 
@@ -92,6 +94,7 @@ export function SubmitReviewDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form={`submit-review-form-${reviewId}`} disabled={isSubmitting} data-testid="performance-review-submit-confirm-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Submitting…" : "Submit"}
           </Button>
         </DialogFooter>

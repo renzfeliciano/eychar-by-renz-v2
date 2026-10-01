@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export function ManualLineForm({ organizationId, settlementId }: { organizationI
     setAmount("");
     setReason("");
     setOpen(false);
+    toast.success("Line added");
     router.refresh();
   }
 

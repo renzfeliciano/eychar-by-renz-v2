@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,6 +70,7 @@ export function GrantLeaveBalanceDialog({
     }
 
     setOpen(false);
+    toast.success("Leave balance granted");
     router.refresh();
   }
 
@@ -129,6 +131,7 @@ export function GrantLeaveBalanceDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form="grant-leave-balance-form" disabled={isSubmitting} data-testid="grant-leave-balance-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Granting…" : "Grant balance"}
           </Button>
         </DialogFooter>

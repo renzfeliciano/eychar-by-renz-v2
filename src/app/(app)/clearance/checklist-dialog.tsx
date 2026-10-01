@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Ban, ListChecks, Loader2, RotateCcw } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
     }
     setTitle("");
     setAutoSource("");
+    toast.success("Checklist updated");
     router.refresh();
   }
 
@@ -74,6 +76,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
       setError(body.error ?? "Failed to update the item.");
       return;
     }
+    toast.success("Checklist updated");
     router.refresh();
   }
 

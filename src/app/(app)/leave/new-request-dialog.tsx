@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +67,7 @@ export function NewRequestDialog({
     setEndDate("");
     setReason("");
     setOpen(false);
+    toast.success("Leave request filed");
     router.refresh();
   }
 
@@ -113,6 +115,7 @@ export function NewRequestDialog({
 
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="leave-new-request-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Submitting…" : "Submit"}
           </Button>
         </DialogFooter>

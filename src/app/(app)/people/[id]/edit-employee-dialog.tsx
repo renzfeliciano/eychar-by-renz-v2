@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -139,6 +140,7 @@ export function EditEmployeeDialog({
     }
 
     setOpen(false);
+    toast.success("Employee details saved");
     router.refresh();
   }
 

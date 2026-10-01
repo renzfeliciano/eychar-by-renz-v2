@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -53,6 +54,7 @@ export function AdjustLeaveBalanceDialog({
     }
 
     setOpen(false);
+    toast.success("Leave balance adjusted");
     router.refresh();
   }
 
@@ -100,6 +102,7 @@ export function AdjustLeaveBalanceDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form="adjust-leave-balance-form" disabled={isSubmitting} data-testid="adjust-leave-balance-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Saving…" : "Save adjustment"}
           </Button>
         </DialogFooter>

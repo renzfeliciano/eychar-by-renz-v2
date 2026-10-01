@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,6 +61,7 @@ export function AddReviewDialog({
     setEmployeeId("");
     setReviewerId("");
     setOpen(false);
+    toast.success("Review added");
     router.refresh();
   }
 
@@ -91,6 +93,7 @@ export function AddReviewDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form="add-review-form" disabled={isSubmitting} data-testid="performance-reviews-create-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Adding…" : "Add review"}
           </Button>
         </DialogFooter>

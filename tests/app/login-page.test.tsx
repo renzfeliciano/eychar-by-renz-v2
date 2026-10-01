@@ -152,4 +152,11 @@ describe("LoginPage", () => {
     // The progress segments already show the position; no "01 / 06" counter.
     expect(screen.queryByText(/\d{2} \/ \d{2}/)).not.toBeInTheDocument();
   });
+
+  it("explains an idle sign-out when sent back here for inactivity", async () => {
+    window.history.pushState({}, "", "/login?reason=idle");
+    render(<LoginPage />);
+    expect(await screen.findByRole("status")).toHaveTextContent("You were signed out after a period of inactivity. Sign in again to continue.");
+    window.history.pushState({}, "", "/login");
+  });
 });

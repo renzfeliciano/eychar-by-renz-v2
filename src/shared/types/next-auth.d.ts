@@ -22,6 +22,10 @@ declare module "next-auth/jwt" {
     lastActivityAt?: number;
     expired?: boolean;
     expiredReason?: "idle_timeout" | "concurrent_session";
+    /** May see records hidden as test data (ADR-034). */
+    seesHidden?: boolean;
+    /** The organization's idle limit, refreshed on each activity ping. */
+    idleMs?: number;
     replacedSessionAt?: string;
   }
 }

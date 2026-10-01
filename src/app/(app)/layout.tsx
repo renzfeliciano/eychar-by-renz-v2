@@ -10,6 +10,8 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { WorkspaceLayout } from "@/components/shared/workspace-layout";
 import { ConcurrentSessionGuard } from "@/components/shared/concurrent-session-guard";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
+import { SecuritySettingsService } from "@/domains/identity/security-settings-service";
+import { IdleSessionGuard } from "@/components/shared/idle-session-guard";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -33,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     organizationId ? hasPermission("roles.read", organizationId) : false,
     organizationId ? SuperAdminService.isSuperAdmin(session.user.id, organizationId) : false,
   ]);
+  const security = await SecuritySettingsService.forUser(session.user.id);
   const displayName = person ? formatPersonName(person) : (session.user.name ?? user?.username ?? session.user.email ?? "User");
 
   return (
@@ -48,6 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }}
     >
       <ConcurrentSessionGuard />
+      <IdleSessionGuard idleMs={security.idleTimeoutSeconds * 1000} warningMs={security.idleWarningSeconds * 1000} />
       {children}
     </WorkspaceLayout>
   );

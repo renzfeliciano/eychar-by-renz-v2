@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -88,6 +89,7 @@ export function CatalogSection({
     setName("");
     setItemDescription("");
     setOpen(false);
+    toast.success("Catalog updated");
     router.refresh();
   }
 
@@ -104,6 +106,7 @@ export function CatalogSection({
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error ?? "Failed to update item.");
       }
+      toast.success("Catalog updated");
       router.refresh();
     } finally {
       setTogglingId(null);
@@ -138,6 +141,7 @@ export function CatalogSection({
     }
 
     setEditingItem(null);
+    toast.success("Catalog updated");
     router.refresh();
   }
 

@@ -96,8 +96,10 @@ export function ConcurrentSessionGuard() {
 
   if (error && dismissedFor !== error) {
     return (
-      <Dialog open onOpenChange={() => setDismissedFor(error)}>
-        <DialogContent>
+      // The session is already over: this can't be closed (no ×, Esc or outside click),
+      // only left by signing in again. Staying on the page would just fail every request.
+      <Dialog open onOpenChange={() => undefined}>
+        <DialogContent showCloseButton={false}>
           <NoticeBody notice={ENDED[error] ?? ENDED.SessionExpired} />
           <DialogFooter>
             <Button onClick={() => signOut({ callbackUrl: "/login" })}>

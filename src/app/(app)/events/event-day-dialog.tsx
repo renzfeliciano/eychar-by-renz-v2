@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { CalendarPlus, Pencil, Plus, Save, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +71,7 @@ export function EventDayDialog({
       setListError(body.error ?? "Failed to cancel event.");
       return;
     }
+    toast.success("Calendar updated");
     router.refresh();
   }
 
@@ -199,6 +201,7 @@ function EventForm({
     }
 
     onClose();
+    toast.success("Calendar updated");
     router.refresh();
   }
 
@@ -234,6 +237,7 @@ function EventForm({
           </Button>
           <Button type="submit" form="event-form" disabled={isSubmitting}>
             {isEdit ? <Save className="size-3.5" /> : <CalendarPlus className="size-3.5" />}
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isEdit ? (isSubmitting ? "Saving…" : "Save changes") : isSubmitting ? "Adding…" : "Add event"}
           </Button>
         </DialogFooter>

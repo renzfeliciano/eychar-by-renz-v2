@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // Employee is pure identity — no status field of its own. "Is this employee
 // currently active" is answered by their latest Employment record, not a
@@ -28,6 +29,9 @@ employeeSchema.index(
   { organizationId: 1, employeeNumber: 1 },
   { unique: true, partialFilterExpression: { employeeNumber: { $exists: true } } },
 );
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+employeeSchema.plugin(hiddenPlugin);
 
 export type Employee = InferSchemaType<typeof employeeSchema>;
 

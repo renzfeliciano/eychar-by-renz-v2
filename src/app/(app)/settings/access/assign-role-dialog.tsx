@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,6 +61,7 @@ export function AssignRoleDialog({
     setUserId("");
     setRoleId("");
     setOpen(false);
+    toast.success("Role assigned");
     router.refresh();
   }
 
@@ -91,6 +93,7 @@ export function AssignRoleDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form="assign-role-form" disabled={isSubmitting} data-testid="assign-role-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Assigning…" : "Assign role"}
           </Button>
         </DialogFooter>

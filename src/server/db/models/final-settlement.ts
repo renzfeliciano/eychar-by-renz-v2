@@ -1,4 +1,6 @@
 import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
+
 
 export const FINAL_SETTLEMENT_STATUSES = ["draft", "submitted", "reviewed", "approved", "disbursed", "cancelled"] as const;
 
@@ -69,6 +71,9 @@ const finalSettlementSchema = new Schema(
 
 finalSettlementSchema.index({ organizationId: 1, clearanceCaseId: 1 }, { unique: true });
 finalSettlementSchema.index({ organizationId: 1, status: 1 });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+finalSettlementSchema.plugin(hiddenPlugin);
 
 export type FinalSettlement = InferSchemaType<typeof finalSettlementSchema>;
 

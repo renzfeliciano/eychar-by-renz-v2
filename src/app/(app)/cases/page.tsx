@@ -1,4 +1,5 @@
 import { AlarmClock, FolderKanban, Gavel, Handshake } from "lucide-react";
+import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -256,7 +257,12 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
               header: "",
               className: "w-10",
               render: (row) =>
-                superAdmin ? <DeleteRecordButton organizationId={organizationId} type="case" id={row._id.toString()} iconOnly /> : null,
+                superAdmin ? (
+                <span className="flex items-center justify-end gap-0.5">
+                  <HideToggle organizationId={organizationId} type="case" id={row._id.toString()} label={String(row.caseName)} hidden={Boolean(row.hiddenFromOthers)} />
+                  <DeleteRecordButton organizationId={organizationId} type="case" id={row._id.toString()} iconOnly />
+                </span>
+              ) : null,
             },
           ]}
           rows={pageRows}

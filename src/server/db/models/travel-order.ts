@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { hiddenPlugin } from "../hidden-plugin";
 
 // Mirrors the legacy v1 app's Travel Orders Logging module: one or more
 // employees dispatched for a date range. No hard delete (AGENTS.md §53) —
@@ -20,6 +21,9 @@ const travelOrderSchema = new Schema(
 );
 
 travelOrderSchema.index({ organizationId: 1, startDate: -1 });
+
+// Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
+travelOrderSchema.plugin(hiddenPlugin);
 
 export type TravelOrder = InferSchemaType<typeof travelOrderSchema>;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,8 @@ export function TransferForm({
       setError(body.error ?? "Failed to transfer employee.");
       return;
     }
+
+    toast.success("Transfer saved");
 
     router.refresh();
   }

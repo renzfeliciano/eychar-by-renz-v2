@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,6 +61,7 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
     setName("");
     setProjectId("");
     setOpen(false);
+    toast.success("Attendance policy saved");
     router.refresh();
   }
 
@@ -107,6 +109,7 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
         </form>
         <DialogFooter>
           <Button type="submit" form="create-attendance-policy-form" disabled={isSubmitting} data-testid="attendance-policies-create-submit-button">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {isSubmitting ? "Adding…" : "Add policy"}
           </Button>
         </DialogFooter>
