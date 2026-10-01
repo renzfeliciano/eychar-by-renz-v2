@@ -1,0 +1,8 @@
+# Store text files with LF line endings, whatever the editor saves, so a
+# Windows checkout doesn't show every file as changed (CRLF-only diffs).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.wasm binary
+*.woff2 binary
