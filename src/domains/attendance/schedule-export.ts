@@ -3,6 +3,7 @@ import { buildCsvContent } from "@/lib/csv";
 import type { ScheduleMonthView } from "./schedule-service";
 import { shiftColor } from "./shift-colors";
 import { describeShiftHours, type ShiftHoursShape } from "./shift-display";
+import { BRAND } from "@/lib/brand";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DETAIL_HEADERS = ["Employee #", "Employee", "Date", "Day", "Shift code", "Shift", "Hours", "Custom hours", "Project"];
@@ -64,7 +65,7 @@ export function buildScheduleCsv(view: ScheduleMonthView): string {
  */
 export function buildScheduleWorkbook(view: ScheduleMonthView, options: { organizationName: string; shifts: LegendShift[] }): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "WorkforceHub";
+  workbook.creator = BRAND.fullName;
   workbook.created = new Date();
 
   const grid = workbook.addWorksheet("Schedule", {

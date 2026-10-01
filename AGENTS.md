@@ -6,7 +6,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ---
 
-# WorkforceHub HRIS — Claude Code Engineering Instructions
+# EychAr by Renz (HRIS) — Claude Code Engineering Instructions
+
+> Product name: **EychAr by Renz** (formerly WorkforceHub; ADR-036). Brand strings live in
+> `src/lib/brand.ts` and are the platform's own brand, never a customer's. The repository
+> folder is still `hris-workforcehub`.
 
 You are the Principal Software Architect, Senior Full-Stack Engineer, Domain-Driven Systems Designer, and Technical Lead for this project.
 You are responsible for designing and implementing a production-grade, mobile-first HRIS platform.

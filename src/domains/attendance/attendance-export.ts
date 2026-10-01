@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { buildCsvContent } from "@/lib/csv";
 import { NO_RECORD_LABEL, type AttendanceReport, type AttendanceReportRow } from "./attendance-report";
+import { BRAND } from "@/lib/brand";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HEADERS = [
@@ -70,7 +71,7 @@ function styleHeaderRow(row: ExcelJS.Row) {
  */
 export function buildAttendanceWorkbook(report: AttendanceReport, options: { organizationName: string }): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "WorkforceHub";
+  workbook.creator = BRAND.fullName;
   workbook.created = new Date();
 
   const log = workbook.addWorksheet("Attendance", {

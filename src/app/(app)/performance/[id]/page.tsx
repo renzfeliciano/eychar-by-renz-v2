@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClock, CircleCheck, FilePen, UserRoundX, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -18,6 +19,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AddReviewDialog } from "./add-review-dialog";
 import { SubmitReviewDialog } from "./submit-review-dialog";
 import { CycleStatusButton } from "./cycle-status-button";
+
+export const metadata: Metadata = { title: "Review cycle" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric" } as const;
 // Ratings are ordinal (best to worst in catalog order), so they use the ordinal ramp, not identity colors.

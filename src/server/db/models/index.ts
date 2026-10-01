@@ -54,3 +54,5 @@ export { PaymentMethodModel } from "./payment-method";
 export { FinalSettlementModel } from "./final-settlement";
 export { DeletionBatchModel } from "./deletion-batch";
 export { DeletedRecordModel } from "./deleted-record";
+export { HolidayModel } from "./holiday";
+export { DayNoteModel } from "./day-note";

@@ -59,6 +59,8 @@ const COMMON = new Set([
   "pcas",
   "workforce",
   "workforcehub",
+  "eychar",
+  "eycharbyrenz",
   "hris",
   "company",
   "summer",

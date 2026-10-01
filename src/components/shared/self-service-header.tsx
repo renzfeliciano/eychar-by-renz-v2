@@ -5,12 +5,13 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { Logo } from "./logo";
+import { BrandName } from "./brand-name";
 
 export function SelfServiceHeader({ name }: { name: string }) {
   return (
     <header className="glass-surface sticky top-0 z-10 flex h-16 items-center gap-3 border-b px-4 md:px-6">
       <Logo priority />
-      <span className="text-sm font-semibold">WorkforceHub</span>
+      <BrandName className="text-sm" />
       <div className="ml-auto flex items-center gap-3">
         <span className="text-sm text-muted-foreground">{name}</span>
         <ThemeToggle />

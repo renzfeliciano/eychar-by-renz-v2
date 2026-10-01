@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -20,6 +21,8 @@ import { PESO, SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_TONES, daysToDeadline
 import { SettlementActions } from "./settlement-actions";
 import { ManualLineForm } from "./manual-line-form";
 import { RemoveLineButton } from "./remove-line-button";
+
+export const metadata: Metadata = { title: "Final settlement" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
 const WHEN = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;

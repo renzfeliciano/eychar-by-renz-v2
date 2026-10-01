@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -7,6 +8,8 @@ import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025
 import type { PayFrequency } from "@/domains/payroll/engine/pay-frequency";
 import { PageHeader } from "@/components/shared/page-header";
 import { RuleVersionEditor, type EditorInitial } from "../rule-version-editor";
+
+export const metadata: Metadata = { title: "New rule version" };
 
 export default async function NewRuleVersionPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const { from } = await searchParams;

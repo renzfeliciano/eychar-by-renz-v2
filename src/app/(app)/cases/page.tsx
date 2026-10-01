@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AlarmClock, FolderKanban, Gavel, Handshake } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -24,6 +25,8 @@ import { CaseFormDialog } from "./case-form-dialog";
 import { CaseExportActions, type CaseExportRow } from "./case-export-actions";
 import { CasePrintReport } from "./case-print-report";
 import { CaseDetailSheet } from "./case-detail-sheet";
+
+export const metadata: Metadata = { title: "Case monitoring" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

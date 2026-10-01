@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** WorkforceHub
+**Project:** EychAr by Renz (formerly WorkforceHub; this folder keeps its old name)
 **Generated:** 2026-09-21 21:02:29
 **Category:** SaaS (General)
 **Design Dials:** Variance 6/10 (Balanced / Modern) | Motion 5/10 (Standard) | Density 7/10 (Standard)

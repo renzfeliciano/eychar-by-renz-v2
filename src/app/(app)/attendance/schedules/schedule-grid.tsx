@@ -16,6 +16,11 @@ import { cn } from "@/lib/utils";
 import type { ScheduleMonthView } from "@/domains/attendance/schedule-service";
 import { shiftColor } from "@/domains/attendance/shift-colors";
 import { formatHours, type ShiftOption } from "./shift-templates-dialog";
+import type { DayInfo } from "@/domains/holidays/day-info";
+import { dayHeadcount } from "@/domains/attendance/day-headcount";
+import { HOLIDAY_TYPE_LABELS } from "@/domains/holidays/holiday-types";
+import { DayDetailsDialog } from "./day-details-dialog";
+import { HOLIDAY_DOT, strongestHolidayType } from "./holiday-badge";
 
 const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -29,6 +34,9 @@ type Props = {
   projects: SelectOption[];
   canUpdate: boolean;
   todayKey: string;
+  /** Holidays, company events and HR notes by day ("YYYY-MM-DD"); days with none are absent. */
+  dayInfo?: Record<string, DayInfo>;
+  canReadEvents?: boolean;
 };
 
 type CellPosition = { employeeId: string; dayIndex: number };
@@ -38,7 +46,7 @@ type EntryPayload = { employeeId: string; date: string; shiftTemplateId: string 
 // starting on an already-selected day erases instead, like a spreadsheet.
 type DragState = { start: CellPosition; base: Set<string>; mode: "add" | "remove"; moved: boolean };
 
-export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate, todayKey }: Props) {
+export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate, todayKey, dayInfo = {}, canReadEvents = false }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [anchor, setAnchor] = useState<CellPosition | null>(null);
@@ -52,6 +60,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [quickSavingId, setQuickSavingId] = useState<string | null>(null);
+  const [openDay, setOpenDay] = useState<string | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const suppressClickRef = useRef(false);
 
@@ -256,7 +265,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
             <span>
               {activeShifts.length === 0
                 ? "Add shifts first (Shifts button above), then select days to schedule."
-                : "Select days to schedule. Shift-click selects a range; click a name or date to select the whole row or column."}
+                : "Select days to schedule. Shift-click selects a range; click a name to select the whole row, or a date for its notes and to select the column."}
               {activeShifts.length > 0 && <span className="hidden md:inline"> Drag across days to select a block; Esc deselects.</span>}
             </span>
           </p>
@@ -274,38 +283,47 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
               </th>
               {view.days.map((day) => {
                 const isToday = day.date === todayKey;
-                const content = (
-                  <>
-                    <span
-                      className={cn(
-                        "mx-auto flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
-                        isToday ? "bg-primary font-semibold text-primary-foreground" : "font-medium",
-                      )}
-                    >
-                      {day.day}
-                    </span>
-                    <span className="block text-[10px] text-muted-foreground">{WEEKDAY_INITIALS[day.weekday]}</span>
-                  </>
-                );
+                const info = dayInfo[day.date];
+                const holidayType = strongestHolidayType(info?.holidays.map((holiday) => holiday.type) ?? []);
+                const hasNotes = Boolean(info?.note || info?.events.length);
+                const holidayNames = info?.holidays.map((holiday) => `${holiday.name} (${HOLIDAY_TYPE_LABELS[holiday.type]})`).join(", ");
+                const label = `${WEEKDAY_NAMES[day.weekday]} ${day.day}${isToday ? ", today" : ""}${holidayNames ? `, ${holidayNames}` : ""}${info?.events.length ? `, ${info.events.length === 1 ? "1 event" : `${info.events.length} events`}` : ""}${info?.note ? ", has a note" : ""}`;
                 return (
                   <th
                     key={day.date}
                     scope="col"
-                    className={cn("h-11 w-11 min-w-11 border-b p-0 text-center font-normal", day.isWeekend && "bg-muted/60")}
-                    aria-label={`${WEEKDAY_NAMES[day.weekday]} ${day.day}${isToday ? ", today" : ""}`}
-                  >
-                    {canUpdate ? (
-                      <button
-                        type="button"
-                        className="size-full rounded-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                        onClick={() => toggleGroup(visibleRows.map((row) => cellKey(row.employeeId, day.date)))}
-                        title={`Select everyone on ${day.date}`}
-                      >
-                        {content}
-                      </button>
-                    ) : (
-                      content
+                    className={cn(
+                      "h-11 w-11 min-w-11 border-b p-0 text-center font-normal",
+                      day.isWeekend && "bg-muted/60",
+                      holidayType === "regular" && "bg-rose-50 dark:bg-rose-500/10",
+                      holidayType === "special_non_working" && "bg-amber-50 dark:bg-amber-500/10",
                     )}
+                  >
+                    <button
+                      type="button"
+                      className="relative size-full rounded-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                      onClick={() => setOpenDay(day.date)}
+                      aria-label={`${label}. Show day details`}
+                      title={holidayNames ? `${holidayNames} · details` : `Details for ${day.date}`}
+                      data-testid={`schedule-day-${day.date}`}
+                    >
+                      <span
+                        className={cn(
+                          "mx-auto flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
+                          isToday ? "bg-primary font-semibold text-primary-foreground" : "font-medium",
+                          holidayType === "regular" && !isToday && "text-rose-700 dark:text-rose-300",
+                        )}
+                      >
+                        {day.day}
+                      </span>
+                      <span className="block text-[10px] text-muted-foreground">{WEEKDAY_INITIALS[day.weekday]}</span>
+                      {(holidayType || hasNotes) && (
+                        <span className="absolute top-1 right-1 flex gap-0.5" aria-hidden="true">
+                          {holidayType && <span className={cn("size-1.5 rounded-full", HOLIDAY_DOT[holidayType])} data-testid="schedule-holiday-marker" />}
+                          {hasNotes && <span className="size-1.5 rounded-full bg-primary" data-testid="schedule-note-marker" />}
+                        </span>
+                      )}
+                    </button>
                   </th>
                 );
               })}
@@ -399,7 +417,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
         </table>
       </div>
 
-      {activeShifts.length > 0 && (
+      {(activeShifts.length > 0 || Object.keys(dayInfo).length > 0) && (
         <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground" aria-label="Shift legend">
           {activeShifts.map((shift) => (
             <li key={shift.id} className="flex items-center gap-1.5">
@@ -413,6 +431,21 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
                 <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-foreground/60" />
               </span>
               Custom hours that day
+            </li>
+          )}
+          {Object.values(dayInfo).some((info) => info.holidays.length > 0) && (
+            <li className="flex items-center gap-1.5">
+              <span className="flex gap-0.5" aria-hidden="true">
+                <span className={cn("size-1.5 rounded-full", HOLIDAY_DOT.regular)} />
+                <span className={cn("size-1.5 rounded-full", HOLIDAY_DOT.special_non_working)} />
+              </span>
+              Holiday (click the date)
+            </li>
+          )}
+          {Object.values(dayInfo).some((info) => info.note || info.events.length > 0) && (
+            <li className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+              Note or event
             </li>
           )}
         </ul>
@@ -491,6 +524,20 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
           </div>
         )}
       </div>
+
+      <DayDetailsDialog
+        key={openDay ?? "closed"}
+        organizationId={organizationId}
+        date={openDay}
+        onOpenChange={(open) => !open && setOpenDay(null)}
+        info={openDay ? dayInfo[openDay] : undefined}
+        headcount={openDay ? dayHeadcount(view.rows, openDay) : null}
+        isToday={openDay === todayKey}
+        isWeekend={Boolean(openDay && view.days.find((day) => day.date === openDay)?.isWeekend)}
+        canUpdate={canUpdate}
+        canReadEvents={canReadEvents}
+        onSelectDay={() => openDay && toggleGroup(visibleRows.map((row) => cellKey(row.employeeId, openDay)))}
+      />
 
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
         <DialogContent>

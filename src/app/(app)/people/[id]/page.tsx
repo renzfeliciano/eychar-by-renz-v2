@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -53,6 +54,8 @@ import { DocumentFormDialog } from "./document-form-dialog";
 import { DocumentDownloadButton } from "./document-download-button";
 import { GrantLeaveBalanceDialog } from "./grant-leave-balance-dialog";
 import { AdjustLeaveBalanceDialog } from "@/components/shared/adjust-leave-balance-dialog";
+
+export const metadata: Metadata = { title: "Employee profile" };
 
 const TABS = ["overview", "job", "leave", "documents", "assets"] as const;
 type Tab = (typeof TABS)[number];

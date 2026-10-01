@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/options";
@@ -14,6 +15,8 @@ import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-qu
 import { formatRelativeDays } from "@/lib/relative-time";
 import { RoleService } from "@/domains/authorization/role-service";
 import { AccountActions } from "./account-actions";
+
+export const metadata: Metadata = { title: "Accounts" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

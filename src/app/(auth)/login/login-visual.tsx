@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
 
 const IMAGES = [
   "/assets/images/login/pcas-login-bg-1.jpg",
@@ -46,7 +47,7 @@ export function LoginVisual() {
 
       {/* The brand lives on the sign-in card, so the photo side carries only
           the message and the carousel's progress. */}
-      <section className="relative z-10 flex min-h-0 flex-col justify-between gap-5 p-5 pb-7 text-white sm:p-8 lg:justify-between lg:p-12 xl:p-16" aria-label="About WorkforceHub">
+      <section className="relative z-10 flex min-h-0 flex-col justify-between gap-5 p-5 pb-7 text-white sm:p-8 lg:justify-between lg:p-12 xl:p-16" aria-label={`About ${BRAND.fullName}`}>
         <p className="animate-in text-xs font-medium text-white/85 duration-500 fade-in sm:text-sm">Project Concepts and Administrative Services, Inc.</p>
 
         <div className="flex flex-col gap-4 sm:gap-6">

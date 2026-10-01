@@ -6,8 +6,12 @@ import { openSecret, sealSecret } from "@/server/auth/secret-box";
 import { generateRecoveryCodes, hashRecoveryCode } from "@/server/auth/recovery-codes";
 import { NotFoundError, ValidationError } from "@/shared/errors";
 import { auditUserEvent } from "./user-audit";
+import { BRAND } from "@/lib/brand";
 
-const ISSUER = "WorkforceHub";
+// The label authenticator apps show beside the code. Accounts enrolled
+// before the rebrand keep their old label until they re-enrol; the codes
+// themselves don't depend on it.
+const ISSUER = BRAND.shortName;
 
 async function loadUser(userId: string) {
   await connectMongoDB();

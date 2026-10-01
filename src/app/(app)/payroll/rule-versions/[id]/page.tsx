@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CopyPlus } from "lucide-react";
@@ -12,6 +13,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = { title: "Rule version" };
 
 type Bracket = { minIncome: number; maxIncome?: number | null; rate: number; baseDeduction: number };
 type Row = { from: number; to?: number | null; employeeRate?: number | null; employerRate?: number | null; employeeAmount?: number | null; employerAmount?: number | null; extraAmount?: number | null };

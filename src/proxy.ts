@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkRequestOrigin } from "@/server/security/csrf";
+import { BRAND } from "@/lib/brand";
 
 /**
  * Runs before every API request (Next.js 16 "proxy", formerly middleware).
@@ -20,7 +21,7 @@ export function proxy(request: NextRequest) {
     allowedOrigins: appOrigin ? [appOrigin] : [],
   });
   if (!result.ok) {
-    return NextResponse.json({ error: "This request didn't come from WorkforceHub, so it was blocked." }, { status: 403 });
+    return NextResponse.json({ error: `This request didn't come from ${BRAND.fullName}, so it was blocked.` }, { status: 403 });
   }
   return NextResponse.next();
 }

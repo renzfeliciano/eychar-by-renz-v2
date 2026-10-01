@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { LeavePolicyService } from "@/domains/leave/leave-policy-service";
@@ -10,6 +11,8 @@ import { Building2, FolderKanban, ListChecks } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreateLeavePolicyDialog } from "./create-leave-policy-dialog";
+
+export const metadata: Metadata = { title: "Leave policies" };
 
 export default async function LeavePoliciesPage() {
   const { organization } = await getCurrentOrganization();

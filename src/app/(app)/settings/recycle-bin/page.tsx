@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/options";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -9,6 +10,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { BinActions } from "./bin-actions";
+
+export const metadata: Metadata = { title: "Recycle bin" };
 
 const WHEN = { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" } as const;
 const DAY_MS = 86_400_000;

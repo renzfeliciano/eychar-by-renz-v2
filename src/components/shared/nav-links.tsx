@@ -37,6 +37,7 @@ import {
   Trash2,
   LockKeyhole,
 } from "lucide-react";
+import { BRAND } from "@/lib/brand";
 
 export const NAV_SECTIONS = [
   {
@@ -142,7 +143,7 @@ export function activeNavItem(pathname: string) {
   return best;
 }
 
-const COLLAPSED_SECTIONS_STORAGE_KEY = "workforcehub:nav-collapsed-sections";
+const COLLAPSED_SECTIONS_STORAGE_KEY = `${BRAND.storagePrefix}:nav-collapsed-sections`;
 
 export function NavLinks({ onNavigate, collapsed = false, isSuperAdmin = false }: { onNavigate?: () => void; collapsed?: boolean; isSuperAdmin?: boolean }) {
   const pathname = usePathname();
@@ -191,7 +192,7 @@ export function NavLinks({ onNavigate, collapsed = false, isSuperAdmin = false }
         return (
           <div
             key={section.label ?? `section-${index}`}
-            className={cn("flex flex-col gap-1", collapsed && index > 0 && "border-t border-sidebar-border pt-3")}
+            className={cn("flex flex-col gap-0.5", collapsed && index > 0 && "border-t border-sidebar-border pt-3")}
           >
             {section.label && !collapsed && (
               <button
@@ -200,14 +201,20 @@ export function NavLinks({ onNavigate, collapsed = false, isSuperAdmin = false }
                 aria-expanded={!isCollapsed}
                 aria-controls={`nav-section-${slug}`}
                 data-testid={`nav-section-toggle-${slug}`}
-                className="flex items-center justify-between rounded-md px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-sidebar-foreground"
+                className="group mb-0.5 flex h-7 cursor-pointer items-center justify-between rounded-md px-2.5 text-[11px] font-semibold tracking-[0.07em] text-muted-foreground/90 uppercase transition-colors duration-150 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
               >
                 {section.label}
-                <ChevronDown className={cn("size-3.5 transition-transform duration-150", isCollapsed && "-rotate-90")} />
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 opacity-50 transition-[transform,opacity] duration-150 group-hover:opacity-100 group-focus-visible:opacity-100",
+                    isCollapsed && "-rotate-90 opacity-80",
+                  )}
+                  aria-hidden="true"
+                />
               </button>
             )}
             {!isCollapsed && (
-              <div id={`nav-section-${slug}`} className="flex flex-col gap-1">
+              <div id={`nav-section-${slug}`} className="flex flex-col gap-0.5">
                 {section.items.filter((item) => isSuperAdmin || !("superAdminOnly" in item && item.superAdminOnly)).map((item) => {
                   const isActive = item.href === activeHref;
                   const Icon = item.icon;
@@ -220,18 +227,22 @@ export function NavLinks({ onNavigate, collapsed = false, isSuperAdmin = false }
                       title={collapsed ? item.label : undefined}
                       data-testid={`nav-link-${slugify(item.href)}`}
                       className={cn(
-                        "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-150",
-                        collapsed && "justify-center px-0",
+                        "group/nav relative flex h-[34px] items-center gap-3 rounded-md px-2.5 text-[13.5px] transition-[color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none",
+                        collapsed && "h-9 justify-center px-0",
                         isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
-                          : cn(
-                              "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                              !collapsed && "hover:translate-x-0.5",
-                            ),
+                          ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-sidebar-primary"
+                          : "font-medium text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       )}
                     >
-                      <Icon className="size-4 shrink-0" />
-                      <span className={cn(collapsed && "sr-only")}>{item.label}</span>
+                      <Icon
+                        className={cn(
+                          "size-4 shrink-0 transition-colors duration-150",
+                          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/55 group-hover/nav:text-sidebar-foreground/80",
+                        )}
+                        strokeWidth={isActive ? 2 : 1.75}
+                        aria-hidden="true"
+                      />
+                      <span className={cn("truncate", collapsed && "sr-only")}>{item.label}</span>
                     </Link>
                   );
                 })}

@@ -1,6 +1,7 @@
 # Architecture
 
-WorkforceHub HRIS is a configurable, multi-tenant-capable HRIS platform. The database describes
+EychAr by Renz (EychAr /eɪtʃ ɑːr/, formerly WorkforceHub — ADR-036) is a configurable,
+multi-tenant-capable HRIS platform. The database describes
 the business (organizations, people, roles, permissions); the application code provides reusable
 capabilities on top of that data. See [AGENTS.md](./AGENTS.md) for the full engineering
 instructions this repository is built against.
@@ -20,7 +21,7 @@ EmploymentStatus, AttendanceStatus, RecruitmentStage, EventCategory, CaseClassif
 CaseStatus, PerformanceRating, DocumentType (org-managed catalogs, ADR-016), Applicant
 (Recruitment, ADR-015), ReviewCycle, PerformanceReview (Performance, ADR-017), Case (Case
 monitoring, ADR-018), TravelOrder, AssetIssuance (ADR-022), Event (ADR-024), EmployeeDocument
-(ADR-025); server-side authorization with a granular per-resource permission catalog, now with
+(ADR-025), Holiday and DayNote (holiday calendar and day notes, ADR-035); server-side authorization with a granular per-resource permission catalog, now with
 HR-editable custom Roles on top (ADR-023); append-only audit logging; Auth.js credentials
 (username-or-email) login with single-active-session + idle-timeout enforcement; a shadcn/ui
 dashboard, `/organization/{units,positions,locations,projects,chart}`, `/people` (with
@@ -330,6 +331,40 @@ download endpoint (`getById()`) returns it, fetched on demand when a download bu
 No delete of any kind, not even a status flip — a wrong upload is superseded by a new one, never
 edited in place at the byte level; `update()`'s schema omits every file field entirely.
 
+## Holiday calendar & day notes (ADR-035)
+
+- **`Holiday`** (`organizationId`, `date` as UTC midnight of the day, `name`, `type:
+  regular|special_non_working|special_working`, optional `scope`/`source`, `presetKey` when loaded
+  from a preset, `status`). The organization's own data, the `HolidayCalendar` AGENTS.md §25 asks
+  for. Removing one cancels it (`status`), never deletes. Index `{ organizationId, date }`.
+- **Country presets** (`src/domains/holidays/presets/`) only *propose* a year's holidays. The
+  Philippine preset has 2026 checked against Proclamation No. 1006, s. 2025 and No. 1264, s. 2026
+  (Eid'l Adha), and builds other years from the standard dates by law (Holy Week from Easter,
+  National Heroes Day as the last Monday of August), flagged unverified. HR previews, picks and
+  saves (`HolidayService.importPreset`); already-saved days are skipped, never duplicated.
+- **`DayNote`**: HR's free-form note per organization per day (unique index), cleared via
+  `status: "cleared"`.
+- **Schedules day panel**: clicking a date opens its holidays, head-count (working / off / not
+  scheduled, by shift), company events (only with `events.read`) and the HR note; editors can add a
+  holiday there and still "Select everyone on this day". Date headers carry a holiday dot (rose for
+  regular, amber for special non-working) and a note/event dot. A "Holidays" dialog on the page
+  manages the year.
+- **API**: `GET/POST /api/holidays`, `PATCH/DELETE /api/holidays/[id]`,
+  `GET/POST /api/holidays/presets` (preview / import), `PUT /api/attendance/day-notes`. They use
+  `attendance.read` / `attendance.update` for now (see Known gaps). Every change is audited
+  (`holiday.created|updated|cancelled|preset_imported`, `day_note.saved|cleared`).
+
+## Brand & installable app (ADR-036)
+
+- The product is **EychAr by Renz** (formerly WorkforceHub). Every product string comes from
+  `src/lib/brand.ts`; organization names and logos stay data. Page titles use the root layout's
+  template (`"Schedules · EychAr by Renz"`), with a `metadata.title` on each page.
+- **PWA**: `src/app/manifest.ts` (standalone, shortcuts to Clock, Schedules, People), icons in
+  `public/icons` plus `src/app/icon.png`/`apple-icon.png`, and `public/sw.js` registered by
+  `ServiceWorkerRegister` in production only. The worker caches only fingerprinted static assets
+  and icons and falls back to `public/offline.html` for pages it can't reach; it never caches
+  pages or `/api` responses (personal and payroll data). `/sw.js` is served `no-store`.
+
 ## Authorization (ADR-007)
 
 Server-side only, resolved from data on every check — never cached role-name strings, never
@@ -457,6 +492,12 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 `ConcurrentSessionGuard`) are layered on top — see ADR-010's later section for the mechanism.
 
 ## Known gaps (tracked, not silently ignored)
+
+- **Holidays don't drive pay or attendance yet.** The calendar is reference data on Schedules;
+  payroll still takes holiday pay as an adjustment and leave counts calendar days. Holidays also
+  share `attendance.read`/`attendance.update` instead of their own `holidays.*` permissions.
+- **Eid'l Fitr and future years' proclamations** aren't built in: the Philippine preset flags
+  years it hasn't verified, and HR adds proclaimed days by hand.
 
 - **Two-step verification is optional.** It isn't yet required per role. Settings › Accounts
   shows which HR accounts are missing it. An organization-wide "require for HR" switch would be

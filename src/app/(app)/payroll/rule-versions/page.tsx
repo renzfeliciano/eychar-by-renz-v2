@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BadgeCheck, History, Landmark, Plus, Receipt } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -11,6 +12,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = { title: "Rule versions" };
 
 export default async function PayrollRuleVersionsPage() {
   const { organization } = await getCurrentOrganization();

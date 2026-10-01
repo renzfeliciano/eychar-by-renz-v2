@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClock, CircleCheck, FilePen, Hourglass, Wallet } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -15,6 +16,8 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "./payroll-status-badge";
 import { NewRunDialog, type RunSuggestion } from "./new-run-dialog";
+
+export const metadata: Metadata = { title: "Payroll runs" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 const STATUS_FILTERS = ["all", "draft", "submitted", "approved", "released", "cancelled"] as const;

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarClock, CalendarDays, CalendarRange } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -8,6 +9,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard } from "@/components/shared/metric-card";
 import { addDays, formatDateKey, localDateKey } from "@/lib/date-key";
 import { EventsCalendar } from "./events-calendar";
+
+export const metadata: Metadata = { title: "Company calendar" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

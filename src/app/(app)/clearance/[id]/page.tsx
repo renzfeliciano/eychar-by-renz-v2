@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -22,6 +23,8 @@ import { ClearanceItemActions } from "./clearance-item-actions";
 import { CancelClearanceButton } from "./cancel-clearance-button";
 import { PrepareSettlementButton } from "../../final-settlements/prepare-settlement-button";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
+
+export const metadata: Metadata = { title: "Clearance" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
 const WHEN = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;

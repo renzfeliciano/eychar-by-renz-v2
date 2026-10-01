@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { KeyRound, ShieldCheck, UserCog, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -17,6 +18,8 @@ import { RoleFormDialog } from "./role-form-dialog";
 import { AssignRoleDialog } from "./assign-role-dialog";
 import { RevokeRoleAssignmentButton } from "./revoke-role-assignment-button";
 import { CreateStaffAccountDialog } from "./create-staff-account-dialog";
+
+export const metadata: Metadata = { title: "Roles & access" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

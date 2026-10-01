@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { buildCsvContent } from "@/lib/csv";
 import { roundMoney, sumMoney } from "./engine/money";
+import { BRAND } from "@/lib/brand";
 
 type RegisterRecord = {
   employeeNumber: string;
@@ -136,7 +137,7 @@ function sheetWithTitle(workbook: ExcelJS.Workbook, name: string, title: string,
  */
 export function buildRegisterWorkbook(input: RegisterInput): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "WorkforceHub";
+  workbook.creator = BRAND.fullName;
   workbook.created = new Date();
   const subtitle = `${input.scopeLabel} · ${input.periodLabel} · pay date ${input.payDateLabel} · ${input.statusLabel}`;
   const employeesLabel = `Total (${input.records.length} employee${input.records.length === 1 ? "" : "s"})`;

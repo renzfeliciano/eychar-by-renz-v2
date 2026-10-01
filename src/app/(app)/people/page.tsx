@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClock, IdCard, UserPlus, Users2 } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -19,6 +20,8 @@ import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-qu
 import { PeopleFilters } from "./people-filters";
 import { PeopleExportActions, type PeopleExportRow } from "./people-export-actions";
 import { PeoplePrintReport } from "./people-print-report";
+
+export const metadata: Metadata = { title: "People" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

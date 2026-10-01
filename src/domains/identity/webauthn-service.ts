@@ -15,11 +15,12 @@ import { connectMongoDB } from "@/server/db/connection";
 import { UserModel, EmployeeModel, WebAuthnCredentialModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { BRAND } from "@/lib/brand";
 
 /** The domain and origin WebAuthn credentials are bound to — a credential registered on one origin never validates on another. */
 function relyingParty() {
   const url = new URL(process.env.NEXTAUTH_URL ?? "http://localhost:3000");
-  return { rpID: url.hostname, origin: url.origin, rpName: "WorkforceHub" };
+  return { rpID: url.hostname, origin: url.origin, rpName: BRAND.fullName };
 }
 
 export const WebAuthnService = {

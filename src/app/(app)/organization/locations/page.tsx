@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Building, MapPin, Navigation, Users } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -12,6 +13,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateLocationDialog } from "./create-location-dialog";
 import { EditLocationDialog } from "./edit-location-dialog";
+
+export const metadata: Metadata = { title: "Locations" };
 
 export default async function LocationsPage() {
   const { organization } = await getCurrentOrganization();

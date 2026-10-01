@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Activity, AlertTriangle, LogIn, ScrollText } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -13,6 +14,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { addDays, localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 import { AuditEntrySheet } from "./audit-entry-sheet";
+
+export const metadata: Metadata = { title: "Audit log" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) || undefined;

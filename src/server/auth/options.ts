@@ -10,6 +10,7 @@ import { SecuritySettingsService } from "@/domains/identity/security-settings-se
 import { SERVER_IDLE_GRACE_MS } from "@/lib/session-idle";
 import { replacedSessionActivity, resolveSessionState } from "./session-policy";
 import { getInactivityMs } from "./inactivity";
+import { BRAND } from "@/lib/brand";
 
 /** Who may see records hidden as test data (ADR-034): the Super Administrator, and a self-service employee (their own records only). */
 /** The idle limit for this account's organization (Settings › Security). */
@@ -43,7 +44,7 @@ export const authOptions: NextAuthOptions = {
 
   providers: [
     CredentialsProvider({
-      name: "hris-workforcehub",
+      name: BRAND.fullName,
       credentials: {
         login: { label: "Username or email", type: "text" },
         password: { label: "Password", type: "password" },

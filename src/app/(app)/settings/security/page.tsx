@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { SecuritySettingsService } from "@/domains/identity/security-settings-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SecuritySettingsForm } from "./security-settings-form";
+
+export const metadata: Metadata = { title: "Security settings" };
 
 export default async function SecuritySettingsPage() {
   const { organization } = await getCurrentOrganization();

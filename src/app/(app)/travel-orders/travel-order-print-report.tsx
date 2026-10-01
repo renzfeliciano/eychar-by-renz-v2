@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { TravelOrderExportRow } from "./travel-order-export-actions";
+import { BRAND } from "@/lib/brand";
 
 const cellClass = "border border-[#c3c2b7] p-[7px_8px] text-left align-top text-[11px]";
 
@@ -15,7 +16,7 @@ export function TravelOrderPrintReport({ rows }: { rows: TravelOrderExportRow[] 
   return (
     <div className="hidden bg-white font-sans text-[#0b0b0b] print:block">
       <div className="mb-4.5 border-b-2 border-[#0b0b0b] pb-3">
-        <h1 className="m-0 mb-1 text-xl">WorkforceHub — Travel Orders Report</h1>
+        <h1 className="m-0 mb-1 text-xl">{BRAND.fullName} — Travel Orders Report</h1>
         <p className="m-0 my-0.5 text-[11px] text-[#52514e]">
           Generated {generatedAt.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })} ·{" "}
           {rows.length} travel order{rows.length === 1 ? "" : "s"}

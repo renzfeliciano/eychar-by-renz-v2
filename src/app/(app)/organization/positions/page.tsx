@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Briefcase, BriefcaseBusiness, CircleDashed, Users } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -11,6 +12,8 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreatePositionDialog } from "./create-position-dialog";
+
+export const metadata: Metadata = { title: "Positions" };
 
 export default async function PositionsPage() {
   const { organization } = await getCurrentOrganization();

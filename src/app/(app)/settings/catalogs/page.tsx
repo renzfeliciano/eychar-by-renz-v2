@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { CATALOG_REGISTRY, type CatalogTypeSlug } from "@/domains/catalog/catalog-registry";
 import { PageHeader } from "@/components/shared/page-header";
 import { CatalogSection } from "@/components/shared/catalog-section";
+
+export const metadata: Metadata = { title: "Catalogs" };
 
 const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; description: string }[] = [
   { catalogType: "employment-types", title: "Employment types", description: "Regular, probationary, contractual, and other classifications." },

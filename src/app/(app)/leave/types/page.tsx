@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -13,6 +14,8 @@ import { ConvertibleToggle } from "./convertible-toggle";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { LeaveTypeFormDialog } from "./leave-type-form-dialog";
 import { DeleteLeaveTypeButton } from "./delete-leave-type-button";
+
+export const metadata: Metadata = { title: "Leave types" };
 
 export default async function LeaveTypesPage() {
   const { organization } = await getCurrentOrganization();

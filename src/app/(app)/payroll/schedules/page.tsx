@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, CalendarCheck2, CalendarClock, FolderKanban, Repeat } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -13,6 +14,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ScheduleDialog } from "./schedule-dialog";
 import { PrepareNowButton } from "./prepare-now-button";
+
+export const metadata: Metadata = { title: "Payroll schedules" };
 
 export default async function PayrollSchedulesPage() {
   const { organization } = await getCurrentOrganization();

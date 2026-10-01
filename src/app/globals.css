@@ -310,6 +310,12 @@
    * not cards, never data tables. backdrop-filter degrades gracefully to a
    * plain translucent panel where unsupported.
    */
+  /* The sidebar's own scroll: a hairline thumb that doesn't fight the nav. */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--sidebar-foreground) 18%, transparent) transparent;
+  }
+
   .glass-surface {
     background-color: var(--glass-bg);
     border-color: var(--glass-border);

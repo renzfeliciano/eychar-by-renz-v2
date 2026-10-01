@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormError, FormField } from "@/components/shared/form-field";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { BRAND } from "@/lib/brand";
 
 type Setup = { secret: string; qrCode: string };
 
@@ -48,8 +49,8 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
           variant="outline"
           size="sm"
           onClick={() => {
-            const url = URL.createObjectURL(new Blob([`WorkforceHub recovery codes\nEach code works once.\n\n${text}\n`], { type: "text/plain" }));
-            const link = Object.assign(document.createElement("a"), { href: url, download: "workforcehub-recovery-codes.txt" });
+            const url = URL.createObjectURL(new Blob([`${BRAND.fullName} recovery codes\nEach code works once.\n\n${text}\n`], { type: "text/plain" }));
+            const link = Object.assign(document.createElement("a"), { href: url, download: `${BRAND.storagePrefix}-recovery-codes.txt` });
             link.click();
             URL.revokeObjectURL(url);
           }}

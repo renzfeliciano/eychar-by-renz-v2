@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { ShieldCheck } from "lucide-react";
@@ -6,6 +7,9 @@ import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
 import { Logo } from "@/components/shared/logo";
 import { ForcedPasswordChange } from "./forced-password-change";
+import { BrandName } from "@/components/shared/brand-name";
+
+export const metadata: Metadata = { title: "Choose your password" };
 
 /**
  * Where an account with a temporary password (new, or reset by HR) lands
@@ -27,7 +31,7 @@ export default async function ChangePasswordPage() {
           <div className="flex items-center gap-3">
             <Logo className="size-10 rounded-xl p-1" />
             <div className="flex flex-col leading-tight">
-              <span className="font-semibold tracking-tight">WorkforceHub</span>
+              <BrandName />
               <span className="text-xs text-muted-foreground">Signed in as {user.username ?? "your account"}</span>
             </div>
           </div>

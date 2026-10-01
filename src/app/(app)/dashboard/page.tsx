@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { hourInAppZone } from "@/lib/app-time";
 import Link from "next/link";
@@ -37,6 +38,8 @@ import { AttentionList } from "./attention-list";
 import { TodayPanel } from "./today-panel";
 import { UpcomingEventsList } from "./upcoming-events-list";
 import type { ColoredBucket, HiringTrendPoint } from "./dashboard-types";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 const SERIES_COLORS = ["var(--viz-series-1)", "var(--viz-series-2)", "var(--viz-series-3)", "var(--viz-series-4)", "var(--viz-series-5)"];
 const ORDINAL_COLORS = ["var(--viz-ordinal-1)", "var(--viz-ordinal-2)", "var(--viz-ordinal-3)", "var(--viz-ordinal-4)"];

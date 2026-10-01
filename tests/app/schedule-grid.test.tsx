@@ -53,6 +53,12 @@ function renderGrid(overrides: Partial<Parameters<typeof ScheduleGrid>[0]> = {})
   );
 }
 
+/** Opens a date's day panel and uses its "Select everyone on this day". */
+async function selectWholeDay(user: ReturnType<typeof userEvent.setup>, date: string) {
+  await user.click(screen.getByTestId(`schedule-day-${date}`));
+  await user.click(await screen.findByTestId("day-details-select-day"));
+}
+
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -118,16 +124,16 @@ describe("ScheduleGrid", () => {
     expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("31 days selected");
 
     await user.click(screen.getByTitle("Select all of Carlos Villanueva's days"));
-    await user.click(screen.getByTitle("Select everyone on 2026-10-05"));
-    expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("2 days selected");
+    await selectWholeDay(user, "2026-10-05");
+    await waitFor(() => expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("2 days selected"));
   });
 
   it("assigns the chosen shift and project to every selected day", async () => {
     const user = userEvent.setup();
     renderGrid();
 
-    await user.click(screen.getByTitle("Select everyone on 2026-10-05"));
-    await user.click(screen.getByTestId("schedule-assign-button"));
+    await selectWholeDay(user, "2026-10-05");
+    await user.click(await screen.findByTestId("schedule-assign-button"));
     await user.click(screen.getByTestId("schedule-shift-select"));
     await user.click(await screen.findByRole("option", { name: /D · Day/ }));
     await user.click(screen.getByTestId("schedule-project-select"));
@@ -155,7 +161,7 @@ describe("ScheduleGrid", () => {
   it("keeps the how-to hint on screen while days are selected", async () => {
     const user = userEvent.setup();
     renderGrid();
-    const hint = /Select days to schedule\. Shift-click selects a range; click a name or date to select the whole row or column\./;
+    const hint = /Select days to schedule\. Shift-click selects a range; click a name to select the whole row, or a date for its notes and to select the column\./;
 
     expect(screen.getByText(hint)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Carlos Villanueva, Monday 5: not scheduled" }));
@@ -192,8 +198,8 @@ describe("ScheduleGrid", () => {
     const user = userEvent.setup();
     renderGrid();
 
-    await user.click(screen.getByTitle("Select everyone on 2026-10-01"));
-    await user.click(screen.getByRole("button", { name: "Apply D · Day" }));
+    await selectWholeDay(user, "2026-10-01");
+    await user.click(await screen.findByRole("button", { name: "Apply D · Day" }));
 
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).entries).toEqual([
@@ -214,5 +220,73 @@ describe("ScheduleGrid", () => {
   it("explains how to start when no shifts exist yet", () => {
     renderGrid({ shifts: [] });
     expect(screen.getByText(/Add shifts first/)).toBeInTheDocument();
+  });
+
+  describe("day details", () => {
+    const DAY_INFO = {
+      "2026-10-05": {
+        holidays: [{ id: "h1", date: "2026-10-05", name: "Founders Day", type: "special_non_working" as const, scope: "Cebu City", source: "City Ordinance 123", presetKey: null }],
+        events: [{ id: "ev1", title: "Town hall", time: "09:00", category: "meeting" }],
+        note: "Skeleton crew only",
+      },
+    };
+
+    it("marks holidays and notes on the date and opens that day's holidays, head-count, events and note", async () => {
+      const user = userEvent.setup();
+      renderGrid({ dayInfo: DAY_INFO, canReadEvents: true });
+
+      const date = screen.getByTestId("schedule-day-2026-10-05");
+      expect(within(date).getByTestId("schedule-holiday-marker")).toBeInTheDocument();
+      expect(within(date).getByTestId("schedule-note-marker")).toBeInTheDocument();
+      expect(date).toHaveAccessibleName(/Founders Day \(Special non-working day\)/);
+
+      await user.click(date);
+      const dialog = await screen.findByTestId("day-details-dialog");
+      expect(within(dialog).getByText("Monday, October 5, 2026")).toBeInTheDocument();
+      expect(within(dialog).getByText("Founders Day")).toBeInTheDocument();
+      expect(within(dialog).getByText("Special non-working day")).toBeInTheDocument();
+      expect(within(dialog).getByText("Cebu City")).toBeInTheDocument();
+      expect(within(dialog).getByText("Town hall")).toBeInTheDocument();
+      expect(within(dialog).getByTestId("day-details-note-input")).toHaveValue("Skeleton crew only");
+      // Neither Angela nor Carlos is scheduled on the 5th.
+      expect(within(screen.getByTestId("day-details-headcount")).getByText("Not scheduled").nextSibling).toHaveTextContent("2");
+    });
+
+    it("counts who's working that day by shift", async () => {
+      const user = userEvent.setup();
+      renderGrid();
+      await user.click(screen.getByTestId("schedule-day-2026-10-01"));
+      const headcount = within(await screen.findByTestId("day-details-headcount"));
+      expect(headcount.getByText("Working").nextSibling).toHaveTextContent("1");
+      expect(headcount.getByText("Not scheduled").nextSibling).toHaveTextContent("1");
+    });
+
+    it("saves HR's note for the day", async () => {
+      const user = userEvent.setup();
+      renderGrid({ dayInfo: DAY_INFO });
+      await user.click(screen.getByTestId("schedule-day-2026-10-05"));
+      const input = await screen.findByTestId("day-details-note-input");
+      await user.clear(input);
+      await user.type(input, "Typhoon signal no. 2");
+      await user.click(screen.getByTestId("day-details-note-save"));
+
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe("/api/attendance/day-notes");
+      expect(init.method).toBe("PUT");
+      expect(JSON.parse(init.body)).toEqual({ organizationId: "org1", date: "2026-10-05", note: "Typhoon signal no. 2" });
+    });
+
+    it("shows the day read-only without edit permission, hiding company events without access", async () => {
+      const user = userEvent.setup();
+      renderGrid({ canUpdate: false, dayInfo: DAY_INFO, canReadEvents: false });
+      await user.click(screen.getByTestId("schedule-day-2026-10-05"));
+      const dialog = await screen.findByTestId("day-details-dialog");
+      expect(within(dialog).getByText("Skeleton crew only")).toBeInTheDocument();
+      expect(within(dialog).queryByTestId("day-details-note-input")).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId("day-details-select-day")).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId("day-details-add-holiday")).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId("day-details-events")).not.toBeInTheDocument();
+    });
   });
 });

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
@@ -12,6 +13,8 @@ import { Building2, CalendarClock, FolderKanban } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreatePayrollPolicyDialog } from "./create-payroll-policy-dialog";
+
+export const metadata: Metadata = { title: "Payroll policies" };
 
 function describeWorkWeek(days: number[]): string {
   const sorted = [...days].sort();

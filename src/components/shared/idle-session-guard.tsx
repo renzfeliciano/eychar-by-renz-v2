@@ -6,8 +6,9 @@ import { Clock3, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ACTIVITY_PING_MS, SESSION_IDLE_MS, SESSION_IDLE_WARNING_MS, idleState } from "@/lib/session-idle";
+import { BRAND } from "@/lib/brand";
 
-const STORAGE_KEY = "workforcehub:last-activity";
+const STORAGE_KEY = `${BRAND.storagePrefix}:last-activity`;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "scroll", "touchstart", "wheel", "mousemove"] as const;
 
 function readShared(): number {

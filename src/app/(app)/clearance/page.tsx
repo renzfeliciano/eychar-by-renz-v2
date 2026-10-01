@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AlarmClock, BadgeCheck, CalendarClock, ClipboardList } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -20,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { OpenClearanceDialog } from "./open-clearance-dialog";
 import { ChecklistDialog } from "./checklist-dialog";
 import { CLEARANCE_STATUS_LABELS, CLEARANCE_STATUS_TONES } from "./clearance-labels";
+
+export const metadata: Metadata = { title: "Clearance" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;

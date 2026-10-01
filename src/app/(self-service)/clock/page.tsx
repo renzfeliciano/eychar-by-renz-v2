@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getSelfServiceSession } from "@/app/_shared/get-self-service-session";
 import { hourInAppZone } from "@/lib/app-time";
 import { SelfServiceAttendanceService } from "@/domains/attendance/self-service-attendance-service";
@@ -9,6 +10,8 @@ import { CalendarClock } from "lucide-react";
 import { greetingFor } from "@/domains/dashboard/dashboard-summary";
 import { describeShiftHours } from "@/domains/attendance/shift-display";
 import { ClockPanel } from "./clock-panel";
+
+export const metadata: Metadata = { title: "Clock in" };
 
 export default async function ClockPage() {
   const session = await getSelfServiceSession();

@@ -12,6 +12,8 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Logo } from "@/components/shared/logo";
 import { LoginVisual } from "./login-visual";
 import { signInMessage } from "./sign-in-messages";
+import { BrandName } from "@/components/shared/brand-name";
+import { BRAND } from "@/lib/brand";
 
 const FIELD_ICON = "pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground";
 const FIELD_INPUT = "h-11 rounded-lg bg-background pl-10 md:text-[15px]";
@@ -126,10 +128,7 @@ export default function LoginPage() {
               <DotTexture mask="linear-gradient(to left, black 10%, transparent 75%)" />
               <div className="relative flex items-center gap-3">
                 <Logo className="size-10 rounded-xl p-1 shadow-[var(--shadow-soft)]" priority />
-                <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                  <span className="truncate font-semibold tracking-tight">WorkforceHub</span>
-                  <span className="truncate text-xs text-muted-foreground">People, time and payroll</span>
-                </div>
+                <BrandName tagline className="flex-1" />
                 <ThemeToggle />
               </div>
 
@@ -315,7 +314,7 @@ export default function LoginPage() {
             </footer>
           </section>
 
-          <p className="mt-5 hidden text-center text-xs text-white/60 lg:block">© {new Date().getFullYear()} WorkforceHub. All rights reserved.</p>
+          <p className="mt-5 hidden text-center text-xs text-white/60 lg:block">© {new Date().getFullYear()} {BRAND.fullName}. All rights reserved.</p>
         </div>
       </div>
     </main>

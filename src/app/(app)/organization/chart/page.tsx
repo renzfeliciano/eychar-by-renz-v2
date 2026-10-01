@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { GitBranch, Layers, UserRoundX, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -11,6 +12,8 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { formatDateKey } from "@/lib/date-key";
 import { ChartFilters } from "./chart-filters";
 import { OrgChartView } from "./org-chart-view";
+
+export const metadata: Metadata = { title: "Organization chart" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

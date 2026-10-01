@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PositionService } from "@/domains/organization/position-service";
@@ -7,6 +8,8 @@ import { EmploymentTypeService } from "@/domains/catalog/employment-type-service
 import { PageHeader } from "@/components/shared/page-header";
 import { formatPersonName } from "@/lib/person-name";
 import { HireForm } from "./hire-form";
+
+export const metadata: Metadata = { title: "Add employee" };
 
 export default async function NewEmployeePage() {
   const { organization } = await getCurrentOrganization();

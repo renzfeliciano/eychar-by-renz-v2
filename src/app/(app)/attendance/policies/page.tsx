@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { AttendancePolicyService } from "@/domains/attendance/attendance-policy-service";
@@ -9,6 +10,8 @@ import { Building2, Clock, FolderKanban } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreatePolicyDialog } from "./create-policy-dialog";
+
+export const metadata: Metadata = { title: "Attendance policies" };
 
 export default async function AttendancePoliciesPage() {
   const { organization } = await getCurrentOrganization();

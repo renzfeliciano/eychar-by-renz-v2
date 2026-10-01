@@ -1,15 +1,31 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/shared/providers";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegister } from "@/components/shared/service-worker-register";
+import { BRAND, BRAND_PRONUNCIATION_TAGLINE, BRAND_TITLE_TEMPLATE } from "@/lib/brand";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "WorkforceHub HRIS",
-  description: "Configurable HRIS platform",
+  title: { default: BRAND.fullName, template: BRAND_TITLE_TEMPLATE },
+  description: BRAND_PRONUNCIATION_TAGLINE,
+  applicationName: BRAND.fullName,
+  // Installed on iOS: full-screen, with its own home-screen name.
+  appleWebApp: { capable: true, title: BRAND.shortName, statusBarStyle: "default" },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f6fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1115" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <Toaster />
         </Providers>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

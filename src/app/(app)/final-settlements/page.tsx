@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AlarmClock, Banknote, ClipboardCheck, Hourglass } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -11,6 +12,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import { PrepareSettlementButton } from "./prepare-settlement-button";
 import { PESO, SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_TONES, daysToDeadline, deadlineDaysOf } from "./settlement-labels";
+
+export const metadata: Metadata = { title: "Final settlement" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
 

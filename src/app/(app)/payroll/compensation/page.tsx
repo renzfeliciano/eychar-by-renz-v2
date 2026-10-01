@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarClock, CircleAlert, Sun, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -16,6 +17,8 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { CompensationFormDialog, type CompensationTerms } from "./compensation-form-dialog";
 import { BulkChangeDialog } from "./bulk-change-dialog";
+
+export const metadata: Metadata = { title: "Compensation" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type Allowance = { name: string; amount: number; basis: "monthly" | "daily"; taxable: boolean };

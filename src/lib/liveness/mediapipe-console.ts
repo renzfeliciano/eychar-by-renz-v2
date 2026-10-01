@@ -1,4 +1,4 @@
-const INSTALLED = Symbol.for("workforcehub.mediapipeInfoRouting");
+const INSTALLED = Symbol.for("eychar.mediapipeInfoRouting");
 
 type MarkedConsoleError = typeof console.error & { [INSTALLED]?: true };
 

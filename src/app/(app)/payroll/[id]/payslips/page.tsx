@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -9,6 +10,8 @@ import { PAYROLL_RUN_STATUS_LABELS, formatPeso, type PayrollRunStatus } from "@/
 import { NotFoundError } from "@/shared/errors";
 import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
 import { PrintButton } from "./print-button";
+
+export const metadata: Metadata = { title: "Payslips" };
 
 type Line = { label: string; amount: number };
 

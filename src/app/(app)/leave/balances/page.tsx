@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarCheck, ChevronLeft, ChevronRight, Hourglass, UserX, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -20,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
 import { EmployeeBalanceSheet } from "./employee-balance-sheet";
 import { formatDays, UsageBar } from "./usage-bar";
+
+export const metadata: Metadata = { title: "Leave balances" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

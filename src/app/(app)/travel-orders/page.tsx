@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Ban, CalendarClock, CalendarDays, Plane } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -21,6 +22,8 @@ import { CancelTravelOrderButton } from "./cancel-travel-order-button";
 import { TravelOrderExportActions, type TravelOrderExportRow } from "./travel-order-export-actions";
 import { TravelOrderPrintReport } from "./travel-order-print-report";
 import { TravelTimeline } from "./travel-timeline";
+
+export const metadata: Metadata = { title: "Travel orders" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

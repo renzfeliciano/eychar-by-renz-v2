@@ -1,5 +1,6 @@
 import type ExcelJS from "exceljs";
 import { buildCsvContent } from "@/lib/csv";
+import { BRAND } from "@/lib/brand";
 
 export type ExportValue = string | number | null;
 
@@ -65,7 +66,7 @@ export async function buildTableWorkbook<Row>(
   const generatedAt = options.generatedAt ?? new Date();
 
   const workbook = new Excel.Workbook();
-  workbook.creator = "WorkforceHub";
+  workbook.creator = BRAND.fullName;
   workbook.created = generatedAt;
 
   const HEADER_ROW = 4;

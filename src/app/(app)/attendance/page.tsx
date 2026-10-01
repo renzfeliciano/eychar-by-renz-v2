@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarCheck2, CircleDashed, Clock3, Palmtree, UserX } from "lucide-react";
 import { clockTime } from "@/lib/app-time";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -16,6 +17,8 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { DateNav } from "./date-nav";
 import { RecordDialog } from "./record-dialog";
 import { ExportAttendanceDialog } from "./export-attendance-dialog";
+
+export const metadata: Metadata = { title: "Daily roster" };
 
 function toDateInputValue(date: Date): string {
   return date.toISOString().slice(0, 10);

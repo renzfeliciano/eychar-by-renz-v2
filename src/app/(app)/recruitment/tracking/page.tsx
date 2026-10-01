@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Briefcase, UserCheck, UserPlus, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -8,6 +9,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ApplicantPipeline } from "./applicant-pipeline";
 import { ApplicantFormDialog } from "./applicant-form-dialog";
+
+export const metadata: Metadata = { title: "Application tracking" };
 
 export default async function ApplicationTrackingPage() {
   const { organization } = await getCurrentOrganization();

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Building2, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "./logo";
+import { BrandName } from "./brand-name";
+import { BRAND } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AccountMenu } from "./account-menu";
@@ -12,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { NavLinks } from "./nav-links";
 import { ThemeToggle } from "./theme-toggle";
 
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "workforcehub:sidebar-collapsed";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = `${BRAND.storagePrefix}:sidebar-collapsed`;
 
 export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { account: React.ComponentProps<typeof AccountMenu>; isSuperAdmin?: boolean; children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -45,37 +47,44 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
     <div className="flex h-screen overflow-hidden bg-background">
       <aside
         className={cn(
-          "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:flex print:hidden",
-          collapsed ? "w-[72px]" : "w-64",
+          "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out md:flex print:hidden",
+          collapsed ? "w-[68px]" : "w-[248px]",
         )}
+        data-testid="app-sidebar"
       >
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-5">
-          <Logo priority />
-          {!collapsed && <span className="truncate text-sm font-semibold">WorkforceHub</span>}
+        <div className={cn("flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border", collapsed ? "justify-center px-0" : "px-4")}>
+          <Logo priority className="size-8 rounded-md" />
+          {!collapsed && <BrandName className="text-sm" />}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-3">
           <NavLinks collapsed={collapsed} isSuperAdmin={isSuperAdmin} />
         </div>
-        <div className="border-t border-sidebar-border p-2">
+        <div className="shrink-0 border-t border-sidebar-border px-2.5 py-2">
           <button
             type="button"
             onClick={toggleCollapsed}
             className={cn(
-              "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              "flex h-8 w-full cursor-pointer items-center gap-3 rounded-md px-2.5 text-[13px] font-medium text-sidebar-foreground/65 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none",
               collapsed && "justify-center px-0",
             )}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : undefined}
             data-testid="sidebar-collapse-toggle"
           >
             {collapsed ? (
-              <PanelLeftOpen className="size-4 shrink-0" aria-hidden="true" />
+              <PanelLeftOpen className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
             ) : (
               <>
-                <PanelLeftClose className="size-4 shrink-0" aria-hidden="true" />
+                <PanelLeftClose className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
                 Collapse
               </>
             )}
           </button>
+          {!collapsed && (
+            <p className="truncate px-2.5 pt-1.5 text-[11px] text-muted-foreground/80" data-testid="app-footer">
+              © {new Date().getFullYear()} {BRAND.fullName}
+            </p>
+          )}
         </div>
       </aside>
 
@@ -94,9 +103,9 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
             </Button>
             <SheetContent side="left" className="w-72">
               <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <Logo />
-                  WorkforceHub
+                <SheetTitle className="flex items-center gap-2.5">
+                  <Logo className="size-8 rounded-md" />
+                  <BrandName className="text-sm" />
                 </SheetTitle>
               </SheetHeader>
               {/* Its own scroll area: the sheet is full-height, so without this the lower modules sit off-screen with no way to reach them. */}
@@ -106,16 +115,27 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
             </SheetContent>
           </Sheet>
 
-          <Link href="/dashboard" className="text-sm font-medium text-muted-foreground md:hidden">
-            WorkforceHub
+          <Link href="/dashboard" className="shrink-0 text-sm font-semibold tracking-tight md:hidden">
+            {BRAND.name}
           </Link>
           <Breadcrumbs />
 
-          <div className="ml-auto flex items-center gap-3">
-            <span className="hidden max-w-72 truncate text-sm text-muted-foreground xl:inline">{account.organizationName}</span>
-            <span className="hidden h-5 w-px bg-border xl:block" aria-hidden="true" />
-            <ThemeToggle />
-            <AccountMenu {...account} />
+          {/* The org name gets the room the bar has left (up to a generous cap)
+              and truncates only past that, with the full name on hover. */}
+          <div className="ml-auto flex min-w-0 items-center gap-3 pl-2">
+            <span
+              className="hidden min-w-0 items-center gap-2 text-sm text-muted-foreground lg:flex"
+              title={account.organizationName}
+              data-testid="topbar-organization-name"
+            >
+              <Building2 className="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.75} aria-hidden="true" />
+              <span className="max-w-[clamp(14rem,34vw,36rem)] truncate">{account.organizationName}</span>
+            </span>
+            <span className="hidden h-5 w-px shrink-0 bg-border lg:block" aria-hidden="true" />
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
+              <AccountMenu {...account} />
+            </div>
           </div>
         </header>
 

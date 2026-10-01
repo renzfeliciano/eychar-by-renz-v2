@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarRange, CircleCheck, FilePen, PlayCircle } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -8,6 +9,8 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateReviewCycleDialog } from "./create-review-cycle-dialog";
+
+export const metadata: Metadata = { title: "Review cycles" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric" } as const;
 

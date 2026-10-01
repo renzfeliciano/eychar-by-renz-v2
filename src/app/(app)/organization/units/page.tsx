@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Building2, Layers, Users, UserX } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
@@ -11,6 +12,8 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateUnitDialog } from "./create-unit-dialog";
+
+export const metadata: Metadata = { title: "Units" };
 
 export default async function OrganizationUnitsPage() {
   const { organization } = await getCurrentOrganization();

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarCheck, CalendarClock, Hourglass, Palmtree } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -14,6 +15,8 @@ import { TableSearchInput } from "@/components/shared/table-search-input";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { NewRequestDialog } from "./new-request-dialog";
 import { DecideActions } from "./decide-actions";
+
+export const metadata: Metadata = { title: "Leave requests" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

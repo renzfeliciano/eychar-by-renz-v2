@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarClock, Check, HandCoins, Landmark, OctagonAlert, Undo2, Users, Wallet } from "lucide-react";
@@ -18,6 +19,8 @@ import { PayrollStatusBadge } from "../payroll-status-badge";
 import { RunActions } from "./run-actions";
 import { RunRegister } from "./run-register";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
+
+export const metadata: Metadata = { title: "Payroll run" };
 
 const HISTORY_LABELS: Record<string, string> = {
   prepared: "Prepared",
