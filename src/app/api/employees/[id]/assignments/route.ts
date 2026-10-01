@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/employee
       organizationId: request.nextUrl.searchParams.get("organizationId"),
     });
     await requirePermission("employees.read", organizationId);
-    const history = await EmployeeAssignmentService.getHistory(id);
+    const history = await EmployeeAssignmentService.getHistory(id, organizationId);
     return NextResponse.json({ history });
   } catch (error) {
     return toErrorResponse(error);

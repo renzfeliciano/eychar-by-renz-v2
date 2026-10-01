@@ -57,7 +57,7 @@ export function applyTableQuery<T>(
 
   const total = filtered.length;
 
-  const sortValue = query.sort ? options.sortValues?.[query.sort] : undefined;
+  const sortValue = query.sort && options.sortValues && Object.hasOwn(options.sortValues, query.sort) ? options.sortValues[query.sort] : undefined;
   if (sortValue) {
     filtered = [...filtered].sort((a, b) => {
       const av = sortValue(a);

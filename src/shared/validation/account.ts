@@ -4,7 +4,8 @@ import { objectId } from "@/shared/validation/object-id";
 
 /** The signed-in person managing their own two-factor sign-in. */
 export const mfaActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("start") }),
+  // The password too: otherwise a borrowed session could put its own phone on an account that has no two-step yet.
+  z.object({ action: z.literal("start"), password: z.string().min(1, "Enter your password.").max(PASSWORD_MAX_LENGTH) }),
   z.object({ action: z.literal("confirm"), code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your app.") }),
   z.object({ action: z.literal("disable"), password: z.string().min(1, "Enter your password.").max(PASSWORD_MAX_LENGTH) }),
   z.object({ action: z.literal("regenerate-recovery-codes"), password: z.string().min(1, "Enter your password.").max(PASSWORD_MAX_LENGTH) }),

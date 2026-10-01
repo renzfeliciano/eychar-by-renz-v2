@@ -8,18 +8,18 @@ const assignmentFields = {
   projectId: objectId().optional(),
   locationId: objectId().optional(),
   // "" removes the manager on transfer.
-  reportsToEmployeeId: z.string().trim().optional(),
+  reportsToEmployeeId: z.string().max(200).trim().optional(),
   effectiveFrom: z.coerce.date().optional(),
 };
 
 export const hireEmployeeSchema = z.object({
   organizationId: objectId(),
-  firstName: z.string().trim().min(1),
+  firstName: z.string().max(200).trim().min(1),
   middleName: z.string().trim().max(100).optional(),
-  lastName: z.string().trim().min(1),
-  email: z.string().trim().toLowerCase().email().optional(),
-  employeeNumber: z.string().trim().min(1).optional(),
-  employmentType: z.string().trim().min(1),
+  lastName: z.string().max(200).trim().min(1),
+  email: z.string().max(254).trim().toLowerCase().email().optional(),
+  employeeNumber: z.string().max(200).trim().min(1).optional(),
+  employmentType: z.string().max(200).trim().min(1),
   gender: z.enum(["Male", "Female"]).optional(),
   birthDate: z.coerce.date().optional(),
   phone: contactNumberSchema.optional(),
@@ -39,11 +39,11 @@ export const hireEmployeeSchema = z.object({
 // it into an actual $unset rather than silently keeping the old value.
 export const updateEmployeeProfileSchema = z.object({
   organizationId: objectId(),
-  firstName: z.string().trim().min(1),
+  firstName: z.string().max(200).trim().min(1),
   middleName: z.string().trim().max(100).optional(),
-  lastName: z.string().trim().min(1),
-  email: clearable(z.string().trim().toLowerCase().email()).optional(),
-  employeeNumber: clearable(z.string().trim().min(1)).optional(),
+  lastName: z.string().max(200).trim().min(1),
+  email: clearable(z.string().max(254).trim().toLowerCase().email()).optional(),
+  employeeNumber: clearable(z.string().max(200).trim().min(1)).optional(),
   gender: clearable(z.enum(["Male", "Female"])).optional(),
   birthDate: clearable(z.coerce.date()).optional(),
   phone: clearable(contactNumberSchema).optional(),
@@ -61,15 +61,15 @@ export const transferAssignmentSchema = z.object({
 
 export const createEmploymentSchema = z.object({
   organizationId: objectId(),
-  employmentType: z.string().trim().min(1),
+  employmentType: z.string().max(200).trim().min(1),
   effectiveFrom: z.coerce.date().optional(),
 });
 
 export const terminateEmploymentSchema = z.object({
   organizationId: objectId(),
   effectiveTo: z.coerce.date().optional(),
-  terminationReason: z.string().trim().optional(),
-  status: z.string().trim().optional(),
+  terminationReason: z.string().max(2000).trim().optional(),
+  status: z.string().max(200).trim().optional(),
 });
 
 export type HireEmployeeInput = z.infer<typeof hireEmployeeSchema>;

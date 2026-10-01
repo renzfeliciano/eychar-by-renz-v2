@@ -6,12 +6,12 @@ import { objectId } from "@/shared/validation/object-id";
 export const caseSchema = z.object({
   organizationId: objectId(),
   projectId: objectId(),
-  caseName: z.string().trim().min(1),
-  caseNumber: z.string().trim().min(1),
-  classification: z.string().trim().min(1),
-  status: z.string().trim().min(1),
-  legalCounsel: z.string().trim().optional(),
-  briefHistory: z.string().trim().optional(),
+  caseName: z.string().max(200).trim().min(1),
+  caseNumber: z.string().max(200).trim().min(1),
+  classification: z.string().max(200).trim().min(1),
+  status: z.string().max(200).trim().min(1),
+  legalCounsel: z.string().max(200).trim().optional(),
+  briefHistory: z.string().max(2000).trim().optional(),
 });
 
 export const createCaseSchema = caseSchema;

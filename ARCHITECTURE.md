@@ -399,6 +399,10 @@ edited in place at the byte level; `update()`'s schema omits every file field en
   `requireAuthenticatedUser` except the two-step/password routes, and are sent to `/set-up-two-step`.
 - **CI:** `.github/workflows/ci.yml` runs lint, typecheck, tests and build on pushes and PRs; the
   pre-commit hook keeps only lint and typecheck. Cron schedules live in `vercel.json`.
+- **Second review (ADR-040):** assignments scoped to the organization; role edits and account resets
+  limited to the actor's own access; two-step setup needs the password; leave and payroll state changes
+  are conditional updates (payroll recalculation holds a per-run lock); more per-user rate limits; length
+  caps on all text input.
 - **Dialogs (UI standard):** `DialogContent` keeps header and footer fixed and scrolls only the body
   (children are sorted by `DialogHeader`/`DialogFooter`, or a component's static `dialogSlot`).
 

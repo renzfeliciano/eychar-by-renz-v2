@@ -163,7 +163,12 @@ export const SelfServiceAttendanceService = {
     record.projectId ??= new Types.ObjectId(site.projectId);
     record.checkOutAt = now;
     record.checkOut = toClockEvent(data, now, site, geofence);
-    await record.save();
+    // Saved only if no other clock-out landed first (two tabs or devices at once).
+    const saved = await AttendanceRecordModel.updateOne(
+      { _id: record._id, checkOutAt: null },
+      { $set: { projectId: record.projectId, checkOutAt: record.checkOutAt, checkOut: record.checkOut } },
+    );
+    if (saved.modifiedCount === 0) throw new BusinessRuleError("You've already clocked out today");
 
     await AuditService.record({
       organizationId,

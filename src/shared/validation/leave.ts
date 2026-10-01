@@ -3,9 +3,9 @@ import { objectId } from "@/shared/validation/object-id";
 
 export const createLeaveTypeSchema = z.object({
   organizationId: objectId(),
-  name: z.string().trim().min(1),
-  code: z.string().trim().min(1),
-  description: z.string().trim().optional(),
+  name: z.string().max(200).trim().min(1),
+  code: z.string().max(200).trim().min(1),
+  description: z.string().max(2000).trim().optional(),
   requiresApproval: z.coerce.boolean().optional(),
 });
 
@@ -13,7 +13,7 @@ export const createLeavePolicySchema = z.object({
   organizationId: objectId(),
   projectId: objectId().optional(),
   leaveTypeId: objectId(),
-  name: z.string().trim().min(1),
+  name: z.string().max(200).trim().min(1),
   annualEntitlementDays: z.coerce.number().min(0),
 });
 
@@ -24,9 +24,9 @@ export const updateLeaveTypeStatusSchema = z.object({
 
 export const updateLeaveTypeSchema = z.object({
   organizationId: objectId(),
-  name: z.string().trim().min(1),
-  code: z.string().trim().min(1),
-  description: z.string().trim().optional(),
+  name: z.string().max(200).trim().min(1),
+  code: z.string().max(200).trim().min(1),
+  description: z.string().max(2000).trim().optional(),
 });
 
 export const deleteLeaveTypeSchema = z.object({
@@ -72,13 +72,13 @@ export const createLeaveRequestSchema = z.object({
   leaveTypeId: objectId(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  reason: z.string().trim().optional(),
+  reason: z.string().max(2000).trim().optional(),
 });
 
 export const decideLeaveRequestSchema = z.object({
   organizationId: objectId(),
   action: z.enum(["approve", "reject", "cancel"]),
-  rejectionReason: z.string().trim().optional(),
+  rejectionReason: z.string().max(2000).trim().optional(),
 });
 
 export type CreateLeaveTypeInput = z.infer<typeof createLeaveTypeSchema>;

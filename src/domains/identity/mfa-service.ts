@@ -1,4 +1,3 @@
-import argon2 from "argon2";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
 import { generateTotpSecret, otpauthUri, verifyTotp } from "@/server/auth/totp";
@@ -8,6 +7,7 @@ import { BusinessRuleError, NotFoundError, ValidationError } from "@/shared/erro
 import { auditUserEvent } from "./user-audit";
 import { BRAND } from "@/lib/brand";
 import { SecuritySettingsService } from "./security-settings-service";
+import { confirmAccountPassword } from "./confirm-password";
 
 // The label authenticator apps show beside the code. Accounts enrolled
 // before the rebrand keep their old label until they re-enrol; the codes
@@ -30,6 +30,12 @@ async function loadUser(userId: string) {
  * shown once.
  */
 export const MfaService = {
+  /** Checks the account's password (rate-limited) before an enrollment starts. */
+  async confirmPassword(userId: string, password: string): Promise<void> {
+    const user = await loadUser(userId);
+    await confirmAccountPassword(userId, user.passwordHash, password);
+  },
+
   async startEnrollment(userId: string): Promise<{ secret: string; otpauthUri: string }> {
     const user = await loadUser(userId);
     // Replacing a working authenticator would let a borrowed session swap in
@@ -97,7 +103,7 @@ export const MfaService = {
   /** New recovery codes (the old ones stop working); needs the account's password. */
   async regenerateRecoveryCodes(userId: string, password: string): Promise<{ recoveryCodes: string[] }> {
     const user = await loadUser(userId);
-    if (!(await argon2.verify(user.passwordHash, password))) throw new ValidationError("Your password is incorrect.");
+    await confirmAccountPassword(userId, user.passwordHash, password);
     if (!user.mfa?.enabled) throw new ValidationError("Two-factor sign-in isn't on for this account.");
     const recoveryCodes = generateRecoveryCodes();
     await UserModel.updateOne({ _id: user._id }, { $set: { "mfa.recoveryCodeHashes": recoveryCodes.map(hashRecoveryCode) } });
@@ -108,7 +114,7 @@ export const MfaService = {
   /** The account holder turning it off; needs their password. */
   async disable(userId: string, password: string): Promise<void> {
     const user = await loadUser(userId);
-    if (!(await argon2.verify(user.passwordHash, password))) throw new ValidationError("Your password is incorrect.");
+    await confirmAccountPassword(userId, user.passwordHash, password);
     if (!user.employeeId && (await SecuritySettingsService.forUser(userId)).requireTwoStepForStaff) {
       throw new BusinessRuleError("Your organization requires two-step verification for HR and admin accounts, so it can't be turned off. To move it to a new phone, get new recovery codes or ask an administrator to reset it.");
     }

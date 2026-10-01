@@ -25,7 +25,11 @@ describe("MfaPanel", () => {
     render(<MfaPanel enabled={false} enabledAt={null} recoveryCodesLeft={0} />);
 
     await user.click(screen.getByRole("button", { name: /Turn on two-step verification/ }));
-    const dialog = await screen.findByRole("dialog");
+    const passwordDialog = await screen.findByRole("dialog");
+    await user.type(within(passwordDialog).getByLabelText(/Password/), "harbor-lantern-73-mango");
+    await user.click(within(passwordDialog).getByRole("button", { name: "Continue" }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/account/mfa", expect.objectContaining({ body: JSON.stringify({ action: "start", password: "harbor-lantern-73-mango" }) }));
+    const dialog = await screen.findByRole("dialog", { name: "Set up two-step verification" });
     expect(within(dialog).getByRole("img", { name: /QR code/ })).toHaveAttribute("src", "data:image/png;base64,AAAA");
     expect(within(dialog).getByText("JBSW Y3DP EHPK 3PXP")).toBeInTheDocument();
 

@@ -224,18 +224,11 @@ function PasswordConfirmDialog({
 export function MfaPanel({ enabled, enabledAt, recoveryCodesLeft }: { enabled: boolean; enabledAt: string | null; recoveryCodesLeft: number }) {
   const router = useRouter();
   const [setup, setSetup] = useState<Setup | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [confirmingStart, setConfirmingStart] = useState(false);
   const [disabling, setDisabling] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [newCodes, setNewCodes] = useState<string[] | null>(null);
 
-  async function startEnrollment() {
-    setStarting(true);
-    const result = await post({ action: "start" });
-    setStarting(false);
-    if (!result.ok) return toast.error(result.error);
-    setSetup(result.data as Setup);
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -265,9 +258,9 @@ export function MfaPanel({ enabled, enabledAt, recoveryCodesLeft }: { enabled: b
             </Button>
           </div>
         ) : (
-          <Button type="button" onClick={startEnrollment} disabled={starting}>
-            {starting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="size-4" aria-hidden="true" />}
-            {starting ? "Preparing…" : "Turn on two-step verification"}
+          <Button type="button" onClick={() => setConfirmingStart(true)}>
+            <ShieldCheck className="size-4" aria-hidden="true" />
+            Turn on two-step verification
           </Button>
         )}
       </div>
@@ -283,6 +276,22 @@ export function MfaPanel({ enabled, enabledAt, recoveryCodesLeft }: { enabled: b
           }}
         />
       )}
+
+      <PasswordConfirmDialog
+        open={confirmingStart}
+        onOpenChange={setConfirmingStart}
+        title="Turn on two-step verification"
+        description="Enter your password to start. You'll then scan a QR code with your authenticator app."
+        confirmLabel="Continue"
+        busyLabel="Preparing…"
+        onConfirm={async (password) => {
+          const result = await post({ action: "start", password });
+          if (!result.ok) return result.error;
+          setConfirmingStart(false);
+          setSetup(result.data as Setup);
+          return null;
+        }}
+      />
 
       <PasswordConfirmDialog
         open={disabling}

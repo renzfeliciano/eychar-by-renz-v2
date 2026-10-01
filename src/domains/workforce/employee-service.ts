@@ -138,7 +138,7 @@ export const EmployeeService = {
       PersonModel.findById(employee.personId).lean(),
       EmploymentModel.findOne({ employeeId: employee._id }).sort({ effectiveFrom: -1 }).lean(),
       EmployeeAssignmentService.getCurrent(employee._id.toString()),
-      EmployeeAssignmentService.getHistory(employee._id.toString()),
+      EmployeeAssignmentService.getHistory(employee._id.toString(), organizationId),
     ]);
 
     return { employee, person, currentEmployment, currentAssignment, assignmentHistory };

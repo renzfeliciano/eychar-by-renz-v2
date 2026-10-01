@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import {
@@ -63,9 +64,11 @@ async function nextRunNumber(organizationId: string, payDate: string): Promise<s
  * conflicts with organization-wide runs and runs for the same project.
  * Cancelled runs don't count.
  */
-async function assertNoOverlap(organizationId: string, projectId: string | undefined, start: string, end: string) {
+/** `createdBefore`: only runs created before this one count (the re-check after insert, see prepare). */
+async function assertNoOverlap(organizationId: string, projectId: string | undefined, start: string, end: string, createdBefore?: Types.ObjectId) {
   const overlapping = await PayrollRunModel.find({
     organizationId: new Types.ObjectId(organizationId),
+    ...(createdBefore ? { _id: { $lt: createdBefore } } : {}),
     status: { $ne: "cancelled" },
     payPeriodStart: { $lte: dateKeyToDate(end) },
     payPeriodEnd: { $gte: dateKeyToDate(start) },
@@ -75,6 +78,35 @@ async function assertNoOverlap(organizationId: string, projectId: string | undef
     throw new ConflictError(
       `${conflict.runNumber} already covers ${formatDateRange(dateToDateKey(conflict.payPeriodStart), dateToDateKey(conflict.payPeriodEnd))} for these employees. Cancel it first to prepare another.`,
     );
+  }
+}
+
+const COMPUTE_LOCK_MS = 120_000;
+const NO_ACTIVE_LOCK = (now: Date) => ({ $or: [{ computeLockUntil: { $exists: false } }, { computeLockUntil: null }, { computeLockUntil: { $lt: now } }] });
+
+/**
+ * Runs `work` while holding the run's compute lock, which can only be taken
+ * on a draft. Recalculating, changing adjustments and submitting all go
+ * through here, so two of them can't interleave, and nothing rewrites a
+ * run's records once it has left draft (the lock can't be taken then).
+ */
+async function withComputeLock<T>(runId: Types.ObjectId, work: (lock: string) => Promise<T>): Promise<T> {
+  const lock = randomUUID();
+  const now = new Date();
+  const claimed = await PayrollRunModel.findOneAndUpdate(
+    { _id: runId, status: "draft", ...NO_ACTIVE_LOCK(now) },
+    { $set: { computeLock: lock, computeLockUntil: new Date(now.getTime() + COMPUTE_LOCK_MS) } },
+  );
+  if (!claimed) {
+    const run = await PayrollRunModel.findById(runId).select("status").lean<{ status: string } | null>();
+    if (!run) throw new NotFoundError("Payroll run not found");
+    if (run.status !== "draft") throw new BusinessRuleError("This run is no longer a draft, so it can't be changed or recalculated. Return it to draft first.");
+    throw new ConflictError("This run is being recalculated right now. Try again in a moment.");
+  }
+  try {
+    return await work(lock);
+  } finally {
+    await PayrollRunModel.updateOne({ _id: runId, computeLock: lock }, { $unset: { computeLock: 1, computeLockUntil: 1 } });
   }
 }
 
@@ -351,7 +383,10 @@ export const PayrollRunService = {
     });
 
     try {
-      await computeRun(run._id);
+      // Two prepares at the same moment (or a manual one racing the schedule)
+      // both pass the first check; the one created later gives way.
+      await assertNoOverlap(input.organizationId, input.projectId, input.payPeriodStart, input.payPeriodEnd, run._id);
+      await withComputeLock(run._id, () => computeRun(run._id));
     } catch (error) {
       await PayrollRecordModel.deleteMany({ payrollRunId: run._id });
       await PayrollRunModel.deleteOne({ _id: run._id });
@@ -382,7 +417,7 @@ export const PayrollRunService = {
 
     if (input.action === "recompute") {
       if (run.status !== "draft") throw new BusinessRuleError("Only a draft run can be recomputed.");
-      await computeRun(run._id);
+      await withComputeLock(run._id, () => computeRun(run._id));
       await PayrollRunModel.updateOne({ _id: run._id }, { $push: { history: { action: "recomputed", status: "draft", at: now, by } } });
       const recomputed = await PayrollRunModel.findById(run._id).lean();
       await AuditService.record({
@@ -399,35 +434,55 @@ export const PayrollRunService = {
     const transition = TRANSITIONS[input.action];
     if (!transition.from.includes(run.status)) throw new BusinessRuleError(transition.error);
 
-    if (input.action === "submit") {
-      // Submitting recomputes first, so what goes for approval reflects the latest attendance.
-      const fresh = await computeRun(run._id);
-      if (fresh.totals!.employees === 0) throw new BusinessRuleError("There's no one to pay in this run.");
-      if (fresh.blockingIssues > 0) {
-        throw new BusinessRuleError(`${plural(fresh.blockingIssues, "employee")} ${fresh.blockingIssues === 1 ? "has" : "have"} a blocking issue. Fix it and recompute before submitting.`);
-      }
-      run.set({ totals: fresh.totals, exclusions: fresh.exclusions, blockingIssues: fresh.blockingIssues, warningCount: fresh.warningCount, computedAt: fresh.computedAt });
-      run.set({ submittedBy: by, submittedAt: now });
-      note = input.note;
-    } else if (input.action === "approve") {
+    const set: Record<string, unknown> = { status: transition.to };
+    const unset: Record<string, 1> = {};
+    if (input.action === "approve") {
       const preparedOrSubmittedByApprover = !!actor.userId && [run.preparedBy?.toString(), run.submittedBy?.toString()].includes(actor.userId);
       metadata.selfApproved = preparedOrSubmittedByApprover;
-      run.set({ approvedBy: by, approvedAt: now });
+      Object.assign(set, { approvedBy: by, approvedAt: now });
       note = input.note;
     } else if (input.action === "return") {
-      run.set({ approvedBy: undefined, approvedAt: undefined });
+      Object.assign(unset, { approvedBy: 1, approvedAt: 1 });
       note = input.reason;
     } else if (input.action === "release") {
-      run.set({ releasedBy: by, releasedAt: now, releasedOn: dateKeyToDate(input.releasedOn), paymentReference: input.paymentReference });
+      Object.assign(set, { releasedBy: by, releasedAt: now, releasedOn: dateKeyToDate(input.releasedOn), paymentReference: input.paymentReference });
       note = input.paymentReference ? `Payment reference ${input.paymentReference}` : undefined;
     } else if (input.action === "cancel") {
-      run.set({ cancelledBy: by, cancelledAt: now, cancelReason: input.reason });
+      Object.assign(set, { cancelledBy: by, cancelledAt: now, cancelReason: input.reason });
       note = input.reason;
+    } else if (input.action === "submit") {
+      note = input.note;
     }
+    for (const key of Object.keys(set)) if (set[key] === undefined) delete set[key];
 
-    run.status = transition.to;
-    run.history.push({ action: transition.past, status: transition.to, at: now, by, note });
-    await run.save();
+    /** The status change itself: only applies if the run is still in the status we checked. */
+    const applyTransition = (extraFilter: Record<string, unknown>, extraSet: Record<string, unknown> = {}, extraUnset: Record<string, 1> = {}) =>
+      PayrollRunModel.findOneAndUpdate(
+        { _id: run._id, organizationId: run.organizationId, status: run.status, ...extraFilter },
+        {
+          $set: { ...set, ...extraSet },
+          ...(Object.keys({ ...unset, ...extraUnset }).length ? { $unset: { ...unset, ...extraUnset } } : {}),
+          $push: { history: { action: transition.past, status: transition.to, at: now, by, note } },
+        },
+        { new: true },
+      );
+
+    let updated;
+    if (input.action === "submit") {
+      // Submitting recomputes first, so what goes for approval reflects the
+      // latest attendance; the lock keeps anything from changing in between.
+      updated = await withComputeLock(run._id, async (lock) => {
+        const fresh = await computeRun(run._id);
+        if (fresh.totals!.employees === 0) throw new BusinessRuleError("There's no one to pay in this run.");
+        if (fresh.blockingIssues > 0) {
+          throw new BusinessRuleError(`${plural(fresh.blockingIssues, "employee")} ${fresh.blockingIssues === 1 ? "has" : "have"} a blocking issue. Fix it and recompute before submitting.`);
+        }
+        return applyTransition({ computeLock: lock }, { submittedBy: by, submittedAt: now }, { computeLock: 1, computeLockUntil: 1 });
+      });
+    } else {
+      updated = await applyTransition(NO_ACTIVE_LOCK(now));
+    }
+    if (!updated) throw new ConflictError("Someone else changed this run at the same time. Reload it and try again.");
 
     await AuditService.record({
       organizationId: input.organizationId,
@@ -436,7 +491,7 @@ export const PayrollRunService = {
       resourceType: "PayrollRun",
       resourceId: runId,
       before,
-      after: { status: run.status },
+      after: { status: updated.status },
       metadata: { ...metadata, note },
     });
 
@@ -452,7 +507,8 @@ export const PayrollRunService = {
       throw new NotFoundError("Employee not found in this organization");
     }
 
-    const adjustment = await PayrollAdjustmentModel.create({
+    const adjustment = await withComputeLock(run._id, async () => {
+      const created = await PayrollAdjustmentModel.create({
       payrollRunId: run._id,
       organizationId: run.organizationId,
       employeeId: new Types.ObjectId(input.employeeId),
@@ -463,8 +519,10 @@ export const PayrollRunService = {
       taxable: input.direction === "earning" ? input.taxable : false,
       notes: input.notes,
       createdBy: toObjectId(actor.userId),
+      });
+      await computeRun(run._id);
+      return created;
     });
-    await computeRun(run._id);
 
     await AuditService.record({
       organizationId: input.organizationId,
@@ -484,9 +542,12 @@ export const PayrollRunService = {
     if (!Types.ObjectId.isValid(adjustmentId)) throw new NotFoundError("Adjustment not found in this run");
     // A draft's inputs, not a record of anything paid: removing one is a
     // plain delete, kept in the audit log with everything it said.
-    const adjustment = await PayrollAdjustmentModel.findOneAndDelete({ _id: new Types.ObjectId(adjustmentId), payrollRunId: run._id }).lean();
-    if (!adjustment) throw new NotFoundError("Adjustment not found in this run");
-    await computeRun(run._id);
+    const adjustment = await withComputeLock(run._id, async () => {
+      const removed = await PayrollAdjustmentModel.findOneAndDelete({ _id: new Types.ObjectId(adjustmentId), payrollRunId: run._id }).lean();
+      if (!removed) throw new NotFoundError("Adjustment not found in this run");
+      await computeRun(run._id);
+      return removed;
+    });
 
     await AuditService.record({
       organizationId,

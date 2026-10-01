@@ -17,6 +17,7 @@ export async function POST(request: Request) {
 
     switch (input.action) {
       case "start": {
+        await MfaService.confirmPassword(userId, input.password);
         const { secret, otpauthUri } = await MfaService.startEnrollment(userId);
         const qrCode = await QRCode.toDataURL(otpauthUri, { errorCorrectionLevel: "M", margin: 1, width: 220 });
         return NextResponse.json({ secret, qrCode });

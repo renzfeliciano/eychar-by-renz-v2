@@ -26,3 +26,21 @@ describe("enforceRateLimit", () => {
     await expect(enforceRateLimit("payrollRun", userId, new Date(now.getTime() + RATE_LIMITS.payrollRun.windowMs + 1))).resolves.toBeUndefined();
   });
 });
+
+describe("password confirmations", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("stop accepting guesses from one session after the limit, even a correct password", async () => {
+    const { default: argon2 } = await import("argon2");
+    const { confirmAccountPassword } = await import("@/domains/identity/confirm-password");
+    const userId = new Types.ObjectId().toString();
+    const hash = await argon2.hash("harbor-lantern-73-mango");
+
+    for (let i = 0; i < RATE_LIMITS.passwordCheck.limit; i += 1) {
+      await expect(confirmAccountPassword(userId, hash, `wrong-${i}`)).rejects.toThrow(/incorrect/);
+    }
+    await expect(confirmAccountPassword(userId, hash, "harbor-lantern-73-mango")).rejects.toBeInstanceOf(RateLimitError);
+  });
+});

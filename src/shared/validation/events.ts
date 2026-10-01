@@ -10,7 +10,7 @@ export const eventSchema = z.object({
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM")
     .optional(),
-  category: z.string().trim().min(1),
+  category: z.string().max(200).trim().min(1),
   description: z.string().trim().max(500).optional(),
 });
 

@@ -22,24 +22,24 @@ const geofenceRadiusSchema = z.coerce
 export const createOrganizationUnitSchema = z.object({
   organizationId: objectId(),
   parentUnitId: objectId().optional(),
-  type: z.string().trim().min(1),
-  name: z.string().trim().min(1),
-  code: z.string().trim().min(1),
-  description: z.string().trim().optional(),
+  type: z.string().max(200).trim().min(1),
+  name: z.string().max(200).trim().min(1),
+  code: z.string().max(200).trim().min(1),
+  description: z.string().max(2000).trim().optional(),
 });
 
 export const createPositionSchema = z.object({
   organizationId: objectId(),
-  title: z.string().trim().min(1),
-  code: z.string().trim().min(1).optional(),
-  description: z.string().trim().optional(),
+  title: z.string().max(200).trim().min(1),
+  code: z.string().max(200).trim().min(1).optional(),
+  description: z.string().max(2000).trim().optional(),
 });
 
 export const createLocationSchema = z.object({
   organizationId: objectId(),
-  name: z.string().trim().min(1),
-  code: z.string().trim().min(1),
-  address: z.string().trim().optional(),
+  name: z.string().max(200).trim().min(1),
+  code: z.string().max(200).trim().min(1),
+  address: z.string().max(2000).trim().optional(),
   latitude: latitudeSchema.optional(),
   longitude: longitudeSchema.optional(),
   geofenceRadiusMeters: geofenceRadiusSchema.optional(),
@@ -51,9 +51,9 @@ export const createLocationSchema = z.object({
 export const updateLocationSchema = z.object({
   organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
-  name: z.string().trim().min(1).optional(),
-  code: z.string().trim().min(1, "Enter a code").optional(),
-  address: clearable(z.string().trim()).optional(),
+  name: z.string().max(200).trim().min(1).optional(),
+  code: z.string().max(200).trim().min(1, "Enter a code").optional(),
+  address: clearable(z.string().max(2000).trim()).optional(),
   latitude: clearable(latitudeSchema).optional(),
   longitude: clearable(longitudeSchema).optional(),
   geofenceRadiusMeters: geofenceRadiusSchema.optional(),
@@ -62,16 +62,16 @@ export const updateLocationSchema = z.object({
 export const createProjectSchema = z.object({
   organizationId: objectId(),
   locationId: objectIdSchema("Select a valid location").optional(),
-  name: z.string().trim().min(1),
-  code: z.string().trim().min(1).optional(),
-  description: z.string().trim().optional(),
+  name: z.string().max(200).trim().min(1),
+  code: z.string().max(200).trim().min(1).optional(),
+  description: z.string().max(2000).trim().optional(),
 });
 
 export const updateProjectSchema = z.object({
   organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
-  name: z.string().trim().min(1).optional(),
-  description: clearable(z.string().trim()).optional(),
+  name: z.string().max(200).trim().min(1).optional(),
+  description: clearable(z.string().max(2000).trim()).optional(),
   locationId: clearable(objectIdSchema("Select a valid location")).optional(),
 });
 

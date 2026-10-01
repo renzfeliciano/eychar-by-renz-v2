@@ -3,7 +3,7 @@ import { calendarDateSchema, dateSpanInDays } from "./schedule";
 import { objectId } from "@/shared/validation/object-id";
 
 const PAY_FREQUENCY = z.enum(["weekly", "semi-monthly", "monthly"]);
-const optionalId = z.string().trim().min(1).optional();
+const optionalId = z.string().max(200).trim().min(1).optional();
 const money = (label: string) => z.coerce.number({ message: `${label} must be a number` }).min(0, `${label} can't be negative`);
 
 // ── Compensation ──────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ export const bulkCompensationChangeSchema = z.object({
   effectiveFrom: calendarDateSchema,
   reason: z.string().trim().min(3, "Give a reason, e.g. the wage order number").max(200),
   /** Apply to just these (from the preview); omitted means everyone the preview would change. */
-  employeeIds: z.array(objectId()).optional(),
+  employeeIds: z.array(objectId()).max(5000).optional(),
 });
 
 // ── Policy and rule versions ──────────────────────────────────────────────
@@ -87,7 +87,7 @@ const contributionRuleSchema = z.object({
   floor: money("Floor").nullish(),
   ceiling: money("Ceiling").nullish(),
   extraLabel: z.string().trim().max(20).nullish(),
-  rows: z.array(contributionRowSchema).min(1, "Each contribution needs at least one row"),
+  rows: z.array(contributionRowSchema).max(200).min(1, "Each contribution needs at least one row"),
 });
 
 export const createPayrollRuleVersionSchema = z.object({
@@ -98,9 +98,9 @@ export const createPayrollRuleVersionSchema = z.object({
   effectiveFrom: calendarDateSchema.optional(),
   basedOnVersionId: optionalId,
   taxTables: z
-    .array(z.object({ payFrequency: PAY_FREQUENCY, brackets: z.array(taxBracketSchema).min(1, "Each tax table needs at least one bracket") }))
+    .array(z.object({ payFrequency: PAY_FREQUENCY, brackets: z.array(taxBracketSchema).max(100).min(1, "Each tax table needs at least one bracket") }))
     .min(1, "Add at least one withholding tax table"),
-  contributions: z.array(contributionRuleSchema).default([]),
+  contributions: z.array(contributionRuleSchema).max(50).default([]),
 });
 
 export const updatePayrollRuleVersionStatusSchema = z.object({

@@ -3,7 +3,8 @@ import { connectMongoDB } from "@/server/db/connection";
 import { RoleModel, PermissionModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
-import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
+import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
+import { heldPermissions } from "@/server/authorization/authorize";
 import type { CreateRoleInput, UpdateRoleInput } from "@/shared/validation/roles";
 import { SUPER_ADMIN_ROLE_NAME, SuperAdminService, isDeletePermission, isReservedRoleName } from "./super-admin-service";
 
@@ -19,6 +20,22 @@ async function assertPermissionKeysValid(permissionKeys: string[]) {
   }
 }
 
+/**
+ * A person (not a system/seed call) may only put permissions on a role that
+ * they hold themselves, unless they're the Super Administrator: otherwise
+ * editing a role they (or a colleague) already hold would hand out access
+ * no one granted. Keys already on the role are left alone.
+ */
+async function assertCanAddPermissions(actorUserId: string | undefined, organizationId: string, added: string[]) {
+  if (!actorUserId || added.length === 0) return;
+  const held = await heldPermissions({ userId: actorUserId, organizationId });
+  if (held.superAdmin) return;
+  const beyond = added.filter((key) => !held.keys.has(key));
+  if (beyond.length > 0) {
+    throw new AuthorizationError(`You can't add access you don't have yourself (${beyond.slice(0, 5).join(", ")}${beyond.length > 5 ? ", …" : ""})`);
+  }
+}
+
 export const RoleService = {
   async create(input: CreateRoleInput, actor: { userId?: string }) {
     await connectMongoDB();
@@ -26,6 +43,7 @@ export const RoleService = {
     if (isReservedRoleName(input.name)) throw new BusinessRuleError(`"${input.name.trim()}" is reserved for the ${SUPER_ADMIN_ROLE_NAME}`);
     assertNoDeletePermissions(input.permissionKeys);
     await SuperAdminService.assertCanManageAdminRole(actor.userId, input.organizationId, input.permissionKeys);
+    await assertCanAddPermissions(actor.userId, input.organizationId, [...new Set(input.permissionKeys)]);
 
     let role;
     try {
@@ -67,6 +85,8 @@ export const RoleService = {
     assertNoDeletePermissions(patch.permissionKeys);
     // Both the role as it is and as it would become: HR can't strip or add admin power.
     await SuperAdminService.assertCanManageAdminRole(actor.userId, organizationId, [...(role.permissionKeys ?? []), ...patch.permissionKeys]);
+    const existing = new Set<string>(role.permissionKeys ?? []);
+    await assertCanAddPermissions(actor.userId, organizationId, [...new Set(patch.permissionKeys)].filter((key) => !existing.has(key)));
 
     const before = { permissionKeys: role.permissionKeys, status: role.status };
     role.name = patch.name;

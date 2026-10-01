@@ -20,7 +20,7 @@ export const updateApplicantSchema = applicantSchema;
 /** Free-form move to any configured stage — no forward-only/terminal restriction, matching v1's plain "Move to" dropdown. */
 export const moveApplicantStageSchema = z.object({
   organizationId: objectId(),
-  stage: z.string().trim().min(1),
+  stage: z.string().max(200).trim().min(1),
 });
 
 export type CreateApplicantInput = z.infer<typeof createApplicantSchema>;

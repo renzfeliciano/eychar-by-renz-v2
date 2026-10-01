@@ -198,8 +198,10 @@ export const LeaveBalanceService = {
    * entitledDays + adjustmentDays - sum(approved requests' totalDays) for
    * this employee/leaveType/year. "Used" is derived, not stored, so there's
    * exactly one source of truth for consumption (see LeaveBalance model).
+   * With `countPending`, days already asked for (pending) count as used too,
+   * so two requests can't each claim the same remaining days.
    */
-  async getAvailable(params: { organizationId: string; employeeId: string; leaveTypeId: string; year: number }) {
+  async getAvailable(params: { organizationId: string; employeeId: string; leaveTypeId: string; year: number; countPending?: boolean }) {
     await connectMongoDB();
 
     const organizationId = new Types.ObjectId(params.organizationId);
@@ -217,7 +219,7 @@ export const LeaveBalanceService = {
       organizationId,
       employeeId,
       leaveTypeId,
-      status: "approved",
+      status: params.countPending ? { $in: ["approved", "pending"] } : "approved",
       startDate: { $gte: yearStart, $lte: yearEnd },
     }).lean();
     const used = approvedRequests.reduce((sum, request) => sum + request.totalDays, 0);

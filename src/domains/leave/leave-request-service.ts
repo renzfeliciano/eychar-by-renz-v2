@@ -1,9 +1,9 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { EmployeeModel, LeaveRequestModel, LeaveTypeModel } from "@/server/db/models";
+import { EmployeeModel, LeaveRequestModel, LeaveTypeModel, UserModel } from "@/server/db/models";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
-import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
+import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import { LeaveBalanceService } from "./leave-balance-service";
 import type { CreateLeaveRequestInput } from "@/shared/validation/leave";
 
@@ -55,6 +55,7 @@ export const LeaveRequestService = {
       employeeId: input.employeeId,
       leaveTypeId: input.leaveTypeId,
       year: startDate.getUTCFullYear(),
+      countPending: true,
     });
     if (totalDays > available) {
       throw new BusinessRuleError(`Request of ${totalDays} day(s) exceeds the available balance of ${available} day(s)`);
@@ -101,24 +102,54 @@ export const LeaveRequestService = {
       throw new BusinessRuleError(`Only a pending request can be decided (current status: ${request.status})`);
     }
 
+    // Nobody decides their own leave, whatever roles their account holds.
+    if (actor.userId) {
+      const approver = await UserModel.findById(actor.userId).select("employeeId").lean<{ employeeId?: Types.ObjectId } | null>();
+      if (approver?.employeeId && approver.employeeId.toString() === request.employeeId.toString()) {
+        throw new AuthorizationError("You can't approve or reject your own leave request");
+      }
+    }
+    // Checked again at approval: the balance may have changed since the request was filed.
+    if (patch.decision === "approved") {
+      const available = await LeaveBalanceService.getAvailable({
+        organizationId,
+        employeeId: request.employeeId.toString(),
+        leaveTypeId: request.leaveTypeId.toString(),
+        year: request.startDate.getUTCFullYear(),
+      });
+      if (request.totalDays > available) {
+        throw new BusinessRuleError(`Approving ${request.totalDays} day(s) would exceed the available balance of ${available} day(s)`);
+      }
+    }
+
     const before = { status: request.status };
-    request.status = patch.decision;
-    request.approvedBy = actor.userId ? new Types.ObjectId(actor.userId) : undefined;
-    request.approvedAt = new Date();
-    if (patch.decision === "rejected") request.rejectionReason = patch.rejectionReason;
-    await request.save();
+    const decidedAt = new Date();
+    // Only one decision wins, even if two approvers click at the same moment.
+    const decided = await LeaveRequestModel.findOneAndUpdate(
+      { _id: request._id, organizationId: request.organizationId, status: "pending" },
+      {
+        $set: {
+          status: patch.decision,
+          approvedAt: decidedAt,
+          ...(actor.userId ? { approvedBy: new Types.ObjectId(actor.userId) } : {}),
+          ...(patch.decision === "rejected" ? { rejectionReason: patch.rejectionReason } : {}),
+        },
+      },
+      { new: true },
+    );
+    if (!decided) throw new ConflictError("This request was already decided by someone else");
 
     await AuditService.record({
       organizationId,
       actorUserId: actor.userId,
       action: `leave-request.${patch.decision}`,
       resourceType: "LeaveRequest",
-      resourceId: request._id.toString(),
+      resourceId: decided._id.toString(),
       before,
-      after: { status: request.status, rejectionReason: request.rejectionReason },
+      after: { status: decided.status, rejectionReason: decided.rejectionReason },
     });
 
-    return request;
+    return decided;
   },
 
   /** Gated by leave.update — only the requester side, before a decision is made. */

@@ -1,4 +1,6 @@
 import { organizationIdsForUser, organizationUserIds } from "./user-directory";
+import { heldPermissions } from "@/server/authorization/authorize";
+import { confirmAccountPassword } from "./confirm-password";
 import { randomInt } from "crypto";
 import { Types } from "mongoose";
 import argon2 from "argon2";
@@ -69,7 +71,7 @@ export const AccountSecurityService = {
     await connectMongoDB();
     const user = await UserModel.findById(userId).lean();
     if (!user) throw new NotFoundError("Account not found");
-    if (!(await argon2.verify(user.passwordHash, input.currentPassword))) throw new ValidationError("Your current password is incorrect.");
+    await confirmAccountPassword(userId, user.passwordHash, input.currentPassword, "Your current password is incorrect.");
     const problems = checkPassword(input.newPassword, { username: user.username, email: user.email });
     if (problems.length > 0) throw new ValidationError(problems.join(" "));
 
@@ -206,6 +208,17 @@ export const AccountSecurityService = {
     const organizations = await organizationIdsForUser(targetUserId);
     if ([...organizations].some((id) => id !== organizationId)) {
       throw new AuthorizationError("This account also belongs to another organization, so it can't be changed from here");
+    }
+    // Resetting someone's password or two-step hands you their account, so
+    // you may only act on accounts whose access you already have yourself.
+    if (actor.userId) {
+      const [actorHeld, targetHeld] = await Promise.all([
+        heldPermissions({ userId: actor.userId, organizationId }),
+        heldPermissions({ userId: targetUserId, organizationId }),
+      ]);
+      if (!actorHeld.superAdmin && [...targetHeld.keys].some((key) => !actorHeld.keys.has(key))) {
+        throw new AuthorizationError("This account has access you don't have yourself, so only the Super Administrator can change it");
+      }
     }
   },
 

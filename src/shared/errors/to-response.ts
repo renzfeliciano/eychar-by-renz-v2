@@ -102,6 +102,11 @@ export function describeErrorForLog(error: unknown): Record<string, unknown> {
  * single chokepoint, so an unexpected/database error never leaks internal
  * messages or stack details to the client (per AGENTS.md §48).
  */
+function isCastError(error: unknown): boolean {
+  const name = error instanceof Error ? error.name : undefined;
+  return name === "CastError" || name === "BSONError";
+}
+
 export function toErrorResponse(error: unknown): NextResponse {
   if (error instanceof AppError) {
     const headers = error instanceof RateLimitError ? { "Retry-After": String(error.retryAfterSeconds) } : undefined;
@@ -116,6 +121,11 @@ export function toErrorResponse(error: unknown): NextResponse {
       { error: message, field, details: error.flatten() },
       { status: 400 },
     );
+  }
+  // A malformed id or date in the URL or body (Mongo couldn't cast it): the
+  // caller's mistake, not ours, and never worth a stack trace in the logs.
+  if (isCastError(error)) {
+    return NextResponse.json({ error: "Something in the request isn't valid (an id or a date). Check it and try again." }, { status: 400 });
   }
   console.error("Unexpected error", describeErrorForLog(error));
   return NextResponse.json({ error: "Unexpected error — please try again, and contact support if it keeps happening." }, { status: 500 });

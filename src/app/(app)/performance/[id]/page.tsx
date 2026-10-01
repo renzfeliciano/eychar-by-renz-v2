@@ -46,7 +46,8 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view review cycles.</p>;
   }
 
-  const [canUpdateCycle, canCreateReview, canUpdateReview] = await Promise.all([
+  const [canReadReviews, canUpdateCycle, canCreateReview, canUpdateReview] = await Promise.all([
+    hasPermission("performance-reviews.read", organizationId),
     hasPermission("review-cycles.update", organizationId),
     hasPermission("performance-reviews.create", organizationId),
     hasPermission("performance-reviews.update", organizationId),
@@ -54,7 +55,8 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
 
   const [cycle, reviews, roster, ratings, isCurrentStaff] = await Promise.all([
     ReviewCycleService.getById(id, organizationId),
-    PerformanceReviewService.listForCycle(id, organizationId),
+    // Ratings are only shown to people the reviews API would show them to.
+    canReadReviews ? PerformanceReviewService.listForCycle(id, organizationId) : Promise.resolve([] as Awaited<ReturnType<typeof PerformanceReviewService.listForCycle>>),
     EmployeeService.listWithCurrentStatus(organizationId),
     PerformanceRatingService.listCurrent(organizationId),
     loadCurrentStaffCheck(organizationId),

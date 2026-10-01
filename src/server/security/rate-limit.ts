@@ -4,8 +4,8 @@ import { AuditService } from "@/server/audit/audit-service";
 import { RateLimitError } from "@/shared/errors";
 
 /**
- * Per-user limits on heavy or bulk operations (exports, payroll generation,
- * bulk pay and leave changes). Fixed windows stored in MongoDB (the same
+ * Per-user limits on heavy, bulk or guessable operations (exports, payroll
+ * generation, bulk pay and leave changes, password confirmations, uploads). Fixed windows stored in MongoDB (the same
  * TTL-swept counter collection the sign-in throttle uses, under an "rl:"
  * key), so the limit holds across restarts and every server instance on
  * Vercel. Generous enough never to bother normal work; it only stops a
@@ -15,6 +15,13 @@ export const RATE_LIMITS = {
   export: { limit: 30, windowMs: 10 * 60_000, label: "exports" },
   payrollRun: { limit: 10, windowMs: 10 * 60_000, label: "payroll runs" },
   bulkChange: { limit: 20, windowMs: 10 * 60_000, label: "bulk changes" },
+  // Re-entering your password to confirm a sensitive change (change password,
+  // turn off two-step, new recovery codes): stops guessing from a live session.
+  passwordCheck: { limit: 8, windowMs: 15 * 60_000, label: "password attempts" },
+  documentUpload: { limit: 30, windowMs: 10 * 60_000, label: "uploads" },
+  // Each recalculates a whole payroll run (recompute, submit, adjustments).
+  payrollCompute: { limit: 60, windowMs: 10 * 60_000, label: "payroll recalculations" },
+  bulkPreview: { limit: 60, windowMs: 10 * 60_000, label: "bulk previews" },
 } as const;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

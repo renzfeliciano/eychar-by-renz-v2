@@ -5,9 +5,9 @@ import { objectId } from "@/shared/validation/object-id";
 // (name/description/permission set/status), not a narrow patch.
 export const roleSchema = z.object({
   organizationId: objectId(),
-  name: z.string().trim().min(1),
+  name: z.string().max(200).trim().min(1),
   description: z.string().trim().max(255).optional(),
-  permissionKeys: z.array(z.string().trim().min(1)).default([]),
+  permissionKeys: z.array(z.string().max(200).trim().min(1)).max(500).default([]),
   status: z.enum(["active", "inactive"]).default("active"),
 });
 

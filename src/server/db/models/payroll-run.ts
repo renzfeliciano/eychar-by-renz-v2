@@ -66,6 +66,10 @@ const payrollRunSchema = new Schema(
     blockingIssues: { type: Number, default: 0 },
     warningCount: { type: Number, default: 0 },
     computedAt: { type: Date },
+    // Held while the run is being recalculated (see withComputeLock in
+    // payroll-run-service.ts); expires on its own if a server dies mid-way.
+    computeLock: { type: String },
+    computeLockUntil: { type: Date },
     preparedBy: { type: Schema.Types.ObjectId, ref: "User" },
     submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
     submittedAt: { type: Date },

@@ -94,7 +94,7 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
     expect(current?.reportsToEmployeeId?.toString()).toBe(s.managerC._id.toString());
 
     // Both states remain available in history.
-    const history = await EmployeeAssignmentService.getHistory(s.employee._id.toString());
+    const history = await EmployeeAssignmentService.getHistory(s.employee._id.toString(), s.orgId);
     expect(history).toHaveLength(2);
     expect(history[0]._id.toString()).toBe(assignment2025._id.toString());
     expect(history[1]._id.toString()).toBe(assignment2026._id.toString());

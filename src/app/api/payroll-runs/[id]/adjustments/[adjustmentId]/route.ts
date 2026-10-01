@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "@/server/security/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/server/authorization";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
@@ -9,6 +10,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext<"/api/payro
     const { id, adjustmentId } = await ctx.params;
     const { organizationId } = organizationIdParamSchema.parse({ organizationId: request.nextUrl.searchParams.get("organizationId") });
     const { userId } = await requirePermission("payroll-runs.update", organizationId);
+    await enforceRateLimit("payrollCompute", userId);
     await PayrollRunService.removeAdjustment(id, adjustmentId, organizationId, { userId });
     return NextResponse.json({ ok: true });
   } catch (error) {

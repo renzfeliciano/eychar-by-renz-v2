@@ -3,7 +3,7 @@ import { objectId } from "@/shared/validation/object-id";
 
 const travelOrderFields = z.object({
   organizationId: objectId(),
-  employeeIds: z.array(objectId()).min(1, "Select at least one employee"),
+  employeeIds: z.array(objectId()).max(500).min(1, "Select at least one employee"),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   remarks: z.string().trim().max(255).optional(),

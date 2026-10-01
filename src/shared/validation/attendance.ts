@@ -6,7 +6,7 @@ import { objectId } from "@/shared/validation/object-id";
 export const createAttendancePolicySchema = z.object({
   organizationId: objectId(),
   projectId: objectId().optional(),
-  name: z.string().trim().min(1),
+  name: z.string().max(200).trim().min(1),
   standardStartTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
   standardEndTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
   gracePeriodMinutes: z.coerce.number().int().min(0).default(0),
@@ -22,16 +22,16 @@ export const recordAttendanceSchema = z.object({
   // A plain string, not a fixed enum — validated against the org's
   // AttendanceStatus collection at the service layer instead (see
   // AttendanceStatusService.assertValidCode), so new codes don't need a code change.
-  status: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
+  status: z.string().max(200).trim().optional(),
+  notes: z.string().max(2000).trim().optional(),
 });
 
 export const adjustAttendanceSchema = z.object({
   organizationId: objectId(),
   checkInAt: z.coerce.date().optional(),
   checkOutAt: z.coerce.date().optional(),
-  status: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
+  status: z.string().max(200).trim().optional(),
+  notes: z.string().max(2000).trim().optional(),
 });
 
 /** The randomized live-face challenges the clock screen can ask for (ADR-026). */
@@ -61,14 +61,14 @@ const clockEventSchema = z.object({
     challenges: z.array(z.enum(LIVENESS_CHALLENGES)).min(2).max(4),
   }),
   webAuthn: z.object({
-    id: z.string(),
-    rawId: z.string(),
+    id: z.string().max(8192),
+    rawId: z.string().max(8192),
     type: z.literal("public-key"),
     response: z.object({
-      clientDataJSON: z.string(),
-      authenticatorData: z.string(),
-      signature: z.string(),
-      userHandle: z.string().optional(),
+      clientDataJSON: z.string().max(8192),
+      authenticatorData: z.string().max(8192),
+      signature: z.string().max(8192),
+      userHandle: z.string().max(8192).optional(),
     }),
     clientExtensionResults: z.record(z.string(), z.unknown()).default({}),
     authenticatorAttachment: z.enum(["platform", "cross-platform"]).optional(),

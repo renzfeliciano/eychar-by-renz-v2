@@ -3,9 +3,9 @@ import { objectId } from "@/shared/validation/object-id";
 
 export const createSimpleCatalogItemSchema = z.object({
   organizationId: objectId(),
-  code: z.string().trim().min(1).optional(),
-  name: z.string().trim().min(1),
-  description: z.string().trim().optional(),
+  code: z.string().max(200).trim().min(1).optional(),
+  name: z.string().max(200).trim().min(1),
+  description: z.string().max(2000).trim().optional(),
   sortOrder: z.coerce.number().int().optional(),
   // Free-form extras, bounded so a request can't store an arbitrarily large blob.
   metadata: z
@@ -23,8 +23,8 @@ export const updateCatalogItemSchema = z
   .object({
     organizationId: objectId(),
     status: z.enum(["active", "inactive"]).optional(),
-    name: z.string().trim().min(1).optional(),
-    description: z.string().trim().optional(),
+    name: z.string().max(200).trim().min(1).optional(),
+    description: z.string().max(2000).trim().optional(),
   })
   .refine((data) => data.status !== undefined || data.name !== undefined || data.description !== undefined, {
     message: "Provide a status, name, or description to update",

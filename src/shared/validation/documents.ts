@@ -6,7 +6,7 @@ import { objectId } from "@/shared/validation/object-id";
 const documentFields = z.object({
   organizationId: objectId(),
   title: z.string().trim().min(1).max(120),
-  documentType: z.string().trim().min(1),
+  documentType: z.string().max(200).trim().min(1),
   expiresAt: z.preprocess((value) => (value === "" ? undefined : value), z.coerce.date().optional()),
   notes: z.preprocess((value) => (value === "" ? undefined : value), z.string().trim().max(500).optional()),
 });

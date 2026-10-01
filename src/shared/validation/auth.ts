@@ -5,7 +5,7 @@ import { objectId } from "@/shared/validation/object-id";
 // `login` accepts either a username or an email — see
 // src/domains/identity/user-lookup.ts for the matching lookup.
 export const loginSchema = z.object({
-  login: z.string().trim().min(1).toLowerCase(),
+  login: z.string().max(254).trim().min(1).toLowerCase(),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
   // A six-digit authenticator code or a recovery code, sent on the second
   // step of sign-in for accounts with two-factor sign-in turned on.
@@ -19,11 +19,21 @@ function enforcePasswordPolicy(field: string, password: string, context: { usern
   for (const message of checkPassword(password, context)) ctx.addIssue({ code: "custom", path: [field], message });
 }
 
+// Letters, numbers, dots, dashes and underscores only: no "@", so a username
+// can never look like (and collide with) another account's email at sign-in.
+const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Username must be at least 3 characters")
+  .max(60, "Username must be at most 60 characters")
+  .regex(/^[a-z0-9._-]+$/, "Use only letters, numbers, dots, dashes and underscores in the username");
+
 export const createEmployeeAccountSchema = z
   .object({
     organizationId: objectId(),
     employeeId: objectId(),
-    username: z.string().trim().min(3).toLowerCase(),
+    username: usernameSchema,
     password: z.string(),
   })
   .superRefine((input, ctx) => enforcePasswordPolicy("password", input.password, { username: input.username }, ctx));
@@ -35,9 +45,9 @@ export type CreateEmployeeAccountInput = z.infer<typeof createEmployeeAccountSch
 export const createStaffAccountSchema = z
   .object({
     organizationId: objectId(),
-    firstName: z.string().trim().min(1),
-    lastName: z.string().trim().min(1),
-    username: z.string().trim().min(3).toLowerCase(),
+    firstName: z.string().trim().min(1).max(60),
+    lastName: z.string().trim().min(1).max(60),
+    username: usernameSchema,
     password: z.string(),
     roleId: objectId().optional(),
   })

@@ -11,6 +11,7 @@ import { SERVER_IDLE_GRACE_MS } from "@/lib/session-idle";
 import { replacedSessionActivity, resolveSessionState } from "./session-policy";
 import { getInactivityMs, getSessionMaxAgeMs } from "./inactivity";
 import { BRAND } from "@/lib/brand";
+import { describeErrorForLog } from "@/shared/errors/to-response";
 import { describeDevice, readHeader } from "@/lib/user-agent";
 
 /** The idle limit for this account's organization (Settings › Security). */
@@ -114,7 +115,7 @@ export const authOptions: NextAuthOptions = {
       try {
         await endActiveSession(token.userId, token.sessionId);
       } catch (error) {
-        console.error("Couldn't end the session on sign-out", error);
+        console.error("Couldn't end the session on sign-out", describeErrorForLog(error));
       }
     },
   },

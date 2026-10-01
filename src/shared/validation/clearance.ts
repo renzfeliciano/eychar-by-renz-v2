@@ -10,7 +10,7 @@ export type ClearanceItemAction = (typeof CLEARANCE_ITEM_ACTIONS)[number];
 export const openClearanceSchema = z.object({
   organizationId: objectId(),
   employeeId: objectIdSchema("Select an employee"),
-  separationTypeCode: z.string().trim().min(1, "Select a separation type"),
+  separationTypeCode: z.string().max(200).trim().min(1, "Select a separation type"),
   noticeDate: calendarDateSchema,
   lastWorkingDay: calendarDateSchema,
   // How the notice arrived, e.g. "Resignation letter by email, 28 Sep 2026".
@@ -32,7 +32,7 @@ export const cancelClearanceSchema = z.object({
 
 export const createChecklistItemSchema = z.object({
   organizationId: objectId(),
-  departmentCode: z.string().trim().min(1, "Select a department"),
+  departmentCode: z.string().max(200).trim().min(1, "Select a department"),
   title: z.string().trim().min(1, "Enter what must be cleared").max(120),
   description: z.string().trim().max(500).optional(),
   blocking: z.boolean(),
@@ -43,7 +43,7 @@ export const createChecklistItemSchema = z.object({
 export const updateChecklistItemSchema = z.object({
   organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
-  departmentCode: z.string().trim().min(1).optional(),
+  departmentCode: z.string().max(200).trim().min(1).optional(),
   title: z.string().trim().min(1).max(120).optional(),
   description: z.string().trim().max(500).optional(),
   blocking: z.boolean().optional(),

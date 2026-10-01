@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   try {
     const { mode, ...input } = requestSchema.parse(await request.json());
     const { userId } = await requirePermission(mode === "apply" ? "compensation.update" : "compensation.read", input.organizationId);
-    if (mode === "apply") await enforceRateLimit("bulkChange", userId);
+    await enforceRateLimit(mode === "apply" ? "bulkChange" : "bulkPreview", userId);
     if (mode === "preview") return NextResponse.json({ rows: await CompensationService.previewBulkChange(input) });
     return NextResponse.json({ result: await CompensationService.applyBulkChange(input, { userId }) });
   } catch (error) {

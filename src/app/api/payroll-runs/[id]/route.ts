@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "@/server/security/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/server/authorization";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
@@ -33,6 +34,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/payroll-ru
     const { id } = await ctx.params;
     const input = payrollRunActionSchema.parse(await request.json());
     const { userId } = await requirePermission(PERMISSION_BY_ACTION[input.action], input.organizationId);
+    if (input.action === "recompute" || input.action === "submit") await enforceRateLimit("payrollCompute", userId);
     const run = await PayrollRunService.act(id, input, { userId });
     return NextResponse.json({ run });
   } catch (error) {

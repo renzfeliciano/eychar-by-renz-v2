@@ -10,6 +10,7 @@ import {
 } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { assertInOrganization } from "@/server/db/assert-in-organization";
 
 export type AssignmentFields = {
   positionId?: string;
@@ -36,6 +37,8 @@ const OPEN_ASSIGNMENT_FILTER = {
  * self-reference guard OrganizationUnitService uses for `parentUnitId`.
  */
 async function validateAssignmentRefs(organizationId: string, employeeId: string, fields: AssignmentFields) {
+  // The employee being assigned must itself belong to this organization.
+  await assertInOrganization(EmployeeModel, employeeId, organizationId, "Employee");
   const orgObjectId = new Types.ObjectId(organizationId);
 
   const checks: Promise<void>[] = [];
@@ -130,7 +133,7 @@ export const EmployeeAssignmentService = {
     const employeeObjectId = new Types.ObjectId(employeeId);
     const effectiveFrom = fields.effectiveFrom ?? new Date();
 
-    const current = await EmployeeAssignmentModel.findOne({ employeeId: employeeObjectId, ...OPEN_ASSIGNMENT_FILTER });
+    const current = await EmployeeAssignmentModel.findOne({ employeeId: employeeObjectId, organizationId: new Types.ObjectId(organizationId), ...OPEN_ASSIGNMENT_FILTER });
 
     // Anything the caller didn't specify carries over from the assignment
     // being closed out — a transfer changes what it says it changes; it
@@ -192,9 +195,11 @@ export const EmployeeAssignmentService = {
     }).lean();
   },
 
-  async getHistory(employeeId: string) {
+  /** The employee's assignments in `organizationId`, oldest first. */
+  async getHistory(employeeId: string, organizationId: string) {
     await connectMongoDB();
-    return EmployeeAssignmentModel.find({ employeeId: new Types.ObjectId(employeeId) })
+    await assertInOrganization(EmployeeModel, employeeId, organizationId, "Employee");
+    return EmployeeAssignmentModel.find({ employeeId: new Types.ObjectId(employeeId), organizationId: new Types.ObjectId(organizationId) })
       .sort({ effectiveFrom: 1 })
       .lean();
   },
