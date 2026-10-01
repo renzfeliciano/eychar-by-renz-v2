@@ -4,29 +4,13 @@ import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
-import {
-  AlertTriangle,
-  Briefcase,
-  CalendarDays,
-  CalendarRange,
-  FileText,
-  Fingerprint,
-  Hash,
-  IdCard,
-  LayoutGrid,
-  Mail,
-  Package,
-  Palmtree,
-  Phone,
-  Smartphone,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertTriangle, Briefcase, CalendarDays, CalendarRange, FileText, Fingerprint, Hash, IdCard, LayoutGrid, Mail, Package, Palmtree, Phone, Smartphone, type LucideIcon } from "lucide-react";
 import { formatLengthOfService } from "@/lib/employee-dates";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { EmploymentService } from "@/domains/workforce/employment-service";
-import { documentExpiry, missingGovernmentIds, profileAtAGlance } from "@/domains/workforce/profile-summary";
+import { missingGovernmentIds, profileAtAGlance } from "@/domains/workforce/profile-summary";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmployeeAccountService } from "@/domains/identity/employee-account-service";
@@ -38,40 +22,26 @@ import { LeaveBalanceService } from "@/domains/leave/leave-balance-service";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { NotFoundError } from "@/shared/errors";
 import { formatPersonName } from "@/lib/person-name";
-import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { PageTabs } from "@/components/shared/page-tabs";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { TransferForm } from "./transfer-form";
 import { TerminateButton } from "./terminate-button";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
 import { ResetBiometricButton } from "./reset-biometric-button";
-import { AssetIssuanceFormDialog } from "./asset-issuance-form-dialog";
-import { DocumentFormDialog } from "./document-form-dialog";
-import { DocumentDownloadButton } from "./document-download-button";
-import { GrantLeaveBalanceDialog } from "./grant-leave-balance-dialog";
-import { AdjustLeaveBalanceDialog } from "@/components/shared/adjust-leave-balance-dialog";
+import { Fact, formatDate } from "./profile-format";
+import { JobTab } from "./job-tab";
+import { LeaveTab } from "./leave-tab";
+import { DocumentsTab } from "./documents-tab";
+import { AssetsTab } from "./assets-tab";
 
 export const metadata: Metadata = { title: "Employee profile" };
 
 const TABS = ["overview", "job", "leave", "documents", "assets"] as const;
 type Tab = (typeof TABS)[number];
 const OBJECT_ID = /^[a-f0-9]{24}$/i;
-const SHORT_DATE = { month: "short", day: "numeric", year: "numeric" } as const;
-const formatDate = (value: Date | string | null | undefined) => (value ? new Date(value).toLocaleDateString("en-US", SHORT_DATE) : "—");
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      {/* Long unbroken names ("Administrator/Property Manager") wrap instead of spilling into the next column. */}
-      <dd className="text-sm font-medium [overflow-wrap:anywhere]">{children}</dd>
-    </div>
-  );
-}
 
 export default async function EmployeeDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams]);
@@ -382,229 +352,50 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
       )}
 
       {tab === "job" && (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-          <Card className="self-start">
-            <CardHeader>
-              <CardTitle className="text-base">Assignment history</CardTitle>
-              <CardDescription>Every position, project and manager change, newest first</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {detail.assignmentHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No assignment history yet.</p>
-              ) : (
-                <ol className="relative flex flex-col gap-5 border-l pl-6">
-                  {[...detail.assignmentHistory]
-                    .sort((a, b) => new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime())
-                    .map((row) => {
-                      const current = !row.effectiveTo;
-                      const manager = row.reportsToEmployeeId ? employeeNameById.get(row.reportsToEmployeeId.toString()) : undefined;
-                      return (
-                        <li key={row._id.toString()} className="relative">
-                          <span
-                            className={cn("absolute top-1 -left-[1.95rem] size-3 rounded-full border-2 border-card", current ? "bg-primary ring-3 ring-primary/20" : "bg-muted-foreground/40")}
-                            aria-hidden="true"
-                          />
-                          <p className="text-xs text-muted-foreground tabular-nums">
-                            {formatDate(row.effectiveFrom)} – {current ? "Present" : formatDate(row.effectiveTo)}
-                            {current && <span className="ml-2 font-medium text-primary">Current</span>}
-                          </p>
-                          <p className="mt-0.5 font-medium">{row.positionId ? (positionTitleById.get(row.positionId.toString()) ?? "Unknown position") : "No position"}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {[row.projectId ? projectNameById.get(row.projectId.toString()) : null, manager ? `Reports to ${manager}` : null].filter(Boolean).join(" · ") || "No project or manager"}
-                          </p>
-                        </li>
-                      );
-                    })}
-                </ol>
-              )}
-            </CardContent>
-          </Card>
-          {canUpdate && (
-            <TransferForm
-              employeeId={employeeId}
-              organizationId={organizationId}
-              positions={positions.map((position) => ({ id: position._id.toString(), label: position.title }))}
-              projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
-              managers={roster.filter((row) => row.person && row._id.toString() !== employeeId).map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }))}
-              currentPositionId={assignment?.positionId?.toString()}
-              currentProjectId={assignment?.projectId?.toString()}
-              currentReportsToEmployeeId={managerId}
-            />
-          )}
-        </div>
+        <JobTab
+          organizationId={organizationId}
+          employeeId={employeeId}
+          assignmentHistory={detail.assignmentHistory}
+          positionTitleById={positionTitleById}
+          projectNameById={projectNameById}
+          employeeNameById={employeeNameById}
+          canUpdate={canUpdate}
+          positionOptions={positions.map((position) => ({ id: position._id.toString(), label: position.title }))}
+          projectOptions={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
+          managerOptions={roster.filter((row) => row.person && row._id.toString() !== employeeId).map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }))}
+          currentPositionId={assignment?.positionId?.toString()}
+          currentProjectId={assignment?.projectId?.toString()}
+          managerId={managerId}
+        />
       )}
 
       {tab === "leave" && canReadLeave && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Leave balances</CardTitle>
-            <CardDescription>Entitlements by year, with adjustments and what&apos;s left</CardDescription>
-            {canCreateLeave && (
-              <CardAction>
-                <GrantLeaveBalanceDialog organizationId={organizationId} employeeId={employeeId} leaveTypes={leaveTypeOptions} />
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={[
-                { key: "leaveType", header: "Leave type", render: (balance) => <span className="font-medium">{leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—"}</span> },
-                { key: "year", header: "Year", render: (balance) => balance.year },
-                { key: "entitled", header: "Entitled", render: (balance) => (balance.hasNoFixedAmount ? "Unlimited" : balance.entitledDays.toFixed(2)) },
-                { key: "adjustment", header: "Adjustment", render: (balance) => balance.adjustmentDays.toFixed(2) },
-                {
-                  key: "available",
-                  header: "Available",
-                  render: (balance) => {
-                    if (balance.hasNoFixedAmount) return "Unlimited";
-                    const value = availableByLeaveBalanceId.get(balance._id.toString());
-                    return value !== undefined ? <span className="font-medium tabular-nums">{value.toFixed(2)}</span> : "—";
-                  },
-                },
-                {
-                  key: "action",
-                  header: "",
-                  render: (balance) =>
-                    canUpdateLeave ? (
-                      <AdjustLeaveBalanceDialog
-                        organizationId={organizationId}
-                        balanceId={balance._id.toString()}
-                        leaveTypeLabel={leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "leave"}
-                        currentAdjustmentDays={balance.adjustmentDays}
-                      />
-                    ) : null,
-                },
-              ]}
-              rows={leaveBalances}
-              getRowKey={(balance) => balance._id.toString()}
-              emptyMessage="No leave balances granted yet."
-              emptyDescription="Grant a balance per leave type, or grant everyone at once from Leave › Balances."
-            />
-          </CardContent>
-        </Card>
+        <LeaveTab
+          organizationId={organizationId}
+          employeeId={employeeId}
+          leaveBalances={leaveBalances}
+          leaveTypeOptions={leaveTypeOptions}
+          leaveTypeNameById={leaveTypeNameById}
+          availableByLeaveBalanceId={availableByLeaveBalanceId}
+          canCreateLeave={canCreateLeave}
+          canUpdateLeave={canUpdateLeave}
+        />
       )}
 
       {tab === "documents" && canReadDocuments && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Documents</CardTitle>
-            <CardDescription>Contracts, IDs and certificates on file, with expiry dates</CardDescription>
-            {canCreateDocuments && (
-              <CardAction>
-                <DocumentFormDialog organizationId={organizationId} employeeId={employeeId} documentTypes={documentTypeOptions} />
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={[
-                { key: "title", header: "Title", render: (document) => <span className="font-medium">{document.title}</span> },
-                { key: "type", header: "Type", render: (document) => documentTypeNameByCode.get(document.documentType) ?? document.documentType },
-                { key: "fileName", header: "File", render: (document) => <span className="text-muted-foreground">{document.fileName}</span> },
-                {
-                  key: "expires",
-                  header: "Expires",
-                  render: (document) => {
-                    const state = documentExpiry(document.expiresAt, now);
-                    if (state === "none") return <span className="text-muted-foreground">No expiry</span>;
-                    return (
-                      <span className="flex items-center gap-2 whitespace-nowrap">
-                        {formatDate(document.expiresAt)}
-                        {state === "expired" && <StatusBadge status="expired" label="Expired" tone="danger" />}
-                        {state === "expiring" && <StatusBadge status="expiring" label="Expiring soon" tone="warning" />}
-                      </span>
-                    );
-                  },
-                },
-                { key: "uploaded", header: "Uploaded", render: (document) => formatDate(document.createdAt) },
-                {
-                  key: "action",
-                  header: "",
-                  render: (document) => (
-                    <div className="flex items-center gap-1">
-                      <DocumentDownloadButton employeeId={employeeId} documentId={document._id.toString()} organizationId={organizationId} fileName={document.fileName} />
-                      {canUpdateDocuments && (
-                        <DocumentFormDialog
-                          organizationId={organizationId}
-                          employeeId={employeeId}
-                          documentTypes={documentTypeOptions}
-                          initialValue={{
-                            id: document._id.toString(),
-                            title: document.title,
-                            documentType: document.documentType,
-                            fileName: document.fileName,
-                            expiresAt: document.expiresAt?.toISOString(),
-                            notes: document.notes,
-                          }}
-                        />
-                      )}
-                    </div>
-                  ),
-                },
-              ]}
-              rows={documents}
-              getRowKey={(document) => document._id.toString()}
-              emptyMessage="No documents uploaded yet."
-              emptyDescription="Upload the employment contract, government IDs and certificates so they're in one place."
-            />
-          </CardContent>
-        </Card>
+        <DocumentsTab
+          organizationId={organizationId}
+          employeeId={employeeId}
+          documents={documents}
+          documentTypeOptions={documentTypeOptions}
+          documentTypeNameByCode={documentTypeNameByCode}
+          canCreateDocuments={canCreateDocuments}
+          canUpdateDocuments={canUpdateDocuments}
+          now={now}
+        />
       )}
 
-      {tab === "assets" && canReadAssets && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Issued assets</CardTitle>
-            <CardDescription>Equipment, uniforms and IDs handed over, and whether they came back</CardDescription>
-            {canCreateAssets && (
-              <CardAction>
-                <AssetIssuanceFormDialog organizationId={organizationId} employeeId={employeeId} />
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={[
-                { key: "assetName", header: "Asset", render: (record) => <span className="font-medium">{record.assetName}</span> },
-                { key: "type", header: "Type", render: (record) => record.assetType || "—" },
-                { key: "serial", header: "Serial #", render: (record) => <span className="font-mono text-xs">{record.serialNumber || "—"}</span> },
-                { key: "condition", header: "Condition", render: (record) => record.condition },
-                { key: "issued", header: "Issued", render: (record) => formatDate(record.issuedDate) },
-                {
-                  key: "returned",
-                  header: "Returned",
-                  render: (record) => (record.returnedDate ? formatDate(record.returnedDate) : <StatusBadge status="out" label="Still out" tone="info" />),
-                },
-                {
-                  key: "action",
-                  header: "",
-                  render: (record) =>
-                    canUpdateAssets ? (
-                      <AssetIssuanceFormDialog
-                        organizationId={organizationId}
-                        employeeId={employeeId}
-                        initialValue={{
-                          id: record._id.toString(),
-                          assetName: record.assetName,
-                          assetType: record.assetType,
-                          serialNumber: record.serialNumber,
-                          condition: record.condition,
-                          issuedDate: record.issuedDate.toISOString(),
-                          returnedDate: record.returnedDate?.toISOString(),
-                          remarks: record.remarks,
-                        }}
-                      />
-                    ) : null,
-                },
-              ]}
-              rows={issuedAssets}
-              getRowKey={(record) => record._id.toString()}
-              emptyMessage="No assets logged yet."
-              emptyDescription="Log equipment, uniforms or IDs when they're handed over, and mark them returned at clearance."
-            />
-          </CardContent>
-        </Card>
-      )}
+      {tab === "assets" && canReadAssets && <AssetsTab organizationId={organizationId} employeeId={employeeId} issuedAssets={issuedAssets} canCreateAssets={canCreateAssets} canUpdateAssets={canUpdateAssets} />}
 
       {missingIds.length > 0 && tab === "overview" && (
         <p className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
