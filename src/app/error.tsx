@@ -5,7 +5,7 @@ import { TriangleAlertIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function RootError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -17,8 +17,10 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
             <TriangleAlertIcon className="size-5" />
           </div>
-          <CardTitle className="text-xl">Something went wrong</CardTitle>
-          <CardDescription>An unexpected error occurred. You can try again.</CardDescription>
+          <CardTitle className="text-xl">This page couldn&apos;t load</CardTitle>
+          <CardDescription>
+            Try again in a moment. If it keeps happening, tell your administrator{error.digest ? ` (reference ${error.digest})` : ""}.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={reset} className="w-full">
