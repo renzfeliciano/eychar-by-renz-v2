@@ -1,4 +1,6 @@
 import { Ban, CalendarClock, CalendarDays, Plane } from "lucide-react";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { TravelOrderService } from "@/domains/travel-orders/travel-order-service";
@@ -27,6 +29,7 @@ export default async function TravelOrdersPage({ searchParams }: { searchParams:
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("travel-orders.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view travel orders.</p>;
   }
@@ -219,6 +222,13 @@ export default async function TravelOrdersPage({ searchParams }: { searchParams:
                     <CancelTravelOrderButton id={order._id.toString()} organizationId={organizationId} />
                   </div>
                 ) : null,
+            },
+            {
+              key: "delete",
+              header: "",
+              className: "w-10",
+              render: (row) =>
+                superAdmin ? <DeleteRecordButton organizationId={organizationId} type="travel-order" id={row._id.toString()} iconOnly /> : null,
             },
           ]}
           rows={pageRows}

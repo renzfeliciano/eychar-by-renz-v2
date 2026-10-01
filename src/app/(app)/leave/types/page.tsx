@@ -1,4 +1,6 @@
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { CircleCheck, ListChecks, ShieldQuestion, TriangleAlert } from "lucide-react";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
@@ -16,6 +18,7 @@ export default async function LeaveTypesPage() {
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("leave-types.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view leave types.</p>;
   }
@@ -105,6 +108,13 @@ export default async function LeaveTypesPage() {
                   {canDelete && <DeleteLeaveTypeButton id={leaveType._id.toString()} name={leaveType.name} organizationId={organizationId} />}
                 </div>
               ) : null,
+          },
+          {
+            key: "delete",
+            header: "",
+            className: "w-10",
+            render: (row) =>
+              superAdmin ? <DeleteRecordButton organizationId={organizationId} type="leave-type" id={row._id.toString()} iconOnly /> : null,
           },
         ]}
         rows={leaveTypes}

@@ -1,4 +1,5 @@
 import { getSelfServiceSession } from "@/app/_shared/get-self-service-session";
+import { hourInAppZone } from "@/lib/app-time";
 import { SelfServiceAttendanceService } from "@/domains/attendance/self-service-attendance-service";
 import { ClockSiteService } from "@/domains/attendance/clock-site-service";
 import { ScheduleService, localDateKey } from "@/domains/attendance/schedule-service";
@@ -38,7 +39,7 @@ export default async function ClockPage() {
         <div className="bg-primary/[0.035] px-5 pt-5 pb-4 dark:bg-primary/[0.08]">
           <p className="text-xs font-medium text-muted-foreground">{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight">
-            {greetingFor(now.getHours())}, {session.name.split(" ")[0]}
+            {greetingFor(hourInAppZone(now))}, {session.name.split(" ")[0]}
           </h1>
           <p className="text-sm text-muted-foreground">Employee #{session.employeeNumber ?? "—"}</p>
         </div>

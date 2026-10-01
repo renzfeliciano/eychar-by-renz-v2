@@ -1,4 +1,6 @@
 import { Building, MapPin, Navigation, Users } from "lucide-react";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { LocationService } from "@/domains/organization/location-service";
@@ -15,6 +17,7 @@ export default async function LocationsPage() {
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("locations.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view locations.</p>;
   }
@@ -103,6 +106,13 @@ export default async function LocationsPage() {
                   }}
                 />
               ) : null,
+          },
+          {
+            key: "delete",
+            header: "",
+            className: "w-10",
+            render: (row) =>
+              superAdmin ? <DeleteRecordButton organizationId={organizationId} type="location" id={row._id.toString()} iconOnly /> : null,
           },
         ]}
         rows={locations}

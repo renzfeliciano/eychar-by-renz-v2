@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
 import { AlarmClock, CalendarClock, CircleDollarSign, ListChecks, Zap } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -30,6 +32,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("clearance.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view clearances.</p>;
   }
@@ -72,6 +75,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
           <div className="flex items-center gap-2">
             <StatusBadge status={clearance.status} label={CLEARANCE_STATUS_LABELS[clearance.status]} tone={CLEARANCE_STATUS_TONES[clearance.status]} />
             {canUpdate && editable && <CancelClearanceButton organizationId={organizationId} caseId={id} />}
+            {superAdmin && <DeleteRecordButton organizationId={organizationId} type="clearance" id={id} afterDeleteHref="/clearance" />}
             {(settlement || (canPrepareSettlement && editable)) && (
               <PrepareSettlementButton organizationId={organizationId} clearanceCaseId={id} existingId={settlement?._id.toString()} />
             )}

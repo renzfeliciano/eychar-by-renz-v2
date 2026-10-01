@@ -1,4 +1,6 @@
 import { AlarmClock, FolderKanban, Gavel, Handshake } from "lucide-react";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { CaseService } from "@/domains/cases/case-service";
@@ -30,6 +32,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("cases.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view cases.</p>;
   }
@@ -247,6 +250,13 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
                     }}
                   />
                 ) : null,
+            },
+            {
+              key: "delete",
+              header: "",
+              className: "w-10",
+              render: (row) =>
+                superAdmin ? <DeleteRecordButton organizationId={organizationId} type="case" id={row._id.toString()} iconOnly /> : null,
             },
           ]}
           rows={pageRows}

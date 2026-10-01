@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { zonedInstant } from "@/lib/app-time";
 import { summarizeAttendance } from "@/domains/payroll/payroll-attendance";
 import { dateKeysBetween } from "@/lib/date-key";
 
 const POLICY = { standardStartTime: "08:00", standardEndTime: "17:00" };
 // Local wall-clock times, the way attendance check-ins are read everywhere else.
-const at = (key: string, hours: number, minutes: number) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)), hours, minutes);
+// Wall-clock times in the organization's zone (Asia/Manila), whatever timezone the test machine runs in.
+const at = (key: string, hours: number, minutes: number) => zonedInstant(key, `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`);
 
 describe("summarizeAttendance", () => {
   // 2026-10-05 (Mon) to 2026-10-11 (Sun): five workdays under a Mon–Fri week.

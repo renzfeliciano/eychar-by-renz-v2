@@ -1,6 +1,11 @@
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+// Run tests in UTC, the way the server runs on Vercel, so any time math that
+// leans on the machine's own timezone (instead of src/lib/app-time.ts) fails
+// here rather than on the live site.
+process.env.TZ = "UTC";
+
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
@@ -16,5 +21,8 @@ export default defineConfig({
     // non-deterministic failures, so file execution is serialized.
     fileParallelism: false,
     clearMocks: true,
+    // The suite runs serially against one database; on a busy machine some
+    // UI tests brush past Vitest's 5 s default without anything being wrong.
+    testTimeout: 15_000,
   },
 });

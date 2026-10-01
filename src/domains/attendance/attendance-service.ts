@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { minutesOfDayInAppZone } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
 import { AttendanceRecordModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
@@ -15,7 +16,7 @@ import type { RecordAttendanceInput, AdjustAttendanceInput } from "@/shared/vali
 // flip an early-morning on-time check-in to "late" once that offset pushes
 // it onto the previous UTC calendar day.
 function minutesSinceMidnight(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes();
+  return minutesOfDayInAppZone(date);
 }
 
 // Each self-service record carries up to two base64 clock photos — lists

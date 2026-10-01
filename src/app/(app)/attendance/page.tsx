@@ -1,4 +1,5 @@
 import { CalendarCheck2, CircleDashed, Clock3, Palmtree, UserX } from "lucide-react";
+import { clockTime } from "@/lib/app-time";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
@@ -22,12 +23,8 @@ function toDateInputValue(date: Date): string {
 
 function formatTime(value?: Date | null): string {
   if (!value) return "—";
-  // Local time, matching every other date/time display in this app
-  // (toLocaleDateString() etc.) — UTC hours here previously made a genuine
-  // afternoon check-in/out look like a stale early-morning one to anyone
-  // reading the roster in the organization's own timezone.
-  const date = new Date(value);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  // The organization's clock (Asia/Manila), not the server's: Vercel runs in UTC.
+  return clockTime(value);
 }
 
 function initials(name: string) {

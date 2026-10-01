@@ -14,7 +14,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "workforcehub:sidebar-collapsed";
 
-export function WorkspaceLayout({ account, children }: { account: React.ComponentProps<typeof AccountMenu>; children: React.ReactNode }) {
+export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { account: React.ComponentProps<typeof AccountMenu>; isSuperAdmin?: boolean; children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -54,7 +54,7 @@ export function WorkspaceLayout({ account, children }: { account: React.Componen
           {!collapsed && <span className="truncate text-sm font-semibold">WorkforceHub</span>}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
-          <NavLinks collapsed={collapsed} />
+          <NavLinks collapsed={collapsed} isSuperAdmin={isSuperAdmin} />
         </div>
         <div className="border-t border-sidebar-border p-2">
           <button
@@ -101,7 +101,7 @@ export function WorkspaceLayout({ account, children }: { account: React.Componen
               </SheetHeader>
               {/* Its own scroll area: the sheet is full-height, so without this the lower modules sit off-screen with no way to reach them. */}
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6" data-testid="mobile-nav-scroll">
-                <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+                <NavLinks onNavigate={() => setMobileNavOpen(false)} isSuperAdmin={isSuperAdmin} />
               </div>
             </SheetContent>
           </Sheet>

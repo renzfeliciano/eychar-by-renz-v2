@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { hourInAppZone } from "@/lib/app-time";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { Banknote, CalendarCheck2, Palmtree, UserCheck } from "lucide-react";
@@ -251,7 +252,7 @@ export default async function DashboardPage() {
   const firstName = (displayNames.get(session.user.id) ?? session.user.name ?? "").trim().split(/\s+/)[0];
   // A product dashboard opens into the day's work: a greeting and the date,
   // then the numbers (impeccable Operate mode), not a hero banner.
-  const greeting = `${greetingFor(now.getHours())}${firstName ? `, ${firstName}` : ""}`;
+  const greeting = `${greetingFor(hourInAppZone(now))}${firstName ? `, ${firstName}` : ""}`;
 
   if (!organization) {
     return (

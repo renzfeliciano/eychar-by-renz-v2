@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
 import { AlarmClock, ArrowDownRight, ArrowUpRight, Info, Wallet } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
@@ -72,6 +74,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("final-settlements.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view final settlements.</p>;
   }
@@ -109,7 +112,12 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
       <PageHeader
         title={`Final settlement: ${clearance.employeeName}`}
         description={`${clearance.caseNumber} · ${clearance.separationTypeName} · last working day ${new Date(clearance.lastWorkingDay).toLocaleDateString("en-US", SHORT)} · version ${settlement.version}`}
-        action={<StatusBadge status={settlement.status} label={SETTLEMENT_STATUS_LABELS[settlement.status]} tone={SETTLEMENT_STATUS_TONES[settlement.status]} />}
+        action={
+          <div className="flex items-center gap-2">
+            <StatusBadge status={settlement.status} label={SETTLEMENT_STATUS_LABELS[settlement.status]} tone={SETTLEMENT_STATUS_TONES[settlement.status]} />
+            {superAdmin && <DeleteRecordButton organizationId={organizationId} type="final-settlement" id={id} afterDeleteHref="/final-settlements" />}
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

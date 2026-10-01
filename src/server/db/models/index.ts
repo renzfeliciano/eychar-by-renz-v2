@@ -52,3 +52,5 @@ export { ClearanceChecklistItemModel } from "./clearance-checklist-item";
 export { ClearanceCaseModel } from "./clearance-case";
 export { PaymentMethodModel } from "./payment-method";
 export { FinalSettlementModel } from "./final-settlement";
+export { DeletionBatchModel } from "./deletion-batch";
+export { DeletedRecordModel } from "./deleted-record";

@@ -34,6 +34,7 @@ import {
   UserCog,
   UserMinus,
   Calculator,
+  Trash2,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -110,6 +111,7 @@ export const NAV_SECTIONS = [
       { href: "/settings/access", label: "Roles & access", icon: ShieldCheck },
       { href: "/settings/accounts", label: "Accounts", icon: UserCog },
       { href: "/settings/audit", label: "Audit log", icon: ScrollText },
+      { href: "/settings/recycle-bin", label: "Recycle bin", icon: Trash2, superAdminOnly: true },
     ],
   },
 ];
@@ -140,7 +142,7 @@ export function activeNavItem(pathname: string) {
 
 const COLLAPSED_SECTIONS_STORAGE_KEY = "workforcehub:nav-collapsed-sections";
 
-export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
+export function NavLinks({ onNavigate, collapsed = false, isSuperAdmin = false }: { onNavigate?: () => void; collapsed?: boolean; isSuperAdmin?: boolean }) {
   const pathname = usePathname();
   const activeHref = activeNavItem(pathname)?.item.href;
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -204,7 +206,7 @@ export function NavLinks({ onNavigate, collapsed = false }: { onNavigate?: () =>
             )}
             {!isCollapsed && (
               <div id={`nav-section-${slug}`} className="flex flex-col gap-1">
-                {section.items.map((item) => {
+                {section.items.filter((item) => isSuperAdmin || !("superAdminOnly" in item && item.superAdminOnly)).map((item) => {
                   const isActive = item.href === activeHref;
                   const Icon = item.icon;
                   return (

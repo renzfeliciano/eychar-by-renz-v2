@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { clockTime } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
 import { AttendanceRecordModel, ProjectModel, ScheduleEntryModel } from "@/server/db/models";
 import { EmployeeService } from "@/domains/workforce/employee-service";
@@ -64,8 +65,7 @@ function dateKeysBetween(from: string, to: string): string[] {
 // Local wall-clock time, matching the daily roster screen.
 function formatClock(value: Date | null | undefined): string {
   if (!value) return "";
-  const date = new Date(value);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return clockTime(value);
 }
 
 function hoursBetween(checkInAt: Date | null | undefined, checkOutAt: Date | null | undefined): number | null {

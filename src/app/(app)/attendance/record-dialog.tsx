@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { clockTime, zonedInstant } from "@/lib/app-time";
 import { useRouter } from "next/navigation";
 import { Clock, Pencil } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -20,12 +21,9 @@ import { cn } from "@/lib/utils";
 
 function toTimeInput(value?: string | Date | null): string {
   if (!value) return "";
-  // Local time — matches how handleSubmit below turns this input back into
-  // a Date (a plain "HH:mm" with no timezone marker parses as local time),
-  // so an admin editing an existing time round-trips to the same instant
-  // instead of silently shifting it by the local UTC offset.
-  const date = new Date(value);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  // The organization's clock both ways (see handleSubmit), so an edited time
+  // round-trips to the same instant whatever the browser's timezone.
+  return clockTime(value);
 }
 
 export function RecordDialog({
@@ -64,8 +62,8 @@ export function RecordDialog({
     // time input above. Appending "Z" treated that local-looking value as
     // UTC instead, silently shifting the stored instant by the local
     // offset from what was intended.
-    const checkInAt = checkInTime ? new Date(`${date}T${checkInTime}:00`).toISOString() : undefined;
-    const checkOutAt = checkOutTime ? new Date(`${date}T${checkOutTime}:00`).toISOString() : undefined;
+    const checkInAt = checkInTime ? zonedInstant(date, checkInTime).toISOString() : undefined;
+    const checkOutAt = checkOutTime ? zonedInstant(date, checkOutTime).toISOString() : undefined;
 
     const response = existingRecordId
       ? await fetch(`/api/attendance/${existingRecordId}`, {

@@ -1,4 +1,5 @@
 import { weekdayOf } from "@/lib/date-key";
+import { minutesOfDayInAppZone } from "@/lib/app-time";
 import type { PayAttendance } from "./engine/compute-pay";
 
 export type AttendanceDayInput = {
@@ -11,9 +12,8 @@ export type AttendanceDayInput = {
 };
 
 function minutesOfDay(value: Date): number {
-  // Local wall-clock time, the same reading as the attendance screens.
-  const date = new Date(value);
-  return date.getHours() * 60 + date.getMinutes();
+  // The organization's wall clock, the same reading as the attendance screens.
+  return minutesOfDayInAppZone(value);
 }
 
 function parseHHmm(value: string): number {

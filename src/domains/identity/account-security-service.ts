@@ -22,6 +22,9 @@ export type AccountSummary = {
   firstName: string;
   lastName: string;
   kind: "staff" | "self-service";
+  /** Distinct permissions the account's active roles grant (delete permissions excluded: they're the Super Administrator's alone). */
+  permissionCount: number;
+  isSuperAdmin: boolean;
   roleNames: string[];
   status: AccountStatus;
   locked: boolean;
@@ -108,14 +111,24 @@ export const AccountSecurityService = {
     const personById = new Map(persons.map((person) => [person._id.toString(), person]));
 
     const assignments = await RoleAssignmentModel.find({ organizationId: new Types.ObjectId(organizationId), userId: { $in: ids } }).select("userId roleId effectiveTo").lean();
-    const roles = await RoleModel.find({ _id: { $in: assignments.map((assignment) => assignment.roleId) } }).select("name").lean();
+    const roles = await RoleModel.find({ _id: { $in: assignments.map((assignment) => assignment.roleId) } }).select("name permissionKeys system status").lean();
     const roleNameById = new Map(roles.map((role) => [role._id.toString(), role.name as string]));
+    const roleById = new Map(roles.map((role) => [role._id.toString(), role]));
     const roleNamesByUser = new Map<string, string[]>();
+    const permissionsByUser = new Map<string, Set<string>>();
+    const superAdminUsers = new Set<string>();
     for (const assignment of assignments) {
       if (assignment.effectiveTo && new Date(assignment.effectiveTo) <= now) continue;
       const name = roleNameById.get(assignment.roleId.toString());
       if (!name) continue;
       const key = assignment.userId.toString();
+      const role = roleById.get(assignment.roleId.toString());
+      if (role?.system === "super_admin") superAdminUsers.add(key);
+      if (role && role.status !== "inactive") {
+        const granted = permissionsByUser.get(key) ?? new Set<string>();
+        for (const permission of (role.permissionKeys ?? []) as string[]) if (!permission.endsWith(".delete")) granted.add(permission);
+        permissionsByUser.set(key, granted);
+      }
       roleNamesByUser.set(key, [...(roleNamesByUser.get(key) ?? []), name]);
     }
 
@@ -131,6 +144,8 @@ export const AccountSecurityService = {
           firstName: person?.firstName ?? "",
           lastName: person?.lastName ?? "",
           kind: user.employeeId ? ("self-service" as const) : ("staff" as const),
+          permissionCount: permissionsByUser.get(user._id.toString())?.size ?? 0,
+          isSuperAdmin: superAdminUsers.has(user._id.toString()),
           roleNames: (roleNamesByUser.get(user._id.toString()) ?? []).sort((a, b) => a.localeCompare(b)),
           status: user.status as AccountStatus,
           locked: Boolean(user.lockedUntil && new Date(user.lockedUntil) > now),

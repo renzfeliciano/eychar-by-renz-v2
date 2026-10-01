@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
 import {
   AlertTriangle,
@@ -73,6 +75,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("employees.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view this employee.</p>;
   }
@@ -167,6 +170,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {superAdmin && <DeleteRecordButton organizationId={organizationId} type="employee" id={employeeId} afterDeleteHref="/people" />}
             {canUpdate && detail.person && (
               <EditEmployeeDialog
                 organizationId={organizationId}

@@ -1,4 +1,6 @@
 import { Briefcase, BriefcaseBusiness, CircleDashed, Users } from "lucide-react";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PositionService } from "@/domains/organization/position-service";
@@ -14,6 +16,7 @@ export default async function PositionsPage() {
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
   const organizationId = organization._id.toString();
+  const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("positions.read", organizationId))) {
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view positions.</p>;
   }
@@ -48,6 +51,13 @@ export default async function PositionsPage() {
             },
           },
           { key: "status", header: "Status", render: (position) => <StatusBadge status={position.status} /> },
+          {
+            key: "delete",
+            header: "",
+            className: "w-10",
+            render: (row) =>
+              superAdmin ? <DeleteRecordButton organizationId={organizationId} type="position" id={row._id.toString()} iconOnly /> : null,
+          },
         ]}
         rows={positions}
         getRowKey={(position) => position._id.toString()}

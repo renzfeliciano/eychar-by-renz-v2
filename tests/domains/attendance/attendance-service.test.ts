@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { zonedInstant } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
 import { OrganizationModel, PersonModel, EmployeeModel, AuditLogModel, AttendanceRecordModel } from "@/server/db/models";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
@@ -39,8 +40,9 @@ function todayUtc(): Date {
 /** A wall-clock check-in time in the *local* timezone the test runner is in
  * — the timezone an organization's policy.standardStartTime ("09:00") is
  * actually meant to be read in. */
+// A wall-clock time in the organization's zone (Asia/Manila), whatever timezone the test machine runs in.
 function atLocalTime(date: Date, hours: number, minutes: number): Date {
-  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hours, minutes);
+  return zonedInstant(date.toISOString().slice(0, 10), `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`);
 }
 
 describe("AttendanceService", () => {

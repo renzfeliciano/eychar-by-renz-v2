@@ -1,3 +1,5 @@
+import { appDateKey } from "./app-time";
+
 /**
  * Calendar days as "YYYY-MM-DD" keys, stored as UTC midnight of that day:
  * the form attendance records, schedule entries and payroll periods all use.
@@ -12,12 +14,12 @@ export function dateToDateKey(date: Date): string {
 }
 
 /**
- * Today's key from the server's local calendar (the organization's own
- * timezone in this deployment), not the UTC date, which in UTC+8 is still
- * "yesterday" until 8am.
+ * Today's key on the organization's calendar (APP_TIME_ZONE, Asia/Manila),
+ * whatever timezone the server runs in. In UTC, Manila's morning is still
+ * "yesterday" until 8 AM.
  */
 export function localDateKey(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return appDateKey(now);
 }
 
 export function addDays(key: string, days: number): string {

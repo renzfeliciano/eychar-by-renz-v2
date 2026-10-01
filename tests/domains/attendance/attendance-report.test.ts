@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { zonedInstant } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
 import { OrganizationModel, PersonModel, EmployeeModel, EmploymentModel, ProjectModel, AttendanceRecordModel } from "@/server/db/models";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
@@ -54,10 +55,10 @@ describe("AttendanceReportService", () => {
       employeeId: angela,
       date: dateKeyToDate("2026-10-05"),
       status: "late",
-      checkInAt: new Date(2026, 9, 5, 8, 12),
-      checkOutAt: new Date(2026, 9, 5, 17, 42),
+      checkInAt: zonedInstant("2026-10-05", "08:12"),
+      checkOutAt: zonedInstant("2026-10-05", "17:42"),
       projectId,
-      checkIn: { at: new Date(2026, 9, 5, 8, 12), verified: true, distanceMeters: 35 },
+      checkIn: { at: zonedInstant("2026-10-05", "08:12"), verified: true, distanceMeters: 35 },
     });
     // Someone who has since left still appears on the days they have a record for.
     await AttendanceRecordModel.create({ organizationId, employeeId: ben, date: dateKeyToDate("2026-10-06"), status: "present", notes: "Recorded by HR" });

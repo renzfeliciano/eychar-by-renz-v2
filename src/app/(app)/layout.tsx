@@ -9,6 +9,7 @@ import { formatPersonName } from "@/lib/person-name";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { WorkspaceLayout } from "@/components/shared/workspace-layout";
 import { ConcurrentSessionGuard } from "@/components/shared/concurrent-session-guard";
+import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -26,15 +27,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const organization = organizations[0];
   const organizationId = organization?._id.toString();
 
-  const [person, roleNames, canManageAccess] = await Promise.all([
+  const [person, roleNames, canManageAccess, isSuperAdmin] = await Promise.all([
     user?.personId ? PersonModel.findById(user.personId).lean() : null,
     organizationId ? RoleAssignmentService.listRoleNamesForUser(session.user.id, organizationId) : [],
     organizationId ? hasPermission("roles.read", organizationId) : false,
+    organizationId ? SuperAdminService.isSuperAdmin(session.user.id, organizationId) : false,
   ]);
   const displayName = person ? formatPersonName(person) : (session.user.name ?? user?.username ?? session.user.email ?? "User");
 
   return (
     <WorkspaceLayout
+      isSuperAdmin={isSuperAdmin}
       account={{
         displayName,
         username: user?.username ?? null,

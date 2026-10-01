@@ -12,7 +12,7 @@ import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { formatRelativeDays } from "@/lib/relative-time";
-import { SuperAdminService } from "@/domains/authorization/super-admin-service";
+import { RoleService } from "@/domains/authorization/role-service";
 import { AccountActions } from "./account-actions";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -57,9 +57,8 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   const now = new Date();
   const accounts = await AccountSecurityService.listForOrganization(organizationId, now);
   // The Super Administrator's own account is theirs alone to manage.
-  const superAdminIds = new Set(
-    (await Promise.all(accounts.map(async (account) => ((await SuperAdminService.isSuperAdmin(account.id, organizationId)) ? account.id : null)))).filter(Boolean),
-  );
+  const superAdminIds = new Set(accounts.filter((account) => account.isSuperAdmin).map((account) => account.id));
+  const totalPermissions = (await RoleService.listAvailablePermissions()).length;
   const active = accounts.filter((account) => account.status === "active");
   const staffActive = active.filter((account) => account.kind === "staff");
   const staffWithMfa = staffActive.filter((account) => account.mfaEnabled).length;
@@ -129,8 +128,24 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
             header: "Access",
             render: (account) => (
               <div className="flex flex-col gap-1">
-                <span className="text-sm">{account.kind === "staff" ? "HR & staff" : "Employee self-service"}</span>
-                {account.kind === "staff" && account.roleNames.length > 0 && <span className="text-xs text-muted-foreground">{account.roleNames.join(", ")}</span>}
+                {superAdminIds.has(account.id) ? (
+                  <>
+                    <span className="text-sm font-medium text-primary">Super Administrator</span>
+                    <span className="text-xs text-muted-foreground">Full access, including delete</span>
+                  </>
+                ) : account.kind === "self-service" ? (
+                  <>
+                    <span className="text-sm">Employee self-service</span>
+                    <span className="text-xs text-muted-foreground">Clock-in portal only</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm">{account.roleNames.length ? account.roleNames.join(", ") : "No role yet"}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {account.roleNames.length ? `Staff login · ${account.permissionCount} of ${totalPermissions} permissions` : "Staff login · can't open anything until a role is assigned"}
+                    </span>
+                  </>
+                )}
               </div>
             ),
           },

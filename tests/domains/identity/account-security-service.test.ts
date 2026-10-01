@@ -159,4 +159,13 @@ describe("renaming accounts", () => {
     const s = await setup();
     await expect(AccountSecurityService.rename(s.staff, s.organizationId, { firstName: " ", lastName: "Dizon" }, { userId: s.hr })).rejects.toThrow(ValidationError);
   });
+
+  it("reports how many permissions each account's roles grant, counting overlaps once", async () => {
+    const s = await setup();
+    const accounts = await AccountSecurityService.listForOrganization(s.organizationId);
+    // The HR account's role (from makeStaff) has no permissions; the staff account has no role.
+    expect(accounts.find((account) => account.id === s.hr)?.permissionCount).toBe(0);
+    expect(accounts.find((account) => account.id === s.staff)?.permissionCount).toBe(0);
+    expect(accounts.find((account) => account.id === s.owner)?.isSuperAdmin).toBe(true);
+  });
 });
