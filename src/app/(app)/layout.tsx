@@ -28,6 +28,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // A temporary password (new account or an HR reset) must be replaced before anything else.
   if (user?.mustChangePassword) redirect("/change-password");
   if (user?.employeeId) redirect("/clock");
+  // The organization requires two-step for staff accounts and this one hasn't set it up yet.
+  if (session.mustSetUpTwoStep) redirect("/set-up-two-step");
 
   const organizations = await OrganizationService.listAccessibleTo(session.user.id);
   const organization = organizations[0];

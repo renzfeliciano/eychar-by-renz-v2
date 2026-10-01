@@ -325,9 +325,11 @@ The last Phase 8 sub-phase, and the only one with nothing in the legacy v1 app t
 call as ADR-020's attendance photos) were confirmed directly with the user rather than inferred.
 `EmployeeDocument` (`employeeId`, `title`, `documentType` — the ninth org-managed catalog,
 ADR-016 — `fileName`/`fileType`/`fileSize`/`fileData`, `expiresAt?`, `notes?`) lives on a
-"Documents" card on `/people/[id]`. `fileData` is capped around 5MB decoded at the validation
-boundary and excluded from `listForEmployee()` (`.select("-fileData")`) — only the single-record
-download endpoint (`getById()`) returns it, fetched on demand when a download button is clicked.
+"Documents" card on `/people/[id]`. **Storage moved to private object storage in ADR-038:** files
+go to Vercel Blob (`access: "private"`) through `src/server/storage/document-storage.ts` when
+`BLOB_READ_WRITE_TOKEN` is set, else stay inline in `fileData`; `storage { provider, key }` says
+which. Uploads are multipart, capped at 4MB; the download route streams the file as an attachment
+and is the only way to it. Lists and edits never return `fileData` or `storage`.
 No delete of any kind, not even a status flip — a wrong upload is superseded by a new one, never
 edited in place at the byte level; `update()`'s schema omits every file field entirely.
 
@@ -392,6 +394,11 @@ edited in place at the byte level; `update()`'s schema omits every file field en
   neutralising; exports audited; per-user rate limits (`src/server/security/rate-limit.ts`).
 - **Platform:** per-request nonce CSP from `src/proxy.ts` (production), HSTS in production only,
   no `X-Powered-By`, constant-time cron secret checks, PII-free error logs.
+- **Required two-step (ADR-039):** `Organization.security.requireTwoStepForStaff`; staff accounts
+  (no linked employee) without two-step get `mustSetUpTwoStep` in the token, are refused by
+  `requireAuthenticatedUser` except the two-step/password routes, and are sent to `/set-up-two-step`.
+- **CI:** `.github/workflows/ci.yml` runs lint, typecheck, tests and build on pushes and PRs; the
+  pre-commit hook keeps only lint and typecheck. Cron schedules live in `vercel.json`.
 - **Dialogs (UI standard):** `DialogContent` keeps header and footer fixed and scrolls only the body
   (children are sorted by `DialogHeader`/`DialogFooter`, or a component's static `dialogSlot`).
 

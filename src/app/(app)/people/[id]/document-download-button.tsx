@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,14 +11,22 @@ export function DocumentDownloadButton({ employeeId, documentId, organizationId,
   async function handleDownload() {
     setIsDownloading(true);
     try {
-      const response = await fetch(`/api/employees/${employeeId}/documents/${documentId}?organizationId=${organizationId}`);
-      if (!response.ok) return;
-      const { document } = await response.json();
+      // The route streams the file itself (from object storage or, for older documents, the database).
+      const response = await fetch(`/api/employees/${employeeId}/documents/${documentId}?organizationId=${encodeURIComponent(organizationId)}`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        toast.error(body.error ?? "Couldn't download the document.");
+        return;
+      }
+      const url = URL.createObjectURL(await response.blob());
       const link = window.document.createElement("a");
-      // The server only returns allowed types; anything else downloads as plain binary.
-      link.href = `data:${document.fileType || "application/octet-stream"};base64,${document.fileData}`;
-      link.download = document.fileName;
+      link.href = url;
+      link.download = fileName;
       link.click();
+      // Give the browser a moment to start the download before releasing the file.
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch {
+      toast.error("Couldn't download the document. Check your connection and try again.");
     } finally {
       setIsDownloading(false);
     }
@@ -25,7 +34,7 @@ export function DocumentDownloadButton({ employeeId, documentId, organizationId,
 
   return (
     <Button type="button" variant="ghost" size="sm" onClick={handleDownload} disabled={isDownloading} aria-label={`Download ${fileName}`}>
-      {isDownloading ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+      {isDownloading ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Download className="size-3.5" aria-hidden="true" />}
     </Button>
   );
 }

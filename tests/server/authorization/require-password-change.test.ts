@@ -42,3 +42,19 @@ describe("a session still on a temporary password", () => {
     await expect(requireSelfServiceEmployee()).resolves.toMatchObject({ userId, organizationId });
   });
 });
+
+describe("a staff session that still has to set up required two-step verification", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+    session.mockReset();
+  });
+
+  it("is refused everywhere except the two-step and password routes' opt-in", async () => {
+    const { userId, organizationId } = await seed();
+    session.mockResolvedValue({ user: { id: userId }, mustSetUpTwoStep: true });
+
+    await expect(requireAuthenticatedUser()).rejects.toThrow(/two-step/);
+    await expect(requirePermission("employees.read", organizationId)).rejects.toThrow(AuthorizationError);
+    await expect(requireAuthenticatedUser({ allowPendingTwoStepSetup: true })).resolves.toEqual({ userId });
+  });
+});

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import argon2 from "argon2";
 import { connectMongoDB } from "@/server/db/connection";
-import { UserModel } from "@/server/db/models";
+import { OrganizationModel, RoleAssignmentModel, RoleModel, UserModel } from "@/server/db/models";
 import { MfaService } from "@/domains/identity/mfa-service";
 import { generateTotp, TOTP_STEP_SECONDS } from "@/server/auth/totp";
 import { openSecret } from "@/server/auth/secret-box";
-import { ValidationError } from "@/shared/errors";
+import { BusinessRuleError, ValidationError } from "@/shared/errors";
 
 const PASSWORD = "harbor-lantern-73-mango";
 
@@ -82,5 +82,16 @@ describe("MfaService", () => {
     const reset = await UserModel.findById(user._id).lean();
     expect(reset!.mfa?.enabled).toBe(false);
     expect(reset!.mfa?.secret).toBeFalsy();
+  });
+
+  it("can't be turned off by staff while the organization requires it", async () => {
+    const user = await makeUser();
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-mfa-${Date.now()}-${Math.random()}`, security: { requireTwoStepForStaff: true } });
+    const role = await RoleModel.create({ organizationId: organization._id, name: `HR ${Math.random()}`, permissionKeys: ["employees.read"] });
+    await RoleAssignmentModel.create({ organizationId: organization._id, roleId: role._id, userId: user._id });
+    await enroll(user._id.toString(), new Date());
+
+    await expect(MfaService.disable(user._id.toString(), PASSWORD)).rejects.toBeInstanceOf(BusinessRuleError);
+    expect((await UserModel.findById(user._id).lean())!.mfa?.enabled).toBe(true);
   });
 });

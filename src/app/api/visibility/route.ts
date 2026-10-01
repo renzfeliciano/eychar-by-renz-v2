@@ -1,9 +1,7 @@
+import { requireAuthenticatedUser } from "@/server/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/options";
 import { VisibilityService } from "@/domains/visibility/visibility-service";
-import { AuthenticationError } from "@/shared/errors";
 import { toErrorResponse } from "@/shared/errors/to-response";
 import { objectId } from "@/shared/validation/object-id";
 
@@ -13,9 +11,8 @@ const bodySchema = z.object({ organizationId: objectId(), type: z.string().trim(
 export async function POST(request: NextRequest) {
   try {
     const input = bodySchema.parse(await request.json());
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new AuthenticationError();
-    return NextResponse.json(await VisibilityService.setHidden(input.type, input.id, input.organizationId, input.hidden, { userId: session.user.id }));
+    const { userId } = await requireAuthenticatedUser();
+    return NextResponse.json(await VisibilityService.setHidden(input.type, input.id, input.organizationId, input.hidden, { userId: userId }));
   } catch (error) {
     return toErrorResponse(error);
   }

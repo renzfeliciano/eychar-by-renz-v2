@@ -23,10 +23,10 @@ describe("inspectDocumentUpload", () => {
     expect(() => inspectDocumentUpload({ fileType: "image/png", fileData: PDF })).toThrow(/isn't a real PNG/);
   });
 
-  it("rejects text that isn't base64, empty files, and files over 5MB", () => {
+  it("rejects text that isn't base64, empty files, and files over 4MB", () => {
     expect(() => inspectDocumentUpload({ fileType: "application/pdf", fileData: "not base64!!" })).toThrow(ValidationError);
     expect(() => inspectDocumentUpload({ fileType: "application/pdf", fileData: "" })).toThrow(ValidationError);
-    const big = Buffer.concat([Buffer.from("%PDF-"), Buffer.alloc(5 * 1024 * 1024)]).toString("base64");
+    const big = Buffer.concat([Buffer.from("%PDF-"), Buffer.alloc(4 * 1024 * 1024)]).toString("base64");
     expect(() => inspectDocumentUpload({ fileType: "application/pdf", fileData: big })).toThrow(/too large/);
   });
 });

@@ -7,6 +7,7 @@ import { generateRecoveryCodes, hashRecoveryCode } from "@/server/auth/recovery-
 import { BusinessRuleError, NotFoundError, ValidationError } from "@/shared/errors";
 import { auditUserEvent } from "./user-audit";
 import { BRAND } from "@/lib/brand";
+import { SecuritySettingsService } from "./security-settings-service";
 
 // The label authenticator apps show beside the code. Accounts enrolled
 // before the rebrand keep their old label until they re-enrol; the codes
@@ -108,6 +109,9 @@ export const MfaService = {
   async disable(userId: string, password: string): Promise<void> {
     const user = await loadUser(userId);
     if (!(await argon2.verify(user.passwordHash, password))) throw new ValidationError("Your password is incorrect.");
+    if (!user.employeeId && (await SecuritySettingsService.forUser(userId)).requireTwoStepForStaff) {
+      throw new BusinessRuleError("Your organization requires two-step verification for HR and admin accounts, so it can't be turned off. To move it to a new phone, get new recovery codes or ask an administrator to reset it.");
+    }
     await UserModel.updateOne({ _id: user._id }, { $set: { mfa: { enabled: false } } });
     await auditUserEvent(userId, "auth.mfa-disabled");
   },

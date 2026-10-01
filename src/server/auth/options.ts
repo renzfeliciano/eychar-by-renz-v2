@@ -15,7 +15,18 @@ import { describeDevice, readHeader } from "@/lib/user-agent";
 
 /** The idle limit for this account's organization (Settings › Security). */
 async function idleLimitMs(userId: string): Promise<number> {
-  return (await SecuritySettingsService.forUser(userId)).idleTimeoutSeconds * 1000;
+  return (await sessionSettings(userId)).idleMs;
+}
+
+/** The organization's session settings this token caches (refreshed on activity). */
+async function sessionSettings(userId: string): Promise<{ idleMs: number; twoStepRequired: boolean }> {
+  const settings = await SecuritySettingsService.forUser(userId);
+  return { idleMs: settings.idleTimeoutSeconds * 1000, twoStepRequired: settings.requireTwoStepForStaff };
+}
+
+/** A staff account (no linked employee) in an organization that requires two-step, without it on yet. */
+function needsTwoStepSetup(twoStepRequired: boolean | undefined, user: { employeeId?: unknown; mfa?: { enabled?: boolean } } | null | undefined): boolean {
+  return Boolean(twoStepRequired && user && !user.employeeId && !user.mfa?.enabled);
 }
 
 /** Who may see records hidden as test data (ADR-034): the Super Administrator, and a self-service employee (their own records only). */
@@ -113,13 +124,16 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         const now = Date.now();
         await connectMongoDB();
-        const signedIn = await UserModel.findById(user.id).select("employeeId").lean();
+        const signedIn = await UserModel.findById(user.id).select("employeeId mfa.enabled").lean();
+        const settings = await sessionSettings(user.id);
         token.userId = user.id;
         token.sessionId = user.sessionId;
         token.replacedSessionAt = user.replacedSessionAt;
         token.mustChangePassword = Boolean(user.mustChangePassword);
         token.seesHidden = await viewerMaySeeHidden(user.id, signedIn?.employeeId);
-        token.idleMs = await idleLimitMs(user.id);
+        token.idleMs = settings.idleMs;
+        token.twoStepRequired = settings.twoStepRequired;
+        token.mustSetUpTwoStep = needsTwoStepSetup(settings.twoStepRequired, signedIn);
         token.lastActivityAt = now;
         token.signedInAt = now;
         token.expired = false;
@@ -139,11 +153,15 @@ export const authOptions: NextAuthOptions = {
       // Only real activity (pinged by the idle guard) or an explicit update keeps the session alive;
       // background session polling just checks it. Picks up a changed idle limit at the same time.
       const isActivity = trigger === "update";
-      if (isActivity || token.idleMs === undefined) token.idleMs = await idleLimitMs(token.userId as string);
+      if (isActivity || token.idleMs === undefined || token.twoStepRequired === undefined) {
+        const settings = await sessionSettings(token.userId as string);
+        token.idleMs = settings.idleMs;
+        token.twoStepRequired = settings.twoStepRequired;
+      }
 
       await connectMongoDB();
       const currentUser = await UserModel.findOne({ _id: token.userId, status: "active" })
-        .select("activeSessionId lastActivityAt mustChangePassword employeeId lastSignInAt lastSignInDevice lastSignInHost")
+        .select("activeSessionId lastActivityAt mustChangePassword employeeId mfa.enabled lastSignInAt lastSignInDevice lastSignInHost")
         .lean();
 
       const state = resolveSessionState({
@@ -176,6 +194,8 @@ export const authOptions: NextAuthOptions = {
       // Re-read every request, so a temporary password, or losing the Super
       // Administrator role, takes effect at once rather than at next sign-in.
       token.mustChangePassword = Boolean(currentUser?.mustChangePassword);
+      // Re-read every request too, so turning two-step on lifts the block at once.
+      token.mustSetUpTwoStep = needsTwoStepSetup(token.twoStepRequired, currentUser);
       token.seesHidden = await viewerMaySeeHidden(token.userId as string, currentUser?.employeeId);
       if (!isActivity) return token;
       token.lastActivityAt = Date.now();
@@ -197,6 +217,7 @@ export const authOptions: NextAuthOptions = {
       if (token.userId) session.user.id = token.userId as string;
       if (token.replacedSessionAt) session.replacedSessionAt = token.replacedSessionAt;
       if (token.mustChangePassword) session.mustChangePassword = true;
+      if (token.mustSetUpTwoStep) session.mustSetUpTwoStep = true;
       return session;
     },
   },

@@ -8,7 +8,7 @@ import { toErrorResponse } from "@/shared/errors/to-response";
 export async function POST(request: Request) {
   try {
     // The one route an account on a temporary password may use.
-    const { userId } = await requireAuthenticatedUser({ allowPendingPasswordChange: true });
+    const { userId } = await requireAuthenticatedUser({ allowPendingPasswordChange: true, allowPendingTwoStepSetup: true });
     const input = changePasswordSchema.parse(await request.json());
     // The change ends this session too; the form signs in again with `login`.
     const { login } = await AccountSecurityService.changePassword(userId, input);

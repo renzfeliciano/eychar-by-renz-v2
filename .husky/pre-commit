@@ -1,8 +1,7 @@
+# Quick checks only; the full test suite and build run in CI
+# (.github/workflows/ci.yml) on every push and pull request.
 echo "pre-commit: lint"
 npm run lint || exit 1
 
 echo "pre-commit: typecheck"
 npm run typecheck || exit 1
-
-echo "pre-commit: test"
-npm test || exit 1

@@ -12,7 +12,7 @@ import { toErrorResponse } from "@/shared/errors/to-response";
  */
 export async function POST(request: Request) {
   try {
-    const { userId } = await requireAuthenticatedUser();
+    const { userId } = await requireAuthenticatedUser({ allowPendingTwoStepSetup: true });
     const input = mfaActionSchema.parse(await request.json());
 
     switch (input.action) {

@@ -35,8 +35,19 @@ The app runs on http://localhost:4100.
 - `npm run typecheck` — `next typegen` + `tsc --noEmit`
 - `npm run lint` — ESLint
 - `npm test` — Vitest (uses an in-memory MongoDB; no `MONGODB_URI` needed)
+- The pre-commit hook runs lint and typecheck only; the full test suite and build run in
+  GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and every pull request
 - `npm run db:seed` — idempotent: seeds the initial organization, permission catalog, HR
   Administrator role, and HR user from `SEED_*` env vars
+
+## Deploying on Vercel
+
+- **Scheduled jobs:** `vercel.json` runs `/api/cron/payroll-schedules` daily at 00:05 Manila time and
+  `/api/cron/recycle-bin` daily at 01:20 Manila time (Hobby plans allow daily jobs). Set
+  `CRON_SECRET` in the project's environment variables; Vercel sends it with each run.
+- **Document files:** connect a Blob store (Storage › Blob) so employee documents are kept in private
+  object storage instead of the database (ADR-038). Without one they stay in MongoDB. Uploads are
+  limited to 4MB.
 
 ## Holiday calendar
 
@@ -71,5 +82,7 @@ Search Console.
 See [ADR-037](./docs/architecture/adr/ADR-037-security-hardening.md) for the current hardening.
 Optional settings: `SESSION_MAX_HOURS` (absolute session lifetime, default 12) and
 `TRUSTED_PROXY_HOPS` (extra proxies in front of the host that append to `X-Forwarded-For`,
-default 0). Set `MFA_ENCRYPTION_KEY` in production. Pages send a per-request nonce
+default 0). Set `MFA_ENCRYPTION_KEY` in production. The Super Administrator can require two-step
+verification for every HR and admin account under Settings › Security (ADR-039); self-service
+employee accounts are exempt. Pages send a per-request nonce
 Content-Security-Policy in production builds only, so `next dev` is unaffected.

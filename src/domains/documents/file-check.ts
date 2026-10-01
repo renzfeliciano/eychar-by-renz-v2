@@ -1,7 +1,10 @@
 import { ValidationError } from "@/shared/errors";
 
 /** Decoded file cap (the base64 text is ~33% larger). Matches the schema's limit. */
-export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
+// 4MB: uploads are sent as the file itself (multipart), and a Vercel
+// function accepts request bodies up to 4.5MB in total.
+export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
+export const MAX_DOCUMENT_LABEL = "4MB";
 
 type Kind = { label: string; matches: (bytes: Uint8Array) => boolean };
 
@@ -46,18 +49,28 @@ export function safeDownloadType(fileType: string | null | undefined): string {
  * server measured (never the browser's claim).
  */
 export function inspectDocumentUpload(input: { fileType: string; fileData: string }): { fileType: string; fileSize: number } {
-  const fileType = input.fileType.trim().toLowerCase();
-  const kind = Object.hasOwn(ALLOWED_DOCUMENT_TYPES, fileType) ? ALLOWED_DOCUMENT_TYPES[fileType] : undefined;
-  if (!kind) throw new ValidationError(`That file type isn't allowed. Upload a ${ALLOWED_DOCUMENT_LABELS} file.`);
-
+  allowedKind(input.fileType);
   const data = input.fileData.replace(/\s+/g, "");
-  if (data.length > Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4) throw new ValidationError("File is too large (max 5MB)");
+  if (data.length > Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4) throw new ValidationError(`File is too large (max ${MAX_DOCUMENT_LABEL})`);
   if (!data || !isStrictBase64(data)) throw new ValidationError("The file couldn't be read. Choose it again and retry.");
-  const bytes = Buffer.from(data, "base64");
+  return inspectDocumentBytes({ fileType: input.fileType, bytes: Buffer.from(data, "base64") });
+}
+
+/** The same checks for an upload received as the file itself (multipart). */
+export function inspectDocumentBytes(input: { fileType: string; bytes: Uint8Array }): { fileType: string; fileSize: number } {
+  const { fileType, kind } = allowedKind(input.fileType);
+  const bytes = Buffer.from(input.bytes.buffer, input.bytes.byteOffset, input.bytes.byteLength);
   if (bytes.length === 0) throw new ValidationError("The file is empty.");
-  if (bytes.length > MAX_DOCUMENT_BYTES) throw new ValidationError("File is too large (max 5MB)");
+  if (bytes.length > MAX_DOCUMENT_BYTES) throw new ValidationError(`File is too large (max ${MAX_DOCUMENT_LABEL})`);
   if (!kind.matches(bytes)) throw new ValidationError(`That file isn't a real ${kind.label} file. Check the file and try again.`);
   return { fileType, fileSize: bytes.length };
+}
+
+function allowedKind(rawType: string): { fileType: string; kind: Kind } {
+  const fileType = rawType.trim().toLowerCase();
+  const kind = Object.hasOwn(ALLOWED_DOCUMENT_TYPES, fileType) ? ALLOWED_DOCUMENT_TYPES[fileType] : undefined;
+  if (!kind) throw new ValidationError(`That file type isn't allowed. Upload a ${ALLOWED_DOCUMENT_LABELS} file.`);
+  return { fileType, kind };
 }
 
 const TYPE_BY_EXTENSION: Record<string, string> = {

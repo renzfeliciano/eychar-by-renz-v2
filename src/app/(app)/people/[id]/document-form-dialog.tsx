@@ -2,7 +2,8 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { Loader2, Plus, Pencil, Upload } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,9 +19,8 @@ import {
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
-import { ALLOWED_DOCUMENT_LABELS, DOCUMENT_ACCEPT, guessDocumentType } from "@/domains/documents/file-check";
+import { ALLOWED_DOCUMENT_LABELS, DOCUMENT_ACCEPT, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_LABEL, guessDocumentType } from "@/domains/documents/file-check";
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 export type DocumentFormValue = {
   id: string;
@@ -33,15 +33,6 @@ export type DocumentFormValue = {
 
 function toDateInputValue(value?: string | null): string {
   return value ? value.slice(0, 10) : "";
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
-    reader.onerror = () => reject(new Error("Could not read the file."));
-    reader.readAsDataURL(file);
-  });
 }
 
 export function DocumentFormDialog({
@@ -75,28 +66,34 @@ export function DocumentFormDialog({
       return;
     }
 
-    let body: Record<string, unknown> = { organizationId, title, documentType, expiresAt: expiresAt || undefined, notes: notes || undefined };
-
-    if (!isEdit) {
+    const metadata = { organizationId, title, documentType, expiresAt: expiresAt || undefined, notes: notes || undefined };
+    let request: RequestInit;
+    if (isEdit) {
+      request = { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(metadata) };
+    } else {
       const file = fileInputRef.current?.files?.[0];
       if (!file) {
         setError("Choose a file to upload.");
         return;
       }
-      if (file.size > MAX_FILE_BYTES) {
-        setError("File is too large (max 5MB).");
+      if (file.size > MAX_DOCUMENT_BYTES) {
+        setError(`File is too large (max ${MAX_DOCUMENT_LABEL}).`);
         return;
       }
-      const fileData = await readFileAsBase64(file);
-      body = { ...body, fileName: file.name, fileType: file.type || guessDocumentType(file.name), fileData };
+      // Sent as the file itself (multipart), not base64 in JSON, so it fits the hosting body limit.
+      const form = new FormData();
+      for (const [key, value] of Object.entries(metadata)) if (value) form.set(key, value);
+      form.set("file", file.type ? file : new File([file], file.name, { type: guessDocumentType(file.name) }));
+      request = { method: "POST", body: form };
     }
 
     setIsSubmitting(true);
-    const response = await fetch(isEdit ? `/api/employees/${employeeId}/documents/${initialValue!.id}` : `/api/employees/${employeeId}/documents`, {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const response = await fetch(isEdit ? `/api/employees/${employeeId}/documents/${initialValue!.id}` : `/api/employees/${employeeId}/documents`, request).catch(() => null);
+    if (!response) {
+      setIsSubmitting(false);
+      setError("Couldn't reach the server. Check your connection and try again.");
+      return;
+    }
     setIsSubmitting(false);
 
     if (!response.ok) {
@@ -113,6 +110,7 @@ export function DocumentFormDialog({
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
     setOpen(false);
+    toast.success(isEdit ? "Document updated" : "Document uploaded", { description: title });
     router.refresh();
   }
 
@@ -165,7 +163,7 @@ export function DocumentFormDialog({
             <FormField label="File" htmlFor={`${formId}-file`} required>
               <Input id={`${formId}-file`} ref={fileInputRef} type="file" accept={DOCUMENT_ACCEPT} required aria-describedby={`${formId}-file-hint`} />
               <p id={`${formId}-file-hint`} className="text-xs text-muted-foreground">
-                {ALLOWED_DOCUMENT_LABELS}, up to 5MB.
+                {ALLOWED_DOCUMENT_LABELS}, up to {MAX_DOCUMENT_LABEL}.
               </p>
             </FormField>
           )}
@@ -179,14 +177,8 @@ export function DocumentFormDialog({
         </form>
         <DialogFooter>
           <Button type="submit" form={formId} disabled={isSubmitting} data-testid={isEdit ? "document-save-button" : "documents-upload-submit-button"}>
-            {isEdit ? (
-              isSubmitting ? "Saving…" : "Save changes"
-            ) : (
-              <>
-                <Upload className="size-3.5" />
-                {isSubmitting ? "Uploading…" : "Upload document"}
-              </>
-            )}
+            {isSubmitting ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : !isEdit && <Upload className="size-3.5" aria-hidden="true" />}
+            {isEdit ? (isSubmitting ? "Saving…" : "Save changes") : isSubmitting ? "Uploading…" : "Upload document"}
           </Button>
         </DialogFooter>
       </DialogContent>

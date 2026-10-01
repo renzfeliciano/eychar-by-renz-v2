@@ -7,7 +7,15 @@ import { authorize, hasActiveRoleAssignment } from "./authorize";
 
 export const PENDING_PASSWORD_CHANGE_MESSAGE = "Choose a new password before continuing: you signed in with a temporary one.";
 
+export const PENDING_TWO_STEP_MESSAGE = "Your organization requires two-step verification. Set it up under Account › Security to continue.";
+
 export type RequireAuthenticatedUserOptions = {
+  /**
+   * Lets a staff account that still has to set up required two-step
+   * verification through. Only for the routes that set it up
+   * (POST /api/account/mfa) and change the password.
+   */
+  allowPendingTwoStepSetup?: boolean;
   /**
    * Lets an account still on a temporary password through. Only for the
    * route that replaces that password (POST /api/account/password); every
@@ -27,6 +35,7 @@ export async function requireAuthenticatedUser(options: RequireAuthenticatedUser
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new AuthenticationError();
   if (session.mustChangePassword && !options.allowPendingPasswordChange) throw new AuthorizationError(PENDING_PASSWORD_CHANGE_MESSAGE);
+  if (session.mustSetUpTwoStep && !options.allowPendingTwoStepSetup) throw new AuthorizationError(PENDING_TWO_STEP_MESSAGE);
   return { userId: session.user.id };
 }
 
