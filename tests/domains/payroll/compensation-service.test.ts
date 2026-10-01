@@ -41,8 +41,8 @@ describe("CompensationService", () => {
 
     await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 33000, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-10-01", reason: "Annual increase" }, {});
 
-    expect((await CompensationService.getAsOf(employeeId, "2026-09-30"))?.rate).toBe(30000);
-    expect((await CompensationService.getAsOf(employeeId, "2026-10-01"))?.rate).toBe(33000);
+    expect((await CompensationService.getAsOf(employeeId, organizationId, "2026-09-30"))?.rate).toBe(30000);
+    expect((await CompensationService.getAsOf(employeeId, organizationId, "2026-10-01"))?.rate).toBe(33000);
     const history = await CompensationModel.find({ employeeId }).sort({ effectiveFrom: 1 }).lean();
     expect(history[0].effectiveTo).toEqual(dateKeyToDate("2026-09-30"));
     expect(history[1]).toMatchObject({ reason: "Annual increase" });
@@ -96,7 +96,7 @@ describe("CompensationService", () => {
       ]);
       expect(preview.find((row) => row.employeeId === unpaid)?.note).toBe("No pay terms yet");
       expect(preview.some((row) => row.employeeId === elsewhere)).toBe(false);
-      expect((await CompensationService.getAsOf(low, "2026-10-01"))?.rate).toBe(610);
+      expect((await CompensationService.getAsOf(low, organizationId, "2026-10-01"))?.rate).toBe(610);
     });
 
     it("applies the change as effective-dated revisions sharing one batch, audited once as a batch", async () => {
@@ -108,9 +108,9 @@ describe("CompensationService", () => {
       );
 
       expect(result).toMatchObject({ applied: 3, skipped: 1 });
-      expect((await CompensationService.getAsOf(low, "2026-10-01"))?.rate).toBe(671);
-      expect((await CompensationService.getAsOf(monthly, "2026-10-01"))?.rate).toBe(27500);
-      expect((await CompensationService.getAsOf(monthly, "2026-09-30"))?.rate).toBe(25000);
+      expect((await CompensationService.getAsOf(low, organizationId, "2026-10-01"))?.rate).toBe(671);
+      expect((await CompensationService.getAsOf(monthly, organizationId, "2026-10-01"))?.rate).toBe(27500);
+      expect((await CompensationService.getAsOf(monthly, organizationId, "2026-09-30"))?.rate).toBe(25000);
       const batch = await CompensationModel.find({ organizationId, batchId: result.batchId }).lean();
       expect(batch).toHaveLength(3);
       expect(batch.every((row) => row.reason === "Project allowance review")).toBe(true);
@@ -126,8 +126,8 @@ describe("CompensationService", () => {
         {},
       );
       expect(result.applied).toBe(1);
-      expect((await CompensationService.getAsOf(low, "2026-10-01"))?.rate).toBe(630);
-      expect((await CompensationService.getAsOf(high, "2026-10-01"))?.rate).toBe(800);
+      expect((await CompensationService.getAsOf(low, organizationId, "2026-10-01"))?.rate).toBe(630);
+      expect((await CompensationService.getAsOf(high, organizationId, "2026-10-01"))?.rate).toBe(800);
     });
   });
 });

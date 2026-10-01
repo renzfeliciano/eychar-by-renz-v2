@@ -59,6 +59,7 @@ export const metadata: Metadata = { title: "Employee profile" };
 
 const TABS = ["overview", "job", "leave", "documents", "assets"] as const;
 type Tab = (typeof TABS)[number];
+const OBJECT_ID = /^[a-f0-9]{24}$/i;
 const SHORT_DATE = { month: "short", day: "numeric", year: "numeric" } as const;
 const formatDate = (value: Date | string | null | undefined) => (value ? new Date(value).toLocaleDateString("en-US", SHORT_DATE) : "—");
 
@@ -74,7 +75,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 export default async function EmployeeDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams]);
-  const tab: Tab = (TABS as readonly string[]).includes(tabParam ?? "") ? (tabParam as Tab) : "overview";
+  const requestedTab: Tab = (TABS as readonly string[]).includes(tabParam ?? "") ? (tabParam as Tab) : "overview";
   const { organization } = await getCurrentOrganization();
   if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
 
@@ -84,6 +85,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view this employee.</p>;
   }
 
+  if (!OBJECT_ID.test(id)) notFound();
+
   let detail;
   try {
     detail = await EmployeeService.getDetail(id, organizationId);
@@ -92,19 +95,37 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
     throw error;
   }
 
-  const canUpdate = await hasPermission("employees.update", organizationId);
+  // Each section has its own permission: employees.read alone doesn't open
+  // someone's documents, leave or assets, so each query is skipped (not just
+  // hidden) without the matching read permission.
+  const [canUpdate, canReadDocuments, canCreateDocuments, canUpdateDocuments, canReadLeave, canCreateLeave, canUpdateLeave, canReadAssets, canCreateAssets, canUpdateAssets] =
+    await Promise.all(
+      [
+        "employees.update",
+        "employee-documents.read",
+        "employee-documents.create",
+        "employee-documents.update",
+        "leave-balances.read",
+        "leave-balances.create",
+        "leave-balances.update",
+        "asset-issuances.read",
+        "asset-issuances.create",
+        "asset-issuances.update",
+      ].map((permission) => hasPermission(permission, organizationId)),
+    );
   const isCurrentlyActive = detail.currentEmployment ? await EmploymentService.isActiveStatus(organizationId, detail.currentEmployment.status) : false;
+  const ifAllowed = <T,>(allowed: boolean, load: () => Promise<T[]>): Promise<T[]> => (allowed ? load() : Promise.resolve([]));
 
   const [positions, projects, roster, selfServiceAccount, issuedAssets, documents, documentTypes, leaveBalances, leaveTypes] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeService.listWithCurrentStatus(organizationId),
-    EmployeeAccountService.getForEmployee(id),
-    AssetIssuanceService.listForEmployee(id, organizationId),
-    EmployeeDocumentService.listForEmployee(id, organizationId),
-    DocumentTypeService.listCurrent(organizationId),
-    LeaveBalanceService.listForEmployee(id, organizationId),
-    LeaveTypeService.listCurrent(organizationId),
+    EmployeeAccountService.getForEmployee(id, organizationId),
+    ifAllowed(canReadAssets, () => AssetIssuanceService.listForEmployee(id, organizationId)),
+    ifAllowed(canReadDocuments, () => EmployeeDocumentService.listForEmployee(id, organizationId)),
+    ifAllowed(canReadDocuments, () => DocumentTypeService.listCurrent(organizationId)),
+    ifAllowed(canReadLeave, () => LeaveBalanceService.listForEmployee(id, organizationId)),
+    ifAllowed(canReadLeave, () => LeaveTypeService.listCurrent(organizationId)),
   ]);
   const hasBiometricCredential = selfServiceAccount ? await WebAuthnService.hasRegisteredCredential(selfServiceAccount._id.toString()) : false;
   const documentTypeOptions = documentTypes.map((item) => ({ id: item.code, label: item.name }));
@@ -148,6 +169,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
     { icon: Mail, label: "Email", value: detail.person?.email ?? "—" },
     { icon: Phone, label: "Phone", value: detail.person?.phone ?? "—" },
   ];
+  const tabAllowed: Record<Tab, boolean> = { overview: true, job: true, leave: canReadLeave, documents: canReadDocuments, assets: canReadAssets };
+  const tab: Tab = tabAllowed[requestedTab] ? requestedTab : "overview";
   const hrefFor = (value: Tab) => (value === "overview" ? `/people/${employeeId}` : `/people/${employeeId}?tab=${value}`);
 
   return (
@@ -221,12 +244,13 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
           { value: "leave", label: "Leave", href: hrefFor("leave"), icon: Palmtree, count: leaveBalances.length },
           { value: "documents", label: "Documents", href: hrefFor("documents"), icon: FileText, count: documents.length },
           { value: "assets", label: "Assets", href: hrefFor("assets"), icon: Package, count: issuedAssets.length },
-        ]}
+        ].filter((item) => tabAllowed[item.value as Tab])}
       />
 
       {tab === "overview" && (
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {canReadLeave && (
             <MetricCard
               label={`Leave left in ${now.getFullYear()}`}
               value={glance.hasUnlimitedLeave && glance.leaveDaysLeft === 0 ? "Unlimited" : `${glance.leaveDaysLeft.toFixed(glance.leaveDaysLeft % 1 ? 1 : 0)} days`}
@@ -234,7 +258,9 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               icon={Palmtree}
               href={hrefFor("leave")}
             />
+            )}
             <MetricCard label="Tenure" value={hiredOn ? formatLengthOfService(hiredOn) : "—"} hint={contractEnd ? `Contract ends ${formatDate(contractEnd)}` : "No end of contract"} icon={CalendarRange} />
+            {canReadDocuments && (
             <MetricCard
               label="Documents"
               value={glance.documents}
@@ -243,7 +269,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               tone={glance.documentsNeedingAttention ? "warning" : "default"}
               href={hrefFor("documents")}
             />
-            <MetricCard label="Assets out" value={glance.assetsOut} hint={`${issuedAssets.length} issued in total`} icon={Package} href={hrefFor("assets")} />
+            )}
+            {canReadAssets && <MetricCard label="Assets out" value={glance.assetsOut} hint={`${issuedAssets.length} issued in total`} icon={Package} href={hrefFor("assets")} />}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -407,12 +434,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
         </div>
       )}
 
-      {tab === "leave" && (
+      {tab === "leave" && canReadLeave && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Leave balances</CardTitle>
             <CardDescription>Entitlements by year, with adjustments and what&apos;s left</CardDescription>
-            {canUpdate && (
+            {canCreateLeave && (
               <CardAction>
                 <GrantLeaveBalanceDialog organizationId={organizationId} employeeId={employeeId} leaveTypes={leaveTypeOptions} />
               </CardAction>
@@ -438,7 +465,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   key: "action",
                   header: "",
                   render: (balance) =>
-                    canUpdate ? (
+                    canUpdateLeave ? (
                       <AdjustLeaveBalanceDialog
                         organizationId={organizationId}
                         balanceId={balance._id.toString()}
@@ -457,12 +484,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
         </Card>
       )}
 
-      {tab === "documents" && (
+      {tab === "documents" && canReadDocuments && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Documents</CardTitle>
             <CardDescription>Contracts, IDs and certificates on file, with expiry dates</CardDescription>
-            {canUpdate && (
+            {canCreateDocuments && (
               <CardAction>
                 <DocumentFormDialog organizationId={organizationId} employeeId={employeeId} documentTypes={documentTypeOptions} />
               </CardAction>
@@ -496,7 +523,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   render: (document) => (
                     <div className="flex items-center gap-1">
                       <DocumentDownloadButton employeeId={employeeId} documentId={document._id.toString()} organizationId={organizationId} fileName={document.fileName} />
-                      {canUpdate && (
+                      {canUpdateDocuments && (
                         <DocumentFormDialog
                           organizationId={organizationId}
                           employeeId={employeeId}
@@ -524,12 +551,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
         </Card>
       )}
 
-      {tab === "assets" && (
+      {tab === "assets" && canReadAssets && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Issued assets</CardTitle>
             <CardDescription>Equipment, uniforms and IDs handed over, and whether they came back</CardDescription>
-            {canUpdate && (
+            {canCreateAssets && (
               <CardAction>
                 <AssetIssuanceFormDialog organizationId={organizationId} employeeId={employeeId} />
               </CardAction>
@@ -552,7 +579,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   key: "action",
                   header: "",
                   render: (record) =>
-                    canUpdate ? (
+                    canUpdateAssets ? (
                       <AssetIssuanceFormDialog
                         organizationId={organizationId}
                         employeeId={employeeId}

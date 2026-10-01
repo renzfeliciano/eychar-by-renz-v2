@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PayrollScheduleService } from "@/domains/payroll/payroll-schedule-service";
 import { toErrorResponse } from "@/shared/errors/to-response";
+import { checkCronAuthorization } from "@/server/security/cron-auth";
 
 /**
  * Daily cron (Vercel Cron, or any scheduler sending
@@ -9,9 +10,9 @@ import { toErrorResponse } from "@/shared/errors/to-response";
  * CRON_SECRET is set; the payroll screen also catches up on each visit.
  */
 export async function GET(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return NextResponse.json({ error: "Cron is not configured" }, { status: 503 });
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = checkCronAuthorization(request.headers.get("authorization"));
+  if (auth === "unconfigured") return NextResponse.json({ error: "Cron is not configured" }, { status: 503 });
+  if (auth === "unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const outcomes = await PayrollScheduleService.prepareDue();
     return NextResponse.json({ outcomes });

@@ -31,6 +31,10 @@ const userSchema = new Schema(
     // secret in the same sense as passwordHash — a challenge is only
     // useful for one specific in-progress ceremony.
     webAuthnChallenge: { type: String },
+    // Which ceremony the challenge was issued for, and when it stops being
+    // accepted (src/domains/identity/webauthn-service.ts).
+    webAuthnChallengeType: { type: String, enum: ["registration", "authentication"] },
+    webAuthnChallengeExpiresAt: { type: Date },
 
     // Sign-in protection (src/domains/identity/login-guard.ts): consecutive
     // wrong passwords, and the lock they trigger.
@@ -38,6 +42,11 @@ const userSchema = new Schema(
     lockedUntil: { type: Date },
     lastSignInAt: { type: Date },
     lastSignInIp: { type: String },
+    // Where the last sign-in came from, in words ("Chrome on Windows") and
+    // which address of the app (e.g. localhost:4100 vs the live site), so a
+    // "signed in elsewhere" notice can tell people whether it was them.
+    lastSignInDevice: { type: String },
+    lastSignInHost: { type: String },
 
     // Password lifecycle: an account created or reset by an administrator
     // must choose its own password at the next sign-in.
@@ -59,6 +68,25 @@ const userSchema = new Schema(
   },
   { timestamps: true },
 );
+
+/**
+ * Secrets never leave the server by accident: serializing a user document
+ * (NextResponse.json, JSON.stringify, toObject) drops the password hash, the
+ * two-factor secrets and recovery codes, and any WebAuthn challenge in
+ * flight. Code that needs them reads the document's fields directly or uses
+ * .lean(), which this doesn't touch.
+ */
+function stripSecrets(_doc: unknown, ret: Record<string, unknown>) {
+  delete ret.passwordHash;
+  delete ret.mfa;
+  delete ret.webAuthnChallenge;
+  delete ret.webAuthnChallengeType;
+  delete ret.webAuthnChallengeExpiresAt;
+  delete ret.activeSessionId;
+  return ret;
+}
+userSchema.set("toJSON", { transform: stripSecrets });
+userSchema.set("toObject", { transform: stripSecrets });
 
 export type User = InferSchemaType<typeof userSchema>;
 

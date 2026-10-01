@@ -25,6 +25,18 @@ describe("HolidayService", () => {
     expect(await HolidayService.listBetween(orgId, "2026-09-01", "2026-09-30")).toEqual([]);
   });
 
+  it("edits a holiday's date and details, keeping it from the preset, and refuses a clash", async () => {
+    const orgId = await newOrg();
+    await HolidayService.importPreset({ organizationId: orgId, preset: "PH", year: 2026, dates: ["2026-08-21", "2026-08-31"] }, {});
+    const [ninoy] = await HolidayService.listBetween(orgId, "2026-08-21", "2026-08-21");
+    const moved = await HolidayService.update(ninoy.id, orgId, { date: "2026-08-23", name: ninoy.name, type: "special_non_working", scope: "Nationwide", source: "Proclamation No. 999" }, {});
+    expect(moved).toMatchObject({ date: "2026-08-23", scope: "Nationwide", source: "Proclamation No. 999", presetKey: "PH" });
+
+    const [heroes] = await HolidayService.listBetween(orgId, "2026-08-31", "2026-08-31");
+    await expect(HolidayService.update(heroes.id, orgId, { date: "2026-08-23", name: "Ninoy Aquino Day", type: "regular" }, {})).rejects.toThrow(ConflictError);
+    expect(await AuditLogModel.countDocuments({ action: "holiday.updated", resourceId: ninoy.id })).toBe(1);
+  });
+
   it("removes (cancels) a holiday so it no longer lists, and audits it", async () => {
     const orgId = await newOrg();
     const holiday = await HolidayService.create({ organizationId: orgId, date: "2026-10-10", name: "Typo day", type: "regular" }, {});

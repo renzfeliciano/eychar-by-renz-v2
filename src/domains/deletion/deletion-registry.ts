@@ -36,6 +36,30 @@ function whileUnused(
   };
 }
 
+const activeNow = () => {
+  const now = new Date();
+  return { effectiveFrom: { $lte: now }, $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }, { effectiveTo: { $gte: now } }] };
+};
+
+/**
+ * A login account is shared across organizations: one organization's
+ * Super Administrator may only take it away from their own. While any of
+ * `userIds` still holds an active role elsewhere, or is a Super
+ * Administrator anywhere, the account itself can't be deleted from here.
+ */
+async function crossOrganizationBlockers(organizationId: Types.ObjectId, userIds: Types.ObjectId[]): Promise<string[]> {
+  if (!userIds.length) return [];
+  const blockers: string[] = [];
+  const superRoles = await models.RoleModel.find({ system: "super_admin" }).distinct("_id");
+  if (superRoles.length && (await models.RoleAssignmentModel.exists({ userId: { $in: userIds }, roleId: { $in: superRoles }, organizationId: { $ne: organizationId }, ...activeNow() }))) {
+    blockers.push("This account is a Super Administrator in another organization and can't be deleted");
+  }
+  if (await models.RoleAssignmentModel.exists({ userId: { $in: userIds }, organizationId: { $ne: organizationId }, ...activeNow() })) {
+    blockers.push("This login account also has roles in another organization; it can only be deleted once it has none there");
+  }
+  return blockers;
+}
+
 /** A record nothing else depends on. */
 function leaf(model: Model<any>, recordLabel: string, labelOf: (doc: Record<string, unknown>) => string): Planner { // eslint-disable-line @typescript-eslint/no-explicit-any
   return whileUnused(model, recordLabel, labelOf, []);
@@ -54,6 +78,7 @@ async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId):
   if (paidSettlements) blockers.push("Has a paid final settlement; it can't be deleted");
 
   const users = await models.UserModel.find({ employeeId: id }).distinct("_id");
+  blockers.push(...(await crossOrganizationBlockers(organizationId, users)));
   const trips = await models.TravelOrderModel.find({ organizationId, employeeIds: id }).select("employeeIds").lean();
   const soloTrips = trips.filter((trip) => trip.employeeIds.length === 1).map((trip) => trip._id);
   const sharedTrips = trips.filter((trip) => trip.employeeIds.length > 1).map((trip) => trip._id);
@@ -80,7 +105,7 @@ async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId):
       { model: models.PayrollRecordModel, filter: { employeeId: id, payrollRunId: { $nin: finishedRuns } }, label: "Draft payroll lines" },
       { model: models.PayrollAdjustmentModel, filter: { employeeId: id, payrollRunId: { $nin: finishedRuns } }, label: "Draft payroll adjustments" },
       { model: models.UserModel, filter: { _id: { $in: users } }, label: "Login accounts" },
-      { model: models.RoleAssignmentModel, filter: { userId: { $in: users } }, label: "Role assignments" },
+      { model: models.RoleAssignmentModel, filter: { userId: { $in: users }, organizationId }, label: "Role assignments" },
       { model: models.WebAuthnCredentialModel, filter: { userId: { $in: users } }, label: "Registered biometrics" },
       { model: models.TravelOrderModel, filter: { _id: { $in: soloTrips } }, label: "Travel orders (only them)" },
     ],
@@ -100,12 +125,13 @@ async function planStaffAccount(organizationId: Types.ObjectId, id: Types.Object
   const blockers: string[] = [];
   const superRole = await models.RoleModel.findOne({ organizationId, system: "super_admin" }).select("_id").lean();
   if (superRole && (await models.RoleAssignmentModel.exists({ organizationId, roleId: superRole._id, userId: id }))) blockers.push("The Super Administrator's account can't be deleted");
+  blockers.push(...(await crossOrganizationBlockers(organizationId, [id])));
   return {
     label: person ? formatPersonName(person) : (user.username ?? user.email ?? "Account"),
     blockers,
     deletes: [
       { model: models.UserModel, filter: { _id: id }, label: "Login account" },
-      { model: models.RoleAssignmentModel, filter: { userId: id }, label: "Role assignments" },
+      { model: models.RoleAssignmentModel, filter: { userId: id, organizationId }, label: "Role assignments" },
       { model: models.WebAuthnCredentialModel, filter: { userId: id }, label: "Registered biometrics" },
       ...(person ? [{ model: models.PersonModel, filter: { _id: person._id }, label: "Personal details" }] : []),
     ],
@@ -205,5 +231,6 @@ export const DELETABLE_TYPES = {
 export type DeletableType = keyof typeof DELETABLE_TYPES;
 
 export function isDeletableType(value: string): value is DeletableType {
-  return value in DELETABLE_TYPES;
+  // Own keys only: `"constructor" in {}` is true, and would reach DELETABLE_TYPES.constructor.plan.
+  return Object.hasOwn(DELETABLE_TYPES, value);
 }

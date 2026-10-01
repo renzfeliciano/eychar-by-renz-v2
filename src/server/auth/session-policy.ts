@@ -5,11 +5,14 @@ export type SessionPolicyInput = {
   inactivityMs: number;
   /** null means the account no longer exists or has been disabled. */
   currentUser: { activeSessionId?: string | null } | null;
+  /** When this session signed in; with maxAgeMs, the absolute cap on its life however active it is. */
+  tokenSignedInAt?: number;
+  maxAgeMs?: number;
 };
 
 export type SessionPolicyResult =
   | { expired: false }
-  | { expired: true; reason: "idle_timeout" | "concurrent_session" };
+  | { expired: true; reason: "idle_timeout" | "concurrent_session" | "session_ended" };
 
 /**
  * Pure decision function for single-active-session + idle-timeout
@@ -25,8 +28,21 @@ export function resolveSessionState(input: SessionPolicyInput): SessionPolicyRes
     return { expired: true, reason: "idle_timeout" };
   }
 
+  // Past the absolute lifetime: handled exactly like going idle (sign in again).
+  if (input.maxAgeMs !== undefined && input.tokenSignedInAt !== undefined && input.now - input.tokenSignedInAt > input.maxAgeMs) {
+    return { expired: true, reason: "idle_timeout" };
+  }
+
   if (!input.currentUser) {
     return { expired: true, reason: "idle_timeout" };
+  }
+
+  // No active session at all: it was ended on purpose (signed out in another
+  // tab, password changed, or an administrator reset or disabled sign-in),
+  // not replaced by a sign-in elsewhere. Saying "signed in elsewhere" here
+  // would wrongly suggest someone else got in.
+  if (!input.currentUser.activeSessionId) {
+    return { expired: true, reason: "session_ended" };
   }
 
   if (input.currentUser.activeSessionId !== input.tokenSessionId) {

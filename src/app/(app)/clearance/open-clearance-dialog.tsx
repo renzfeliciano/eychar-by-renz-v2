@@ -103,7 +103,7 @@ export function OpenClearanceDialog({
           <DialogTitle>Open clearance</DialogTitle>
           <DialogDescription>Starts the departments&apos; checklist for a separating employee. Due dates count from the last working day.</DialogDescription>
         </DialogHeader>
-        <form id="open-clearance-form" onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id="open-clearance-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" testId="clearance-employee-select" required />
           <OptionSelect

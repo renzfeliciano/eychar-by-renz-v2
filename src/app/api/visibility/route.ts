@@ -5,8 +5,9 @@ import { authOptions } from "@/server/auth/options";
 import { VisibilityService } from "@/domains/visibility/visibility-service";
 import { AuthenticationError } from "@/shared/errors";
 import { toErrorResponse } from "@/shared/errors/to-response";
+import { objectId } from "@/shared/validation/object-id";
 
-const bodySchema = z.object({ organizationId: z.string().trim().min(1), type: z.string().trim().min(1), id: z.string().trim().min(1), hidden: z.boolean() });
+const bodySchema = z.object({ organizationId: objectId(), type: z.string().trim().min(1), id: z.string().trim().min(1), hidden: z.boolean() });
 
 /** Hides or unhides a record as test data (the service enforces Super Administrator only, ADR-034). */
 export async function POST(request: NextRequest) {

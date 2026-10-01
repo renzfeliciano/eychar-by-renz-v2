@@ -95,7 +95,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
         {isRevision ? <Pencil className="size-3.5" /> : <Plus className="size-3.5" />}
         {isRevision ? "Revise" : "Set pay terms"}
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isRevision ? `Revise ${employeeName}'s pay` : `Pay terms for ${employeeName}`}</DialogTitle>
           <DialogDescription>

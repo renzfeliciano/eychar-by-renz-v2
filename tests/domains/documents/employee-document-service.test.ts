@@ -10,7 +10,8 @@ async function seedEmployee(organizationId: object, suffix: string) {
   return EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: `EMP-${suffix}-${Date.now()}-${Math.random()}` });
 }
 
-const SAMPLE_BASE64 = Buffer.from("sample file contents").toString("base64");
+// A real (tiny) PDF header: uploads are checked against their own bytes.
+const SAMPLE_BASE64 = Buffer.from("%PDF-1.4\n%sample file contents\n").toString("base64");
 
 describe("EmployeeDocumentService", () => {
   beforeEach(async () => {

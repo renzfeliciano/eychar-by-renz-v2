@@ -1,12 +1,13 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 export const orgChartQuerySchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   asOf: z.coerce.date().optional(),
   search: z.string().trim().min(1).optional(),
-  organizationUnitId: z.string().trim().min(1).optional(),
-  positionId: z.string().trim().min(1).optional(),
-  projectId: z.string().trim().min(1).optional(),
+  organizationUnitId: objectId().optional(),
+  positionId: objectId().optional(),
+  projectId: objectId().optional(),
   employmentStatus: z.enum(["active", "on_leave", "terminated"]).optional(),
 });
 

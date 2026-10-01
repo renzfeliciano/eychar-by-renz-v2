@@ -7,6 +7,7 @@ import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError } from "@/shared/errors";
 import type { CreateStaffAccountInput } from "@/shared/validation/auth";
 import { RoleAssignmentService } from "@/domains/authorization/role-assignment-service";
+import { authorize } from "@/server/authorization/authorize";
 
 /**
  * A plain HR/admin-shell login — no `employeeId`, distinct from
@@ -18,6 +19,14 @@ import { RoleAssignmentService } from "@/domains/authorization/role-assignment-s
 export const StaffAccountService = {
   async create(input: CreateStaffAccountInput, actor: { userId?: string }) {
     await connectMongoDB();
+
+    // Creating an account with a role is handing out that role: the actor
+    // needs roles.assign too, and can't grant more than they hold. Checked
+    // before anything is written, so a refusal leaves no half-made account.
+    if (input.roleId) {
+      if (actor.userId) await authorize({ userId: actor.userId, organizationId: input.organizationId, permission: "roles.assign" });
+      await RoleAssignmentService.assertCanGrant({ organizationId: input.organizationId, roleId: input.roleId }, actor);
+    }
 
     const person = await PersonModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
@@ -55,5 +64,17 @@ export const StaffAccountService = {
     });
 
     return user;
+  },
+
+  /** The fields of a new account that are safe to send back to the browser. */
+  toSummary(user: { _id: { toString(): string }; username?: string | null; email?: string | null; status?: string | null; mustChangePassword?: boolean | null; createdAt?: Date | null }) {
+    return {
+      id: user._id.toString(),
+      username: user.username ?? null,
+      email: user.email ?? null,
+      status: user.status ?? "active",
+      mustChangePassword: Boolean(user.mustChangePassword),
+      createdAt: user.createdAt ?? null,
+    };
   },
 };

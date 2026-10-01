@@ -5,6 +5,7 @@ export type AppErrorKind =
   | "not_found"
   | "conflict"
   | "business_rule"
+  | "rate_limited"
   | "database"
   | "unexpected";
 
@@ -15,6 +16,7 @@ const STATUS_BY_KIND: Record<AppErrorKind, number> = {
   not_found: 404,
   conflict: 409,
   business_rule: 422,
+  rate_limited: 429,
   database: 500,
   unexpected: 500,
 };
@@ -66,5 +68,15 @@ export class ConflictError extends AppError {
 export class BusinessRuleError extends AppError {
   constructor(message: string) {
     super("business_rule", message);
+  }
+}
+
+/** Too many requests in the current window; `retryAfterSeconds` feeds the Retry-After header. */
+export class RateLimitError extends AppError {
+  readonly retryAfterSeconds: number;
+
+  constructor(message = "Too many requests — please wait a few minutes and try again.", retryAfterSeconds = 60) {
+    super("rate_limited", message);
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }

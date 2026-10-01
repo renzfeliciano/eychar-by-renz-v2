@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { ScheduleService, localDateKey } from "@/domains/attendance/schedule-service";
 import { ShiftTemplateService } from "@/domains/attendance/shift-template-service";
 import { ProjectService } from "@/domains/organization/project-service";
@@ -36,7 +37,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
 
   const firstDay = `${month}-01`;
   const lastDay = `${month}-${String(new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate()).padStart(2, "0")}`;
-  const [view, shifts, projects, canUpdate, roster, canReadEvents, holidays, notes] = await Promise.all([
+  const [view, shifts, projects, canUpdate, roster, canReadEvents, holidays, notes, superAdmin] = await Promise.all([
     ScheduleService.getMonthView(organizationId, month),
     ShiftTemplateService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
@@ -45,6 +46,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
     hasPermission("events.read", organizationId),
     HolidayService.listBetween(organizationId, firstDay, lastDay),
     DayNoteService.listBetween(organizationId, firstDay, lastDay),
+    isSuperAdmin(organizationId),
   ]);
   // Company events only for people who may see the calendar.
   const events = canReadEvents ? await EventService.listForMonth(organizationId, month) : [];
@@ -82,7 +84,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
           canUpdate ? (
             <div className="flex items-center gap-2">
               <HolidaysDialog organizationId={organizationId} initialYear={Number(month.slice(0, 4))} />
-              <ScheduleRosterDialog organizationId={organizationId} roster={roster} />
+              <ScheduleRosterDialog organizationId={organizationId} roster={roster} canHide={superAdmin} />
               <ShiftTemplatesDialog organizationId={organizationId} shifts={shiftOptions} />
             </div>
           ) : undefined

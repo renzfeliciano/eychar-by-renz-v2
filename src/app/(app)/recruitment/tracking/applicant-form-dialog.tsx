@@ -133,7 +133,7 @@ export function ApplicantFormDialog({
           <DialogTitle>{isEdit ? "Edit applicant" : "Add applicant"}</DialogTitle>
           <DialogDescription>{isEdit ? "Updates this candidate's application details." : "Adds a candidate to the recruitment pipeline."}</DialogDescription>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Applicant name" htmlFor={`${formId}-name`} required>
             <Input id={`${formId}-name`} value={applicantName} onChange={(event) => setApplicantName(event.target.value)} placeholder="e.g. Dela Cruz, Juan Miguel" required />

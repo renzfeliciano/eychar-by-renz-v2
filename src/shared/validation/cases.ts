@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 // Same shape for create and update — mirroring the legacy v1 app, where a
 // case's form dialog is a full edit, not a narrow status-only patch.
 export const caseSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  projectId: z.string().trim().min(1),
+  organizationId: objectId(),
+  projectId: objectId(),
   caseName: z.string().trim().min(1),
   caseNumber: z.string().trim().min(1),
   classification: z.string().trim().min(1),

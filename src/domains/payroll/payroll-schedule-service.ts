@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { PayrollRunModel, PayrollScheduleModel } from "@/server/db/models";
+import { PayrollRunModel, PayrollScheduleModel, ProjectModel } from "@/server/db/models";
+import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { addDays, dateKeyToDate, dateToDateKey, localDateKey } from "@/lib/date-key";
@@ -28,6 +29,7 @@ function specOf(schedule: { payFrequency: string; cutoffDay: number; payDateOffs
 export const PayrollScheduleService = {
   async create(input: CreatePayrollScheduleInput, actor: { userId?: string }) {
     await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
     const schedule = await PayrollScheduleModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
       projectId: input.projectId ? new Types.ObjectId(input.projectId) : undefined,
@@ -54,6 +56,7 @@ export const PayrollScheduleService = {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundError("Payroll schedule not found in this organization");
     const schedule = await PayrollScheduleModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(input.organizationId) });
     if (!schedule) throw new NotFoundError("Payroll schedule not found in this organization");
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
 
     const before = { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, payDateOffsetDays: schedule.payDateOffsetDays, autoPrepare: schedule.autoPrepare, status: schedule.status };
     const { name, payFrequency, cutoffDay, payDateOffsetDays, autoPrepare, status, projectId, startsOn } = input;

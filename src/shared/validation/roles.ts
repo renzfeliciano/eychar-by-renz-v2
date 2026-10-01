@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 // Same shape for create and update — a role's edit dialog is a full edit
 // (name/description/permission set/status), not a narrow patch.
 export const roleSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   name: z.string().trim().min(1),
   description: z.string().trim().max(255).optional(),
   permissionKeys: z.array(z.string().trim().min(1)).default([]),
@@ -14,13 +15,13 @@ export const createRoleSchema = roleSchema;
 export const updateRoleSchema = roleSchema;
 
 export const assignRoleSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  roleId: z.string().trim().min(1),
-  userId: z.string().trim().min(1),
+  organizationId: objectId(),
+  roleId: objectId(),
+  userId: objectId(),
 });
 
 export const revokeRoleAssignmentSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
 });
 
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;

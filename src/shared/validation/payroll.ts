@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { calendarDateSchema, dateSpanInDays } from "./schedule";
+import { objectId } from "@/shared/validation/object-id";
 
 const PAY_FREQUENCY = z.enum(["weekly", "semi-monthly", "monthly"]);
 const optionalId = z.string().trim().min(1).optional();
@@ -15,7 +16,7 @@ const allowanceSchema = z.object({
 });
 
 const compensationTermsSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   rateType: z.enum(["monthly", "daily"]),
   rate: money("Rate").refine((value) => value > 0, "Rate must be more than zero"),
   allowances: z.array(allowanceSchema).max(20).default([]),
@@ -24,13 +25,13 @@ const compensationTermsSchema = z.object({
   reason: z.string().trim().max(200).optional(),
 });
 
-export const createCompensationSchema = compensationTermsSchema.extend({ employeeId: z.string().trim().min(1) });
+export const createCompensationSchema = compensationTermsSchema.extend({ employeeId: objectId() });
 export const reviseCompensationSchema = compensationTermsSchema;
 
 export const BULK_CHANGE_TYPES = ["set_rate", "increase_amount", "increase_percent", "raise_to_minimum"] as const;
 
 export const bulkCompensationChangeSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   projectId: optionalId,
   rateType: z.enum(["monthly", "daily"]).optional(),
   changeType: z.enum(BULK_CHANGE_TYPES),
@@ -38,13 +39,13 @@ export const bulkCompensationChangeSchema = z.object({
   effectiveFrom: calendarDateSchema,
   reason: z.string().trim().min(3, "Give a reason, e.g. the wage order number").max(200),
   /** Apply to just these (from the preview); omitted means everyone the preview would change. */
-  employeeIds: z.array(z.string().trim().min(1)).optional(),
+  employeeIds: z.array(objectId()).optional(),
 });
 
 // ── Policy and rule versions ──────────────────────────────────────────────
 
 export const createPayrollPolicySchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   projectId: optionalId,
   name: z.string().trim().min(1).max(80),
   payFrequency: PAY_FREQUENCY,
@@ -58,7 +59,7 @@ export const createPayrollPolicySchema = z.object({
 });
 
 export const updatePayrollPolicyStatusSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   effectiveTo: z.coerce.date().optional(),
 });
@@ -90,7 +91,7 @@ const contributionRuleSchema = z.object({
 });
 
 export const createPayrollRuleVersionSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   projectId: optionalId,
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(500).optional(),
@@ -103,7 +104,7 @@ export const createPayrollRuleVersionSchema = z.object({
 });
 
 export const updatePayrollRuleVersionStatusSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   effectiveTo: z.coerce.date().optional(),
 });
@@ -114,7 +115,7 @@ export const MAX_PAY_PERIOD_DAYS = 31;
 
 export const createPayrollRunSchema = z
   .object({
-    organizationId: z.string().trim().min(1),
+    organizationId: objectId(),
     projectId: optionalId,
     payPeriodStart: calendarDateSchema,
     payPeriodEnd: calendarDateSchema,
@@ -128,22 +129,22 @@ export const createPayrollRunSchema = z
   .refine((input) => input.payDate >= input.payPeriodStart, { message: "The pay date can't be before the period starts.", path: ["payDate"] });
 
 export const payrollRunActionSchema = z.discriminatedUnion("action", [
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("recompute") }),
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("submit"), note: z.string().trim().max(500).optional() }),
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("approve"), note: z.string().trim().max(500).optional() }),
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("return"), reason: z.string().trim().min(3, "Say what needs fixing").max(500) }),
+  z.object({ organizationId: objectId(), action: z.literal("recompute") }),
+  z.object({ organizationId: objectId(), action: z.literal("submit"), note: z.string().trim().max(500).optional() }),
+  z.object({ organizationId: objectId(), action: z.literal("approve"), note: z.string().trim().max(500).optional() }),
+  z.object({ organizationId: objectId(), action: z.literal("return"), reason: z.string().trim().min(3, "Say what needs fixing").max(500) }),
   z.object({
-    organizationId: z.string().trim().min(1),
+    organizationId: objectId(),
     action: z.literal("release"),
     releasedOn: calendarDateSchema,
     paymentReference: z.string().trim().max(120).optional(),
   }),
-  z.object({ organizationId: z.string().trim().min(1), action: z.literal("cancel"), reason: z.string().trim().min(3, "Give a reason for cancelling").max(500) }),
+  z.object({ organizationId: objectId(), action: z.literal("cancel"), reason: z.string().trim().min(3, "Give a reason for cancelling").max(500) }),
 ]);
 
 export const payrollAdjustmentSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  employeeId: z.string().trim().min(1),
+  organizationId: objectId(),
+  employeeId: objectId(),
   category: z.string().trim().min(1).max(40),
   label: z.string().trim().min(1, "Describe the adjustment").max(80),
   direction: z.enum(["earning", "deduction"]),
@@ -155,7 +156,7 @@ export const payrollAdjustmentSchema = z.object({
 // ── Schedules ─────────────────────────────────────────────────────────────
 
 const scheduleFieldsSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   projectId: optionalId,
   name: z.string().trim().min(1).max(80),
   payFrequency: PAY_FREQUENCY,
@@ -177,7 +178,7 @@ export const createPayrollScheduleSchema = scheduleFieldsSchema.refine(validCuto
 
 export const updatePayrollScheduleSchema = scheduleFieldsSchema
   .partial()
-  .extend({ organizationId: z.string().trim().min(1), status: z.enum(["active", "inactive"]).optional() })
+  .extend({ organizationId: objectId(), status: z.enum(["active", "inactive"]).optional() })
   .refine((input) => input.payFrequency === undefined || input.cutoffDay === undefined || validCutoffDay(input as { payFrequency: string; cutoffDay: number }), {
     message: CUTOFF_MESSAGE,
     path: ["cutoffDay"],

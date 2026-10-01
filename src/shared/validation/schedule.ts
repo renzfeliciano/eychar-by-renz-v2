@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { clearable, objectIdSchema } from "./shared";
 import { SHIFT_COLOR_KEYS } from "@/domains/attendance/shift-colors";
+import { objectId } from "@/shared/validation/object-id";
 
 export const SHIFT_KINDS = ["work", "rest"] as const;
 export type ShiftKind = (typeof SHIFT_KINDS)[number];
@@ -40,7 +41,7 @@ export function dateSpanInDays(from: string, to: string): number {
 }
 
 export const createShiftTemplateSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   name: z.string().trim().min(1).max(60),
   code: shiftCodeSchema,
   kind: z.enum(SHIFT_KINDS),
@@ -55,7 +56,7 @@ export const createShiftTemplateSchema = z.object({
 
 // Pre-filled edit form; "" clears a time (needed when switching a shift to a rest day).
 export const updateShiftTemplateSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   name: z.string().trim().min(1).max(60).optional(),
   code: shiftCodeSchema.optional(),
@@ -80,18 +81,18 @@ export const scheduleEntryInputSchema = z.object({
 });
 
 export const saveScheduleEntriesSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   entries: z.array(scheduleEntryInputSchema).min(1, "Select at least one day").max(MAX_SCHEDULE_ENTRIES_PER_SAVE),
 });
 
 export const scheduleExportQuerySchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   month: monthSchema,
   format: z.enum(["xlsx", "csv"]),
 });
 
 export const scheduleRosterSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   changes: z
     .array(z.object({ employeeId: objectIdSchema("Select a valid employee"), included: z.boolean() }))
     .min(1, "Nothing to change")

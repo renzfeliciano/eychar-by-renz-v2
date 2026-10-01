@@ -81,8 +81,16 @@ export const EmployeeAccountService = {
     return user;
   },
 
-  async getForEmployee(employeeId: string) {
+  /**
+   * The employee's self-service account, only when the employee belongs to
+   * `organizationId` (null otherwise): pass the organization the caller
+   * was authorized for.
+   */
+  async getForEmployee(employeeId: string, organizationId: string) {
     await connectMongoDB();
+    if (!Types.ObjectId.isValid(employeeId) || !Types.ObjectId.isValid(organizationId)) return null;
+    const employee = await EmployeeModel.exists({ _id: new Types.ObjectId(employeeId), organizationId: new Types.ObjectId(organizationId) });
+    if (!employee) return null;
     return UserModel.findOne({ employeeId: new Types.ObjectId(employeeId) }).select("username status createdAt").lean();
   },
 };

@@ -100,7 +100,7 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
       >
         <Pencil className="size-3.5" />
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit location</DialogTitle>
           <DialogDescription>Update the site&apos;s details and clock-in area. Projects and records linked to it stay linked.</DialogDescription>

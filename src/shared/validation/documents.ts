@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 // ~5MB decoded (base64 inflates by ~33%), staying well under MongoDB's
 // 16MB BSON document limit alongside the rest of the document's fields —
@@ -6,12 +7,14 @@ import { z } from "zod";
 const MAX_FILE_DATA_LENGTH = 7_000_000;
 
 const documentFields = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   title: z.string().trim().min(1).max(120),
   documentType: z.string().trim().min(1),
   fileName: z.string().trim().min(1).max(255),
+  // Checked against the file's own bytes on the server (domains/documents/file-check.ts).
   fileType: z.string().trim().min(1).max(120),
-  fileSize: z.number().int().positive(),
+  // The browser's figure is ignored; the server measures the decoded file.
+  fileSize: z.number().int().positive().optional(),
   fileData: z.string().trim().min(1).max(MAX_FILE_DATA_LENGTH, "File is too large (max 5MB)"),
   expiresAt: z.coerce.date().optional(),
   notes: z.string().trim().max(500).optional(),

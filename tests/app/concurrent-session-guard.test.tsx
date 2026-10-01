@@ -33,7 +33,30 @@ describe("ConcurrentSessionGuard", () => {
     sessionData = { user: { id: "u1" }, error: "ConcurrentSessionError" };
     render(<ConcurrentSessionGuard />);
 
-    expect(screen.getByRole("dialog")).toHaveTextContent("Signed in elsewhere");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Signed in on another device or browser");
+  });
+
+  it("says when and where the other sign-in happened, so people can tell it was them", () => {
+    sessionData = {
+      user: { id: "u1" },
+      error: "ConcurrentSessionError",
+      replacedBy: { at: "2026-09-29T09:58:00.000Z", device: "Chrome on Windows", host: "localhost:4100" },
+    };
+    render(<ConcurrentSessionGuard />);
+
+    const details = screen.getByTestId("session-replaced-details");
+    expect(details).toHaveTextContent("Chrome on Windows");
+    expect(details).toHaveTextContent("localhost:4100");
+    expect(details).toHaveTextContent("2 minutes ago");
+    expect(screen.getByRole("dialog")).toHaveTextContent(/local copy of the app \(localhost\)/);
+  });
+
+  it("doesn't claim a sign-in elsewhere when the session was simply signed out", () => {
+    sessionData = { user: { id: "u1" }, error: "SessionEnded" };
+    render(<ConcurrentSessionGuard />);
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("This session was signed out");
+    expect(screen.getByRole("dialog")).not.toHaveTextContent(/another device/);
   });
 
   it("shows nothing for an ordinary session", () => {

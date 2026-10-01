@@ -23,6 +23,39 @@ function relyingParty() {
   return { rpID: url.hostname, origin: url.origin, rpName: BRAND.fullName };
 }
 
+/** How long a ceremony's challenge stays valid; the browser prompt is answered in seconds. */
+export const WEBAUTHN_CHALLENGE_TTL_MS = 2 * 60_000;
+
+type Ceremony = "registration" | "authentication";
+
+async function storeChallenge(userId: Types.ObjectId, challenge: string, type: Ceremony, now: Date = new Date()) {
+  await UserModel.updateOne(
+    { _id: userId },
+    { $set: { webAuthnChallenge: challenge, webAuthnChallengeType: type, webAuthnChallengeExpiresAt: new Date(now.getTime() + WEBAUTHN_CHALLENGE_TTL_MS) } },
+  );
+}
+
+/**
+ * Takes the account's challenge and clears it in one step, before anything
+ * is checked, so every verification attempt (passing or not) spends it and
+ * two parallel attempts can't both use it. Refuses a challenge issued for
+ * the other ceremony or past its expiry.
+ */
+async function consumeChallenge(userId: string, type: Ceremony, missingMessage: string, now: Date = new Date()): Promise<string> {
+  if (!Types.ObjectId.isValid(userId)) throw new NotFoundError("User not found");
+  const before = await UserModel.findOneAndUpdate(
+    { _id: new Types.ObjectId(userId) },
+    { $unset: { webAuthnChallenge: 1, webAuthnChallengeType: 1, webAuthnChallengeExpiresAt: 1 } },
+    { new: false },
+  ).lean();
+  if (!before) throw new NotFoundError("User not found");
+  if (!before.webAuthnChallenge || before.webAuthnChallengeType !== type) throw new BusinessRuleError(missingMessage);
+  if (!before.webAuthnChallengeExpiresAt || new Date(before.webAuthnChallengeExpiresAt).getTime() <= now.getTime()) {
+    throw new BusinessRuleError("That biometric prompt timed out. Please try again.");
+  }
+  return before.webAuthnChallenge;
+}
+
 export const WebAuthnService = {
   async generateRegistrationOptions(userId: string) {
     await connectMongoDB();
@@ -52,32 +85,25 @@ export const WebAuthnService = {
       },
     });
 
-    user.webAuthnChallenge = options.challenge;
-    await user.save();
+    await storeChallenge(user._id, options.challenge, "registration");
 
     return options;
   },
 
   async verifyRegistration(userId: string, organizationId: string, response: RegistrationResponseJSON) {
     await connectMongoDB();
-    const user = await UserModel.findById(userId);
+    const expectedChallenge = await consumeChallenge(userId, "registration", "No registration in progress for this user");
+    const user = await UserModel.findById(userId).select("_id").lean();
     if (!user) throw new NotFoundError("User not found");
-    if (!user.webAuthnChallenge) throw new BusinessRuleError("No registration in progress for this user");
 
     const { rpID, origin } = relyingParty();
 
-    let verification: VerifiedRegistrationResponse;
-    try {
-      verification = await verifyRegistrationResponse({
-        response,
-        expectedChallenge: user.webAuthnChallenge,
-        expectedOrigin: origin,
-        expectedRPID: rpID,
-      });
-    } finally {
-      user.webAuthnChallenge = undefined;
-      await user.save();
-    }
+    const verification: VerifiedRegistrationResponse = await verifyRegistrationResponse({
+      response,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+    });
 
     if (!verification.verified || !verification.registrationInfo) {
       throw new BusinessRuleError("Could not verify the biometric registration");
@@ -122,28 +148,25 @@ export const WebAuthnService = {
       })),
     });
 
-    user.webAuthnChallenge = options.challenge;
-    await user.save();
+    await storeChallenge(user._id, options.challenge, "authentication");
 
     return options;
   },
 
   async verifyAuthentication(userId: string, response: AuthenticationResponseJSON) {
     await connectMongoDB();
-    const user = await UserModel.findById(userId);
+    const expectedChallenge = await consumeChallenge(userId, "authentication", "No biometric confirmation in progress for this user");
+    const user = await UserModel.findById(userId).select("_id").lean();
     if (!user) throw new NotFoundError("User not found");
-    if (!user.webAuthnChallenge) throw new BusinessRuleError("No biometric confirmation in progress for this user");
 
     const credential = await WebAuthnCredentialModel.findOne({ userId: user._id, credentialId: response.id });
     if (!credential) throw new NotFoundError("Biometric credential not recognized for this account");
 
     const { rpID, origin } = relyingParty();
 
-    let verification: VerifiedAuthenticationResponse;
-    try {
-      verification = await verifyAuthenticationResponse({
+    const verification: VerifiedAuthenticationResponse = await verifyAuthenticationResponse({
         response,
-        expectedChallenge: user.webAuthnChallenge,
+        expectedChallenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
         credential: {
@@ -153,10 +176,6 @@ export const WebAuthnService = {
           transports: credential.transports as AuthenticatorTransport[] | undefined,
         },
       });
-    } finally {
-      user.webAuthnChallenge = undefined;
-      await user.save();
-    }
 
     if (!verification.verified) {
       throw new BusinessRuleError("Could not verify the biometric confirmation");

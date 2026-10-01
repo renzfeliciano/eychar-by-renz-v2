@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { idleState, SESSION_IDLE_MS, SESSION_IDLE_WARNING_MS } from "@/lib/session-idle";
-import { IdleSessionGuard } from "@/components/shared/idle-session-guard";
+import { IdleSessionGuard, countdownAnnouncement, formatCountdown } from "@/components/shared/idle-session-guard";
 import { ConcurrentSessionGuard } from "@/components/shared/concurrent-session-guard";
 
 const signOut = vi.fn();
@@ -39,7 +39,8 @@ describe("IdleSessionGuard", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(2_000));
-    expect(screen.getByRole("dialog")).toHaveTextContent("You'll be signed out in 14 seconds");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Are you still there?");
+    expect(screen.getByTestId("idle-countdown")).toHaveTextContent("0:14");
 
     act(() => vi.advanceTimersByTime(15_000));
     expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login?reason=idle" });
@@ -58,6 +59,20 @@ describe("IdleSessionGuard", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(update).toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("idle countdown text", () => {
+  it("formats the timer and announces only at milestones", () => {
+    expect(formatCountdown(12)).toBe("0:12");
+    expect(formatCountdown(65)).toBe("1:05");
+    expect(formatCountdown(-3)).toBe("0:00");
+    expect(countdownAnnouncement(15, 15)).toBe("You'll be signed out in 15 seconds unless you choose to stay signed in.");
+    expect(countdownAnnouncement(11, 15)).toBe(countdownAnnouncement(15, 15));
+    expect(countdownAnnouncement(10, 15)).toBe("10 seconds left before you're signed out.");
+    expect(countdownAnnouncement(7, 15)).toBe(countdownAnnouncement(9, 15));
+    expect(countdownAnnouncement(4, 15)).toBe("5 seconds left before you're signed out.");
+    expect(countdownAnnouncement(25, 60)).toBe("30 seconds left before you're signed out.");
   });
 });
 

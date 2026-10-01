@@ -3,6 +3,38 @@ import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, PersonModel, RoleAssignmentModel, UserModel } from "@/server/db/models";
 import { formatPersonName } from "@/lib/person-name";
 
+/** A role assignment in effect now: started, and not yet ended (revoked or expired). */
+export function activeRoleAssignment(now: Date = new Date()) {
+  return { effectiveFrom: { $lte: now }, $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }, { effectiveTo: { $gt: now } }] };
+}
+
+/**
+ * Every organization an account is tied to: where it holds a role now, its
+ * self-service employee's employer, and its staff person record's
+ * organization. Used to tell whether an administrator of one organization
+ * would, by acting on the account, reach into another.
+ */
+export async function organizationIdsForUser(userId: string): Promise<Set<string>> {
+  await connectMongoDB();
+  if (!Types.ObjectId.isValid(userId)) return new Set();
+  const user = await UserModel.findById(userId).select("employeeId personId").lean();
+  if (!user) return new Set();
+  const [fromRoles, employee, person] = await Promise.all([
+    RoleAssignmentModel.distinct("organizationId", { userId: new Types.ObjectId(userId), ...activeRoleAssignment() }),
+    user.employeeId ? EmployeeModel.findById(user.employeeId).select("organizationId").lean() : null,
+    user.personId ? PersonModel.findById(user.personId).select("organizationId").lean() : null,
+  ]);
+  const ids = new Set<string>(fromRoles.map(String));
+  if (employee?.organizationId) ids.add(employee.organizationId.toString());
+  if (person?.organizationId) ids.add(person.organizationId.toString());
+  return ids;
+}
+
+/** Whether the account already belongs to the organization (same rules as organizationUserIds). */
+export async function userBelongsToOrganization(userId: string, organizationId: string): Promise<boolean> {
+  return (await organizationIdsForUser(userId)).has(organizationId);
+}
+
 /**
  * Every account that belongs to an organization: anyone with a role there,
  * any employee's self-service account, and any staff account whose person
@@ -13,7 +45,8 @@ export async function organizationUserIds(organizationId: string): Promise<Types
   await connectMongoDB();
   const orgId = new Types.ObjectId(organizationId);
   const [fromRoles, employeeIds, personIds] = await Promise.all([
-    RoleAssignmentModel.distinct("userId", { organizationId: orgId }),
+    // Only roles in effect now: a revoked or expired assignment no longer ties the account here.
+    RoleAssignmentModel.distinct("userId", { organizationId: orgId, ...activeRoleAssignment() }),
     EmployeeModel.find({ organizationId: orgId }).distinct("_id"),
     PersonModel.find({ organizationId: orgId }).distinct("_id"),
   ]);

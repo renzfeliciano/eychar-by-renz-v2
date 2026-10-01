@@ -67,6 +67,7 @@ export default function LoginPage() {
     const reason = new URLSearchParams(window.location.search).get("reason");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL on arrival
     if (reason === "idle") setNotice("You were signed out after a period of inactivity. Sign in again to continue.");
+    else if (reason === "password-changed") setNotice("Your password was changed, which signed you out everywhere. Sign in with your new password.");
   }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -305,7 +306,7 @@ export default function LoginPage() {
               </form>
             </div>
 
-            <footer className="relative mt-auto flex items-center gap-3 overflow-hidden border-t bg-primary/[0.035] px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-9 lg:rounded-b-2xl dark:bg-primary/[0.08]">
+            <footer className="relative mt-auto flex shrink-0 items-center gap-3 overflow-hidden border-t bg-primary/[0.035] px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-9 lg:rounded-b-2xl dark:bg-primary/[0.08]">
               <DotTexture mask="linear-gradient(to right, black 0%, transparent 45%)" />
               <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15" aria-hidden="true">
                 <ShieldCheck className="size-4" />

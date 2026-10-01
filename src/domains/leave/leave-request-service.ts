@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { LeaveRequestModel } from "@/server/db/models";
+import { EmployeeModel, LeaveRequestModel, LeaveTypeModel } from "@/server/db/models";
+import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import { LeaveBalanceService } from "./leave-balance-service";
@@ -29,6 +30,8 @@ export const LeaveRequestService = {
     }
     const totalDays = inclusiveDayCount(startDate, endDate);
 
+    await assertInOrganization(EmployeeModel, input.employeeId, input.organizationId, "Employee");
+    await assertInOrganization(LeaveTypeModel, input.leaveTypeId, input.organizationId, "Leave type");
     const organizationId = new Types.ObjectId(input.organizationId);
     const employeeId = new Types.ObjectId(input.employeeId);
     const leaveTypeId = new Types.ObjectId(input.leaveTypeId);
@@ -162,7 +165,10 @@ export const LeaveRequestService = {
     await connectMongoDB();
     const filter: Record<string, unknown> = { organizationId: new Types.ObjectId(organizationId) };
     if (filters.status) filter.status = filters.status;
-    if (filters.leaveTypeId) filter.leaveTypeId = new Types.ObjectId(filters.leaveTypeId);
+    if (filters.leaveTypeId) {
+      if (!Types.ObjectId.isValid(filters.leaveTypeId)) return [];
+      filter.leaveTypeId = new Types.ObjectId(filters.leaveTypeId);
+    }
     return LeaveRequestModel.find(filter).sort({ startDate: -1 }).lean();
   },
 };

@@ -68,7 +68,7 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={cloneElement(trigger, { "data-testid": testId } as object)} />
       <DialogContent className="sm:max-w-md">
-        <DialogHeader className="flex-row items-start gap-3">
+        <DialogHeader className="flex-row items-start gap-3 pr-10">
           <div
             className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
               variant === "destructive" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
@@ -81,7 +81,7 @@ export function ConfirmDialog({
             <DialogDescription>{description}</DialogDescription>
           </div>
         </DialogHeader>
-        <FormError message={error} />
+        {error && <FormError message={error} />}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
             {cancelLabel}

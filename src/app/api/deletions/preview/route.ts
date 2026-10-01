@@ -7,8 +7,9 @@ import { DeletionService } from "@/domains/deletion/deletion-service";
 import { isDeletableType } from "@/domains/deletion/deletion-registry";
 import { AuthenticationError, AuthorizationError, ValidationError } from "@/shared/errors";
 import { toErrorResponse } from "@/shared/errors/to-response";
+import { objectId } from "@/shared/validation/object-id";
 
-const querySchema = z.object({ organizationId: z.string().trim().min(1), type: z.string().trim().min(1), id: z.string().trim().min(1) });
+const querySchema = z.object({ organizationId: objectId(), type: z.string().trim().min(1), id: z.string().trim().min(1) });
 
 /** What deleting a record would take with it, and anything that blocks it. Super Administrator only. */
 export async function GET(request: NextRequest) {

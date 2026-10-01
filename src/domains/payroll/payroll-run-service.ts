@@ -11,7 +11,9 @@ import {
   PayrollRecordModel,
   PayrollRuleVersionModel,
   PayrollRunModel,
+  ProjectModel,
 } from "@/server/db/models";
+import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import { EmployeeService } from "@/domains/workforce/employee-service";
@@ -128,8 +130,8 @@ async function computeRun(runId: Types.ObjectId) {
   const candidateObjectIds = candidateIds.map((id) => new Types.ObjectId(id));
 
   const [termsByEmployee, termChanges, attendance, adjustments, priorRuns] = await Promise.all([
-    CompensationService.getAsOfForEmployees(candidateIds, end),
-    CompensationModel.find({ employeeId: { $in: candidateObjectIds }, effectiveFrom: { $gt: dateKeyToDate(start), $lte: dateKeyToDate(end) } }).lean(),
+    CompensationService.getAsOfForEmployees(candidateIds, organizationId, end),
+    CompensationModel.find({ organizationId: run.organizationId, employeeId: { $in: candidateObjectIds }, effectiveFrom: { $gt: dateKeyToDate(start), $lte: dateKeyToDate(end) } }).lean(),
     AttendanceRecordModel.find({ organizationId: run.organizationId, employeeId: { $in: candidateObjectIds }, date: { $gte: dateKeyToDate(start), $lte: dateKeyToDate(end) } })
       .select("employeeId date status checkInAt checkOutAt policyId")
       .lean(),
@@ -317,6 +319,7 @@ const TRANSITIONS: Record<Exclude<PayrollRunActionInput["action"], "recompute">,
 export const PayrollRunService = {
   async prepare(input: CreatePayrollRunInput, actor: Actor, options: { source?: RunSource } = {}) {
     await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
 
     const policyResult = await PayrollPolicyService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(input.payPeriodEnd) });
     if (!policyResult) throw new NotFoundError("No payroll policy applies to this period. Add one under Payroll › Policies.");

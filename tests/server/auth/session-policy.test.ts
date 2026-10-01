@@ -92,4 +92,13 @@ describe("replacedSessionActivity", () => {
     expect(replacedSessionActivity({ previousSessionId: "old", lastActivityAt: new Date(now - 31 * 60_000), now, inactivityMs })).toBeNull();
     expect(replacedSessionActivity({ previousSessionId: "old", lastActivityAt: null, now, inactivityMs })).toBeNull();
   });
+
+  it("expires as session_ended (not concurrent_session) when the account has no active session at all", () => {
+    // Signed out in another tab, password changed, or sign-in reset by an administrator: nobody else signed in.
+    for (const activeSessionId of [null, undefined]) {
+      expect(
+        resolveSessionState({ tokenSessionId: "s1", tokenLastActivityAt: 1_000, now: 2_000, inactivityMs: 60_000, currentUser: { activeSessionId } }),
+      ).toEqual({ expired: true, reason: "session_ended" });
+    }
+  });
 });

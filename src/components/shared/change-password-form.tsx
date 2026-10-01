@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { signIn, signOut } from "next-auth/react";
 import { Check, Circle, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,12 @@ import { cn } from "@/lib/utils";
  * Current password, new password twice, and the rules shown live as they're
  * met. Used by the forced change after a temporary password and by the
  * Security page. The server re-checks everything, including the username rule.
+ *
+ * Changing the password ends every session on the account, this one too (so
+ * a copied session cookie dies with the old password); the form then signs
+ * the person in afresh with the new password. If that needs more than the
+ * password (a two-step verification code), it sends them to the sign-in
+ * page with a note instead.
  */
 export function ChangePasswordForm({ onChanged, submitLabel = "Change password" }: { onChanged: () => void; submitLabel?: string }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -20,6 +27,7 @@ export function ChangePasswordForm({ onChanged, submitLabel = "Change password" 
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   const problems = checkPassword(newPassword);
   const rules = [
@@ -45,12 +53,21 @@ export function ChangePasswordForm({ onChanged, submitLabel = "Change password" 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword, newPassword }),
     });
-    setIsSubmitting(false);
+    const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
+      setIsSubmitting(false);
       setError(body.error ?? "Couldn't change the password. Please try again.");
       return;
     }
+    setSigningIn(true);
+    const again = typeof body.login === "string" ? await signIn("credentials", { login: body.login, password: newPassword, redirect: false }) : null;
+    if (!again?.ok || again.error) {
+      // e.g. two-step verification: finish on the sign-in page.
+      await signOut({ callbackUrl: "/login?reason=password-changed" });
+      return;
+    }
+    setIsSubmitting(false);
+    setSigningIn(false);
     setCurrentPassword("");
     setNewPassword("");
     setConfirm("");
@@ -101,7 +118,7 @@ export function ChangePasswordForm({ onChanged, submitLabel = "Change password" 
       <FormError message={error} />
       <Button type="submit" disabled={isSubmitting} className="self-start">
         {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <KeyRound className="size-4" aria-hidden="true" />}
-        {isSubmitting ? "Saving…" : submitLabel}
+        {signingIn ? "Signing you in again…" : isSubmitting ? "Saving…" : submitLabel}
       </Button>
     </form>
   );

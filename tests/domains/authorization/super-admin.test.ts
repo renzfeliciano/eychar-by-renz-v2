@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, RoleAssignmentModel, RoleModel, UserModel, PermissionModel } from "@/server/db/models";
+import { OrganizationModel, PersonModel, RoleAssignmentModel, RoleModel, UserModel, PermissionModel } from "@/server/db/models";
 import { RoleService } from "@/domains/authorization/role-service";
 import { RoleAssignmentService } from "@/domains/authorization/role-assignment-service";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
@@ -15,7 +15,9 @@ async function seed() {
   const organizationId = organization._id.toString();
   const owner = await UserModel.create({ username: `owner.${Date.now()}.${Math.random()}`, passwordHash: "x" });
   const hr = await UserModel.create({ username: `hr.${Date.now()}.${Math.random()}`, passwordHash: "x" });
-  const other = await UserModel.create({ username: `other.${Date.now()}.${Math.random()}`, passwordHash: "x" });
+  // A staff account of this organization with no role yet (assigning a role needs the account to belong here already).
+  const otherPerson = await PersonModel.create({ organizationId: organization._id, firstName: "Other", lastName: "Staff" });
+  const other = await UserModel.create({ username: `other.${Date.now()}.${Math.random()}`, passwordHash: "x", personId: otherPerson._id });
   const hrRole = await RoleService.create({ organizationId, name: "HR Administrator", permissionKeys: ["roles.create", "roles.update", "roles.assign", "users.update", "employees.read"], status: "active" }, {});
   const staffRole = await RoleService.create({ organizationId, name: "Staff", permissionKeys: ["employees.read"], status: "active" }, {});
   await RoleAssignmentService.assign({ organizationId, roleId: hrRole._id.toString(), userId: hr._id.toString() }, {});

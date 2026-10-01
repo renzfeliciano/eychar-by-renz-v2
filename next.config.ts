@@ -2,27 +2,9 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
-// Next.js embeds its hydration/RSC payload as inline <script> tags, which
-// needs 'unsafe-inline' for script-src without per-request nonce wiring.
-// Scoped to production only so it never fights dev-mode HMR.
-// 'wasm-unsafe-eval' is the narrow grant WebAssembly compilation needs — the
-// clock screen's on-device face-liveness model (MediaPipe, self-hosted
-// under /mediapipe) runs as WASM. It does not re-enable JS eval().
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "worker-src 'self'",
-  "manifest-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join("; ");
-
+// The page Content-Security-Policy is set per request with a nonce in
+// src/proxy.ts (src/server/security/csp.ts), not here: a static header can't
+// carry a fresh nonce, and two CSP headers would both apply.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -31,14 +13,20 @@ const securityHeaders = [
   // them for this app's own pages too, which silently broke the self-service
   // clock's photo and GPS capture (getUserMedia/getCurrentPosition just fail).
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(self)" },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  ...(isProd ? [{ key: "Content-Security-Policy", value: contentSecurityPolicy }] : []),
+  // HTTPS only, so only in production (it would pin localhost to https in dev).
+  ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }] : []),
+  // Cross-origin isolation of the window (popups can't keep a handle on it).
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
 const nextConfig: NextConfig = {
+  // Don't advertise the framework in every response.
+  poweredByHeader: false,
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // API responses are never search results, even if a URL leaks.
+      { source: "/api/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
       // The service worker must never be served from a cache, or clients
       // would keep an old one; it may only load scripts from this origin.
       {

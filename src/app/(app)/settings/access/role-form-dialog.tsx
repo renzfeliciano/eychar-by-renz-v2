@@ -130,7 +130,7 @@ export function RoleFormDialog({
           <DialogTitle>{isEdit ? "Edit role" : "Add role"}</DialogTitle>
           <DialogDescription>{isEdit ? "Updates this role's permissions." : "Defines a new role and the permissions it grants."}</DialogDescription>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Name" htmlFor={`${formId}-name`} required>
             <Input id={`${formId}-name`} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Building Administrator" required />

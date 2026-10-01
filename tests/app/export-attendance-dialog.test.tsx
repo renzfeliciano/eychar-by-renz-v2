@@ -10,7 +10,7 @@ function query(link: HTMLElement) {
 
 async function open() {
   const user = userEvent.setup();
-  render(<ExportAttendanceDialog organizationId="org1" date="2026-10-05" />);
+  render(<ExportAttendanceDialog organizationId="64b7f0c2a1b2c3d4e5f60718" date="2026-10-05" />);
   await user.click(screen.getByTestId("attendance-export-button"));
   return user;
 }
@@ -18,7 +18,7 @@ async function open() {
 describe("ExportAttendanceDialog", () => {
   it("exports the day on screen by default", async () => {
     await open();
-    expect(query(screen.getByTestId("attendance-export-xlsx"))).toEqual({ organizationId: "org1", from: "2026-10-05", to: "2026-10-05", format: "xlsx" });
+    expect(query(screen.getByTestId("attendance-export-xlsx"))).toEqual({ organizationId: "64b7f0c2a1b2c3d4e5f60718", from: "2026-10-05", to: "2026-10-05", format: "xlsx" });
     expect(query(screen.getByTestId("attendance-export-csv"))).toMatchObject({ format: "csv" });
   });
 

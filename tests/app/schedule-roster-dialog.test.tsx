@@ -9,8 +9,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
 const ROSTER = [
-  { employeeId: "e1", employeeNumber: "EMP-001", name: "Angela Santos", included: true },
-  { employeeId: "e2", employeeNumber: "EMP-002", name: "Carlos Villanueva", included: false },
+  { employeeId: "e1", employeeNumber: "EMP-001", name: "Angela Santos", included: true, hidden: false },
+  { employeeId: "e2", employeeNumber: "EMP-002", name: "Carlos Villanueva", included: false, hidden: true },
 ];
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -48,5 +48,22 @@ describe("ScheduleRosterDialog", () => {
 
     expect(screen.queryByRole("checkbox", { name: /Angela Santos/ })).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /Carlos Villanueva/ })).toBeInTheDocument();
+  });
+
+  it("lets only the Super Administrator hide an employee as test data", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<ScheduleRosterDialog organizationId="org1" roster={ROSTER} />);
+    await user.click(screen.getByTestId("schedule-roster-button"));
+    expect(screen.queryByRole("button", { name: "Hide Angela Santos from everyone else" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<ScheduleRosterDialog organizationId="org1" roster={ROSTER} canHide />);
+    await user.click(screen.getByTestId("schedule-roster-button"));
+    expect(screen.getByRole("button", { name: "Unhide Carlos Villanueva" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Hide Angela Santos from everyone else" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/visibility");
+    expect(JSON.parse(init.body)).toEqual({ organizationId: "org1", type: "employee", id: "e1", hidden: true });
   });
 });

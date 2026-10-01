@@ -1,4 +1,5 @@
 import { decode } from "next-auth/jwt";
+import { tokenSeesHidden } from "@/server/auth/token-visibility";
 
 const COOKIE_NAMES = ["__Secure-next-auth.session-token", "next-auth.session-token"];
 
@@ -20,7 +21,8 @@ export async function viewerSeesHidden(): Promise<boolean> {
       const chunks = whole ? [whole] : store.getAll().filter((cookie) => cookie.name.startsWith(`${name}.`)).sort((a, b) => Number(a.name.split(".").pop()) - Number(b.name.split(".").pop())).map((cookie) => cookie.value);
       if (!chunks.length) continue;
       const token = await decode({ token: chunks.join(""), secret: process.env.NEXTAUTH_SECRET ?? "" });
-      return Boolean(token?.seesHidden);
+      // An ended (expired/signed-out) session grants nothing, whatever the cookie still says.
+      return tokenSeesHidden(token);
     }
     return false;
   } catch {

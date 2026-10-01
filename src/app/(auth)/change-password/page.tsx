@@ -9,7 +9,7 @@ import { Logo } from "@/components/shared/logo";
 import { ForcedPasswordChange } from "./forced-password-change";
 import { BrandName } from "@/components/shared/brand-name";
 
-export const metadata: Metadata = { title: "Choose your password" };
+export const metadata: Metadata = { title: "Choose your password", robots: { index: false, follow: false } };
 
 /**
  * Where an account with a temporary password (new, or reset by HR) lands

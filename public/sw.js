@@ -9,7 +9,7 @@
  *   - shows /offline.html when a page can't be reached at all.
  * Bump VERSION to roll every client onto a fresh cache.
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `eychar-static-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png"];

@@ -7,12 +7,14 @@ import { buildScheduleCsv, buildScheduleWorkbook } from "@/domains/attendance/sc
 import { scheduleExportQuerySchema } from "@/shared/validation/schedule";
 import { toErrorResponse } from "@/shared/errors/to-response";
 import { csvResponse, filenameSlug, xlsxResponse } from "@/app/_shared/file-response";
+import { auditExport, enforceRateLimit } from "@/server/security/rate-limit";
 
 /** A plain GET link, so the browser's own download handling does the work — no client-side file building. */
 export async function GET(request: NextRequest) {
   try {
     const { organizationId, month, format } = scheduleExportQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
     const { userId } = await requirePermission("attendance.read", organizationId);
+    await enforceRateLimit("export", userId);
 
     const [view, organizations, shifts] = await Promise.all([
       ScheduleService.getMonthView(organizationId, month),
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest) {
     const organizationName = organizations.find((organization) => organization._id.toString() === organizationId)?.name ?? "Organization";
     const filename = `${filenameSlug(organizationName)}-schedule-${month}`;
 
+    await auditExport({ organizationId, userId, action: "schedule.exported", resourceType: "ScheduleEntry", metadata: { month, format } });
     if (format === "csv") return csvResponse(buildScheduleCsv(view), filename);
 
     // Legend lists every shift used this month plus the active ones, so a

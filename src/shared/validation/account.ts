@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PASSWORD_MAX_LENGTH } from "./password-policy";
+import { objectId } from "@/shared/validation/object-id";
 
 /** The signed-in person managing their own two-factor sign-in. */
 export const mfaActionSchema = z.discriminatedUnion("action", [
@@ -13,7 +14,7 @@ export type MfaActionInput = z.infer<typeof mfaActionSchema>;
 
 /** An administrator acting on someone's account. */
 export const accountAdminActionSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   action: z.enum(["reset-password", "unlock", "disable", "enable", "reset-mfa", "rename"]),
   // Only for "rename" (staff accounts).
   firstName: z.string().trim().max(60).optional(),

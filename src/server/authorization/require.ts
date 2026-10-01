@@ -5,14 +5,28 @@ import { EmployeeModel, UserModel } from "@/server/db/models";
 import { AuthenticationError, AuthorizationError } from "@/shared/errors";
 import { authorize, hasActiveRoleAssignment } from "./authorize";
 
+export const PENDING_PASSWORD_CHANGE_MESSAGE = "Choose a new password before continuing: you signed in with a temporary one.";
+
+export type RequireAuthenticatedUserOptions = {
+  /**
+   * Lets an account still on a temporary password through. Only for the
+   * route that replaces that password (POST /api/account/password); every
+   * other route refuses it until the password is changed.
+   */
+  allowPendingPasswordChange?: boolean;
+};
+
 /**
  * Resolves the authenticated user from the server-side session only.
  * Authentication (who is this?) is intentionally kept separate from
- * authorization (what can they do?) — see AGENTS.md §19.
+ * authorization (what can they do?) — see AGENTS.md §19. An account that
+ * must replace a temporary password (new, or reset by an administrator) is
+ * refused everywhere else until it has, not just redirected by the pages.
  */
-export async function requireAuthenticatedUser(): Promise<{ userId: string }> {
+export async function requireAuthenticatedUser(options: RequireAuthenticatedUserOptions = {}): Promise<{ userId: string }> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new AuthenticationError();
+  if (session.mustChangePassword && !options.allowPendingPasswordChange) throw new AuthorizationError(PENDING_PASSWORD_CHANGE_MESSAGE);
   return { userId: session.user.id };
 }
 

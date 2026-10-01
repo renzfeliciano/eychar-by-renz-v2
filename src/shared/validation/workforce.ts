@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { clearable, contactNumberSchema, sssNumberSchema, philHealthNumberSchema, pagIbigNumberSchema, tinNumberSchema } from "./shared";
+import { objectId } from "@/shared/validation/object-id";
 
 const assignmentFields = {
-  positionId: z.string().trim().min(1).optional(),
-  organizationUnitId: z.string().trim().min(1).optional(),
-  projectId: z.string().trim().min(1).optional(),
-  locationId: z.string().trim().min(1).optional(),
+  positionId: objectId().optional(),
+  organizationUnitId: objectId().optional(),
+  projectId: objectId().optional(),
+  locationId: objectId().optional(),
   // "" removes the manager on transfer.
   reportsToEmployeeId: z.string().trim().optional(),
   effectiveFrom: z.coerce.date().optional(),
 };
 
 export const hireEmployeeSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   firstName: z.string().trim().min(1),
   middleName: z.string().trim().max(100).optional(),
   lastName: z.string().trim().min(1),
@@ -37,7 +38,7 @@ export const hireEmployeeSchema = z.object({
 // accepts it alongside the normal format, and the API route/service turn
 // it into an actual $unset rather than silently keeping the old value.
 export const updateEmployeeProfileSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   firstName: z.string().trim().min(1),
   middleName: z.string().trim().max(100).optional(),
   lastName: z.string().trim().min(1),
@@ -54,18 +55,18 @@ export const updateEmployeeProfileSchema = z.object({
 });
 
 export const transferAssignmentSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   ...assignmentFields,
 });
 
 export const createEmploymentSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   employmentType: z.string().trim().min(1),
   effectiveFrom: z.coerce.date().optional(),
 });
 
 export const terminateEmploymentSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   effectiveTo: z.coerce.date().optional(),
   terminationReason: z.string().trim().optional(),
   status: z.string().trim().optional(),

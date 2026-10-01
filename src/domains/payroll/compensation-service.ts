@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { CompensationModel } from "@/server/db/models";
+import { CompensationModel, EmployeeModel } from "@/server/db/models";
+import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
 import { EmployeeService } from "@/domains/workforce/employee-service";
@@ -50,13 +51,15 @@ export const CompensationService = {
   /** The first pay terms for an employee; after that, use `revise`. */
   async create(input: CreateCompensationInput, actor: { userId?: string }) {
     await connectMongoDB();
+    await assertInOrganization(EmployeeModel, input.employeeId, input.organizationId, "Employee");
+    const organizationId = new Types.ObjectId(input.organizationId);
     const employeeId = new Types.ObjectId(input.employeeId);
-    if (await CompensationModel.exists({ employeeId })) {
+    if (await CompensationModel.exists({ organizationId, employeeId })) {
       throw new ConflictError("This employee already has pay terms. Revise them instead.");
     }
 
     const compensation = await CompensationModel.create({
-      organizationId: new Types.ObjectId(input.organizationId),
+      organizationId,
       employeeId,
       rateType: input.rateType,
       rate: input.rate,
@@ -80,6 +83,7 @@ export const CompensationService = {
 
   async revise(employeeId: string, organizationId: string, terms: Terms, actor: { userId?: string }, options: { batchId?: string } = {}) {
     await connectMongoDB();
+    await assertInOrganization(EmployeeModel, employeeId, organizationId, "Employee");
     const employeeObjectId = new Types.ObjectId(employeeId);
     const effectiveKey = terms.effectiveFrom ?? localDateKey();
 
@@ -120,18 +124,20 @@ export const CompensationService = {
     return next;
   },
 
-  async getAsOf(employeeId: string, dateKey: string) {
+  async getAsOf(employeeId: string, organizationId: string, dateKey: string) {
     await connectMongoDB();
-    const rows = await CompensationModel.find({ employeeId: new Types.ObjectId(employeeId), effectiveFrom: { $lte: dateKeyToDate(dateKey) } })
+    if (!Types.ObjectId.isValid(employeeId)) return null;
+    const rows = await CompensationModel.find({ organizationId: new Types.ObjectId(organizationId), employeeId: new Types.ObjectId(employeeId), effectiveFrom: { $lte: dateKeyToDate(dateKey) } })
       .sort({ effectiveFrom: -1 })
       .lean();
     return rows.find((row) => appliesOn(row, dateKey)) ?? null;
   },
 
   /** Terms per employee as of one day, in one query (for payroll runs and previews). */
-  async getAsOfForEmployees(employeeIds: string[], dateKey: string) {
+  async getAsOfForEmployees(employeeIds: string[], organizationId: string, dateKey: string) {
     await connectMongoDB();
     const rows = await CompensationModel.find({
+      organizationId: new Types.ObjectId(organizationId),
       employeeId: { $in: employeeIds.map((id) => new Types.ObjectId(id)) },
       effectiveFrom: { $lte: dateKeyToDate(dateKey) },
     })
@@ -182,8 +188,8 @@ export const CompensationService = {
 
     const employeeIds = employees.map((row) => row._id.toString());
     const [termsByEmployee, latestRows] = await Promise.all([
-      this.getAsOfForEmployees(employeeIds, input.effectiveFrom),
-      CompensationModel.find({ employeeId: { $in: employeeIds.map((id) => new Types.ObjectId(id)) } }).sort({ effectiveFrom: 1 }).lean(),
+      this.getAsOfForEmployees(employeeIds, input.organizationId, input.effectiveFrom),
+      CompensationModel.find({ organizationId: new Types.ObjectId(input.organizationId), employeeId: { $in: employeeIds.map((id) => new Types.ObjectId(id)) } }).sort({ effectiveFrom: 1 }).lean(),
     ]);
     const latestStartByEmployee = new Map<string, string>();
     for (const row of latestRows as CompensationRow[]) latestStartByEmployee.set(row.employeeId.toString(), dateToDateKey(row.effectiveFrom));
@@ -219,6 +225,7 @@ export const CompensationService = {
 
     const termsByEmployee = await this.getAsOfForEmployees(
       toApply.map((row) => row.employeeId),
+      input.organizationId,
       input.effectiveFrom,
     );
     for (const row of toApply) {

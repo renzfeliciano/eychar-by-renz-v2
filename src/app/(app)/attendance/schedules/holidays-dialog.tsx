@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Loader2, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Loader2, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatDateKey } from "@/lib/date-key";
 import type { HolidayType, HolidayView } from "@/domains/holidays/holiday-types";
 import { HolidayBadge } from "./holiday-badge";
-import { AddHolidayForm } from "./add-holiday-form";
+import { AddHolidayForm, HolidayForm } from "./add-holiday-form";
 
 type PreviewEntry = { date: string; name: string; type: HolidayType; source: string; alreadyAdded: boolean };
 type Preview = { year: number; country: string; verified: boolean; basis: string; notes: string[]; entries: PreviewEntry[] };
@@ -31,6 +31,7 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
   const [holidays, setHolidays] = useState<HolidayView[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -55,6 +56,7 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
     setHolidays(null);
     setPreview(null);
     setAdding(false);
+    setEditingId(null);
     void load(nextYear);
   }
 
@@ -112,6 +114,9 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
   }
 
   const selectable = preview?.entries.filter((entry) => !entry.alreadyAdded) ?? [];
+  const alreadyCount = (preview?.entries.length ?? 0) - selectable.length;
+  // Loaded before: every day of the list is already saved, so there's nothing to pick.
+  const upToDate = preview !== null && selectable.length === 0;
 
   return (
     <Dialog
@@ -125,13 +130,14 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
         <Flag className="size-3.5" />
         Holidays
       </DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Holiday calendar</DialogTitle>
           <DialogDescription>Your organization&apos;s holidays. They show on the schedule&apos;s dates; click a date to see them with that day&apos;s notes.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between gap-2">
+        {/* Wraps onto two lines on narrow screens instead of running past the dialog's edge. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
           <div className="flex items-center gap-1">
             <Button size="icon-sm" variant="ghost" onClick={() => showYear(year - 1)} aria-label="Previous year" disabled={isImporting}>
               <ChevronLeft className="size-4" />
@@ -144,14 +150,21 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
             </Button>
           </div>
           {!preview && (
-            <div className="flex items-center gap-1.5">
+            <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               <Button size="sm" variant="ghost" onClick={() => setAdding((value) => !value)} data-testid="holidays-add-toggle">
                 <Plus className="size-3.5" />
                 Add
               </Button>
               <Button size="sm" variant="outline" onClick={openPreview} disabled={isPreviewing} data-testid="holidays-load-ph">
                 {isPreviewing ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Download className="size-3.5" />}
-                {isPreviewing ? "Loading…" : "Load Philippine holidays"}
+                {isPreviewing ? (
+                  "Loading…"
+                ) : (
+                  <>
+                    <span className="min-[420px]:hidden">Load PH holidays</span>
+                    <span className="hidden min-[420px]:inline">Load Philippine holidays</span>
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -173,19 +186,29 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                   ))}
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-muted-foreground tabular-nums">
-                  {picked.size} of {selectable.length} selected
-                </span>
-                <span className="flex gap-1">
-                  <Button size="xs" variant="ghost" onClick={() => setPicked(new Set(selectable.map((entry) => entry.date)))}>
-                    Select all
-                  </Button>
-                  <Button size="xs" variant="ghost" onClick={() => setPicked(new Set())}>
-                    Clear
-                  </Button>
-                </span>
-              </div>
+              {upToDate ? (
+                <p className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2.5 text-sm" data-testid="holidays-preview-up-to-date">
+                  <BadgeCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <span>
+                    All {preview.entries.length} holidays for {preview.year} are already on your calendar. Nothing new to add.
+                  </span>
+                </p>
+              ) : (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-medium text-muted-foreground tabular-nums">
+                    {picked.size} of {selectable.length} new selected
+                    {alreadyCount > 0 && <span className="font-normal"> · {alreadyCount} already on your calendar</span>}
+                  </span>
+                  <span className="flex shrink-0 gap-1">
+                    <Button size="xs" variant="ghost" onClick={() => setPicked(new Set(selectable.map((entry) => entry.date)))}>
+                      Select all
+                    </Button>
+                    <Button size="xs" variant="ghost" onClick={() => setPicked(new Set())}>
+                      Clear
+                    </Button>
+                  </span>
+                </div>
+              )}
               <ul className="divide-y rounded-lg border">
                 {preview.entries.map((entry) => {
                   const inputId = `preset-${entry.date}-${entry.name}`;
@@ -209,7 +232,14 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                         />
                         <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">{formatDateKey(entry.date, { weekday: "short", month: "short", day: "numeric" })}</span>
                         <span className="min-w-0 flex-1 text-sm">{entry.name}</span>
-                        {entry.alreadyAdded ? <span className="text-xs text-muted-foreground">On calendar</span> : <HolidayBadge type={entry.type} className="hidden sm:inline-flex" />}
+                        {entry.alreadyAdded ? (
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                            <BadgeCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                            Saved
+                          </span>
+                        ) : (
+                          <HolidayBadge type={entry.type} className="hidden sm:inline-flex" />
+                        )}
                       </label>
                     </li>
                   );
@@ -244,7 +274,21 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
               )}
               {holidays && holidays.length > 0 && (
                 <ul className="divide-y rounded-lg border" data-testid="holidays-list">
-                  {holidays.map((holiday) => (
+                  {holidays.map((holiday) =>
+                    editingId === holiday.id ? (
+                      <li key={holiday.id} className="p-2">
+                        <HolidayForm
+                          organizationId={organizationId}
+                          holiday={holiday}
+                          onCancel={() => setEditingId(null)}
+                          onSaved={() => {
+                            setEditingId(null);
+                            void load();
+                            router.refresh();
+                          }}
+                        />
+                      </li>
+                    ) : (
                     <li key={holiday.id} className="flex items-center gap-3 px-3 py-2">
                       <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">{formatDateKey(holiday.date, { weekday: "short", month: "short", day: "numeric" })}</span>
                       <span className="flex min-w-0 flex-1 flex-col">
@@ -252,6 +296,9 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                         {holiday.scope && <span className="truncate text-xs text-muted-foreground">{holiday.scope}</span>}
                       </span>
                       <HolidayBadge type={holiday.type} className="hidden sm:inline-flex" />
+                      <Button size="icon-sm" variant="ghost" aria-label={`Edit ${holiday.name}`} title="Edit" onClick={() => setEditingId(holiday.id)} data-testid={`holiday-edit-${holiday.id}`}>
+                        <Pencil className="size-3.5" />
+                      </Button>
                       <ConfirmDialog
                         trigger={
                           <Button size="icon-sm" variant="ghost" aria-label={`Remove ${holiday.name}`}>
@@ -265,7 +312,8 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                         onConfirm={() => removeHoliday(holiday)}
                       />
                     </li>
-                  ))}
+                    ),
+                  )}
                 </ul>
               )}
             </div>
@@ -274,13 +322,21 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
 
         {preview && (
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setPreview(null)} disabled={isImporting}>
-              Back
-            </Button>
-            <Button onClick={importPicked} disabled={isImporting || picked.size === 0} data-testid="holidays-import-submit">
-              {isImporting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-              {isImporting ? "Saving…" : picked.size === 1 ? "Save 1 holiday" : `Save ${picked.size} holidays`}
-            </Button>
+            {upToDate ? (
+              <Button onClick={() => setPreview(null)} data-testid="holidays-preview-done">
+                Done
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => setPreview(null)} disabled={isImporting}>
+                  Back
+                </Button>
+                <Button onClick={importPicked} disabled={isImporting || picked.size === 0} data-testid="holidays-import-submit">
+                  {isImporting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+                  {isImporting ? "Saving…" : picked.size === 0 ? "Pick holidays to save" : picked.size === 1 ? "Save 1 holiday" : `Save ${picked.size} holidays`}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         )}
       </DialogContent>

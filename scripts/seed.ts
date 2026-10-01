@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { config } from "dotenv";
 import argon2 from "argon2";
+import { checkPassword } from "@/shared/validation/password-policy";
 import { connectMongoDB } from "@/server/db/connection";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import {
@@ -313,6 +314,11 @@ async function seed() {
 
   let hrUser = await UserModel.findOne({ username: hrUsername });
   if (!hrUser) {
+    // The first HR account follows the same password rules as everyone else,
+    // and must replace this password (it sits in an env file) at first sign-in.
+    // An existing account is never touched.
+    const problems = checkPassword(hrPassword, { username: hrUsername });
+    if (problems.length) throw new Error(`SEED_HR_PASSWORD doesn't meet the password policy: ${problems.join(" ")}`);
     const { firstName, lastName } = splitFullName(hrFullName);
     const person = await PersonModel.create({
       organizationId: organization._id,
@@ -323,6 +329,7 @@ async function seed() {
       username: hrUsername,
       passwordHash: await argon2.hash(hrPassword),
       personId: person._id,
+      mustChangePassword: true,
     });
   }
 

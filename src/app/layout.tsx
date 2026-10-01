@@ -1,22 +1,35 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/shared/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/shared/service-worker-register";
-import { BRAND, BRAND_PRONUNCIATION_TAGLINE, BRAND_TITLE_TEMPLATE } from "@/lib/brand";
+import { BRAND, BRAND_TITLE_TEMPLATE } from "@/lib/brand";
+import { SITE_KEYWORDS, SITE_SHARE_IMAGE, baseOpenGraph, siteDescription, siteUrl } from "@/lib/site";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
-export const metadata: Metadata = {
-  title: { default: BRAND.fullName, template: BRAND_TITLE_TEMPLATE },
-  description: BRAND_PRONUNCIATION_TAGLINE,
-  applicationName: BRAND.fullName,
-  // Installed on iOS: full-screen, with its own home-screen name.
-  appleWebApp: { capable: true, title: BRAND.shortName, statusBarStyle: "default" },
-  formatDetection: { telephone: false },
-};
+export function generateMetadata(): Metadata {
+  const description = siteDescription();
+  return {
+    metadataBase: siteUrl(),
+    title: { default: BRAND.fullName, template: BRAND_TITLE_TEMPLATE },
+    description,
+    applicationName: BRAND.fullName,
+    keywords: SITE_KEYWORDS,
+    authors: [{ name: "Renz" }],
+    creator: "Renz",
+    category: "business",
+    // Share previews (Messenger, Viber, Slack, LinkedIn, X).
+    openGraph: { ...baseOpenGraph(description), title: BRAND.fullName, url: "/" },
+    twitter: { card: "summary_large_image", title: BRAND.fullName, description, images: [SITE_SHARE_IMAGE.url] },
+    // Installed on iOS: full-screen, with its own home-screen name.
+    appleWebApp: { capable: true, title: BRAND.shortName, statusBarStyle: "default" },
+    formatDetection: { telephone: false },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -28,7 +41,11 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The per-request CSP nonce from src/proxy.ts. Reading request headers also
+  // keeps every page dynamically rendered, which a nonce requires (a page
+  // built ahead of time would carry no nonce and its scripts would be blocked).
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     // next-themes sets the "dark"/"light" class and color-scheme style on
     // <html> from an inline script before React hydrates, so this element's
@@ -37,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // not a workaround for a real bug.
     <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
       <body>
-        <Providers>
+        <Providers nonce={nonce}>
           {children}
           <Toaster />
         </Providers>

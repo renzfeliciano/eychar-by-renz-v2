@@ -43,7 +43,14 @@ export type ScheduleRow = {
 
 export type ScheduleMonthView = { month: string; label: string; days: ScheduleDay[]; rows: ScheduleRow[] };
 
-export type RosterMember = { employeeId: string; employeeNumber: string; name: string; included: boolean };
+export type RosterMember = {
+  employeeId: string;
+  employeeNumber: string;
+  name: string;
+  included: boolean;
+  /** Hidden as test data (ADR-034); only the Super Administrator's reads include these. */
+  hidden: boolean;
+};
 
 type ShiftTemplateLike = {
   code: string;
@@ -271,6 +278,7 @@ export const ScheduleService = {
         employeeNumber: row.employeeNumber ?? "",
         name: formatPersonName(row.person),
         included: !row.excludedFromSchedule,
+        hidden: Boolean((row as { hiddenFromOthers?: boolean }).hiddenFromOthers),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   },

@@ -42,7 +42,7 @@ async function gatherInputs(organizationId: string, employeeId: string, lastWork
   const year = Number(lastWorkingDay.slice(0, 4));
 
   const [terms, assignment] = await Promise.all([
-    CompensationService.getAsOf(employeeId, lastWorkingDay),
+    CompensationService.getAsOf(employeeId, organizationId, lastWorkingDay),
     EmployeeAssignmentService.getAsOf(employeeId, dateKeyToDate(lastWorkingDay)),
   ]);
   if (!terms) throw new BusinessRuleError(`No pay terms on the last working day. Add them in Payroll › Compensation first.`);

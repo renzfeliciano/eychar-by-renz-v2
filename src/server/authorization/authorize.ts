@@ -70,3 +70,33 @@ export async function hasActiveRoleAssignment({
 
   return Boolean(assignment);
 }
+
+/**
+ * What the user can do in this organization right now: the union of the
+ * permission keys of their active roles, and whether one of them is the
+ * Super Administrator's system role (which passes every check). Used to
+ * stop anyone handing out more access than they hold themselves.
+ */
+export async function heldPermissions({
+  userId,
+  organizationId,
+}: Pick<AuthorizeInput, "userId" | "organizationId">): Promise<{ superAdmin: boolean; keys: Set<string> }> {
+  await connectMongoDB();
+  if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(organizationId)) return { superAdmin: false, keys: new Set() };
+
+  const now = new Date();
+  const roleIds = await RoleAssignmentModel.find({
+    userId: new Types.ObjectId(userId),
+    organizationId: new Types.ObjectId(organizationId),
+    effectiveFrom: { $lte: now },
+    $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }, { effectiveTo: { $gte: now } }],
+  }).distinct("roleId");
+  if (roleIds.length === 0) return { superAdmin: false, keys: new Set() };
+
+  const roles = await RoleModel.find({ _id: { $in: roleIds }, $or: [{ status: "active" }, { status: { $exists: false } }] })
+    .select("permissionKeys system")
+    .lean();
+  const keys = new Set<string>();
+  for (const role of roles) for (const key of (role.permissionKeys ?? []) as string[]) keys.add(key);
+  return { superAdmin: roles.some((role) => role.system === "super_admin"), keys };
+}

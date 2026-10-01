@@ -37,5 +37,6 @@ export const CATALOG_REGISTRY = {
 export type CatalogTypeSlug = keyof typeof CATALOG_REGISTRY;
 
 export function isCatalogTypeSlug(value: string): value is CatalogTypeSlug {
-  return value in CATALOG_REGISTRY;
+  // Own keys only, so "constructor"/"toString" are rejected rather than resolving to Object.prototype.
+  return Object.hasOwn(CATALOG_REGISTRY, value);
 }

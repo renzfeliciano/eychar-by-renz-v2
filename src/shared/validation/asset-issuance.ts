@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { ASSET_CONDITIONS } from "@/server/db/models/asset-issuance";
+import { objectId } from "@/shared/validation/object-id";
 
 const assetIssuanceFields = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   assetName: z.string().trim().min(1, "Asset name is required").max(120),
   assetType: z.string().trim().max(60).optional(),
   serialNumber: z.string().trim().max(80).optional(),

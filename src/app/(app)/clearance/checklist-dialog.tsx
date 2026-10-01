@@ -92,7 +92,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
         <ListChecks className="size-3.5" />
         Checklist
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Clearance checklist</DialogTitle>
           <DialogDescription>What each department clears when someone leaves. New clearances copy the active items; open ones keep theirs.</DialogDescription>

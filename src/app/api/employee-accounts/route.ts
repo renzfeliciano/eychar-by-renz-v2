@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (!employeeId) return NextResponse.json({ account: null });
 
     await requirePermission("employees.read", organizationId);
-    const account = await EmployeeAccountService.getForEmployee(employeeId);
+    const account = await EmployeeAccountService.getForEmployee(employeeId, organizationId);
     return NextResponse.json({ account });
   } catch (error) {
     return toErrorResponse(error);

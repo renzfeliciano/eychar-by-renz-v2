@@ -183,7 +183,7 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
         <Clock className="size-3.5" />
         Shifts
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Shifts</DialogTitle>
           <DialogDescription>The shifts HR picks from when planning each day. Editing one doesn&apos;t change days already scheduled.</DialogDescription>

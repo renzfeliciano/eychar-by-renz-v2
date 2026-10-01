@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePermission } from "@/server/authorization";
 import { AccountSecurityService } from "@/domains/identity/account-security-service";
-import { LoginGuard } from "@/domains/identity/login-guard";
-import { MfaService } from "@/domains/identity/mfa-service";
 import { accountAdminActionSchema } from "@/shared/validation/account";
 import { toErrorResponse } from "@/shared/errors/to-response";
 
@@ -17,7 +15,9 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/users/[id]
     const input = accountAdminActionSchema.parse(await request.json());
     const { userId } = await requirePermission("users.update", input.organizationId);
     const actor = { userId };
-    // Nobody but the Super Administrator acts on the Super Administrator's account.
+    // The account must be this organization's alone, and not the Super
+    // Administrator's (each service method checks this again).
+    await AccountSecurityService.requireUserInOrganization(id, input.organizationId);
     await AccountSecurityService.assertCanAdminister(id, input.organizationId, actor);
 
     switch (input.action) {
@@ -27,16 +27,14 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/users/[id]
       case "reset-password":
         return NextResponse.json(await AccountSecurityService.resetPassword(id, input.organizationId, actor));
       case "unlock":
-        await AccountSecurityService.requireUserInOrganization(id, input.organizationId);
-        await LoginGuard.unlock(id, actor);
+        await AccountSecurityService.unlock(id, input.organizationId, actor);
         break;
       case "disable":
       case "enable":
         await AccountSecurityService.setStatus(id, input.organizationId, input.action === "disable" ? "disabled" : "active", actor);
         break;
       case "reset-mfa":
-        await AccountSecurityService.requireUserInOrganization(id, input.organizationId);
-        await MfaService.adminReset(id, actor);
+        await AccountSecurityService.resetMfa(id, input.organizationId, actor);
         break;
     }
     return NextResponse.json({ ok: true });

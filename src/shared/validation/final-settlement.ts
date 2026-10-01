@@ -1,14 +1,15 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 export const FINAL_SETTLEMENT_ACTIONS = ["submit", "review", "approve", "return", "disburse", "cancel"] as const;
 
 export const prepareFinalSettlementSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  clearanceCaseId: z.string().trim().min(1),
+  organizationId: objectId(),
+  clearanceCaseId: objectId(),
 });
 
 export const manualLineSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   direction: z.enum(["earning", "deduction"]),
   label: z.string().trim().min(1, "Describe the line").max(120),
   amount: z.number().positive("Enter an amount above zero").max(100_000_000),
@@ -16,7 +17,7 @@ export const manualLineSchema = z.object({
 });
 
 export const finalSettlementActionSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   action: z.enum(FINAL_SETTLEMENT_ACTIONS),
   note: z.string().trim().max(500).optional(),
   paymentMethodCode: z.string().trim().max(60).optional(),

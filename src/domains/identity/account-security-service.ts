@@ -1,4 +1,4 @@
-import { organizationUserIds } from "./user-directory";
+import { organizationIdsForUser, organizationUserIds } from "./user-directory";
 import { randomInt } from "crypto";
 import { Types } from "mongoose";
 import argon2 from "argon2";
@@ -12,6 +12,8 @@ import { checkPassword } from "@/shared/validation/password-policy";
 import type { ChangePasswordInput } from "@/shared/validation/auth";
 import { formatPersonName } from "@/lib/person-name";
 import { auditUserEvent } from "./user-audit";
+import { LoginGuard } from "./login-guard";
+import { MfaService } from "./mfa-service";
 
 export type AccountStatus = "active" | "disabled";
 
@@ -50,8 +52,7 @@ function temporaryPassword(): string {
 async function requireUserInOrganization(userId: string, organizationId: string) {
   await connectMongoDB();
   if (!Types.ObjectId.isValid(userId)) throw new NotFoundError("Account not found in this organization");
-  const ids = await organizationUserIds(organizationId);
-  if (!ids.some((id) => id.toString() === userId)) throw new NotFoundError("Account not found in this organization");
+  if (!(await organizationIdsForUser(userId)).has(organizationId)) throw new NotFoundError("Account not found in this organization");
   const user = await UserModel.findById(userId).lean();
   if (!user) throw new NotFoundError("Account not found in this organization");
   return user;
@@ -63,7 +64,8 @@ async function requireUserInOrganization(userId: string, organizationId: string)
  * account's security state. Every change is audited.
  */
 export const AccountSecurityService = {
-  async changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
+  /** Returns the login to sign in again with (the change ends the current session). */
+  async changePassword(userId: string, input: ChangePasswordInput): Promise<{ login: string | null }> {
     await connectMongoDB();
     const user = await UserModel.findById(userId).lean();
     if (!user) throw new NotFoundError("Account not found");
@@ -71,13 +73,21 @@ export const AccountSecurityService = {
     const problems = checkPassword(input.newPassword, { username: user.username, email: user.email });
     if (problems.length > 0) throw new ValidationError(problems.join(" "));
 
-    await UserModel.updateOne({ _id: user._id }, { $set: { passwordHash: await argon2.hash(input.newPassword), passwordChangedAt: new Date(), mustChangePassword: false } });
+    // Ends every session on the account, this one included, so a copied
+    // session cookie dies with the old password; the person signs in afresh
+    // with the new one (src/components/shared/change-password-form.tsx).
+    await UserModel.updateOne(
+      { _id: user._id },
+      { $set: { passwordHash: await argon2.hash(input.newPassword), passwordChangedAt: new Date(), mustChangePassword: false }, $unset: { activeSessionId: 1 } },
+    );
     await auditUserEvent(userId, "auth.password-changed");
+    return { login: user.username ?? user.email ?? null };
   },
 
   /** A temporary password, shown once to the administrator; the person must replace it at next sign-in. */
   async resetPassword(userId: string, organizationId: string, actor: { userId?: string }): Promise<{ temporaryPassword: string }> {
     const user = await requireUserInOrganization(userId, organizationId);
+    await AccountSecurityService.assertCanAdminister(userId, organizationId, actor);
     const password = temporaryPassword();
     await UserModel.updateOne(
       { _id: user._id },
@@ -93,9 +103,24 @@ export const AccountSecurityService = {
 
   async setStatus(userId: string, organizationId: string, status: AccountStatus, actor: { userId?: string }): Promise<void> {
     const user = await requireUserInOrganization(userId, organizationId);
+    await AccountSecurityService.assertCanAdminister(userId, organizationId, actor);
     if (actor.userId && actor.userId === userId && status === "disabled") throw new ValidationError("You can't disable your own account.");
     await UserModel.updateOne({ _id: user._id }, status === "disabled" ? { $set: { status }, $unset: { activeSessionId: 1 } } : { $set: { status } });
     await auditUserEvent(userId, status === "disabled" ? "auth.account-disabled" : "auth.account-enabled", {}, actor.userId);
+  },
+
+  /** An administrator clearing a lock early. */
+  async unlock(userId: string, organizationId: string, actor: { userId?: string }): Promise<void> {
+    await requireUserInOrganization(userId, organizationId);
+    await AccountSecurityService.assertCanAdminister(userId, organizationId, actor);
+    await LoginGuard.unlock(userId, actor);
+  },
+
+  /** An administrator clearing two-step verification for someone who lost their phone and codes. */
+  async resetMfa(userId: string, organizationId: string, actor: { userId?: string }): Promise<void> {
+    await requireUserInOrganization(userId, organizationId);
+    await AccountSecurityService.assertCanAdminister(userId, organizationId, actor);
+    await MfaService.adminReset(userId, actor);
   },
 
   requireUserInOrganization,
@@ -163,10 +188,25 @@ export const AccountSecurityService = {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   },
 
-  /** Only the Super Administrator can act on the Super Administrator's own account (rename, reset, disable…). */
+  /**
+   * Whether an administrator of `organizationId` may act on this account
+   * (rename, reset its password or two-step verification, unlock, disable…).
+   * An account is one login across organizations, so acting on it from one
+   * organization reaches every other it belongs to. Refused when the
+   * account is a Super Administrator (of any organization: only they act on
+   * their own account), or also belongs to another organization (a role
+   * there now, its employee, or its staff person record). People acting on
+   * their own account are not limited by this.
+   */
   async assertCanAdminister(targetUserId: string, organizationId: string, actor: { userId?: string }) {
-    if (!(await SuperAdminService.isSuperAdmin(targetUserId, organizationId))) return;
-    if (actor.userId !== targetUserId) throw new AuthorizationError("Only the Super Administrator can change the Super Administrator's account");
+    if (actor.userId && actor.userId === targetUserId) return;
+    if (await SuperAdminService.isSuperAdminAnywhere(targetUserId)) {
+      throw new AuthorizationError("Only the Super Administrator can change the Super Administrator's account");
+    }
+    const organizations = await organizationIdsForUser(targetUserId);
+    if ([...organizations].some((id) => id !== organizationId)) {
+      throw new AuthorizationError("This account also belongs to another organization, so it can't be changed from here");
+    }
   },
 
   /** Renames a staff account (its person record). Employees' names are changed on their profile instead. */

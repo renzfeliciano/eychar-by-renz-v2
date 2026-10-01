@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { clearable, objectIdSchema } from "./shared";
+import { objectId } from "@/shared/validation/object-id";
 
 export const GEOFENCE_RADIUS_MIN_METERS = 10;
 export const GEOFENCE_RADIUS_MAX_METERS = 5000;
@@ -19,8 +20,8 @@ const geofenceRadiusSchema = z.coerce
   .max(GEOFENCE_RADIUS_MAX_METERS, `Radius can't exceed ${GEOFENCE_RADIUS_MAX_METERS} m`);
 
 export const createOrganizationUnitSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  parentUnitId: z.string().trim().min(1).optional(),
+  organizationId: objectId(),
+  parentUnitId: objectId().optional(),
   type: z.string().trim().min(1),
   name: z.string().trim().min(1),
   code: z.string().trim().min(1),
@@ -28,14 +29,14 @@ export const createOrganizationUnitSchema = z.object({
 });
 
 export const createPositionSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   title: z.string().trim().min(1),
   code: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
 });
 
 export const createLocationSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   name: z.string().trim().min(1),
   code: z.string().trim().min(1),
   address: z.string().trim().optional(),
@@ -48,7 +49,7 @@ export const createLocationSchema = z.object({
 // clearable()). `code` can be renamed but never cleared; other records
 // reference a location by id, so a rename doesn't break them.
 export const updateLocationSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   name: z.string().trim().min(1).optional(),
   code: z.string().trim().min(1, "Enter a code").optional(),
@@ -59,7 +60,7 @@ export const updateLocationSchema = z.object({
 });
 
 export const createProjectSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   locationId: objectIdSchema("Select a valid location").optional(),
   name: z.string().trim().min(1),
   code: z.string().trim().min(1).optional(),
@@ -67,7 +68,7 @@ export const createProjectSchema = z.object({
 });
 
 export const updateProjectSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   name: z.string().trim().min(1).optional(),
   description: clearable(z.string().trim()).optional(),
@@ -75,7 +76,7 @@ export const updateProjectSchema = z.object({
 });
 
 export const updateOrganizationEntityStatusSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   effectiveTo: z.coerce.date().optional(),
 });

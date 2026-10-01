@@ -16,19 +16,29 @@ export function HideToggle({ organizationId, type, id, label, hidden }: { organi
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
-  async function toggle() {
+  async function setVisibility(hide: boolean, { undoable }: { undoable: boolean }) {
     setBusy(true);
     const response = await fetch("/api/visibility", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, type, id, hidden: !hidden }),
+      body: JSON.stringify({ organizationId, type, id, hidden: hide }),
     });
     const body = await response.json().catch(() => ({}));
     setBusy(false);
     if (!response.ok) return toast.error(body.error ?? "Couldn't change its visibility.");
-    toast.success(hidden ? `${label} is visible again` : `${label} is hidden`, { description: hidden ? undefined : "Only you can see it now. Unhide it any time." });
+    if (hide) {
+      toast.success(`${label} is hidden`, {
+        description: "Only you can see it now.",
+        // Hiding is one click away from a mistake, so it can be taken back right here.
+        ...(undoable ? { action: { label: "Undo", onClick: () => void setVisibility(false, { undoable: false }) } } : {}),
+      });
+    } else {
+      toast.success(`${label} is visible again`);
+    }
     router.refresh();
   }
+
+  const toggle = () => setVisibility(!hidden, { undoable: true });
 
   return (
     <span className="inline-flex items-center gap-1">

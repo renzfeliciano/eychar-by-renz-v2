@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { objectIdSchema } from "./shared";
 import { calendarDateSchema, dateSpanInDays } from "./schedule";
+import { objectId } from "@/shared/validation/object-id";
 
 export const createAttendancePolicySchema = z.object({
-  organizationId: z.string().trim().min(1),
-  projectId: z.string().trim().min(1).optional(),
+  organizationId: objectId(),
+  projectId: objectId().optional(),
   name: z.string().trim().min(1),
   standardStartTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
   standardEndTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
@@ -13,8 +14,8 @@ export const createAttendancePolicySchema = z.object({
 });
 
 export const recordAttendanceSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  employeeId: z.string().trim().min(1),
+  organizationId: objectId(),
+  employeeId: objectId(),
   date: z.coerce.date(),
   checkInAt: z.coerce.date().optional(),
   checkOutAt: z.coerce.date().optional(),
@@ -26,7 +27,7 @@ export const recordAttendanceSchema = z.object({
 });
 
 export const adjustAttendanceSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   checkInAt: z.coerce.date().optional(),
   checkOutAt: z.coerce.date().optional(),
   status: z.string().trim().optional(),
@@ -85,7 +86,7 @@ export const MAX_ATTENDANCE_EXPORT_DAYS = 31;
 
 export const attendanceExportQuerySchema = z
   .object({
-    organizationId: z.string().trim().min(1),
+    organizationId: objectId(),
     from: calendarDateSchema,
     to: calendarDateSchema,
     format: z.enum(["xlsx", "csv"]),

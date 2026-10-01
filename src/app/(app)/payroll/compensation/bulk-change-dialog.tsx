@@ -113,7 +113,7 @@ export function BulkChangeDialog({ organizationId, projects }: { organizationId:
         <Layers className="size-3.5" />
         Bulk change
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Bulk pay change</DialogTitle>
           <DialogDescription>Change pay for a project&apos;s crew or everyone, effective on a date. You&apos;ll see who changes before anything is saved.</DialogDescription>

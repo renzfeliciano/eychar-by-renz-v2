@@ -142,7 +142,7 @@ export function CaseFormDialog({
           <DialogTitle>{isEdit ? "Edit case" : "Add case"}</DialogTitle>
           <DialogDescription>{isEdit ? "Updates details on this case record." : "Opens a new legal, labor, or regulatory case against the company for tracking."}</DialogDescription>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Select a project" required />
           <FormField label="Case number" htmlFor={`${formId}-number`} required>

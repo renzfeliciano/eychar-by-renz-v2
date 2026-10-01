@@ -42,6 +42,45 @@ function DialogOverlay({
   )
 }
 
+/** Flattens fragments so a header/footer passed inside <>…</> is still found. */
+function flattenChildren(children: React.ReactNode): React.ReactNode[] {
+  return React.Children.toArray(children).flatMap((child) =>
+    React.isValidElement<{ children?: React.ReactNode }>(child) && child.type === React.Fragment
+      ? flattenChildren(child.props.children)
+      : [child]
+  )
+}
+
+/**
+ * House rule for every dialog: the header and footer stay put and only the
+ * part between them scrolls. Children are sorted into header / body /
+ * footer by type, so existing dialogs get it without any change: everything
+ * that isn't a DialogHeader or DialogFooter goes in the scrolling body.
+ */
+function splitDialogChildren(children: React.ReactNode) {
+  const header: React.ReactNode[] = []
+  const body: React.ReactNode[] = []
+  const footer: React.ReactNode[] = []
+  for (const child of flattenChildren(children)) {
+    const slot = React.isValidElement(child) ? dialogSlotOf(child.type) : null
+    if (slot === "header") header.push(child)
+    else if (slot === "footer") footer.push(child)
+    else body.push(child)
+  }
+  return { header, body, footer }
+}
+
+/**
+ * DialogHeader/DialogFooter, or a component of the caller's own that wraps
+ * one and says so with a static `dialogSlot = "header" | "footer"`.
+ */
+function dialogSlotOf(type: unknown): "header" | "footer" | null {
+  if (type === DialogHeader) return "header"
+  if (type === DialogFooter) return "footer"
+  const declared = (type as { dialogSlot?: unknown } | null)?.dialogSlot
+  return declared === "header" || declared === "footer" ? declared : null
+}
+
 function DialogContent({
   className,
   children,
@@ -50,18 +89,27 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
+  const { header, body, footer } = splitDialogChildren(children as React.ReactNode)
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl bg-popover p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-foreground/15 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-2xl bg-popover p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-foreground/15 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
       >
-        {children}
+        {header}
+        {body.length > 0 && (
+          // -mx-4/px-4 keeps edge-to-edge children (lists with -mx-4) flush
+          // while this box scrolls; it collapses when its contents render nothing.
+          <div data-slot="dialog-body" className="-mx-4 flex min-h-0 flex-1 flex-col gap-[inherit] overflow-y-auto overscroll-contain px-4 empty:hidden">
+            {body}
+          </div>
+        )}
+        {footer}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
@@ -86,7 +134,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("-mx-4 flex flex-col gap-2 border-b px-4 pb-4", className)}
+      className={cn("-mx-4 flex shrink-0 flex-col gap-2 border-b px-4 pb-4", className)}
       {...props}
     />
   )
@@ -108,7 +156,7 @@ function DialogFooter({
         // breakpoint doesn't reflect the dialog's own width, so this stays
         // row + right-aligned unconditionally rather than stacking based on
         // how wide the browser window happens to be.
-        "-mx-4 -mb-4 flex flex-row justify-end gap-2 border-t bg-muted/50 p-4",
+        "-mx-4 -mb-4 flex shrink-0 flex-row justify-end gap-2 border-t bg-muted/50 p-4",
         className
       )}
       {...props}

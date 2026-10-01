@@ -345,8 +345,9 @@ edited in place at the byte level; `update()`'s schema omits every file field en
 - **`DayNote`**: HR's free-form note per organization per day (unique index), cleared via
   `status: "cleared"`.
 - **Schedules day panel**: clicking a date opens its holidays, head-count (working / off / not
-  scheduled, by shift), company events (only with `events.read`) and the HR note; editors can add a
-  holiday there and still "Select everyone on this day". Date headers carry a holiday dot (rose for
+  scheduled, by shift), company events (only with `events.read`) and the HR note; editors can add,
+  edit (date, name, type, scope, legal basis) or remove a holiday there, and still "Select everyone
+  on this day". Edits keep `presetKey`, so a moved proclaimed holiday stays traceable. Date headers carry a holiday dot (rose for
   regular, amber for special non-working) and a note/event dot. A "Holidays" dialog on the page
   manages the year.
 - **API**: `GET/POST /api/holidays`, `PATCH/DELETE /api/holidays/[id]`,
@@ -364,6 +365,35 @@ edited in place at the byte level; `update()`'s schema omits every file field en
   `ServiceWorkerRegister` in production only. The worker caches only fingerprinted static assets
   and icons and falls back to `public/offline.html` for pages it can't reach; it never caches
   pages or `/api` responses (personal and payroll data). `/sw.js` is served `no-store`.
+
+## Search & link previews (SEO)
+
+- Indexable surface is the sign-in page only. `robots.ts` (allow `/login`, the share image and
+  icons; disallow everything else), `sitemap.ts` (`/login`), `noindex` metadata on the `(app)`,
+  `(self-service)` and change-password layouts, and `X-Robots-Tag: noindex` on `/api/*` (layered,
+  so a leaked link still isn't listed).
+- `src/lib/site.ts` resolves the public URL (`NEXT_PUBLIC_SITE_URL` → `NEXTAUTH_URL` → Vercel
+  production domain) for `metadataBase`, and builds the description; the organization name comes
+  from `SITE_ORGANIZATION_NAME` (deployment config, never hardcoded). The sign-in layout adds a
+  canonical link, Open Graph/Twitter cards with `public/og/eychar-share.png`, and JSON-LD.
+
+## Security hardening (ADR-037)
+
+- **Sessions:** a temporary password blocks the API as well as pages; sign-out and password changes
+  end the session server-side; an absolute lifetime (`SESSION_MAX_HOURS`, default 12) on top of the
+  idle timeout. An ended session says why: signed in elsewhere (with when, browser and site),
+  signed out (another tab, password change, admin reset), or idle.
+- **Sign-in:** attempts reserved atomically before the password check; unknown logins lock like real
+  ones; client IP from the platform (`x-vercel-forwarded-for`) or the right-most trusted hop.
+- **Tenancy:** roles only for existing members and only with permissions the giver holds; accounts
+  tied to another organization can't be administered from this one; every foreign id is checked
+  against the organization (`src/server/db/assert-in-organization.ts`); ids are ObjectId-validated.
+- **Files/exports:** uploads allow-listed and checked against their own bytes; CSV formula
+  neutralising; exports audited; per-user rate limits (`src/server/security/rate-limit.ts`).
+- **Platform:** per-request nonce CSP from `src/proxy.ts` (production), HSTS in production only,
+  no `X-Powered-By`, constant-time cron secret checks, PII-free error logs.
+- **Dialogs (UI standard):** `DialogContent` keeps header and footer fixed and scrolls only the body
+  (children are sorted by `DialogHeader`/`DialogFooter`, or a component's static `dialogSlot`).
 
 ## Authorization (ADR-007)
 
@@ -493,6 +523,8 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 
 ## Known gaps (tracked, not silently ignored)
 
+- **Biometric devices:** any signed-in self-service session may register another device for
+  clock-in; requiring HR approval for a second device is a product decision still open.
 - **Holidays don't drive pay or attendance yet.** The calendar is reference data on Schedules;
   payroll still takes holiday pay as an adjustment and leave counts calendar days. Holidays also
   share `attendance.read`/`attendance.update` instead of their own `holidays.*` permissions.

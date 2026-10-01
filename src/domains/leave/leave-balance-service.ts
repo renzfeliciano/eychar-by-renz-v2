@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { LeaveBalanceModel, LeaveRequestModel } from "@/server/db/models";
+import { EmployeeModel, LeaveBalanceModel, LeaveRequestModel, LeaveTypeModel } from "@/server/db/models";
+import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
@@ -25,6 +26,8 @@ export type LeaveBalanceSummary = {
 export const LeaveBalanceService = {
   async create(input: CreateLeaveBalanceInput, actor: { userId?: string }) {
     await connectMongoDB();
+    await assertInOrganization(EmployeeModel, input.employeeId, input.organizationId, "Employee");
+    await assertInOrganization(LeaveTypeModel, input.leaveTypeId, input.organizationId, "Leave type");
 
     let balance;
     try {
@@ -156,6 +159,7 @@ export const LeaveBalanceService = {
     actor: { userId?: string },
   ) {
     await connectMongoDB();
+    await assertInOrganization(LeaveTypeModel, input.leaveTypeId, input.organizationId, "Leave type");
     const [roster, isCurrentStaff, existing] = await Promise.all([
       EmployeeService.listWithCurrentStatus(input.organizationId),
       loadCurrentStaffCheck(input.organizationId),

@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 export const createLeaveTypeSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   name: z.string().trim().min(1),
   code: z.string().trim().min(1),
   description: z.string().trim().optional(),
@@ -9,31 +10,31 @@ export const createLeaveTypeSchema = z.object({
 });
 
 export const createLeavePolicySchema = z.object({
-  organizationId: z.string().trim().min(1),
-  projectId: z.string().trim().min(1).optional(),
-  leaveTypeId: z.string().trim().min(1),
+  organizationId: objectId(),
+  projectId: objectId().optional(),
+  leaveTypeId: objectId(),
   name: z.string().trim().min(1),
   annualEntitlementDays: z.coerce.number().min(0),
 });
 
 export const updateLeaveTypeStatusSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]),
 });
 
 export const updateLeaveTypeSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   name: z.string().trim().min(1),
   code: z.string().trim().min(1),
   description: z.string().trim().optional(),
 });
 
 export const deleteLeaveTypeSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
 });
 
 export const updateLeavePolicyStatusSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   effectiveTo: z.coerce.date().optional(),
 });
@@ -43,9 +44,9 @@ export const updateLeavePolicyStatusSchema = z.object({
 // hasNoFixedAmount marks this balance as unlimited.
 export const createLeaveBalanceSchema = z
   .object({
-    organizationId: z.string().trim().min(1),
-    employeeId: z.string().trim().min(1),
-    leaveTypeId: z.string().trim().min(1),
+    organizationId: objectId(),
+    employeeId: objectId(),
+    leaveTypeId: objectId(),
     year: z.coerce.number().int(),
     entitledDays: z.coerce
       .number()
@@ -61,21 +62,21 @@ export const createLeaveBalanceSchema = z
   });
 
 export const adjustLeaveBalanceSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   adjustmentDays: z.coerce.number(),
 });
 
 export const createLeaveRequestSchema = z.object({
-  organizationId: z.string().trim().min(1),
-  employeeId: z.string().trim().min(1),
-  leaveTypeId: z.string().trim().min(1),
+  organizationId: objectId(),
+  employeeId: objectId(),
+  leaveTypeId: objectId(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   reason: z.string().trim().optional(),
 });
 
 export const decideLeaveRequestSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   action: z.enum(["approve", "reject", "cancel"]),
   rejectionReason: z.string().trim().optional(),
 });

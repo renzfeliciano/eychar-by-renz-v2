@@ -108,8 +108,8 @@ describe("EmployeeAccountService", () => {
   });
 
   it("returns null for an employee with no self-service account yet", async () => {
-    const { employee } = await seedEmployee("6");
-    const account = await EmployeeAccountService.getForEmployee(employee._id.toString());
+    const { organization, employee } = await seedEmployee("6");
+    const account = await EmployeeAccountService.getForEmployee(employee._id.toString(), organization._id.toString());
     expect(account).toBeNull();
   });
 });

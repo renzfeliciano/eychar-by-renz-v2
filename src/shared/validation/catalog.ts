@@ -1,12 +1,18 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 export const createSimpleCatalogItemSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   code: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1),
   description: z.string().trim().optional(),
   sortOrder: z.coerce.number().int().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  // Free-form extras, bounded so a request can't store an arbitrarily large blob.
+  metadata: z
+    .record(z.string().max(60), z.unknown())
+    .refine((value) => Object.keys(value).length <= 20, "Too many metadata fields (max 20)")
+    .refine((value) => JSON.stringify(value).length <= 4000, "Metadata is too large (max 4KB)")
+    .optional(),
 });
 
 // status and name/description are independent operations on the same
@@ -15,7 +21,7 @@ export const createSimpleCatalogItemSchema = z.object({
 // never both, but at least one is required.
 export const updateCatalogItemSchema = z
   .object({
-    organizationId: z.string().trim().min(1),
+    organizationId: objectId(),
     status: z.enum(["active", "inactive"]).optional(),
     name: z.string().trim().min(1).optional(),
     description: z.string().trim().optional(),

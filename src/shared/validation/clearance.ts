@@ -2,12 +2,13 @@ import { z } from "zod";
 import { objectIdSchema } from "./shared";
 import { calendarDateSchema } from "./schedule";
 import { CLEARANCE_AUTO_SOURCES } from "@/domains/clearance/clearance-sources";
+import { objectId } from "@/shared/validation/object-id";
 
 export const CLEARANCE_ITEM_ACTIONS = ["clear", "flag", "waive", "not_applicable", "reopen"] as const;
 export type ClearanceItemAction = (typeof CLEARANCE_ITEM_ACTIONS)[number];
 
 export const openClearanceSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   employeeId: objectIdSchema("Select an employee"),
   separationTypeCode: z.string().trim().min(1, "Select a separation type"),
   noticeDate: calendarDateSchema,
@@ -18,19 +19,19 @@ export const openClearanceSchema = z.object({
 });
 
 export const clearanceItemActionSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   action: z.enum(CLEARANCE_ITEM_ACTIONS),
   note: z.string().trim().max(500).optional(),
   amount: z.number().min(0).max(100_000_000).optional(),
 });
 
 export const cancelClearanceSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   reason: z.string().trim().max(500),
 });
 
 export const createChecklistItemSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   departmentCode: z.string().trim().min(1, "Select a department"),
   title: z.string().trim().min(1, "Enter what must be cleared").max(120),
   description: z.string().trim().max(500).optional(),
@@ -40,7 +41,7 @@ export const createChecklistItemSchema = z.object({
 });
 
 export const updateChecklistItemSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   departmentCode: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).max(120).optional(),

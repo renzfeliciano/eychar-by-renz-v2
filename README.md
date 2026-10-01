@@ -54,3 +54,22 @@ worker (`public/sw.js`, registered in production builds only). Over HTTPS, brows
 only static build assets and icons and shows `public/offline.html` when there's no connection; it
 never caches pages or API responses, since those hold personal data (ADR-036). To test locally,
 run `npm run build && npm run start`; `next dev` doesn't register the worker.
+
+## Search engines and link previews (SEO)
+
+Only the sign-in page is meant to appear in search; everything else is behind sign-in and holds
+personal data. `src/app/robots.ts` allows `/login` and blocks the rest, `src/app/sitemap.ts` lists
+`/login`, the signed-in layouts send `noindex`, and `/api` responses carry `X-Robots-Tag: noindex`.
+The sign-in page has a full description, canonical link, JSON-LD (`WebApplication`) and a share
+image (`public/og/eychar-share.png`), so links pasted into Messenger, Viber, Slack or LinkedIn show
+a proper card. Set `NEXT_PUBLIC_SITE_URL` (your real domain) and, optionally,
+`SITE_ORGANIZATION_NAME` in Vercel; then submit `https://<your-domain>/sitemap.xml` in Google
+Search Console.
+
+## Security
+
+See [ADR-037](./docs/architecture/adr/ADR-037-security-hardening.md) for the current hardening.
+Optional settings: `SESSION_MAX_HOURS` (absolute session lifetime, default 12) and
+`TRUSTED_PROXY_HOPS` (extra proxies in front of the host that append to `X-Forwarded-For`,
+default 0). Set `MFA_ENCRYPTION_KEY` in production. Pages send a per-request nonce
+Content-Security-Policy in production builds only, so `next dev` is unaffected.

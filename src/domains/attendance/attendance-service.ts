@@ -1,7 +1,8 @@
 import { Types } from "mongoose";
 import { minutesOfDayInAppZone } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
-import { AttendanceRecordModel } from "@/server/db/models";
+import { AttendanceRecordModel, EmployeeModel } from "@/server/db/models";
+import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
@@ -55,6 +56,7 @@ export const AttendanceService = {
     if (!input.status && !input.checkInAt) {
       throw new BusinessRuleError("Either a status or a check-in time is required");
     }
+    await assertInOrganization(EmployeeModel, input.employeeId, input.organizationId, "Employee");
 
     const date = toCalendarDateUtc(input.date);
     const assignment = await EmployeeAssignmentService.getAsOf(input.employeeId, date);
@@ -113,6 +115,7 @@ export const AttendanceService = {
   ) {
     await connectMongoDB();
 
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundError("Attendance record not found in this organization");
     const record = await AttendanceRecordModel.findOne({
       _id: new Types.ObjectId(id),
       organizationId: new Types.ObjectId(organizationId),

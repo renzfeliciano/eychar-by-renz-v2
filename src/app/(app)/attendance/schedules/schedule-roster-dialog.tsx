@@ -10,13 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormError } from "@/components/shared/form-field";
 import type { RosterMember } from "@/domains/attendance/schedule-service";
 import { cn } from "@/lib/utils";
+import { HideToggle } from "@/components/shared/hide-toggle";
 
 /**
  * Who appears on the monthly schedule. Some staff (office roles, for
  * example) aren't planned shift by shift, so HR can take them off here;
  * their past scheduled days are kept, just not shown.
  */
-export function ScheduleRosterDialog({ organizationId, roster }: { organizationId: string; roster: RosterMember[] }) {
+export function ScheduleRosterDialog({ organizationId, roster, canHide = false }: { organizationId: string; roster: RosterMember[]; canHide?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [included, setIncluded] = useState<Map<string, boolean>>(new Map());
@@ -80,7 +81,7 @@ export function ScheduleRosterDialog({ organizationId, roster }: { organizationI
         <Users className="size-3.5" />
         Roster
       </DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Schedule roster</DialogTitle>
           <DialogDescription>Choose who is planned on the monthly schedule. People taken off keep their past scheduled days; they&apos;re just not shown.</DialogDescription>
@@ -112,8 +113,8 @@ export function ScheduleRosterDialog({ organizationId, roster }: { organizationI
             const checked = isIncluded(member);
             const inputId = `roster-${member.employeeId}`;
             return (
-              <li key={member.employeeId}>
-                <label htmlFor={inputId} className="flex items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-muted/50">
+              <li key={member.employeeId} className="flex items-center gap-1 pr-2 transition-colors duration-150 hover:bg-muted/50">
+                <label htmlFor={inputId} className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4">
                   <input
                     id={inputId}
                     type="checkbox"
@@ -125,8 +126,10 @@ export function ScheduleRosterDialog({ organizationId, roster }: { organizationI
                     <span className="block truncate text-sm font-medium">{member.name}</span>
                     <span className="block text-xs text-muted-foreground tabular-nums">{member.employeeNumber || "No employee #"}</span>
                   </span>
-                  {!checked && <span className="text-xs text-muted-foreground">Not scheduled</span>}
+                  {!checked && <span className="shrink-0 text-xs text-muted-foreground">Not scheduled</span>}
                 </label>
+                {/* Super Administrator only (the server checks again): hide a test employee from everyone else. */}
+                {canHide && <HideToggle organizationId={organizationId} type="employee" id={member.employeeId} label={member.name} hidden={member.hidden} />}
               </li>
             );
           })}

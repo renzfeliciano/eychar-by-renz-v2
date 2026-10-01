@@ -14,7 +14,8 @@ export function DocumentDownloadButton({ employeeId, documentId, organizationId,
       if (!response.ok) return;
       const { document } = await response.json();
       const link = window.document.createElement("a");
-      link.href = `data:${document.fileType};base64,${document.fileData}`;
+      // The server only returns allowed types; anything else downloads as plain binary.
+      link.href = `data:${document.fileType || "application/octet-stream"};base64,${document.fileData}`;
       link.download = document.fileName;
       link.click();
     } finally {

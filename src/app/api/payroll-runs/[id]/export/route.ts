@@ -9,8 +9,10 @@ import { PAYROLL_RUN_STATUS_LABELS } from "@/domains/payroll/payroll-labels";
 import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
 import { toErrorResponse } from "@/shared/errors/to-response";
 import { csvResponse, filenameSlug, xlsxResponse } from "@/app/_shared/file-response";
+import { auditExport, enforceRateLimit } from "@/server/security/rate-limit";
+import { objectId } from "@/shared/validation/object-id";
 
-const querySchema = z.object({ organizationId: z.string().trim().min(1), format: z.enum(["xlsx", "csv"]) });
+const querySchema = z.object({ organizationId: objectId(), format: z.enum(["xlsx", "csv"]) });
 
 /** The payroll register (plus contributions for remittance) as a plain GET download. */
 export async function GET(request: NextRequest, ctx: RouteContext<"/api/payroll-runs/[id]/export">) {
@@ -18,6 +20,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/payroll-
     const { id } = await ctx.params;
     const { organizationId, format } = querySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
     const { userId } = await requirePermission("payroll-runs.read", organizationId);
+    await enforceRateLimit("export", userId);
 
     const [detail, organizations, projects] = await Promise.all([
       PayrollRunService.getDetail(id, organizationId),
@@ -38,6 +41,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/payroll-
     };
     const filename = `${filenameSlug(organizationName)}-payroll-register-${run.runNumber.toLowerCase()}`;
 
+    await auditExport({ organizationId, userId, action: "payroll-run.exported", resourceType: "PayrollRun", resourceId: run._id.toString(), metadata: { runNumber: run.runNumber, format } });
     if (format === "csv") return csvResponse(buildRegisterCsv(input), filename);
     return await xlsxResponse(buildRegisterWorkbook(input), filename);
   } catch (error) {

@@ -6,8 +6,9 @@ import { DeletionService } from "@/domains/deletion/deletion-service";
 import { isDeletableType } from "@/domains/deletion/deletion-registry";
 import { AuthenticationError, ValidationError } from "@/shared/errors";
 import { toErrorResponse } from "@/shared/errors/to-response";
+import { objectId } from "@/shared/validation/object-id";
 
-const bodySchema = z.object({ organizationId: z.string().trim().min(1), type: z.string().trim().min(1), id: z.string().trim().min(1), confirm: z.string().max(200) });
+const bodySchema = z.object({ organizationId: objectId(), type: z.string().trim().min(1), id: z.string().trim().min(1), confirm: z.string().max(200) });
 
 /** Moves a record and everything attached to the recycle bin (the service enforces Super Administrator only). */
 export async function POST(request: NextRequest) {

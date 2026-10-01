@@ -5,8 +5,9 @@ import { authOptions } from "@/server/auth/options";
 import { DeletionService } from "@/domains/deletion/deletion-service";
 import { AuthenticationError } from "@/shared/errors";
 import { toErrorResponse } from "@/shared/errors/to-response";
+import { objectId } from "@/shared/validation/object-id";
 
-const bodySchema = z.object({ organizationId: z.string().trim().min(1), action: z.enum(["restore", "purge"]) });
+const bodySchema = z.object({ organizationId: objectId(), action: z.enum(["restore", "purge"]) });
 
 /** Restore a recycle-bin entry, or purge it for good now. Super Administrator only (checked in the service). */
 export async function POST(request: Request, ctx: RouteContext<"/api/deletions/[batchId]">) {

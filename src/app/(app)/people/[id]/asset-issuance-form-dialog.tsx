@@ -144,7 +144,7 @@ export function AssetIssuanceFormDialog({
           <DialogTitle>{isEdit ? "Edit asset issuance" : "Log asset issuance"}</DialogTitle>
           <DialogDescription>{isEdit ? "Updates details of this asset issuance." : "Records equipment or property issued to this employee."}</DialogDescription>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Asset name" htmlFor={`${formId}-name`} required>
             <Input id={`${formId}-name`} value={assetName} onChange={(event) => setAssetName(event.target.value)} placeholder="e.g. Dell Latitude 5420" required />

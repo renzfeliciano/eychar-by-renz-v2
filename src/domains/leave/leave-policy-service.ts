@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { LeavePolicyModel } from "@/server/db/models";
+import { LeavePolicyModel, LeaveTypeModel, ProjectModel } from "@/server/db/models";
+import { assertInOrganization, assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
@@ -13,6 +14,8 @@ type LeavePolicyDoc = NonNullable<Awaited<ReturnType<typeof LeavePolicyModel.fin
 export const LeavePolicyService = {
   async create(input: CreateLeavePolicyInput, actor: { userId?: string }) {
     await connectMongoDB();
+    await assertInOrganization(LeaveTypeModel, input.leaveTypeId, input.organizationId, "Leave type");
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
 
     const policy = await LeavePolicyModel.create({
       organizationId: new Types.ObjectId(input.organizationId),

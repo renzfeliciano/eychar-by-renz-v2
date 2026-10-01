@@ -4,9 +4,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ChangePasswordForm } from "@/components/shared/change-password-form";
 
+const signIn = vi.fn();
+const signOut = vi.fn();
+vi.mock("next-auth/react", () => ({ signIn: (...args: unknown[]) => signIn(...args), signOut: (...args: unknown[]) => signOut(...args) }));
+
 const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
+  signIn.mockReset();
+  signOut.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -39,7 +45,8 @@ describe("ChangePasswordForm", () => {
   it("saves and reports success, or shows the server's reason", async () => {
     const user = userEvent.setup();
     const onChanged = vi.fn();
-    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Your current password is incorrect." }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Your current password is incorrect." }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, login: "ana" }) });
+    signIn.mockResolvedValue({ ok: true, error: null });
     render(<ChangePasswordForm onChanged={onChanged} />);
     await fill(user, "old-temp-pass", "harbor-lantern-73-mango", "harbor-lantern-73-mango");
 
@@ -52,5 +59,21 @@ describe("ChangePasswordForm", () => {
       "/api/account/password",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ currentPassword: "old-temp-pass", newPassword: "harbor-lantern-73-mango" }) }),
     );
+    // The change ended the old session; the form signs in afresh with the new password.
+    expect(signIn).toHaveBeenCalledWith("credentials", { login: "ana", password: "harbor-lantern-73-mango", redirect: false });
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("sends the person to sign in again when the fresh sign-in needs more than the password", async () => {
+    const user = userEvent.setup();
+    const onChanged = vi.fn();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, login: "ana" }) });
+    signIn.mockResolvedValue({ ok: true, error: "mfa_required" });
+    render(<ChangePasswordForm onChanged={onChanged} />);
+    await fill(user, "old-temp-pass", "harbor-lantern-73-mango", "harbor-lantern-73-mango");
+
+    await user.click(screen.getByRole("button", { name: /Change password/ }));
+    await waitFor(() => expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login?reason=password-changed" }));
+    expect(onChanged).not.toHaveBeenCalled();
   });
 });

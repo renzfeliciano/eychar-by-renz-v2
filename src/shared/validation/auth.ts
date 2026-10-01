@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { checkPassword, PASSWORD_MAX_LENGTH } from "./password-policy";
+import { objectId } from "@/shared/validation/object-id";
 
 // `login` accepts either a username or an email — see
 // src/domains/identity/user-lookup.ts for the matching lookup.
@@ -20,8 +21,8 @@ function enforcePasswordPolicy(field: string, password: string, context: { usern
 
 export const createEmployeeAccountSchema = z
   .object({
-    organizationId: z.string().trim().min(1),
-    employeeId: z.string().trim().min(1),
+    organizationId: objectId(),
+    employeeId: objectId(),
     username: z.string().trim().min(3).toLowerCase(),
     password: z.string(),
   })
@@ -33,12 +34,12 @@ export type CreateEmployeeAccountInput = z.infer<typeof createEmployeeAccountSch
 // createEmployeeAccountSchema's self-service account (see ADR-022).
 export const createStaffAccountSchema = z
   .object({
-    organizationId: z.string().trim().min(1),
+    organizationId: objectId(),
     firstName: z.string().trim().min(1),
     lastName: z.string().trim().min(1),
     username: z.string().trim().min(3).toLowerCase(),
     password: z.string(),
-    roleId: z.string().trim().min(1).optional(),
+    roleId: objectId().optional(),
   })
   .superRefine((input, ctx) => enforcePasswordPolicy("password", input.password, { username: input.username }, ctx));
 

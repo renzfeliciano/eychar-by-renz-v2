@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { getSelfServiceSession } from "@/app/_shared/get-self-service-session";
 import { ConcurrentSessionGuard } from "@/components/shared/concurrent-session-guard";
 import { IdleSessionGuard } from "@/components/shared/idle-session-guard";
 import { SecuritySettingsService } from "@/domains/identity/security-settings-service";
 import { SelfServiceHeader } from "@/components/shared/self-service-header";
+
+// Everything here is behind sign-in and holds personal data: never list it in search.
+export const metadata: Metadata = { robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } } };
 
 export default async function SelfServiceLayout({ children }: { children: React.ReactNode }) {
   const session = await getSelfServiceSession();

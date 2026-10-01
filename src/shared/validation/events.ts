@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 // Same shape for create and update, mirroring the legacy v1 app's single reused form.
 export const eventSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   title: z.string().trim().min(1).max(120),
   date: z.coerce.date(),
   time: z
@@ -17,11 +18,11 @@ export const createEventSchema = eventSchema;
 export const updateEventSchema = eventSchema;
 
 export const cancelEventSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
 });
 
 export const eventMonthQuerySchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
 });
 

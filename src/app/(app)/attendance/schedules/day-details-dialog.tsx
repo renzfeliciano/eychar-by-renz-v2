@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarDays, Loader2, MousePointerClick, NotebookPen, Plus, Trash2, Users } from "lucide-react";
+import { CalendarDays, Loader2, MousePointerClick, NotebookPen, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,7 +17,7 @@ import type { DayInfo } from "@/domains/holidays/day-info";
 import type { DayHeadcount } from "@/domains/attendance/day-headcount";
 import { shiftColor } from "@/domains/attendance/shift-colors";
 import { HolidayBadge } from "./holiday-badge";
-import { AddHolidayForm } from "./add-holiday-form";
+import { AddHolidayForm, HolidayForm } from "./add-holiday-form";
 
 type Props = {
   organizationId: string;
@@ -54,6 +54,7 @@ function Section({ icon: Icon, title, children, testId }: { icon: React.ElementT
 export function DayDetailsDialog({ organizationId, date, onOpenChange, info, headcount, isToday, isWeekend, canUpdate, canReadEvents, onSelectDay }: Props) {
   const router = useRouter();
   const [addingHoliday, setAddingHoliday] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [note, setNote] = useState(info?.note ?? "");
   const [noteError, setNoteError] = useState<string | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
@@ -108,7 +109,7 @@ export function DayDetailsDialog({ organizationId, date, onOpenChange, info, hea
 
   return (
     <Dialog open={date !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-lg" data-testid="day-details-dialog">
+      <DialogContent className="sm:max-w-lg" data-testid="day-details-dialog">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
             {date ? formatDateKey(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : ""}
@@ -122,7 +123,20 @@ export function DayDetailsDialog({ organizationId, date, onOpenChange, info, hea
             {holidays.length === 0 && !addingHoliday && <p className="text-sm text-muted-foreground">Not a holiday on your calendar.</p>}
             {holidays.length > 0 && (
               <ul className="flex flex-col divide-y rounded-lg border">
-                {holidays.map((holiday) => (
+                {holidays.map((holiday) =>
+                  editingId === holiday.id ? (
+                    <li key={holiday.id} className="p-2">
+                      <HolidayForm
+                        organizationId={organizationId}
+                        holiday={holiday}
+                        onCancel={() => setEditingId(null)}
+                        onSaved={() => {
+                          setEditingId(null);
+                          router.refresh();
+                        }}
+                      />
+                    </li>
+                  ) : (
                   <li key={holiday.id} className="flex items-start gap-3 px-3 py-2.5">
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="text-sm font-medium">{holiday.name}</span>
@@ -133,6 +147,10 @@ export function DayDetailsDialog({ organizationId, date, onOpenChange, info, hea
                       </span>
                     </div>
                     {canUpdate && (
+                      <span className="flex shrink-0 items-center">
+                      <Button size="icon-sm" variant="ghost" aria-label={`Edit ${holiday.name}`} title="Edit" onClick={() => setEditingId(holiday.id)} data-testid={`day-details-edit-${holiday.id}`}>
+                        <Pencil className="size-3.5" />
+                      </Button>
                       <ConfirmDialog
                         trigger={
                           <Button size="icon-sm" variant="ghost" aria-label={`Remove ${holiday.name}`} title="Remove from the calendar">
@@ -145,9 +163,11 @@ export function DayDetailsDialog({ organizationId, date, onOpenChange, info, hea
                         confirmLoadingLabel="Removing…"
                         onConfirm={() => removeHoliday(holiday.id, holiday.name)}
                       />
+                      </span>
                     )}
                   </li>
-                ))}
+                  ),
+                )}
               </ul>
             )}
             {canUpdate && date && (addingHoliday ? (

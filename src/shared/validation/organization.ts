@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { objectId } from "@/shared/validation/object-id";
 
 export const organizationIdParamSchema = z.object({
-  organizationId: z.string().trim().min(1),
+  organizationId: objectId(),
 });
 
 export type OrganizationIdParam = z.infer<typeof organizationIdParamSchema>;

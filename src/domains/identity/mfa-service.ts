@@ -4,7 +4,7 @@ import { UserModel } from "@/server/db/models";
 import { generateTotpSecret, otpauthUri, verifyTotp } from "@/server/auth/totp";
 import { openSecret, sealSecret } from "@/server/auth/secret-box";
 import { generateRecoveryCodes, hashRecoveryCode } from "@/server/auth/recovery-codes";
-import { NotFoundError, ValidationError } from "@/shared/errors";
+import { BusinessRuleError, NotFoundError, ValidationError } from "@/shared/errors";
 import { auditUserEvent } from "./user-audit";
 import { BRAND } from "@/lib/brand";
 
@@ -12,6 +12,8 @@ import { BRAND } from "@/lib/brand";
 // before the rebrand keep their old label until they re-enrol; the codes
 // themselves don't depend on it.
 const ISSUER = BRAND.shortName;
+
+const ALREADY_ON = "Two-step verification is already on. To move it to a new phone, turn it off first (that asks for your password), then set it up again.";
 
 async function loadUser(userId: string) {
   await connectMongoDB();
@@ -29,6 +31,9 @@ async function loadUser(userId: string) {
 export const MfaService = {
   async startEnrollment(userId: string): Promise<{ secret: string; otpauthUri: string }> {
     const user = await loadUser(userId);
+    // Replacing a working authenticator would let a borrowed session swap in
+    // its own phone; turning it off first needs the password.
+    if (user.mfa?.enabled) throw new BusinessRuleError(ALREADY_ON);
     const secret = generateTotpSecret();
     await UserModel.updateOne({ _id: user._id }, { $set: { "mfa.pendingSecret": sealSecret(secret) } });
     return { secret, otpauthUri: otpauthUri(secret, user.username ?? user.email ?? "account", ISSUER) };
@@ -36,14 +41,16 @@ export const MfaService = {
 
   async confirmEnrollment(userId: string, code: string, { now = new Date() }: { now?: Date } = {}): Promise<{ recoveryCodes: string[] }> {
     const user = await loadUser(userId);
+    if (user.mfa?.enabled) throw new BusinessRuleError(ALREADY_ON);
     if (!user.mfa?.pendingSecret) throw new ValidationError("Start two-factor setup again: there's no setup in progress.");
     const secret = openSecret(user.mfa.pendingSecret);
     const step = verifyTotp(secret, code, { now });
     if (step === null) throw new ValidationError("That code didn't match. Check the time on your phone and enter the newest code.");
 
     const recoveryCodes = generateRecoveryCodes();
-    await UserModel.updateOne(
-      { _id: user._id },
+    // Conditional on it still being off with this setup pending, so a parallel request can't slip a second enrollment in.
+    const enabled = await UserModel.updateOne(
+      { _id: user._id, "mfa.enabled": { $ne: true }, "mfa.pendingSecret": user.mfa.pendingSecret },
       {
         $set: {
           "mfa.enabled": true,
@@ -55,6 +62,7 @@ export const MfaService = {
         $unset: { "mfa.pendingSecret": 1 },
       },
     );
+    if (enabled.modifiedCount !== 1) throw new BusinessRuleError(ALREADY_ON);
     await auditUserEvent(userId, "auth.mfa-enabled");
     return { recoveryCodes };
   },

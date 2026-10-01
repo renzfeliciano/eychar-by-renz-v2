@@ -155,7 +155,7 @@ export function EditEmployeeDialog({
           <DialogTitle>Edit employee details</DialogTitle>
           <DialogDescription>Updates this employee&apos;s personal and statutory information.</DialogDescription>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <div className="grid gap-4 sm:grid-cols-3">
             <FormField label="First name" htmlFor={`${formId}-firstName`} required>

@@ -78,7 +78,7 @@ export function CreateLocationDialog({ organizationId }: { organizationId: strin
         <Plus className="size-3.5" />
         Add location
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add location</DialogTitle>
           <DialogDescription>Adds a physical site or branch employees can be assigned to.</DialogDescription>

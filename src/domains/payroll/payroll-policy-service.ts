@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { PayrollPolicyModel } from "@/server/db/models";
+import { PayrollPolicyModel, ProjectModel } from "@/server/db/models";
+import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
@@ -14,6 +15,7 @@ type PayrollPolicyDoc = NonNullable<Awaited<ReturnType<typeof PayrollPolicyModel
 export const PayrollPolicyService = {
   async create(input: CreatePayrollPolicyInput, actor: { userId?: string }) {
     await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
 
     const policy = await PayrollPolicyModel.create({
       organizationId: new Types.ObjectId(input.organizationId),

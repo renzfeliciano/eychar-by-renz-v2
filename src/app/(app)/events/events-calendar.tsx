@@ -131,16 +131,17 @@ export function EventsCalendar({
                       ))}
                     </span>
                   )}
-                  <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
+                  <span className="hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
                     {visible.map((event) => (
                       <span
                         key={event.id}
                         title={`${event.time ? `${event.time} ` : ""}${event.title}`}
-                        className={cn("flex min-w-0 items-center gap-1.5 rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px] leading-4", !cell.inMonth && "opacity-60")}
+                        className={cn("flex w-full min-w-0 items-center gap-1 overflow-hidden rounded-md bg-muted/60 px-1 py-0.5 text-[11px] leading-4 lg:gap-1.5 lg:px-1.5", !cell.inMonth && "opacity-60")}
                       >
                         <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: colorOf(event.category) }} aria-hidden="true" />
-                        {event.time && <span className="shrink-0 text-muted-foreground tabular-nums">{event.time}</span>}
-                        <span className="truncate font-medium">{event.title}</span>
+                        {/* Narrow (tablet) cells keep the title; the time shows once there's room for both. */}
+                        {event.time && <span className="hidden shrink-0 text-muted-foreground tabular-nums xl:inline">{event.time}</span>}
+                        <span className="min-w-0 flex-1 truncate font-medium">{event.title}</span>
                       </span>
                     ))}
                     {hiddenCount > 0 && <span className="px-1.5 text-[11px] font-medium text-muted-foreground">+{hiddenCount} more</span>}

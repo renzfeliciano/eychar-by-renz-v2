@@ -127,7 +127,7 @@ export function TravelOrderFormDialog({
           <DialogTitle>{isEdit ? "Edit travel order" : "New travel order"}</DialogTitle>
           <DialogDescription>{isEdit ? "Updates this travel order's details." : "Dispatches one or more employees for a date range."}</DialogDescription>
         </DialogHeader>
-        <form id={formId} onSubmit={handleSubmit} noValidate className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto pr-1">
+        <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <FormField label="Employees" htmlFor={`${formId}-employees`} required>
             <div id={`${formId}-employees`} className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-lg border p-2">

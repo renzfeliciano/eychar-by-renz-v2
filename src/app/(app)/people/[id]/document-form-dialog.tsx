@@ -18,6 +18,7 @@ import {
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
+import { ALLOWED_DOCUMENT_LABELS, DOCUMENT_ACCEPT, guessDocumentType } from "@/domains/documents/file-check";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
@@ -87,7 +88,7 @@ export function DocumentFormDialog({
         return;
       }
       const fileData = await readFileAsBase64(file);
-      body = { ...body, fileName: file.name, fileType: file.type || "application/octet-stream", fileSize: file.size, fileData };
+      body = { ...body, fileName: file.name, fileType: file.type || guessDocumentType(file.name), fileData };
     }
 
     setIsSubmitting(true);
@@ -162,7 +163,10 @@ export function DocumentFormDialog({
             </FormField>
           ) : (
             <FormField label="File" htmlFor={`${formId}-file`} required>
-              <Input id={`${formId}-file`} ref={fileInputRef} type="file" required />
+              <Input id={`${formId}-file`} ref={fileInputRef} type="file" accept={DOCUMENT_ACCEPT} required aria-describedby={`${formId}-file-hint`} />
+              <p id={`${formId}-file-hint`} className="text-xs text-muted-foreground">
+                {ALLOWED_DOCUMENT_LABELS}, up to 5MB.
+              </p>
             </FormField>
           )}
           <FormField label="Expires on" htmlFor={`${formId}-expires`}>
