@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
+import { withTransaction } from "@/server/db/transaction";
 import {
   EmployeeModel,
   PositionModel,
@@ -159,12 +160,16 @@ export const EmployeeAssignmentService = {
     const before = current
       ? { positionId: current.positionId, projectId: current.projectId, reportsToEmployeeId: current.reportsToEmployeeId }
       : null;
-    if (current) {
-      current.effectiveTo = effectiveFrom;
-      await current.save();
-    }
-
-    const next = await EmployeeAssignmentModel.create(toAssignmentDoc({ ...merged, organizationId, employeeId }));
+    // Closing the old assignment and opening the new one is one change
+    // (ADR-041): the employee is never left with no open assignment, or two.
+    const next = await withTransaction(async (session) => {
+      if (current) {
+        current.effectiveTo = effectiveFrom;
+        await current.save({ session });
+      }
+      const [created] = await EmployeeAssignmentModel.create([toAssignmentDoc({ ...merged, organizationId, employeeId })], { session });
+      return created;
+    });
 
     await AuditService.record({
       organizationId,

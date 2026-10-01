@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
+import { withTransaction } from "@/server/db/transaction";
 import {
   ClearanceCaseModel,
   FinalSettlementModel,
@@ -193,6 +194,7 @@ export const FinalSettlementService = {
     const now = new Date();
     const record = (action: string) => settlement.history.push({ action, at: now, by: toObjectId(actor.userId), note: note || undefined, version: settlement.version });
 
+    let closesClearance = false;
     switch (input.action) {
       case "submit": {
         if (settlement.status !== "draft") throw new BusinessRuleError("Only a draft can be submitted");
@@ -230,8 +232,8 @@ export const FinalSettlementService = {
         settlement.status = "disbursed";
         settlement.payment = { methodCode: input.paymentMethodCode, reference: input.paymentReference.trim(), paidAt: now };
         record("disbursed");
-        // Paying out closes the separation's clearance.
-        await ClearanceCaseModel.updateOne({ _id: settlement.clearanceCaseId }, { $set: { status: "closed", active: false } });
+        // Paying out closes the separation's clearance (saved together below).
+        closesClearance = true;
         break;
       }
       case "cancel":
@@ -241,7 +243,15 @@ export const FinalSettlementService = {
         record("cancelled");
         break;
     }
-    await settlement.save();
+    if (closesClearance) {
+      // Disbursed and clearance closed is one change (ADR-041): never one without the other.
+      await withTransaction(async (session) => {
+        await settlement.save({ session });
+        await ClearanceCaseModel.updateOne({ _id: settlement.clearanceCaseId }, { $set: { status: "closed", active: false } }, { session });
+      });
+    } else {
+      await settlement.save();
+    }
 
     await AuditService.record({
       organizationId,

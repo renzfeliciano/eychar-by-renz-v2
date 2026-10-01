@@ -86,6 +86,7 @@ moving an employee closes the current assignment and creates a new one, never an
 which is what makes historical reconstruction (`getAsOf(employeeId, date)`) possible.
 `HireService.hire(...)` orchestrates Person → Employee → Employment → EmployeeAssignment as three
 separately audited writes for a new hire, not one Mongo transaction (see ADR-005's consequences).
+A transfer's close-old/open-new pair does run in one transaction (ADR-041).
 
 `Person` also carries `gender`/`birthDate`/`address`/`phone` and statutory ID numbers (SSS/
 PhilHealth/Pag-IBIG/TIN, format-validated), and `Employment` carries an optional `endOfContract`
@@ -227,7 +228,8 @@ data — never a hardcoded formula) automatically; Overtime, Holiday Pay, Night 
 Bonuses, 13th Month, Loans, and Other Deductions are HR-supplied `PayrollAdjustment` line items
 at generation time rather than derived from attendance clock-in/out (no `HolidayCalendar` model
 exists yet). Every employee's record is computed fully in memory before any write — see ADR-014
-for why this replaces a Mongo transaction for run atomicity. `approve()` is gated by
+for why computation happens before any write; the write step itself (replace records + totals)
+runs in one transaction (ADR-041, `src/server/db/transaction.ts`). `approve()` is gated by
 `payroll.approve`, its own permission (same precedent as `leave.approve`).
 
 ## Catalogs (Phase 8 foundation, ADR-016)

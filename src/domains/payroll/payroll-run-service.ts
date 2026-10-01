@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
+import { withTransaction } from "@/server/db/transaction";
 import {
   AttendancePolicyModel,
   AttendanceRecordModel,
@@ -311,9 +312,6 @@ async function computeRun(runId: Types.ObjectId) {
   records.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
   exclusions.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
 
-  await PayrollRecordModel.deleteMany({ payrollRunId: run._id });
-  if (records.length) await PayrollRecordModel.insertMany(records);
-
   run.set({
     payFrequency,
     exclusions,
@@ -330,7 +328,14 @@ async function computeRun(runId: Types.ObjectId) {
     warningCount: records.filter((record) => record.warnings.length > 0).length,
     computedAt: new Date(),
   });
-  await run.save();
+  // Replacing the records and the run's totals is one change: a failure part
+  // way can't leave a run with no records, or totals that don't match them (ADR-041).
+  const computed = records; // fixes the array's inferred type before the closure reads it
+  await withTransaction(async (session) => {
+    await PayrollRecordModel.deleteMany({ payrollRunId: run._id }, { session });
+    if (computed.length) await PayrollRecordModel.insertMany(computed, { session });
+    await run.save({ session });
+  });
   return run;
 }
 
@@ -388,8 +393,10 @@ export const PayrollRunService = {
       await assertNoOverlap(input.organizationId, input.projectId, input.payPeriodStart, input.payPeriodEnd, run._id);
       await withComputeLock(run._id, () => computeRun(run._id));
     } catch (error) {
-      await PayrollRecordModel.deleteMany({ payrollRunId: run._id });
-      await PayrollRunModel.deleteOne({ _id: run._id });
+      await withTransaction(async (session) => {
+        await PayrollRecordModel.deleteMany({ payrollRunId: run._id }, { session });
+        await PayrollRunModel.deleteOne({ _id: run._id }, { session });
+      });
       throw error;
     }
 

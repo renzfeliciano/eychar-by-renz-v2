@@ -2,6 +2,7 @@ import mongoose, { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { DeletedRecordModel, DeletionBatchModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
+import { withTransaction } from "@/server/db/transaction";
 import { AuditService } from "@/server/audit/audit-service";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError, ValidationError } from "@/shared/errors";
@@ -54,41 +55,53 @@ export const DeletionService = {
     if (input.confirm.trim() !== plan.label) throw new ValidationError(`Type "${plan.label}" exactly to confirm`);
 
     const orgObjectId = new Types.ObjectId(organizationId);
-    const batch = await DeletionBatchModel.create({
-      organizationId: orgObjectId,
-      entityType: type,
-      entityId: id,
-      label: plan.label,
-      deletedBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined,
-      purgeAfter: new Date(Date.now() + RECYCLE_BIN_DAYS * 86_400_000),
-    });
-
-    const summary: { label: string; count: number }[] = [];
-    let recordCount = 0;
-    for (const step of plan.deletes) {
-      const docs = await step.model.collection.find(step.filter).toArray();
-      if (!docs.length) continue;
-      await DeletedRecordModel.collection.insertMany(
-        docs.map((doc) => ({ batchId: batch._id, organizationId: orgObjectId, collectionName: step.model.collection.collectionName, doc, createdAt: new Date() })),
+    // Moving everything into the bin is one change (ADR-041): a failure part
+    // way leaves the records where they were, not half in the bin.
+    const batch = await withTransaction(async (session) => {
+      const [created] = await DeletionBatchModel.create(
+        [
+          {
+            organizationId: orgObjectId,
+            entityType: type,
+            entityId: id,
+            label: plan.label,
+            deletedBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined,
+            purgeAfter: new Date(Date.now() + RECYCLE_BIN_DAYS * 86_400_000),
+          },
+        ],
+        { session },
       );
-      await step.model.collection.deleteMany({ _id: { $in: docs.map((doc) => doc._id) } });
-      summary.push({ label: step.label, count: docs.length });
-      recordCount += docs.length;
-    }
-    const patches: { collectionName: string; documentId: unknown; op: string; field: string; value: unknown }[] = [];
-    for (const step of plan.patches) {
-      const docs = await step.model.collection.find(step.filter).project({ _id: 1, [step.field]: 1 }).toArray();
-      if (!docs.length) continue;
-      for (const doc of docs) {
-        patches.push({ collectionName: step.model.collection.collectionName, documentId: doc._id, op: step.op, field: step.field, value: step.op === "pull" ? step.value : doc[step.field] });
-      }
-      const ids = docs.map((doc) => doc._id);
-      await step.model.collection.updateMany({ _id: { $in: ids } }, (step.op === "pull" ? { $pull: { [step.field]: step.value } } : { $unset: { [step.field]: "" } }) as never);
-      summary.push({ label: step.label, count: docs.length });
-    }
 
-    batch.set({ summary, recordCount, patches });
-    await batch.save();
+      const summary: { label: string; count: number }[] = [];
+      let recordCount = 0;
+      for (const step of plan.deletes) {
+        const docs = await step.model.collection.find(step.filter, { session }).toArray();
+        if (!docs.length) continue;
+        await DeletedRecordModel.collection.insertMany(
+          docs.map((doc) => ({ batchId: created._id, organizationId: orgObjectId, collectionName: step.model.collection.collectionName, doc, createdAt: new Date() })),
+          { session },
+        );
+        await step.model.collection.deleteMany({ _id: { $in: docs.map((doc) => doc._id) } }, { session });
+        summary.push({ label: step.label, count: docs.length });
+        recordCount += docs.length;
+      }
+      const patches: { collectionName: string; documentId: unknown; op: string; field: string; value: unknown }[] = [];
+      for (const step of plan.patches) {
+        const docs = await step.model.collection.find(step.filter, { session }).project({ _id: 1, [step.field]: 1 }).toArray();
+        if (!docs.length) continue;
+        for (const doc of docs) {
+          patches.push({ collectionName: step.model.collection.collectionName, documentId: doc._id, op: step.op, field: step.field, value: step.op === "pull" ? step.value : doc[step.field] });
+        }
+        const ids = docs.map((doc) => doc._id);
+        await step.model.collection.updateMany({ _id: { $in: ids } }, (step.op === "pull" ? { $pull: { [step.field]: step.value } } : { $unset: { [step.field]: "" } }) as never, { session });
+        summary.push({ label: step.label, count: docs.length });
+      }
+
+      created.set({ summary, recordCount, patches });
+      await created.save({ session });
+      return created;
+    });
+    const summary = batch.summary;
     await AuditService.record({
       organizationId,
       actorUserId: actor.userId,
@@ -108,27 +121,28 @@ export const DeletionService = {
     const records = await DeletedRecordModel.find({ batchId: batch._id }).lean<{ collectionName: string; doc: Record<string, unknown> }[]>();
     const byCollection = new Map<string, Record<string, unknown>[]>();
     for (const record of records) byCollection.set(record.collectionName, [...(byCollection.get(record.collectionName) ?? []), record.doc]);
-    const restored: { name: string; ids: unknown[] }[] = [];
+    // Putting everything back is one change (ADR-041): if any record can't
+    // go back, none do, and the bin entry stays whole.
     try {
-      for (const [name, docs] of byCollection) {
-        await db().collection(name).insertMany(docs);
-        restored.push({ name, ids: docs.map((doc) => doc._id) });
-      }
+      await withTransaction(async (session) => {
+        for (const [name, docs] of byCollection) await db().collection(name).insertMany(docs, { session });
+        for (const patch of batch.patches) {
+          await db()
+            .collection(patch.collectionName!)
+            .updateOne(
+              { _id: patch.documentId } as never,
+              patch.op === "pull" ? { $addToSet: { [patch.field!]: patch.value } } : { $set: { [patch.field!]: patch.value } },
+              { session },
+            );
+        }
+        await DeletedRecordModel.deleteMany({ batchId: batch._id }, { session });
+        batch.set({ status: "restored", restoredAt: new Date(), restoredBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined });
+        await batch.save({ session });
+      });
     } catch (error) {
-      // Undo the partial restore so the bin entry stays whole.
-      for (const done of restored) await db().collection(done.name).deleteMany({ _id: { $in: done.ids } as never });
       if (isDuplicateKeyError(error)) throw new ConflictError("Can't restore: something with the same number or code was created since. Rename or remove it first.");
       throw error;
     }
-    for (const patch of batch.patches) {
-      await db()
-        .collection(patch.collectionName!)
-        .updateOne({ _id: patch.documentId } as never, patch.op === "pull" ? { $addToSet: { [patch.field!]: patch.value } } : { $set: { [patch.field!]: patch.value } });
-    }
-
-    await DeletedRecordModel.deleteMany({ batchId: batch._id });
-    batch.set({ status: "restored", restoredAt: new Date(), restoredBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined });
-    await batch.save();
     await AuditService.record({ organizationId, actorUserId: actor.userId, action: "record.restored", resourceType: batch.entityType, resourceId: batch.entityId, after: { label: batch.label } });
     return batch;
   },
@@ -165,9 +179,11 @@ async function requireBatch(batchId: string, organizationId: string) {
 }
 
 async function purge(batch: InstanceType<typeof DeletionBatchModel>, actorUserId: string | undefined) {
-  await DeletedRecordModel.deleteMany({ batchId: batch._id });
-  batch.set({ status: "purged", purgedAt: new Date() });
-  await batch.save();
+  await withTransaction(async (session) => {
+    await DeletedRecordModel.deleteMany({ batchId: batch._id }, { session });
+    batch.set({ status: "purged", purgedAt: new Date() });
+    await batch.save({ session });
+  });
   await AuditService.record({
     organizationId: batch.organizationId.toString(),
     actorUserId,
