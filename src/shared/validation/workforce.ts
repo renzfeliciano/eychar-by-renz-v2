@@ -77,3 +77,9 @@ export type UpdateEmployeeProfileInput = z.infer<typeof updateEmployeeProfileSch
 export type TransferAssignmentInput = z.infer<typeof transferAssignmentSchema>;
 export type CreateEmploymentInput = z.infer<typeof createEmploymentSchema>;
 export type TerminateEmploymentInput = z.infer<typeof terminateEmploymentSchema>;
+
+/** GET /api/employees/export: the roster export and print, optionally one employment type. */
+export const employeeExportQuerySchema = z.object({
+  organizationId: objectId(),
+  employmentType: z.string().trim().max(100).optional(),
+});

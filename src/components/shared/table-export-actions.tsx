@@ -8,20 +8,31 @@ import { exportFilename } from "@/lib/export/filename";
 import { XLSX_MIME, buildTableCsv, buildTableWorkbook, countLabel, type TableExportSpec } from "@/lib/export/table-export";
 
 /**
- * Export (Excel or CSV) plus Print for a module list page. The rows arrive
- * already resolved for display from the server page; the files are built
+ * Export (Excel or CSV) plus Print for a module list page. The rows either
+ * arrive already resolved from the server page (`rows`), or, for sensitive
+ * or large lists, are fetched only when someone exports (`loadRows`, with
+ * `count` for the summary and `onPrint` for printing). The files are built
  * here in the browser from the module's column spec.
  */
 export function TableExportActions<Row>({
   spec,
   rows,
+  loadRows,
+  count,
+  onPrint,
   organizationName,
   fileKey,
   testIdPrefix,
   note,
 }: {
   spec: TableExportSpec<Row>;
-  rows: Row[];
+  rows?: Row[];
+  /** Fetches the rows on demand instead of `rows`. */
+  loadRows?: () => Promise<Row[]>;
+  /** How many rows an export will hold, when `rows` isn't passed. */
+  count?: number;
+  /** Replaces the default `window.print()`, e.g. to load the rows first. */
+  onPrint?: () => void;
   organizationName: string;
   /** The module part of the filename, e.g. "employees". */
   fileKey: string;
@@ -31,30 +42,32 @@ export function TableExportActions<Row>({
   note?: string;
 }) {
   const filename = () => exportFilename(organizationName, fileKey);
+  const total = count ?? rows?.length ?? 0;
+  const getRows = async () => rows ?? (loadRows ? await loadRows() : []);
 
   return (
     <div className="flex items-center gap-2">
       <ExportDialog
         title={`Export ${spec.title.toLowerCase()}`}
-        description={`${countLabel(rows.length, spec.noun)} will be exported.${note ? ` ${note}` : ""}`}
+        description={`${countLabel(total, spec.noun)} will be exported.${note ? ` ${note}` : ""}`}
         testIdPrefix={`${testIdPrefix}-export`}
-        disabled={rows.length === 0}
+        disabled={total === 0}
         targets={{
           xlsx: {
             build: async () => {
-              const workbook = await buildTableWorkbook(spec, rows, { organizationName });
+              const workbook = await buildTableWorkbook(spec, await getRows(), { organizationName });
               const buffer = await workbook.xlsx.writeBuffer();
               downloadBlob(new Blob([buffer], { type: XLSX_MIME }), `${filename()}.xlsx`);
             },
           },
           csv: {
             build: async () => {
-              downloadBlob(new Blob([buildTableCsv(spec, rows)], { type: "text/csv;charset=utf-8" }), `${filename()}.csv`);
+              downloadBlob(new Blob([buildTableCsv(spec, await getRows())], { type: "text/csv;charset=utf-8" }), `${filename()}.csv`);
             },
           },
         }}
       />
-      <Button type="button" variant="outline" size="sm" onClick={() => window.print()} disabled={rows.length === 0} data-testid={`${testIdPrefix}-print-button`}>
+      <Button type="button" variant="outline" size="sm" onClick={onPrint ?? (() => window.print())} disabled={total === 0} data-testid={`${testIdPrefix}-print-button`}>
         <Printer className="size-3.5" />
         Print
       </Button>

@@ -1,26 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { TableExportActions } from "@/components/shared/table-export-actions";
+import type { RosterExportRow } from "@/domains/workforce/employee-roster-service";
+import { PeoplePrintReport } from "./people-print-report";
 import type { TableExportSpec } from "@/lib/export/table-export";
 
-export type PeopleExportRow = {
-  employeeNumber: string;
-  name: string;
-  gender: string;
-  position: string;
-  project: string;
-  employmentStatus: string;
-  age: string;
-  lengthOfService: string;
-  dateHired: string;
-  birthDate: string;
-  contactNumber: string;
-  address: string;
-  sssNumber: string;
-  philHealthNumber: string;
-  pagIbigNumber: string;
-  tinNumber: string;
-};
+// Built on the server (EmployeeRosterService.exportRows) and fetched on demand.
+export type PeopleExportRow = RosterExportRow;
 
 const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
   title: "Employee roster",
@@ -46,15 +35,67 @@ const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
   ],
 };
 
-export function PeopleExportActions({ rows, organizationName }: { rows: PeopleExportRow[]; organizationName: string }) {
+/**
+ * The roster (with contact details and statutory IDs) is fetched only when
+ * someone exports or prints, from an audited, rate-limited endpoint, rather
+ * than sent to the browser with every view of the People page.
+ */
+export function PeopleExportActions({
+  organizationId,
+  organizationName,
+  employmentType,
+  count,
+}: {
+  organizationId: string;
+  organizationName: string;
+  employmentType?: string;
+  count: number;
+}) {
+  const [printRows, setPrintRows] = useState<PeopleExportRow[] | null>(null);
+  const [printing, setPrinting] = useState(false);
+
+  async function loadRows(): Promise<PeopleExportRow[]> {
+    const params = new URLSearchParams({ organizationId });
+    if (employmentType) params.set("employmentType", employmentType);
+    const response = await fetch(`/api/employees/export?${params}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Export failed (${response.status})`);
+    return ((await response.json()) as { rows: PeopleExportRow[] }).rows;
+  }
+
+  async function print() {
+    try {
+      setPrintRows(await loadRows());
+      setPrinting(true);
+    } catch {
+      toast.error("Couldn't prepare the roster for printing. Please try again.");
+    }
+  }
+
+  // Print once the report has rendered, then drop the rows from the page.
+  useEffect(() => {
+    if (!printing) return;
+    const clear = () => {
+      setPrinting(false);
+      setPrintRows(null);
+    };
+    window.addEventListener("afterprint", clear, { once: true });
+    window.print();
+    return () => window.removeEventListener("afterprint", clear);
+  }, [printing]);
+
   return (
-    <TableExportActions
-      spec={PEOPLE_EXPORT}
-      rows={rows}
-      organizationName={organizationName}
-      fileKey="employees"
-      testIdPrefix="people"
-      note="It includes statutory IDs and contact details, so share it only with people who need them."
-    />
+    <>
+      <TableExportActions
+        spec={PEOPLE_EXPORT}
+        loadRows={loadRows}
+        count={count}
+        onPrint={() => void print()}
+        organizationName={organizationName}
+        fileKey="employees"
+        testIdPrefix="people"
+        note="It includes statutory IDs and contact details, so share it only with people who need them."
+      />
+      {printRows && createPortal(<PeoplePrintReport rows={printRows} />, document.body)}
+    </>
   );
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CalendarClock, IdCard, UserPlus, Users2 } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
-import { EmployeeService } from "@/domains/workforce/employee-service";
+import { EmployeeRosterService } from "@/domains/workforce/employee-roster-service";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
@@ -16,10 +16,9 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { calculateAge, formatLengthOfService } from "@/lib/employee-dates";
 import { formatPersonName } from "@/lib/person-name";
-import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
+import { parseTableQuery, buildTableHref } from "@/lib/table-query";
 import { PeopleFilters } from "./people-filters";
-import { PeopleExportActions, type PeopleExportRow } from "./people-export-actions";
-import { PeoplePrintReport } from "./people-print-report";
+import { PeopleExportActions } from "./people-export-actions";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -49,8 +48,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     return <p className="text-sm text-muted-foreground">You don&apos;t have access to view employees.</p>;
   }
 
-  const [fullRoster, positions, projects, employmentTypes, employmentStatuses] = await Promise.all([
-    EmployeeService.listWithCurrentStatus(organizationId),
+  const [positions, projects, employmentTypes, employmentStatuses] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmploymentTypeService.listCurrent(organizationId),
@@ -61,73 +59,30 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   const statusNameByCode = new Map(employmentStatuses.map((item) => [item.code, item.name]));
 
   const employmentTypeFilter = firstValue(params.employmentType);
-  const roster = employmentTypeFilter
-    ? fullRoster.filter((row) => row.currentEmployment?.employmentType === employmentTypeFilter)
-    : fullRoster;
-
   const tableQuery = parseTableQuery(params, "name");
-  const { rows: pageRows, total: matchingTotal } = applyTableQuery(roster, tableQuery, {
-    searchFields: (row) => [
-      row.person ? formatPersonName(row.person) : null,
-      row.employeeNumber,
-      row.currentAssignment?.positionId ? (positionTitleById.get(row.currentAssignment.positionId.toString()) ?? null) : null,
-    ],
-    sortValues: {
-      name: (row) => (row.person ? formatPersonName(row.person) : ""),
-      employeeNumber: (row) => row.employeeNumber ?? "",
-      status: (row) => (row.currentEmployment?.status ? (statusNameByCode.get(row.currentEmployment.status) ?? row.currentEmployment.status) : ""),
-      age: (row) => (row.person?.birthDate ? calculateAge(new Date(row.person.birthDate)) : null),
-      lengthOfService: (row) => (row.currentEmployment?.effectiveFrom ? new Date(row.currentEmployment.effectiveFrom) : null),
-    },
-  });
-
-  // Always reflects the whole roster, independent of the employment-type
-  // filter below — a summary that shifted with the table would misreport
-  // "how many people work here" the moment someone filters it.
-  const statusCounts = new Map<string, number>();
-  for (const row of fullRoster) {
-    const code = row.currentEmployment?.status;
-    if (code) statusCounts.set(code, (statusCounts.get(code) ?? 0) + 1);
-  }
-  const statusSummary = employmentStatuses
-    .filter((status) => statusCounts.has(status.code))
-    .map((status) => ({ code: status.code, name: status.name, count: statusCounts.get(status.code)! }));
-
-  // The summary strip: headcount, recent hires, contracts about to end, and
-  // records missing government IDs (a compliance to-do, not a statistic).
+  const needle = tableQuery.q?.toLowerCase();
+  // Only one page of people is read; the database searches, sorts and counts.
+  // The summary strip always reflects the whole roster, independent of the
+  // employment-type filter — a summary that shifted with the table would
+  // misreport "how many people work here" the moment someone filters it.
   const activeCodes = new Set(employmentStatuses.filter((status) => status.metadata?.isActiveHeadcount).map((status) => status.code));
-  const currentStaff = fullRoster.filter((row) => activeCodes.size === 0 || activeCodes.has(row.currentEmployment?.status ?? ""));
-  const now = new Date().getTime();
-  const DAY_MS = 86_400_000;
-  const newHires = currentStaff.filter((row) => row.currentEmployment?.effectiveFrom && now - new Date(row.currentEmployment.effectiveFrom).getTime() <= 90 * DAY_MS).length;
-  const endingSoon = currentStaff.filter((row) => {
-    const end = row.currentEmployment?.endOfContract ? new Date(row.currentEmployment.endOfContract).getTime() : null;
-    return end !== null && end >= now - DAY_MS && end - now <= 30 * DAY_MS;
-  }).length;
-  const missingIds = currentStaff.filter((row) => !row.person?.sssNumber || !row.person?.philHealthNumber || !row.person?.pagIbigNumber || !row.person?.tinNumber).length;
+  const [{ rows: pageRows, total: matchingTotal }, summary, filteredTotal] = await Promise.all([
+    EmployeeRosterService.page(organizationId, {
+      ...tableQuery,
+      employmentType: employmentTypeFilter,
+      positionIdsMatchingQ: needle ? positions.filter((position) => position.title.toLowerCase().includes(needle)).map((position) => position._id.toString()) : undefined,
+      statusNames: statusNameByCode,
+    }),
+    EmployeeRosterService.summary(organizationId, activeCodes),
+    // How many rows an export would hold (it ignores the search box, as before).
+    tableQuery.q ? EmployeeRosterService.page(organizationId, { ...tableQuery, q: undefined, page: 1, pageSize: 1, employmentType: employmentTypeFilter }).then((result) => result.total) : null,
+  ]);
+  const exportCount = filteredTotal ?? matchingTotal;
 
-  const exportRows: PeopleExportRow[] = roster.map((row) => {
-    const dateHired = row.currentEmployment?.effectiveFrom;
-    const birthDate = row.person?.birthDate;
-    return {
-      employeeNumber: row.employeeNumber ?? "—",
-      name: row.person ? formatPersonName(row.person) : "—",
-      gender: row.person?.gender ?? "",
-      position: row.currentAssignment?.positionId ? positionTitleById.get(row.currentAssignment.positionId.toString()) ?? "—" : "—",
-      project: row.currentAssignment?.projectId ? projectNameById.get(row.currentAssignment.projectId.toString()) ?? "—" : "—",
-      employmentStatus: row.currentEmployment ? statusNameByCode.get(row.currentEmployment.status) ?? row.currentEmployment.status : "—",
-      age: birthDate ? String(calculateAge(new Date(birthDate))) : "",
-      lengthOfService: dateHired ? formatLengthOfService(new Date(dateHired)) : "—",
-      dateHired: dateHired ? new Date(dateHired).toLocaleDateString() : "",
-      birthDate: birthDate ? new Date(birthDate).toLocaleDateString() : "",
-      contactNumber: row.person?.phone ?? "",
-      address: row.person?.address ?? "",
-      sssNumber: row.person?.sssNumber ?? "",
-      philHealthNumber: row.person?.philHealthNumber ?? "",
-      pagIbigNumber: row.person?.pagIbigNumber ?? "",
-      tinNumber: row.person?.tinNumber ?? "",
-    };
-  });
+  const statusSummary = employmentStatuses
+    .filter((status) => summary.statusCounts.has(status.code))
+    .map((status) => ({ code: status.code, name: status.name, count: summary.statusCounts.get(status.code)! }));
+  const { newHires, endingSoon, missingIds } = summary;
 
   return (
     <>
@@ -137,7 +92,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           description="Search and manage every employee — statutory IDs are included in exports and prints."
           action={
             <div className="flex items-center gap-2">
-              <PeopleExportActions rows={exportRows} organizationName={organization.name} />
+              <PeopleExportActions organizationId={organizationId} organizationName={organization.name} employmentType={employmentTypeFilter} count={exportCount} />
               <Link href="/people/new" className={buttonVariants()}>
                 <UserPlus className="size-4" />
                 Add employee
@@ -149,7 +104,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <MetricCard
             label="Active headcount"
-            value={currentStaff.length}
+            value={summary.headcount}
             hint={
               <span className="flex items-center gap-2">
                 {statusSummary.slice(0, 3).map((status) => (
@@ -259,7 +214,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           emptyMessage={tableQuery.q || employmentTypeFilter ? "No employees match this search." : "No employees yet."}
         />
       </div>
-      <PeoplePrintReport rows={exportRows} />
     </>
   );
 }

@@ -298,6 +298,17 @@ print report (`hidden print:block`, per ADR-018/019's Tailwind-first print conve
 hard-delete was intentionally not ported (AGENTS.md §53: no hard deletes anywhere in this
 codebase); a case is retired via its `status` catalog value instead.
 
+## People roster paging
+
+The People page reads one page of employees at a time: `EmployeeRosterService.page()` joins each
+employee's latest Employment and EmployeeAssignment in an aggregation, then searches, sorts and
+pages in the database (`$facet` for rows + total). The summary strip comes from
+`EmployeeRosterService.summary()`, which returns counts only. The export and print rows (contact
+details, statutory IDs) are no longer embedded in the page: `GET /api/employees/export` serves
+them on demand, behind `employees.read`, the `export` rate limit and an `employees.exported` audit
+entry. Other list pages still filter an already-fetched list in memory (`applyTableQuery`); move
+one to the same pattern when its organization-wide size makes that slow.
+
 ## Travel Orders & Asset Issuance (ADR-022)
 
 Both mirror the legacy v1 app's real modules. `TravelOrder` (`employeeIds[]` ref `Employee`,
