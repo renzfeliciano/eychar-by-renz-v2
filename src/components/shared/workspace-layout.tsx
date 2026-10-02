@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Building2, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "./logo";
 import { BrandName } from "./brand-name";
@@ -9,14 +8,26 @@ import { BRAND } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AccountMenu } from "./account-menu";
-import { Breadcrumbs } from "./breadcrumbs";
+import { Breadcrumbs, MobileHeaderTitle } from "./breadcrumbs";
 import { cn } from "@/lib/utils";
 import { NavLinks } from "./nav-links";
+import { ModuleTabs } from "./module-tabs";
 import { ThemeToggle } from "./theme-toggle";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = `${BRAND.storagePrefix}:sidebar-collapsed`;
 
-export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { account: React.ComponentProps<typeof AccountMenu>; isSuperAdmin?: boolean; children: React.ReactNode }) {
+export function WorkspaceLayout({
+  account,
+  isSuperAdmin = false,
+  heldPermissions,
+  children,
+}: {
+  account: React.ComponentProps<typeof AccountMenu>;
+  isSuperAdmin?: boolean;
+  /** The viewer's permission keys in this organization — the nav hides what they can't open. */
+  heldPermissions?: readonly string[];
+  children: React.ReactNode;
+}) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -44,7 +55,7 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <aside
         className={cn(
           "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out md:flex print:hidden",
@@ -57,7 +68,7 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
           {!collapsed && <BrandName className="text-sm" />}
         </div>
         <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-3">
-          <NavLinks collapsed={collapsed} isSuperAdmin={isSuperAdmin} />
+          <NavLinks collapsed={collapsed} isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
         </div>
         <div className="shrink-0 border-t border-sidebar-border px-2.5 py-2">
           <button
@@ -110,14 +121,12 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
               </SheetHeader>
               {/* Its own scroll area: the sheet is full-height, so without this the lower modules sit off-screen with no way to reach them. */}
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6" data-testid="mobile-nav-scroll">
-                <NavLinks onNavigate={() => setMobileNavOpen(false)} isSuperAdmin={isSuperAdmin} />
+                <NavLinks onNavigate={() => setMobileNavOpen(false)} isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
               </div>
             </SheetContent>
           </Sheet>
 
-          <Link href="/dashboard" className="shrink-0 text-sm font-semibold tracking-tight md:hidden">
-            {BRAND.name}
-          </Link>
+          <MobileHeaderTitle />
           <Breadcrumbs />
 
           {/* The org name gets the room the bar has left (up to a generous cap)
@@ -139,8 +148,11 @@ export function WorkspaceLayout({ account, isSuperAdmin = false, children }: { a
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))]">
+          <div className="mx-auto max-w-6xl">
+            <ModuleTabs isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
+            {children}
+          </div>
         </main>
       </div>
     </div>
