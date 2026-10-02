@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSelfServiceSession } from "@/app/_shared/get-self-service-session";
-import { hourInAppZone } from "@/lib/app-time";
+import { formatDate, hourInAppZone } from "@/lib/app-time";
 import { SelfServiceAttendanceService } from "@/domains/attendance/self-service-attendance-service";
 import { ClockSiteService } from "@/domains/attendance/clock-site-service";
 import { ScheduleService, localDateKey } from "@/domains/attendance/schedule-service";
@@ -40,9 +40,9 @@ export default async function ClockPage() {
       <section className="relative overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-soft)]" aria-label="Today">
         <span className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden="true" />
         <div className="bg-primary/[0.035] px-5 pt-5 pb-4 dark:bg-primary/[0.08]">
-          <p className="text-xs font-medium text-muted-foreground">{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+          <p className="text-xs font-medium text-muted-foreground">{formatDate(now, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight">
-            {greetingFor(hourInAppZone(now))}, {session.name.split(" ")[0]}
+            {greetingFor(hourInAppZone(now), session.name.split(" ")[0])}
           </h1>
           <p className="text-sm text-muted-foreground">Employee #{session.employeeNumber ?? "—"}</p>
         </div>

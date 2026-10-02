@@ -15,6 +15,12 @@ const organizationSchema = new Schema(
       // employee accounts are exempt (they clock in with their own device).
       requireTwoStepForStaff: { type: Boolean, default: false },
     },
+    // Compliance deadlines the dashboard watches (configuration, not code).
+    compliance: {
+      // Days after the last working day by which final pay must be released
+      // (30 under DOLE Labor Advisory No. 06-2020, unless policy says sooner).
+      finalPayDays: { type: Number, min: 1, max: 365, default: 30 },
+    },
   },
   { timestamps: true },
 );

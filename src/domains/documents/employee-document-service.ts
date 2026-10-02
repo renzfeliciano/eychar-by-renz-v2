@@ -88,6 +88,16 @@ export const EmployeeDocumentService = {
     return document;
   },
 
+  /** Documents across the organization that expired or expire by `until` (the dashboard's risk list). No file data. */
+  async listExpiringForOrganization(organizationId: string, until: Date) {
+    await connectMongoDB();
+    return EmployeeDocumentModel.find({ organizationId: new Types.ObjectId(organizationId), expiresAt: { $ne: null, $lte: until } })
+      .select("employeeId title documentType expiresAt")
+      .sort({ expiresAt: 1 })
+      .limit(200)
+      .lean();
+  },
+
   async listForEmployee(employeeId: string, organizationId: string) {
     await connectMongoDB();
     return EmployeeDocumentModel.find({ employeeId: new Types.ObjectId(employeeId), organizationId: new Types.ObjectId(organizationId) })

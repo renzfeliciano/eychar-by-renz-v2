@@ -1,83 +1,30 @@
 /**
- * Pure helpers behind the dashboard: what needs someone's attention, the
- * greeting, the day's attendance split and the events coming up. The page
- * gathers the counts (each only when the user may see that module) and these
- * decide what to show and in which order.
+ * Pure helpers behind the dashboard: the greeting and the events coming up.
+ * What needs doing and the legal risks are in action-queue.ts and
+ * compliance-risks.ts.
  */
 
-export function greetingFor(hour: number): string {
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-export type AttentionKey =
-  | "payrollApproved"
-  | "payrollSubmitted"
-  | "pendingLeave"
-  | "payrollDrafts"
-  | "contractsEnding"
-  | "missingPayTerms"
-  | "missingGovernmentIds"
-  | "openCases";
-
-/** A missing key means the queue doesn't apply to this user (no permission). */
-export type AttentionCounts = Partial<Record<AttentionKey, number>>;
-
-export type AttentionTone = "danger" | "warning" | "info";
-
-export type AttentionItem = {
-  key: AttentionKey;
-  count: number;
-  title: string;
-  description: string;
-  href: string;
-  tone: AttentionTone;
-};
-
-// Listed most urgent first: pay that is ready to go out, then decisions
-// people are waiting on, then records that would make the next payroll or a
-// government filing wrong, then open cases. Today's attendance has its own
-// panel on the dashboard, so it isn't repeated here.
-const ATTENTION_QUEUES: Omit<AttentionItem, "count">[] = [
-  { key: "payrollApproved", title: "Payroll to release", description: "Approved runs waiting to be paid and marked released.", href: "/payroll?status=approved", tone: "warning" },
-  { key: "payrollSubmitted", title: "Payroll to approve", description: "Submitted runs waiting for an approver.", href: "/payroll?status=submitted", tone: "warning" },
-  { key: "pendingLeave", title: "Leave requests to decide", description: "Approve or decline before the dates arrive.", href: "/leave?status=pending", tone: "warning" },
-  { key: "payrollDrafts", title: "Payroll drafts", description: "Review, adjust and submit for approval.", href: "/payroll?status=draft", tone: "info" },
-  { key: "contractsEnding", title: "Contracts ending soon", description: "End of contract within the next 30 days.", href: "/people", tone: "warning" },
-  { key: "missingPayTerms", title: "Employees without pay terms", description: "They'll be left out of payroll until a rate is set.", href: "/payroll/compensation", tone: "danger" },
-  { key: "missingGovernmentIds", title: "Incomplete government IDs", description: "Missing SSS, PhilHealth, Pag-IBIG or TIN numbers.", href: "/people", tone: "warning" },
-  { key: "openCases", title: "Open cases", description: "Labor cases not yet closed or dismissed.", href: "/cases", tone: "info" },
+// Two-hour slots in the app's time zone (hourInAppZone), worded the way the
+// product owner wrote them: natural, a little playful.
+const GREETINGS: { until: number; line: (name: string) => string }[] = [
+  { until: 2, line: (n) => `Still up${n}?` },
+  { until: 4, line: (n) => `Burning the midnight oil${n}?` },
+  { until: 6, line: (n) => `You're up early${n}.` },
+  { until: 8, line: (n) => `Rise and shine${n}.` },
+  { until: 10, line: (n) => `Good morning${n}.` },
+  { until: 12, line: (n) => `Morning's treating you well${n}?` },
+  { until: 14, line: (n) => `Lunchtime${n}?` },
+  { until: 16, line: (n) => `Good afternoon${n}.` },
+  { until: 18, line: (n) => `Afternoon's flying by${n}.` },
+  { until: 20, line: (n) => `Good evening${n}.` },
+  { until: 22, line: (n) => `Winding down${n}?` },
+  { until: 24, line: (n) => `Working late${n}?` },
 ];
 
-export function buildAttentionItems(counts: AttentionCounts): AttentionItem[] {
-  return ATTENTION_QUEUES.flatMap((queue) => {
-    const count = counts[queue.key];
-    return count ? [{ ...queue, count }] : [];
-  });
-}
-
-export type AttendanceCounts = { present: number; late: number; absent: number; onLeave: number; notRecorded: number };
-
-export type AttendanceSegment = { key: keyof AttendanceCounts; label: string; count: number; share: number };
-
-const ATTENDANCE_SEGMENTS: { key: keyof AttendanceCounts; label: string }[] = [
-  { key: "present", label: "Present" },
-  { key: "late", label: "Late" },
-  { key: "absent", label: "Absent" },
-  { key: "onLeave", label: "On leave" },
-  { key: "notRecorded", label: "Not recorded" },
-];
-
-/** The day's attendance as shares of everyone counted, in a fixed order, empty statuses dropped. */
-export function attendanceSegments(counts: AttendanceCounts): AttendanceSegment[] {
-  const total = ATTENDANCE_SEGMENTS.reduce((sum, segment) => sum + counts[segment.key], 0);
-  if (total === 0) return [];
-  return ATTENDANCE_SEGMENTS.filter((segment) => counts[segment.key] > 0).map((segment) => ({
-    ...segment,
-    count: counts[segment.key],
-    share: Math.round((counts[segment.key] / total) * 100),
-  }));
+/** A greeting that fits the hour: "Still up, Travis?" at 1 AM, "Lunchtime, Travis?" at noon. */
+export function greetingFor(hour: number, firstName = ""): string {
+  const slot = GREETINGS.find((candidate) => hour < candidate.until) ?? GREETINGS[GREETINGS.length - 1];
+  return slot.line(firstName ? `, ${firstName}` : "");
 }
 
 /** Active events on or after `todayKey` (YYYY-MM-DD), soonest first. */
