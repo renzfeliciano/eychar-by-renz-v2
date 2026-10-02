@@ -6,6 +6,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { DocumentFormDialog } from "./document-form-dialog";
 import { DocumentDownloadButton } from "./document-download-button";
 import { formatDate } from "./profile-format";
+import { formatDate as formatInstantDate } from "@/lib/app-time";
 
 /** The Documents tab: files on record with their expiry, upload and edit. */
 export function DocumentsTab({
@@ -42,8 +43,8 @@ export function DocumentsTab({
         <DataTable
           columns={[
             { key: "title", header: "Title", render: (document) => <span className="font-medium">{document.title}</span> },
-            { key: "type", header: "Type", render: (document) => documentTypeNameByCode.get(document.documentType) ?? document.documentType },
-            { key: "fileName", header: "File", render: (document) => <span className="text-muted-foreground">{document.fileName}</span> },
+            { key: "type", header: "Type", mobile: "subtitle", render: (document) => documentTypeNameByCode.get(document.documentType) ?? document.documentType },
+            { key: "fileName", header: "File", mobile: "hidden", render: (document) => <span className="text-muted-foreground">{document.fileName}</span> },
             {
               key: "expires",
               header: "Expires",
@@ -59,7 +60,7 @@ export function DocumentsTab({
                 );
               },
             },
-            { key: "uploaded", header: "Uploaded", render: (document) => formatDate(document.createdAt) },
+            { key: "uploaded", header: "Uploaded", render: (document) => formatInstantDate(document.createdAt) },
             {
               key: "action",
               header: "",

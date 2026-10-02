@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Upload } from "lucide-react";
+import { Plus, Pencil, Upload, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -176,9 +176,8 @@ export function DocumentFormDialog({
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form={formId} disabled={isSubmitting} data-testid={isEdit ? "document-save-button" : "documents-upload-submit-button"}>
-            {isSubmitting ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : !isEdit && <Upload className="size-3.5" aria-hidden="true" />}
-            {isEdit ? (isSubmitting ? "Saving…" : "Save changes") : isSubmitting ? "Uploading…" : "Upload document"}
+          <Button type="submit" form={formId} icon={isEdit ? Save : Upload} pending={isSubmitting} pendingLabel={isEdit ? "Saving…" : "Uploading…"} data-testid={isEdit ? "document-save-button" : "documents-upload-submit-button"}>
+            {isEdit ? "Save changes" : "Upload document"}
           </Button>
         </DialogFooter>
       </DialogContent>

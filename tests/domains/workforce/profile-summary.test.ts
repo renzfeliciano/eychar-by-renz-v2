@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { documentExpiry, missingGovernmentIds, profileAtAGlance } from "@/domains/workforce/profile-summary";
+import { documentExpiry, missingGovernmentIds, profileAttention } from "@/domains/workforce/profile-summary";
 
 const NOW = new Date("2026-09-28T00:00:00.000Z");
 
@@ -19,22 +19,37 @@ describe("missingGovernmentIds", () => {
   });
 });
 
-describe("profileAtAGlance", () => {
-  it("adds up leave left this year, assets still out and documents needing attention", () => {
-    const summary = profileAtAGlance(
+describe("profileAttention", () => {
+  const base = { active: true, hasPosition: true, missingIds: [], hasSelfServiceLogin: true, hasPayTerms: true };
+
+  it("is empty for someone with everything in order", () => {
+    expect(profileAttention(base, NOW)).toEqual([]);
+  });
+
+  it("puts the urgent things first", () => {
+    const items = profileAttention(
       {
-        year: 2026,
-        leave: [
-          { year: 2026, available: 5, unlimited: false },
-          { year: 2026, available: 2.5, unlimited: false },
-          { year: 2026, available: null, unlimited: true },
-          { year: 2025, available: 3, unlimited: false },
-        ],
-        assets: [{ returnedDate: null }, { returnedDate: new Date("2026-01-01") }],
-        documents: [{ expiresAt: new Date("2026-09-01") }, { expiresAt: new Date("2026-10-10") }, { expiresAt: null }],
+        ...base,
+        missingIds: ["TIN"],
+        pendingLeave: 2,
+        contractEnd: new Date("2026-10-10T00:00:00.000Z"),
+        openClearance: { lastWorkingDay: new Date("2026-10-01T00:00:00.000Z") },
+        documents: [{ title: "NBI clearance", expiresAt: new Date("2026-09-01T00:00:00.000Z") }],
       },
       NOW,
     );
-    expect(summary).toEqual({ leaveDaysLeft: 7.5, hasUnlimitedLeave: true, assetsOut: 1, documents: 3, documentsNeedingAttention: 2 });
+    expect(items.map((item) => item.tone)).toEqual(["danger", "danger", "warning", "warning", "info"]);
+    expect(items[0].text).toBe("Leaving: last working day in 3 days. Clearance is open.");
+    expect(items.find((item) => item.key === "contract")?.text).toBe("Contract ends in 12 days: renew, regularize or start clearance.");
+    expect(items.find((item) => item.key === "leave")?.text).toBe("2 leave requests waiting for a decision.");
+  });
+
+  it("flags a contract that ended while they're still active", () => {
+    expect(profileAttention({ ...base, contractEnd: new Date("2026-09-20T00:00:00.000Z") }, NOW)[0]).toMatchObject({ tone: "danger", tab: "job" });
+  });
+
+  it("skips what the viewer can't see, and active-only checks for people who left", () => {
+    expect(profileAttention({ ...base, active: false, hasPosition: false, hasSelfServiceLogin: false, hasPayTerms: false }, NOW)).toEqual([]);
+    expect(profileAttention({ ...base, hasPayTerms: undefined }, NOW)).toEqual([]);
   });
 });

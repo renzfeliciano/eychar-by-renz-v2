@@ -41,7 +41,7 @@ export function LeaveTab({
             { key: "leaveType", header: "Leave type", render: (balance) => <span className="font-medium">{leaveTypeNameById.get(balance.leaveTypeId.toString()) ?? "—"}</span> },
             { key: "year", header: "Year", render: (balance) => balance.year },
             { key: "entitled", header: "Entitled", render: (balance) => (balance.hasNoFixedAmount ? "Unlimited" : balance.entitledDays.toFixed(2)) },
-            { key: "adjustment", header: "Adjustment", render: (balance) => balance.adjustmentDays.toFixed(2) },
+            { key: "adjustment", header: "Adjustment", mobile: "hidden", render: (balance) => balance.adjustmentDays.toFixed(2) },
             {
               key: "available",
               header: "Available",

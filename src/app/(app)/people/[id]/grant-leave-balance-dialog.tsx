@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Gift } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -130,9 +130,8 @@ export function GrantLeaveBalanceDialog({
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="grant-leave-balance-form" disabled={isSubmitting} data-testid="grant-leave-balance-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Granting…" : "Grant balance"}
+          <Button type="submit" form="grant-leave-balance-form" data-testid="grant-leave-balance-submit-button" icon={Gift} pending={isSubmitting} pendingLabel="Granting…">
+            Grant balance
           </Button>
         </DialogFooter>
       </DialogContent>

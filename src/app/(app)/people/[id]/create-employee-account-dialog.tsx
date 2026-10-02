@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,14 +16,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
+import { useFieldErrors } from "@/lib/field-errors";
 import { cn } from "@/lib/utils";
+
+/** API field → the control it's about, for field-level errors (see useFieldErrors). */
+const EMPLOYEE_ACCOUNT_FIELD_IDS = {
+  username: "employee-account-username",
+  password: "employee-account-password",
+} as const;
 
 export function CreateEmployeeAccountDialog({ organizationId, employeeId, suggestedUsername }: { organizationId: string; employeeId: string; suggestedUsername?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState(suggestedUsername ?? "");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const { fieldErrors, formError: error, setFormError: setError, setFromResponse } = useFieldErrors({ fieldIds: EMPLOYEE_ACCOUNT_FIELD_IDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -41,7 +48,7 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? "Failed to create self-service login.");
+      setFromResponse(body, "Failed to create self-service login.");
       return;
     }
 
@@ -75,10 +82,10 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
           <p className="text-sm text-muted-foreground">
             Lets this employee sign in on their own device to clock in/out with biometric confirmation and location.
           </p>
-          <FormField label="Username" htmlFor="employee-account-username" required>
+          <FormField label="Username" htmlFor="employee-account-username" error={fieldErrors.username} required>
             <Input id="employee-account-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="e.g. jdelacruz" required />
           </FormField>
-          <FormField label="Temporary password" htmlFor="employee-account-password" required>
+          <FormField label="Temporary password" htmlFor="employee-account-password" error={fieldErrors.password} required>
             <Input
               id="employee-account-password"
               type="text"
@@ -91,9 +98,8 @@ export function CreateEmployeeAccountDialog({ organizationId, employeeId, sugges
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="create-employee-account-form" disabled={isSubmitting} data-testid="create-employee-account-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Creating…" : "Create login"}
+          <Button type="submit" form="create-employee-account-form" data-testid="create-employee-account-submit-button" icon={Plus} pending={isSubmitting} pendingLabel="Creating…">
+            Create login
           </Button>
         </DialogFooter>
       </DialogContent>

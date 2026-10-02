@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, Pencil } from "lucide-react";
+import { Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
-import { focusInvalidField } from "@/lib/focus-invalid-field";
+import { useFieldErrors } from "@/lib/field-errors";
 import { cn } from "@/lib/utils";
 
 const GENDER_OPTIONS: SelectOption[] = [
@@ -41,6 +41,9 @@ export type EditEmployeeInitialValue = {
   pagIbigNumber?: string | null;
   tinNumber?: string | null;
 };
+
+/** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
+const EDIT_EMPLOYEE_FIELDS = ["gender", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
@@ -68,8 +71,7 @@ export function EditEmployeeDialog({
   const [philHealthNumber, setPhilHealthNumber] = useState(initialValue.philHealthNumber ?? "");
   const [pagIbigNumber, setPagIbigNumber] = useState(initialValue.pagIbigNumber ?? "");
   const [tinNumber, setTinNumber] = useState(initialValue.tinNumber ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [invalidField, setInvalidField] = useState<string | null>(null);
+  const { fieldErrors, formError, setFromResponse, clearField: clearFieldError, clear: clearErrors } = useFieldErrors({ formId, fields: EDIT_EMPLOYEE_FIELDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function resetToInitial() {
@@ -86,8 +88,7 @@ export function EditEmployeeDialog({
     setPhilHealthNumber(initialValue.philHealthNumber ?? "");
     setPagIbigNumber(initialValue.pagIbigNumber ?? "");
     setTinNumber(initialValue.tinNumber ?? "");
-    setError(null);
-    setInvalidField(null);
+    clearErrors();
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -95,13 +96,9 @@ export function EditEmployeeDialog({
     setOpen(nextOpen);
   }
 
-  function clearFieldError(field: string) {
-    if (invalidField === field) setInvalidField(null);
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    clearErrors();
     setIsSubmitting(true);
 
     const response = await fetch(`/api/employees/${employeeId}`, {
@@ -133,9 +130,7 @@ export function EditEmployeeDialog({
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? "Failed to update employee.");
-      setInvalidField(body.field ?? null);
-      focusInvalidField(formId, body.field);
+      setFromResponse(body, "Failed to update employee.");
       return;
     }
 
@@ -158,7 +153,7 @@ export function EditEmployeeDialog({
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
           <div className="grid gap-4 sm:grid-cols-3">
-            <FormField label="First name" htmlFor={`${formId}-firstName`} required>
+            <FormField label="First name" htmlFor={`${formId}-firstName`} error={fieldErrors.firstName} required>
               <Input
                 id={`${formId}-firstName`}
                 value={firstName}
@@ -166,14 +161,13 @@ export function EditEmployeeDialog({
                   setFirstName(event.target.value);
                   clearFieldError("firstName");
                 }}
-                aria-invalid={invalidField === "firstName"}
                 required
               />
             </FormField>
-            <FormField label="Middle name" htmlFor={`${formId}-middleName`}>
+            <FormField label="Middle name" htmlFor={`${formId}-middleName`} error={fieldErrors.middleName}>
               <Input id={`${formId}-middleName`} value={middleName} onChange={(event) => setMiddleName(event.target.value)} />
             </FormField>
-            <FormField label="Last name" htmlFor={`${formId}-lastName`} required>
+            <FormField label="Last name" htmlFor={`${formId}-lastName`} error={fieldErrors.lastName} required>
               <Input
                 id={`${formId}-lastName`}
                 value={lastName}
@@ -181,19 +175,18 @@ export function EditEmployeeDialog({
                   setLastName(event.target.value);
                   clearFieldError("lastName");
                 }}
-                aria-invalid={invalidField === "lastName"}
                 required
               />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <OptionSelect label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" />
-            <FormField label="Birth date" htmlFor={`${formId}-birthDate`}>
+            <OptionSelect id={`${formId}-gender`} error={fieldErrors.gender} label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" />
+            <FormField label="Birth date" htmlFor={`${formId}-birthDate`} error={fieldErrors.birthDate}>
               <Input id={`${formId}-birthDate`} type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Email" htmlFor={`${formId}-email`}>
+            <FormField label="Email" htmlFor={`${formId}-email`} error={fieldErrors.email}>
               <Input
                 id={`${formId}-email`}
                 type="email"
@@ -203,14 +196,13 @@ export function EditEmployeeDialog({
                   clearFieldError("email");
                 }}
                 placeholder="e.g. juan.delacruz@company.com"
-                aria-invalid={invalidField === "email"}
               />
             </FormField>
-            <FormField label="Contact number" htmlFor={`${formId}-phone`}>
+            <FormField label="Contact number" htmlFor={`${formId}-phone`} error={fieldErrors.phone}>
               <Input id={`${formId}-phone`} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09XX-XXX-XXXX" />
             </FormField>
           </div>
-          <FormField label="Employee number" htmlFor={`${formId}-employeeNumber`}>
+          <FormField label="Employee number" htmlFor={`${formId}-employeeNumber`} error={fieldErrors.employeeNumber}>
             <Input
               id={`${formId}-employeeNumber`}
               value={employeeNumber}
@@ -219,10 +211,9 @@ export function EditEmployeeDialog({
                 clearFieldError("employeeNumber");
               }}
               placeholder="e.g. 0001"
-              aria-invalid={invalidField === "employeeNumber"}
             />
           </FormField>
-          <FormField label="Address" htmlFor={`${formId}-address`}>
+          <FormField label="Address" htmlFor={`${formId}-address`} error={fieldErrors.address}>
             <Textarea
               id={`${formId}-address`}
               value={address}
@@ -231,10 +222,10 @@ export function EditEmployeeDialog({
             />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="SSS no." htmlFor={`${formId}-sssNumber`}>
+            <FormField label="SSS no." htmlFor={`${formId}-sssNumber`} error={fieldErrors.sssNumber}>
               <Input id={`${formId}-sssNumber`} value={sssNumber} onChange={(event) => setSssNumber(event.target.value)} placeholder="e.g. 34-1234567-8" />
             </FormField>
-            <FormField label="PhilHealth no." htmlFor={`${formId}-philHealthNumber`}>
+            <FormField label="PhilHealth no." htmlFor={`${formId}-philHealthNumber`} error={fieldErrors.philHealthNumber}>
               <Input
                 id={`${formId}-philHealthNumber`}
                 value={philHealthNumber}
@@ -242,7 +233,7 @@ export function EditEmployeeDialog({
                 placeholder="e.g. 12-345678901-2"
               />
             </FormField>
-            <FormField label="Pag-IBIG no." htmlFor={`${formId}-pagIbigNumber`}>
+            <FormField label="Pag-IBIG no." htmlFor={`${formId}-pagIbigNumber`} error={fieldErrors.pagIbigNumber}>
               <Input
                 id={`${formId}-pagIbigNumber`}
                 value={pagIbigNumber}
@@ -250,16 +241,15 @@ export function EditEmployeeDialog({
                 placeholder="e.g. 1234-5678-9012"
               />
             </FormField>
-            <FormField label="TIN no." htmlFor={`${formId}-tinNumber`}>
+            <FormField label="TIN no." htmlFor={`${formId}-tinNumber`} error={fieldErrors.tinNumber}>
               <Input id={`${formId}-tinNumber`} value={tinNumber} onChange={(event) => setTinNumber(event.target.value)} placeholder="e.g. 123-456-789" />
             </FormField>
           </div>
-          <FormError message={error} />
+          <FormError message={formError} />
         </form>
         <DialogFooter>
-          <Button type="submit" form={formId} disabled={isSubmitting} data-testid="edit-employee-submit-button">
-            {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Saving…" : "Save changes"}
+          <Button type="submit" form={formId} data-testid="edit-employee-submit-button" icon={Save} pending={isSubmitting} pendingLabel="Saving…">
+            Save changes
           </Button>
         </DialogFooter>
       </DialogContent>

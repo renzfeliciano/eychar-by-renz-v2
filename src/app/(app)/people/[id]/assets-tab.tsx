@@ -34,8 +34,8 @@ export function AssetsTab({
         <DataTable
           columns={[
             { key: "assetName", header: "Asset", render: (record) => <span className="font-medium">{record.assetName}</span> },
-            { key: "type", header: "Type", render: (record) => record.assetType || "—" },
-            { key: "serial", header: "Serial #", render: (record) => <span className="font-mono text-xs">{record.serialNumber || "—"}</span> },
+            { key: "type", header: "Type", mobile: "subtitle", render: (record) => record.assetType || "—" },
+            { key: "serial", header: "Serial #", mobile: "hidden", render: (record) => <span className="font-mono text-xs">{record.serialNumber || "—"}</span> },
             { key: "condition", header: "Condition", render: (record) => record.condition },
             { key: "issued", header: "Issued", render: (record) => formatDate(record.issuedDate) },
             {

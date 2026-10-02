@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, Loader2 } from "lucide-react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function DocumentDownloadButton({ employeeId, documentId, organizationId, fileName }: { employeeId: string; documentId: string; organizationId: string; fileName: string }) {
@@ -33,8 +33,6 @@ export function DocumentDownloadButton({ employeeId, documentId, organizationId,
   }
 
   return (
-    <Button type="button" variant="ghost" size="sm" onClick={handleDownload} disabled={isDownloading} aria-label={`Download ${fileName}`}>
-      {isDownloading ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Download className="size-3.5" aria-hidden="true" />}
-    </Button>
+    <Button type="button" variant="ghost" size="icon-sm" onClick={handleDownload} icon={Download} pending={isDownloading} aria-label={`Download ${fileName}`} />
   );
 }
