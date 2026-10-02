@@ -2,21 +2,32 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { DataTableFrame } from "@/components/shared/data-table-frame";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronRight, Loader2, OctagonAlert, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronRight, OctagonAlert, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormError, FormField } from "@/components/shared/form-field";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ADJUSTMENT_CATEGORIES } from "@/domains/payroll/adjustment-categories";
 import { formatPeso } from "@/domains/payroll/payroll-labels";
+import { formatMultiplierPercent } from "@/domains/payroll/engine/premiums";
 import { cn } from "@/lib/utils";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
 
-type Props = { runId: string; organizationId: string; records: RegisterRow[]; adjustments: AdjustmentRow[]; editable: boolean };
+type Props = {
+  runId: string;
+  organizationId: string;
+  records: RegisterRow[];
+  adjustments: AdjustmentRow[];
+  editable: boolean;
+  /** The run's payroll policy overtime multiple of the hourly rate (1.25 = 125%), for the adjustment hint. */
+  overtimeMultiplier: number;
+};
 
 function attendanceSummary(row: RegisterRow): string {
   const parts = [`${row.attendance.daysWorked} worked`];
@@ -31,7 +42,7 @@ function attendanceSummary(row: RegisterRow): string {
  * raised). While the run is a draft, adjustments are added and removed
  * from the payslip, and the run recomputes on each change.
  */
-export function RunRegister({ runId, organizationId, records, adjustments, editable }: Props) {
+export function RunRegister({ runId, organizationId, records, adjustments, editable, overtimeMultiplier }: Props) {
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const normalized = query.trim().toLowerCase();
@@ -56,10 +67,14 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
         <p className="text-sm text-muted-foreground">{editable ? "Open a payslip to add overtime, holiday pay, loans and other adjustments." : "Open a payslip for the full breakdown."}</p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-[var(--shadow-soft)]">
-        <table className="w-full min-w-[760px] text-sm" data-testid="payroll-register">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+        <DataTableFrame
+          testId="payroll-register"
+          tableClassName="min-w-[760px]"
+          head={
+          <>
           <caption className="sr-only">Payroll register</caption>
-          <thead className="bg-muted/40 text-xs text-muted-foreground">
+          <thead className="sticky top-0 z-20 text-xs text-muted-foreground [&_th]:bg-muted">
             <tr className="border-b">
               <th scope="col" className="px-3 py-2.5 text-left font-medium">Employee</th>
               <th scope="col" className="px-3 py-2.5 text-left font-medium">Attendance</th>
@@ -71,8 +86,10 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
               <th scope="col" className="w-8 px-2 py-2.5"><span className="sr-only">Open</span></th>
             </tr>
           </thead>
-          <tbody>
-            {visible.map((row) => {
+          </>
+          }
+          rows={[
+            ...visible.map((row) => {
               const blocking = row.warnings.some((warning) => warning.blocking);
               const otherDeductions = row.totalDeductions - row.employeeContributions - row.tax;
               return (
@@ -110,16 +127,18 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
                   </td>
                 </tr>
               );
-            })}
-            {visible.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
-                  No one matches &ldquo;{query.trim()}&rdquo;.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            }),
+            ...(visible.length === 0
+              ? [
+                  <tr key="no-match">
+                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                      No one matches &ldquo;{query.trim()}&rdquo;.
+                    </td>
+                  </tr>,
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       <Sheet open={open !== null} onOpenChange={(next) => !next && setOpenId(null)}>
@@ -131,6 +150,7 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
               organizationId={organizationId}
               adjustments={adjustments.filter((adjustment) => adjustment.employeeId === open.employeeId)}
               editable={editable}
+              overtimeMultiplier={overtimeMultiplier}
             />
           )}
         </SheetContent>
@@ -148,19 +168,30 @@ function Line({ label, amount, muted, strong }: { label: string; amount: number;
   );
 }
 
-function Payslip({ row, runId, organizationId, adjustments, editable }: { row: RegisterRow; runId: string; organizationId: string; adjustments: AdjustmentRow[]; editable: boolean }) {
+function Payslip({
+  row,
+  runId,
+  organizationId,
+  adjustments,
+  editable,
+  overtimeMultiplier,
+}: {
+  row: RegisterRow;
+  runId: string;
+  organizationId: string;
+  adjustments: AdjustmentRow[];
+  editable: boolean;
+  overtimeMultiplier: number;
+}) {
   const router = useRouter();
-  const [removingId, setRemovingId] = useState<string | null>(null);
   const shortMinutes = row.attendance.lateMinutes + row.attendance.undertimeMinutes;
 
+  // Runs inside ConfirmDialog: a throw keeps the dialog open with the reason shown.
   async function remove(adjustment: AdjustmentRow) {
-    setRemovingId(adjustment.id);
     const response = await fetch(`/api/payroll-runs/${runId}/adjustments/${adjustment.id}?organizationId=${organizationId}`, { method: "DELETE" });
-    setRemovingId(null);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      toast.error(body.error ?? "Couldn't remove the adjustment.");
-      return;
+      throw new Error(body.error ?? "Couldn't remove the adjustment.");
     }
     toast.success(`Removed ${adjustment.label}; payroll recomputed`);
     router.refresh();
@@ -269,21 +300,31 @@ function Payslip({ row, runId, organizationId, adjustments, editable }: { row: R
                   {formatPeso(adjustment.amount)}
                 </span>
                 {editable && (
-                  <Button size="icon-sm" variant="ghost" onClick={() => remove(adjustment)} disabled={removingId !== null} aria-label={`Remove ${adjustment.label}`}>
-                    {removingId === adjustment.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button size="icon-sm" variant="ghost" className="max-md:min-h-10 max-md:min-w-10" aria-label={`Remove ${adjustment.label}`}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    }
+                    title={`Remove ${adjustment.label}?`}
+                    description="It comes off this payslip and the run is recomputed. You can add it again while the run is a draft."
+                    confirmLabel="Remove adjustment"
+                    confirmLoadingLabel="Removing…"
+                    onConfirm={() => remove(adjustment)}
+                    testId={`payroll-adjustment-remove-${adjustment.id}`}
+                  />
                 )}
               </li>
             ))}
           </ul>
-          {editable && <AddAdjustmentForm runId={runId} organizationId={organizationId} employeeId={row.employeeId} hourlyRate={row.hourlyRate} />}
+          {editable && <AddAdjustmentForm runId={runId} organizationId={organizationId} employeeId={row.employeeId} hourlyRate={row.hourlyRate} overtimeMultiplier={overtimeMultiplier} />}
         </section>
       </div>
     </>
   );
 }
 
-function AddAdjustmentForm({ runId, organizationId, employeeId, hourlyRate }: { runId: string; organizationId: string; employeeId: string; hourlyRate: number }) {
+function AddAdjustmentForm({ runId, organizationId, employeeId, hourlyRate, overtimeMultiplier }: { runId: string; organizationId: string; employeeId: string; hourlyRate: number; overtimeMultiplier: number }) {
   const router = useRouter();
   const [category, setCategory] = useState<string>("overtime");
   const [label, setLabel] = useState("Overtime");
@@ -371,13 +412,12 @@ function AddAdjustmentForm({ runId, organizationId, employeeId, hourlyRate }: { 
       )}
       {(category === "overtime" || category === "rest_day_pay" || category === "holiday_pay") && (
         <p className="text-xs text-muted-foreground">
-          For reference: hourly rate {formatPeso(hourlyRate)}; regular overtime is 125% of it ({formatPeso(hourlyRate * 1.25)} an hour).
+          For reference: hourly rate {formatPeso(hourlyRate)}; regular overtime is {formatMultiplierPercent(overtimeMultiplier)} of it ({formatPeso(hourlyRate * overtimeMultiplier)} an hour).
         </p>
       )}
       <FormError message={error} />
-      <Button size="sm" className="self-end" onClick={submit} disabled={saving} data-testid="payroll-adjustment-submit">
-        {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-        {saving ? "Adding…" : `Add ${direction === "earning" ? "earning" : "deduction"}`}
+      <Button size="sm" className="self-end" onClick={submit} data-testid="payroll-adjustment-submit" icon={Plus} pending={saving} pendingLabel="Adding…">
+        {`Add ${direction === "earning" ? "earning" : "deduction"}`}
       </Button>
     </div>
   );

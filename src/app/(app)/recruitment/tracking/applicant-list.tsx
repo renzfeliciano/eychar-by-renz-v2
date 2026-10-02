@@ -1,6 +1,8 @@
 "use client";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTableFrame } from "@/components/shared/data-table-frame";
+import { TruncatedCell } from "@/components/shared/truncated-cell";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { daysSince, describeApplied, stageTone } from "@/domains/recruitment/pipeline";
 import { ApplicantAvatar, type ApplicantCardData, type StageInfo } from "./applicant-card";
@@ -27,23 +29,26 @@ export function ApplicantList({
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Applicant</TableHead>
+      <DataTableFrame
+        testId="applicant-list"
+        head={
+        <TableHeader className="sticky top-0 z-20 [&_th]:bg-muted">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase md:w-full">Applicant</TableHead>
             <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Position</TableHead>
             <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Stage</TableHead>
             <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Applied</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
+        }
+        rows={
+          rows.length === 0 ? [
+            <TableRow key="empty">
               <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
                 No applicants match.
               </TableCell>
-            </TableRow>
-          ) : (
+            </TableRow>,
+          ] : (
             rows.map((applicant) => {
               const stage = stageByCode.get(applicant.stage);
               return (
@@ -64,7 +69,9 @@ export function ApplicantList({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="px-3">{applicant.positionTitle}</TableCell>
+                  <TableCell className="px-3 md:w-48 md:min-w-48">
+                    <TruncatedCell className="md:max-w-48">{applicant.positionTitle}</TruncatedCell>
+                  </TableCell>
                   <TableCell className="px-3">
                     <StatusBadge status={applicant.stage} label={stage?.name ?? applicant.stage} tone={stage ? BADGE_TONE[stageTone(stage)] : "neutral"} />
                   </TableCell>
@@ -77,9 +84,9 @@ export function ApplicantList({
                 </TableRow>
               );
             })
-          )}
-        </TableBody>
-      </Table>
+          )
+        }
+      />
     </div>
   );
 }
