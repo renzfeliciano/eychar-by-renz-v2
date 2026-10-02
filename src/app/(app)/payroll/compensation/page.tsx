@@ -17,6 +17,7 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { CompensationFormDialog, type CompensationTerms } from "./compensation-form-dialog";
 import { BulkChangeDialog } from "./bulk-change-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Compensation" };
 
@@ -26,11 +27,11 @@ type Allowance = { name: string; amount: number; basis: "monthly" | "daily"; tax
 export default async function CompensationPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("compensation.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view compensation.</p>;
+    return <NoAccessState permission="compensation.read" message="You don't have access to view compensation." />;
   }
 
   const today = localDateKey();
@@ -141,7 +142,7 @@ export default async function CompensationPage({ searchParams }: { searchParams:
             },
             {
               key: "allowances",
-              header: "Allowances",
+              header: "Allowances", mobile: "hidden",
               render: (row) => {
                 const allowances = (row.current?.allowances ?? []) as Allowance[];
                 if (allowances.length === 0) return <span className="text-muted-foreground">—</span>;
@@ -158,7 +159,7 @@ export default async function CompensationPage({ searchParams }: { searchParams:
             },
             {
               key: "tax",
-              header: "Tax",
+              header: "Tax", mobile: "hidden",
               render: (row) => (row.current ? (row.current.minimumWageEarner ? <span className="text-xs">Minimum wage (exempt)</span> : <span className="text-xs text-muted-foreground">Withholding</span>) : null),
             },
             {

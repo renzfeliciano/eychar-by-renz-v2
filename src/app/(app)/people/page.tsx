@@ -19,6 +19,7 @@ import { formatPersonName } from "@/lib/person-name";
 import { parseTableQuery, buildTableHref } from "@/lib/table-query";
 import { PeopleFilters } from "./people-filters";
 import { PeopleExportActions } from "./people-export-actions";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -41,11 +42,11 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("employees.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view employees.</p>;
+    return <NoAccessState permission="employees.read" message="You don't have access to view employees." />;
   }
 
   const [positions, projects, employmentTypes, employmentStatuses] = await Promise.all([
@@ -182,7 +183,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                 );
               },
             },
-            { key: "employeeNumber", header: "Employee #", sortKey: "employeeNumber", render: (row) => row.employeeNumber ?? "—" },
+            { key: "employeeNumber", header: "Employee #", mobile: "subtitle", sortKey: "employeeNumber", render: (row) => row.employeeNumber ?? "—" },
             { key: "status", header: "Employment status", sortKey: "status", render: (row) => <StatusBadge status={row.currentEmployment?.status} /> },
             {
               key: "position",
@@ -198,13 +199,13 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             },
             {
               key: "age",
-              header: "Age",
+              header: "Age", mobile: "hidden",
               sortKey: "age",
               render: (row) => (row.person?.birthDate ? calculateAge(new Date(row.person.birthDate)) : "—"),
             },
             {
               key: "lengthOfService",
-              header: "Length of service",
+              header: "Length of service", mobile: "hidden",
               sortKey: "lengthOfService",
               render: (row) => (row.currentEmployment?.effectiveFrom ? formatLengthOfService(new Date(row.currentEmployment.effectiveFrom)) : "—"),
             },

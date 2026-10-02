@@ -1,7 +1,8 @@
 import { connectMongoDB } from "@/server/db/connection";
-import { EmployeeModel, UserModel } from "@/server/db/models";
+import { EmployeeModel, ProjectModel, UserModel } from "@/server/db/models";
 import { AuthenticationError, AuthorizationError } from "@/shared/errors";
-import { authorize, hasActiveRoleAssignment } from "./authorize";
+import { assertInOrganization } from "@/server/db/assert-in-organization";
+import { accessibleProjectIds, authorize, hasActiveRoleAssignment, type AccessibleProjects } from "./authorize";
 import { getSession } from "@/server/auth/session";
 
 export const PENDING_PASSWORD_CHANGE_MESSAGE = "Choose a new password before continuing: you signed in with a temporary one.";
@@ -57,6 +58,33 @@ export async function requirePermission(
   const { userId } = await requireAuthenticatedUser();
   await authorize({ userId, organizationId, permission });
   return { userId };
+}
+
+/**
+ * A permission on one project (AGENTS.md §22 `requireProjectAccess`): passes
+ * for an organization-wide grant, or a project-scoped grant naming this
+ * project. The project must belong to the organization (a malformed id or
+ * another organization's project reads as not found). Never trust a
+ * client's `projectId` without this — switching project grants nothing.
+ */
+export async function requireProjectAccess(permission: string, organizationId: string, projectId: string): Promise<{ userId: string }> {
+  const { userId } = await requireAuthenticatedUser();
+  await authorize({ userId, organizationId, permission, projectId });
+  await assertInOrganization(ProjectModel, projectId, organizationId, "Project");
+  return { userId };
+}
+
+/**
+ * For list endpoints over project-scoped data: passes when the user holds
+ * `permission` organization-wide (`projects: "all"`) or for at least one
+ * project (`projects`: those ids — the caller MUST filter to them). Refuses
+ * when they hold it nowhere.
+ */
+export async function requireAccessibleProjects(permission: string, organizationId: string): Promise<{ userId: string; projects: AccessibleProjects }> {
+  const { userId } = await requireAuthenticatedUser();
+  const projects = await accessibleProjectIds({ userId, organizationId, permission });
+  if (projects !== "all" && projects.length === 0) throw new AuthorizationError(`Missing permission "${permission}" in this organization`);
+  return { userId, projects };
 }
 
 /**

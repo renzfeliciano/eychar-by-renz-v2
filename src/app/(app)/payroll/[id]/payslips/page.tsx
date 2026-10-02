@@ -10,6 +10,7 @@ import { PAYROLL_RUN_STATUS_LABELS, formatPeso, type PayrollRunStatus } from "@/
 import { NotFoundError } from "@/shared/errors";
 import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
 import { PrintButton } from "./print-button";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payslips" };
 
@@ -37,10 +38,10 @@ function Rows({ title, lines, totalLabel, total }: { title: string; lines: Line[
 export default async function PayslipsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ employee?: string }> }) {
   const [{ id }, { employee }] = await Promise.all([params, searchParams]);
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-runs.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view payslips.</p>;
+    return <NoAccessState permission="payroll-runs.read" message="You don't have access to view payslips." />;
   }
 
   let detail;

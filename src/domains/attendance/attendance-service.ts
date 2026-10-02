@@ -1,13 +1,15 @@
 import { Types } from "mongoose";
 import { minutesOfDayInAppZone } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
-import { AttendanceRecordModel, EmployeeModel } from "@/server/db/models";
+import { AttendanceRecordModel, EmployeeAssignmentModel, EmployeeModel, EmploymentModel, PersonModel } from "@/server/db/models";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
+import { loadCurrentStaffCheck } from "./current-staff";
 import { ConflictError, NotFoundError, BusinessRuleError } from "@/shared/errors";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
+import { assignmentsAsOf } from "@/domains/workforce/assignments-as-of";
 import { AttendancePolicyService } from "./attendance-policy-service";
 import type { RecordAttendanceInput, AdjustAttendanceInput } from "@/shared/validation/attendance";
 
@@ -23,7 +25,8 @@ function minutesSinceMidnight(date: Date): number {
 // Each self-service record carries up to two base64 clock photos — lists
 // (roster, dashboard, API) never render them, so they don't pull them
 // either (same list-vs-detail split as EmployeeDocument, ADR-025).
-const WITHOUT_PHOTOS = "-checkIn.photo -checkOut.photo";
+// photoStorage (the private blob key, ADR-038) is left out for the same reason.
+const WITHOUT_PHOTOS = "-checkIn.photo -checkOut.photo -checkIn.photoStorage -checkOut.photoStorage";
 
 function parseHHmm(value: string): number {
   const [hours, minutes] = value.split(":").map(Number);
@@ -48,6 +51,29 @@ export function computeStatus(checkInAt: Date | undefined, policy: { standardSta
   const lateThreshold = parseHHmm(policy.standardStartTime) + policy.gracePeriodMinutes;
   return minutesSinceMidnight(checkInAt) > lateThreshold ? "late" : "present";
 }
+
+export type DayRosterRow = {
+  _id: Types.ObjectId;
+  employeeNumber?: string;
+  person?: { firstName: string; middleName?: string; lastName: string } | null;
+  currentAssignment?: { projectId?: Types.ObjectId } | null;
+  record?: {
+    _id: Types.ObjectId;
+    status: string;
+    checkInAt?: Date;
+    checkOutAt?: Date;
+    projectId?: Types.ObjectId;
+    checkIn?: { distanceMeters?: number };
+  };
+};
+
+export type DayRoster = {
+  rows: DayRosterRow[];
+  /** Everyone on the day's roster, across all pages. */
+  total: number;
+  notRecorded: number;
+  countByStatus: Map<string, number>;
+};
 
 export const AttendanceService = {
   async record(input: RecordAttendanceInput, actor: { userId?: string }) {
@@ -162,18 +188,109 @@ export const AttendanceService = {
     return AttendanceRecordModel.find(filter).select(WITHOUT_PHOTOS).sort({ date: -1 }).lean();
   },
 
-  async listForOrganization(organizationId: string, filters: { date?: Date; projectId?: string } = {}) {
+  /**
+   * The organization's records (for a day), optionally only those whose
+   * employee was assigned, on the record's date, to `projectId` and/or to one
+   * of `projectIds` (a project-scoped viewer's projects — an empty list
+   * matches nothing).
+   */
+  async listForOrganization(organizationId: string, filters: { date?: Date; projectId?: string; projectIds?: string[] } = {}) {
     await connectMongoDB();
     const filter: Record<string, unknown> = { organizationId: new Types.ObjectId(organizationId) };
     if (filters.date) filter.date = toCalendarDateUtc(filters.date);
-    const records = await AttendanceRecordModel.find(filter).select(WITHOUT_PHOTOS).sort({ date: -1 }).lean();
-    if (!filters.projectId) return records;
-
-    const filtered = [];
-    for (const record of records) {
-      const assignment = await EmployeeAssignmentService.getAsOf(record.employeeId.toString(), record.date);
-      if (assignment?.projectId?.toString() === filters.projectId) filtered.push(record);
+    if (!filters.projectId && !filters.projectIds) {
+      return AttendanceRecordModel.find(filter).select(WITHOUT_PHOTOS).sort({ date: -1 }).lean();
     }
-    return filtered;
+    if (filters.projectIds && filters.projectIds.length === 0) return [];
+    const records = await AttendanceRecordModel.find(filter).select(WITHOUT_PHOTOS).sort({ date: -1 }).lean();
+
+    // One assignment query for every record, not one per record.
+    const assignments = await assignmentsAsOf(records.map((record) => ({ employeeId: record.employeeId.toString(), date: record.date })));
+    const named = filters.projectId?.toLowerCase();
+    const allowed = filters.projectIds ? new Set(filters.projectIds.map((id) => id.toLowerCase())) : null;
+    // Both given: the record's project must be the named one and within the allowed set.
+    const matches = (projectId: string | undefined) => Boolean(projectId) && (!named || projectId === named) && (!allowed || allowed.has(projectId!));
+    return records.filter((_, index) => matches(assignments[index]?.projectId?.toString()));
+  },
+
+  /**
+   * One page of the Daily roster (current staff, plus anyone with a record
+   * that day, e.g. since separated), each with that day's record, and the
+   * day's counts by status over everyone on it. Who is on the roster is
+   * worked out from ids and statuses alone; names and assignments are read
+   * for the requested page only, so a page view doesn't load (or render)
+   * the whole organization. Rows are in roster (creation) order.
+   */
+  async dayRoster(organizationId: string, date: Date, paging: { page: number; pageSize: number }): Promise<DayRoster> {
+    await connectMongoDB();
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const day = toCalendarDateUtc(date);
+
+    const [employees, records, isCurrentStaff] = await Promise.all([
+      EmployeeModel.find({ organizationId: orgObjectId }).select("_id").sort({ _id: 1 }).lean<{ _id: Types.ObjectId }[]>(),
+      AttendanceRecordModel.find({ organizationId: orgObjectId, date: day })
+        .select("employeeId status checkInAt checkOutAt projectId checkIn.distanceMeters")
+        .lean<(NonNullable<DayRosterRow["record"]> & { employeeId: Types.ObjectId })[]>(),
+      loadCurrentStaffCheck(organizationId),
+    ]);
+    const employments = employees.length
+      ? await EmploymentModel.find({ employeeId: { $in: employees.map((employee) => employee._id) } })
+          .select("employeeId status effectiveFrom")
+          .sort({ effectiveFrom: -1 })
+          .lean<{ employeeId: Types.ObjectId; status: string }[]>()
+      : [];
+    // The latest employment per employee, as listWithCurrentStatus picks it.
+    const statusByEmployee = new Map<string, string>();
+    for (const employment of employments) {
+      const key = employment.employeeId.toString();
+      if (!statusByEmployee.has(key)) statusByEmployee.set(key, employment.status);
+    }
+    const recordByEmployee = new Map(records.map((record) => [record.employeeId.toString(), record]));
+
+    const onRoster = employees.filter((employee) => {
+      const key = employee._id.toString();
+      return isCurrentStaff(statusByEmployee.get(key)) || recordByEmployee.has(key);
+    });
+    const countByStatus = new Map<string, number>();
+    let notRecorded = 0;
+    for (const employee of onRoster) {
+      const status = recordByEmployee.get(employee._id.toString())?.status;
+      if (status === undefined) notRecorded += 1;
+      else countByStatus.set(status, (countByStatus.get(status) ?? 0) + 1);
+    }
+
+    const pageIds = onRoster.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map((employee) => employee._id);
+    if (pageIds.length === 0) return { rows: [], total: onRoster.length, notRecorded, countByStatus };
+    const [pageEmployees, assignments] = await Promise.all([
+      EmployeeModel.find({ _id: { $in: pageIds } }).select("employeeNumber personId").lean<{ _id: Types.ObjectId; employeeNumber?: string; personId: Types.ObjectId }[]>(),
+      EmployeeAssignmentModel.find({ employeeId: { $in: pageIds } })
+        .select("employeeId projectId effectiveFrom")
+        .sort({ effectiveFrom: -1 })
+        .lean<{ employeeId: Types.ObjectId; projectId?: Types.ObjectId }[]>(),
+    ]);
+    const persons = await PersonModel.find({ _id: { $in: pageEmployees.map((employee) => employee.personId) } })
+      .select("firstName middleName lastName")
+      .lean<{ _id: Types.ObjectId; firstName: string; middleName?: string; lastName: string }[]>();
+    const personById = new Map(persons.map((person) => [person._id.toString(), person]));
+    const employeeById = new Map(pageEmployees.map((employee) => [employee._id.toString(), employee]));
+    const assignmentByEmployee = new Map<string, { projectId?: Types.ObjectId }>();
+    for (const assignment of assignments) {
+      const key = assignment.employeeId.toString();
+      if (!assignmentByEmployee.has(key)) assignmentByEmployee.set(key, { projectId: assignment.projectId });
+    }
+
+    const rows = pageIds.map((id) => {
+      const key = id.toString();
+      const employee = employeeById.get(key);
+      const record = recordByEmployee.get(key);
+      return {
+        _id: id,
+        employeeNumber: employee?.employeeNumber,
+        person: employee ? (personById.get(employee.personId.toString()) ?? null) : null,
+        currentAssignment: assignmentByEmployee.get(key) ?? null,
+        record: record ? { _id: record._id, status: record.status, checkInAt: record.checkInAt, checkOutAt: record.checkOutAt, projectId: record.projectId, checkIn: record.checkIn } : undefined,
+      };
+    });
+    return { rows, total: onRoster.length, notRecorded, countByStatus };
   },
 };

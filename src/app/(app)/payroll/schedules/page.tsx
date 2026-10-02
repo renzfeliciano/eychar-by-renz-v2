@@ -14,15 +14,16 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ScheduleDialog } from "./schedule-dialog";
 import { PrepareNowButton } from "./prepare-now-button";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll schedules" };
 
 export default async function PayrollSchedulesPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-schedules.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view payroll schedules.</p>;
+    return <NoAccessState permission="payroll-schedules.read" message="You don't have access to view payroll schedules." />;
   }
 
   const [canCreate, canUpdate, canPrepare, schedules, projects] = await Promise.all([

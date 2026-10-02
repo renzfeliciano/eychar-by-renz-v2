@@ -2,6 +2,8 @@ import { computeProgressiveBracketTax, type TaxBracket } from "../payroll-tax";
 import { computeMonthlyContributionExact, type ContributionRule } from "./contributions";
 import { roundMoney, sumMoney } from "./money";
 import { periodsPerMonth, type PayFrequency } from "./pay-frequency";
+import { formatMultiplierPercent, payPremiumsOf } from "./premiums";
+import { formatMoney } from "@/lib/money";
 
 export type RateType = "monthly" | "daily";
 
@@ -16,6 +18,8 @@ export type PayPolicy = {
   hoursPerDay: number;
   deductLateAndUndertime: boolean;
   contributionTiming: "every_cutoff" | "last_cutoff_of_month";
+  /** Rest day pay as a multiple of the daily rate (the policy's; PAY_PREMIUM_DEFAULTS when unset). */
+  restDayMultiplier?: number;
 };
 
 export type PayRules = { taxTable: TaxBracket[]; contributions: ContributionRule[] };
@@ -73,7 +77,6 @@ export type PayResult = {
 };
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-const formatAmount = (value: number) => roundMoney(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /**
  * One employee's pay for one period: pure arithmetic over already-resolved
@@ -168,9 +171,10 @@ export function computeEmployeePay({ compensation, policy, rules, attendance, ad
   }
   const restDaysWorked = attendance.restDaysWorked ?? 0;
   if (restDaysWorked > 0) {
+    const { restDayMultiplier } = payPremiumsOf(policy);
     warnings.push({
       code: "rest_day_work",
-      message: `Worked ${plural(restDaysWorked, "rest day")}. Add rest day pay as an adjustment (130% of the daily rate is ₱${formatAmount(dailyRate * 1.3)} a day).`,
+      message: `Worked ${plural(restDaysWorked, "rest day")}. Add rest day pay as an adjustment (${formatMultiplierPercent(restDayMultiplier)} of the daily rate is ${formatMoney(dailyRate * restDayMultiplier)} a day).`,
       blocking: false,
     });
   }

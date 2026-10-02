@@ -28,9 +28,10 @@ describe("buildTableCsv", () => {
   });
 });
 
+// "generated …" is the organization's wall clock (Asia/Manila, UTC+8), whatever zone the server runs in.
 describe("buildTableWorkbook", () => {
   it("lays the rows out on the shared template: title, count, frozen filtered header", async () => {
-    const workbook = await buildTableWorkbook(SPEC, ROWS, { organizationName: "Acme", generatedAt: new Date(2026, 8, 28, 14, 5) });
+    const workbook = await buildTableWorkbook(SPEC, ROWS, { organizationName: "Acme", generatedAt: new Date("2026-09-28T06:05:00.000Z") });
     const loaded = new ExcelJS.Workbook();
     await loaded.xlsx.load(await workbook.xlsx.writeBuffer());
     const sheet = loaded.getWorksheet("Cases")!;
@@ -47,7 +48,7 @@ describe("buildTableWorkbook", () => {
   });
 
   it("says so in words when there is exactly one record", async () => {
-    const workbook = await buildTableWorkbook(SPEC, ROWS.slice(0, 1), { organizationName: "Acme", generatedAt: new Date(2026, 8, 28, 9, 0) });
+    const workbook = await buildTableWorkbook(SPEC, ROWS.slice(0, 1), { organizationName: "Acme", generatedAt: new Date("2026-09-28T01:00:00.000Z") });
     expect(workbook.getWorksheet("Cases")!.getCell("A2").value).toBe("1 case · generated September 28, 2026 at 9:00 AM");
   });
 });

@@ -20,6 +20,10 @@ const auditLogSchema = new Schema(
 
 auditLogSchema.index({ organizationId: 1, timestamp: -1 });
 auditLogSchema.index({ organizationId: 1, resourceType: 1, resourceId: 1 });
+// AuditQueryService.recentSecurityEvents: one account's entries (resourceType "User"), newest first.
+auditLogSchema.index({ resourceType: 1, resourceId: 1, timestamp: -1 });
+// AuditQueryService.list filtered by actor (Settings › Audit log), newest first.
+auditLogSchema.index({ organizationId: 1, actorUserId: 1, timestamp: -1 });
 
 export type AuditLog = InferSchemaType<typeof auditLogSchema>;
 

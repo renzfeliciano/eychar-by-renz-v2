@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/server/authorization";
+import { requireAccessibleProjects, requirePermission } from "@/server/authorization";
 import { ProjectService } from "@/domains/organization/project-service";
 import { createProjectSchema } from "@/shared/validation/organization-structure";
 import { organizationIdParamSchema } from "@/shared/validation/organization";
@@ -10,8 +10,9 @@ export async function GET(request: NextRequest) {
     const { organizationId } = organizationIdParamSchema.parse({
       organizationId: request.nextUrl.searchParams.get("organizationId"),
     });
-    await requirePermission("projects.read", organizationId);
-    const projects = await ProjectService.listCurrent(organizationId);
+    // Organization-wide readers see every project; project-scoped ones only theirs.
+    const { projects: accessible } = await requireAccessibleProjects("projects.read", organizationId);
+    const projects = await ProjectService.listCurrent(organizationId, accessible);
     return NextResponse.json({ projects });
   } catch (error) {
     return toErrorResponse(error);

@@ -8,16 +8,17 @@ import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025
 import type { PayFrequency } from "@/domains/payroll/engine/pay-frequency";
 import { PageHeader } from "@/components/shared/page-header";
 import { RuleVersionEditor, type EditorInitial } from "../rule-version-editor";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "New rule version" };
 
 export default async function NewRuleVersionPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const { from } = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-rule-versions.create", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to create payroll rule versions.</p>;
+    return <NoAccessState permission="payroll-rule-versions.create" message="You don't have access to create payroll rule versions." />;
   }
 
   // Start from the version asked for, else the newest one with tables, else the PH template.

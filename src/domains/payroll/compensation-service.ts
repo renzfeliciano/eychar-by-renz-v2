@@ -2,7 +2,8 @@ import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { CompensationModel, EmployeeModel } from "@/server/db/models";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
-import { AuditService } from "@/server/audit/audit-service";
+import { AuditService, type AuditRecordInput } from "@/server/audit/audit-service";
+import { withTransaction } from "@/server/db/transaction";
 import { ConflictError, NotFoundError } from "@/shared/errors";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { loadCurrentStaffCheck } from "@/domains/attendance/current-staff";
@@ -216,38 +217,96 @@ export const CompensationService = {
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   },
 
-  /** Applies a previewed bulk change as one batch of revisions, keeping each employee's other terms. */
+  /**
+   * Applies a previewed bulk change as one batch of revisions, keeping each
+   * employee's other terms. Each revision is what `revise` would write
+   * (close the latest terms the day before, open new ones, one audit entry
+   * each), but read in one query, written in two, and audited in one insert,
+   * instead of five round trips per employee. The closes and opens commit
+   * together (ADR-041): a failure part way can't leave anyone with closed
+   * terms and nothing after them.
+   */
   async applyBulkChange(input: BulkCompensationChangeInput, actor: { userId?: string }) {
     const preview = await this.previewBulkChange(input);
     const picked = input.employeeIds ? new Set(input.employeeIds) : null;
     const toApply = preview.filter((row) => row.status === "change" && (!picked || picked.has(row.employeeId)));
     const batchId = new Types.ObjectId().toString();
+    const organizationId = new Types.ObjectId(input.organizationId);
+    const effectiveKey = input.effectiveFrom;
 
-    const termsByEmployee = await this.getAsOfForEmployees(
-      toApply.map((row) => row.employeeId),
-      input.organizationId,
-      input.effectiveFrom,
-    );
-    for (const row of toApply) {
-      const current = termsByEmployee.get(row.employeeId)!;
-      await this.revise(
-        row.employeeId,
-        input.organizationId,
-        {
-          rateType: current.rateType as "monthly" | "daily",
-          rate: row.newRate!,
-          allowances: current.allowances.map((allowance: { name: string; amount: number; basis: "monthly" | "daily"; taxable: boolean }) => ({ ...allowance })),
-          minimumWageEarner: current.minimumWageEarner,
-          effectiveFrom: input.effectiveFrom,
-          reason: input.reason,
-        },
-        actor,
-        { batchId },
-      );
+    // Every row of the employees being changed, oldest first: the terms that
+    // apply on the effective date (getAsOfForEmployees' rule) and the latest
+    // row (the one `revise` closes).
+    type Row = CompensationRow & { allowances: { name: string; amount: number; basis: "monthly" | "daily"; taxable: boolean }[]; minimumWageEarner: boolean };
+    const rows = toApply.length
+      ? await CompensationModel.find({ organizationId, employeeId: { $in: toApply.map((row) => new Types.ObjectId(row.employeeId)) } })
+          .sort({ effectiveFrom: 1 })
+          .lean<Row[]>()
+      : [];
+    const currentByEmployee = new Map<string, Row>();
+    const latestByEmployee = new Map<string, Row>();
+    for (const row of rows) {
+      const employeeId = row.employeeId.toString();
+      if (appliesOn(row, effectiveKey)) currentByEmployee.set(employeeId, row);
+      latestByEmployee.set(employeeId, row);
     }
 
+    // revise()'s checks, for everyone, before anything is written.
+    const revisions = toApply.map((row) => {
+      const current = currentByEmployee.get(row.employeeId)!;
+      const latest = latestByEmployee.get(row.employeeId);
+      if (!latest) throw new NotFoundError("This employee has no pay terms yet. Add them first.");
+      const latestStart = dateToDateKey(latest.effectiveFrom);
+      if (latestStart >= effectiveKey) {
+        throw new ConflictError(`Pay terms already change on ${formatDateKey(latestStart)}. Revise from a later date.`);
+      }
+      return {
+        latest,
+        next: {
+          _id: new Types.ObjectId(),
+          organizationId,
+          employeeId: new Types.ObjectId(row.employeeId),
+          rateType: current.rateType as "monthly" | "daily",
+          rate: row.newRate!,
+          allowances: current.allowances.map((allowance) => ({ ...allowance })),
+          minimumWageEarner: current.minimumWageEarner,
+          effectiveFrom: dateKeyToDate(effectiveKey),
+          reason: input.reason,
+          batchId,
+        },
+      };
+    });
+
+    const closeOn = dateKeyToDate(addDays(effectiveKey, -1));
+    const created = revisions.length
+      ? await withTransaction(async (session) => {
+          await CompensationModel.bulkWrite(
+            revisions.map(({ latest }) => ({ updateOne: { filter: { _id: latest._id }, update: { $set: { effectiveTo: closeOn } } } })),
+            { session },
+          );
+          return CompensationModel.insertMany(
+            revisions.map(({ next }) => next),
+            { session },
+          );
+        })
+      : [];
+    const createdById = new Map(created.map((doc) => [doc._id.toString(), doc]));
+
     const skipped = preview.filter((row) => row.status === "skipped").length;
-    await AuditService.record({
+    const entries: AuditRecordInput[] = revisions.map(({ latest, next }) => {
+      const saved = createdById.get(next._id.toString()) ?? next;
+      return {
+        organizationId: input.organizationId,
+        actorUserId: actor.userId,
+        action: "compensation.revised",
+        resourceType: "Compensation",
+        resourceId: next._id.toString(),
+        before: termsSnapshot(latest),
+        after: termsSnapshot(saved),
+        metadata: { effectiveFrom: effectiveKey, reason: input.reason, batchId },
+      };
+    });
+    entries.push({
       organizationId: input.organizationId,
       actorUserId: actor.userId,
       action: "compensation.bulk-changed",
@@ -266,6 +325,7 @@ export const CompensationService = {
         reason: input.reason,
       },
     });
+    await AuditService.recordMany(entries);
 
     return { batchId, applied: toApply.length, skipped };
   },

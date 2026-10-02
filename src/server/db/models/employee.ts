@@ -29,6 +29,10 @@ employeeSchema.index(
   { organizationId: 1, employeeNumber: 1 },
   { unique: true, partialFilterExpression: { employeeNumber: { $exists: true } } },
 );
+// Every organization-wide employee read (EmployeeService.listWithCurrentStatus,
+// EmployeeRosterService's $match): the partial index above can't serve a
+// query that doesn't itself require employeeNumber to exist.
+employeeSchema.index({ organizationId: 1 });
 
 // Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
 employeeSchema.plugin(hiddenPlugin);

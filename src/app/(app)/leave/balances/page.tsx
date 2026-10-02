@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
 import { EmployeeBalanceSheet } from "./employee-balance-sheet";
 import { formatDays, UsageBar } from "./usage-bar";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Leave balances" };
 
@@ -38,11 +39,11 @@ type Row = {
 export default async function LeaveBalancesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("leave-balances.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view leave balances.</p>;
+    return <NoAccessState permission="leave-balances.read" message="You don't have access to view leave balances." />;
   }
 
   const today = localDateKey();

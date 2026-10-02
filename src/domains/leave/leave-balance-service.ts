@@ -3,7 +3,7 @@ import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, LeaveBalanceModel, LeaveRequestModel, LeaveTypeModel } from "@/server/db/models";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
-import { AuditService } from "@/server/audit/audit-service";
+import { AuditService, type AuditRecordInput } from "@/server/audit/audit-service";
 import { ConflictError, NotFoundError } from "@/shared/errors";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { loadCurrentStaffCheck } from "@/domains/attendance/current-staff";
@@ -170,26 +170,64 @@ export const LeaveBalanceService = {
     const alreadyHas = new Set(existing.map((balance) => balance.employeeId.toString()));
     const staff = roster.filter((row) => isCurrentStaff(row.currentEmployment?.status));
 
-    let granted = 0;
-    for (const employee of staff) {
-      if (alreadyHas.has(employee._id.toString())) continue;
-      await this.create(
-        { organizationId: input.organizationId, employeeId: employee._id.toString(), leaveTypeId: input.leaveTypeId, year: input.year, entitledDays: input.entitledDays, hasNoFixedAmount: input.hasNoFixedAmount },
-        actor,
-      );
-      granted += 1;
-    }
-    const alreadyHad = staff.filter((employee) => alreadyHas.has(employee._id.toString())).length;
+    // Built in memory and written in one insert, with their audit entries in
+    // one more, instead of four round trips per employee. Every employee
+    // comes from this organization's roster, and the leave type was checked
+    // above, so create()'s per-row ownership checks would only repeat those.
+    const organizationId = new Types.ObjectId(input.organizationId);
+    const leaveTypeId = new Types.ObjectId(input.leaveTypeId);
+    const docs = staff
+      .filter((employee) => !alreadyHas.has(employee._id.toString()))
+      .map((employee) => ({
+        _id: new Types.ObjectId(),
+        organizationId,
+        employeeId: new Types.ObjectId(employee._id.toString()),
+        leaveTypeId,
+        year: input.year,
+        // The schema's default (0) when no amount is given, as create() gets.
+        entitledDays: input.hasNoFixedAmount ? 0 : (input.entitledDays ?? 0),
+        hasNoFixedAmount: input.hasNoFixedAmount ?? false,
+      }));
+    const alreadyHad = staff.length - docs.length;
 
-    await AuditService.record({
+    // Unordered, so a balance someone else created in the meantime (the
+    // unique index rejects it) doesn't stop the rest. Whatever did land is
+    // audited either way; a clash still reports a conflict, as create() did.
+    let inserted: { _id: Types.ObjectId; entitledDays: number; year: number }[] = [];
+    let conflict = false;
+    if (docs.length) {
+      try {
+        inserted = await LeaveBalanceModel.insertMany(docs, { ordered: false });
+      } catch (error) {
+        if (!isDuplicateKeyError(error)) throw error;
+        conflict = true;
+        const insertedDocs = (error as { insertedDocs?: { _id: Types.ObjectId }[] }).insertedDocs ?? [];
+        const landed = new Set(insertedDocs.map((doc) => doc._id.toString()));
+        inserted = docs.filter((doc) => landed.has(doc._id.toString())) as typeof inserted;
+      }
+    }
+    const granted = inserted.length;
+    const entries: AuditRecordInput[] = inserted.map((balance) => ({
       organizationId: input.organizationId,
       actorUserId: actor.userId,
-      action: "leave-balance.granted-in-bulk",
-      resourceType: "LeaveType",
-      resourceId: input.leaveTypeId,
-      after: { granted },
-      metadata: { granted, alreadyHad, year: input.year, entitledDays: input.hasNoFixedAmount ? null : input.entitledDays, unlimited: Boolean(input.hasNoFixedAmount) },
-    });
+      action: "leave-balance.created",
+      resourceType: "LeaveBalance",
+      resourceId: balance._id.toString(),
+      after: { entitledDays: balance.entitledDays, year: balance.year },
+    }));
+    if (!conflict) {
+      entries.push({
+        organizationId: input.organizationId,
+        actorUserId: actor.userId,
+        action: "leave-balance.granted-in-bulk",
+        resourceType: "LeaveType",
+        resourceId: input.leaveTypeId,
+        after: { granted },
+        metadata: { granted, alreadyHad, year: input.year, entitledDays: input.hasNoFixedAmount ? null : input.entitledDays, unlimited: Boolean(input.hasNoFixedAmount) },
+      });
+    }
+    await AuditService.recordMany(entries);
+    if (conflict) throw new ConflictError("A leave balance already exists for this employee, leave type, and year");
 
     return { granted, alreadyHad };
   },

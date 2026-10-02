@@ -31,7 +31,7 @@ export function StatusFilterTabs({
             href={buildTableHref(basePath, params, { [paramName]: option.value === "all" ? undefined : option.value, page: undefined })}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-[color,background-color,border-color] duration-150",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-sm max-md:min-h-10 transition-[color,background-color,border-color] duration-150",
               isActive ? "border-primary bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:border-ring/50 hover:text-foreground",
             )}
           >

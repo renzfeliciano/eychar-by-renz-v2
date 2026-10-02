@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 import { PasswordSection } from "./password-section";
 import { MfaPanel } from "./mfa-panel";
 import { getSession } from "@/server/auth/session";
+import { formatDateTime } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Security & sign-in" };
 
-const DATE_TIME = { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" } as const;
 
 /** The signed-in person's own account security: password, two-step verification, and recent activity. */
 export default async function AccountSecurityPage() {
@@ -103,7 +103,7 @@ export default async function AccountSecurityPage() {
                       <span className="flex min-w-0 flex-col">
                         <span className="text-sm">{SECURITY_EVENT_LABELS[event.action] ?? event.action}</span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(event.timestamp).toLocaleString("en-US", DATE_TIME)}
+                          {formatDateTime(event.timestamp)}
                           {ip && ip !== "unknown" ? ` · ${ip}` : ""}
                         </span>
                       </span>

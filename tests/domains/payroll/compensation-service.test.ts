@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { AuditLogModel, CompensationModel } from "@/server/db/models";
+import mongoose, { Types } from "mongoose";
+import { AuditLogModel, CompensationModel, EmployeeAssignmentModel, EmployeeModel, EmploymentModel, PersonModel } from "@/server/db/models";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { ConflictError } from "@/shared/errors";
 import { dateKeyToDate } from "@/lib/date-key";
@@ -129,5 +130,67 @@ describe("CompensationService", () => {
       expect((await CompensationService.getAsOf(low, organizationId, "2026-10-01"))?.rate).toBe(630);
       expect((await CompensationService.getAsOf(high, organizationId, "2026-10-01"))?.rate).toBe(800);
     });
+  });
+
+  it("applies a bulk change to ~50 employees in batched writes, with revise()'s audit entry for each", async () => {
+    const { organizationId, projectId } = await seedPayrollOrganization();
+    const orgId = new Types.ObjectId(organizationId);
+    const people = await PersonModel.insertMany(Array.from({ length: 50 }, (_, i) => ({ organizationId: orgId, firstName: `Crew${String(i).padStart(2, "0")}`, lastName: "Santos" })));
+    const employees = await EmployeeModel.insertMany(people.map((person, i) => ({ organizationId: orgId, personId: person._id, employeeNumber: `EMP-BULK-${i}-${Math.random()}` })));
+    await EmploymentModel.insertMany(employees.map((employee) => ({ organizationId: orgId, employeeId: employee._id, employmentType: "regular", status: "active", effectiveFrom: dateKeyToDate("2025-01-01") })));
+    await EmployeeAssignmentModel.insertMany(employees.map((employee) => ({ organizationId: orgId, employeeId: employee._id, projectId: new Types.ObjectId(projectId), effectiveFrom: dateKeyToDate("2025-01-01") })));
+    const allowances = [{ name: "Rice", amount: 1500, basis: "monthly", taxable: false }];
+    // Two rows each: the first closed by an earlier raise, the second current.
+    await CompensationModel.insertMany(
+      employees.flatMap((employee, i) => [
+        { organizationId: orgId, employeeId: employee._id, rateType: "daily", rate: 500, allowances, effectiveFrom: dateKeyToDate("2025-01-01"), effectiveTo: dateKeyToDate("2025-06-30") },
+        { organizationId: orgId, employeeId: employee._id, rateType: "daily", rate: 600 + i, allowances, minimumWageEarner: true, effectiveFrom: dateKeyToDate("2025-07-01") },
+      ]),
+    );
+
+    const writes: string[] = [];
+    mongoose.set("debug", (collection: string, method: string) => {
+      if (["insertOne", "insertMany", "updateOne", "bulkWrite", "save"].includes(method)) writes.push(`${collection}.${method}`);
+    });
+    let result;
+    try {
+      result = await CompensationService.applyBulkChange(
+        { organizationId, projectId, changeType: "increase_amount", value: 50, effectiveFrom: "2026-10-01", reason: "Wage order" },
+        { userId: undefined },
+      );
+    } finally {
+      mongoose.set("debug", false);
+    }
+
+    expect(result).toMatchObject({ applied: 50, skipped: 0 });
+    expect(writes.filter((w) => w.startsWith("compensations."))).toEqual(["compensations.bulkWrite", "compensations.insertMany"]);
+    expect(writes.filter((w) => w.startsWith("auditlogs."))).toEqual(["auditlogs.insertMany"]);
+
+    const ids = employees.map((employee) => employee._id.toString());
+    const [dayBefore, onTheDay] = await Promise.all([
+      CompensationService.getAsOfForEmployees(ids, organizationId, "2026-09-30"),
+      CompensationService.getAsOfForEmployees(ids, organizationId, "2026-10-01"),
+    ]);
+    for (const [i, id] of ids.entries()) {
+      expect(dayBefore.get(id)?.rate).toBe(600 + i);
+      const next = onTheDay.get(id);
+      expect(next).toMatchObject({ rate: 650 + i, rateType: "daily", minimumWageEarner: true, batchId: result.batchId, reason: "Wage order" });
+      expect(next?.allowances).toMatchObject(allowances);
+    }
+    const history = await CompensationModel.find({ organizationId: orgId, employeeId: employees[0]._id }).sort({ effectiveFrom: 1 }).lean();
+    expect(history.map((row) => [row.effectiveTo ? row.effectiveTo.toISOString().slice(0, 10) : null])).toEqual([["2025-06-30"], ["2026-09-30"], [null]]);
+
+    const revised = await AuditLogModel.find({ organizationId: orgId, action: "compensation.revised" }).lean();
+    expect(revised).toHaveLength(50);
+    const first = revised.find((entry) => entry.resourceId.toString() === history[2]._id.toString());
+    expect(first).toMatchObject({
+      resourceType: "Compensation",
+      before: { rateType: "daily", rate: 600, allowances, minimumWageEarner: true },
+      after: { rateType: "daily", rate: 650, allowances, minimumWageEarner: true },
+      metadata: { effectiveFrom: "2026-10-01", reason: "Wage order", batchId: result.batchId },
+    });
+    const bulk = await AuditLogModel.find({ organizationId: orgId, action: "compensation.bulk-changed" }).lean();
+    expect(bulk).toHaveLength(1);
+    expect(bulk[0].metadata).toMatchObject({ batchId: result.batchId, applied: 50, skipped: 0, changeType: "increase_amount", value: 50 });
   });
 });

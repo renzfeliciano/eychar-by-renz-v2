@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Rule version" };
 
@@ -26,10 +27,10 @@ const share = (rate?: number | null, amount?: number | null) => (amount != null 
 export default async function RuleVersionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-rule-versions.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view payroll rule versions.</p>;
+    return <NoAccessState permission="payroll-rule-versions.read" message="You don't have access to view payroll rule versions." />;
   }
 
   let version;

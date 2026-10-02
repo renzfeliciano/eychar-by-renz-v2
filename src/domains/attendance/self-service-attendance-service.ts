@@ -4,6 +4,7 @@ import { connectMongoDB } from "@/server/db/connection";
 import { AttendanceRecordModel } from "@/server/db/models";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
+import { AttendancePhotoStorage, type PhotoStorage } from "@/server/storage/attendance-photo-storage";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { WebAuthnService } from "@/domains/identity/webauthn-service";
 import { AttendancePolicyService } from "./attendance-policy-service";
@@ -25,13 +26,17 @@ type ClockEventData = {
 
 type ClockAction = "check_in" | "check_out";
 
-function toClockEvent(data: ClockEventData, at: Date, site: ClockSite, geofence: GeofenceResult) {
+type StoredPhoto = { photo?: string; photoStorage: PhotoStorage };
+
+function toClockEvent(data: ClockEventData, photo: StoredPhoto, at: Date, site: ClockSite, geofence: GeofenceResult) {
   return {
     at,
     latitude: data.latitude,
     longitude: data.longitude,
     accuracy: data.accuracy,
-    photo: data.photo,
+    // Inline only when no Blob store is configured; otherwise just the pointer.
+    ...(photo.photo ? { photo: photo.photo } : {}),
+    photoStorage: photo.photoStorage,
     verified: true,
     locationId: new Types.ObjectId(site.locationId),
     distanceMeters: geofence.distanceMeters,
@@ -77,6 +82,11 @@ async function assertWithinSite(
   );
 }
 
+/** Best-effort clean-up of a photo whose record never got written; a stray private blob is harmless. */
+async function discardPhoto(photo: StoredPhoto) {
+  await AttendancePhotoStorage.remove(photo).catch(() => undefined);
+}
+
 /**
  * Distinct from AttendanceService (HR's proxy-recording flow): every write
  * here is keyed by the *session's own* employeeId, never a client-supplied
@@ -106,6 +116,10 @@ export const SelfServiceAttendanceService = {
     const status = computeStatus(now, resolved?.policy ?? null);
     await AttendanceStatusService.assertValidCode(organizationId, status);
 
+    // Stored only once every check has passed, so a blocked attempt never
+    // leaves a photo behind.
+    const photo = await AttendancePhotoStorage.save({ organizationId, employeeId, dataUrl: data.photo });
+
     let record;
     try {
       record = await AttendanceRecordModel.create({
@@ -116,9 +130,10 @@ export const SelfServiceAttendanceService = {
         checkInAt: now,
         status,
         policyId: resolved?.policy._id,
-        checkIn: toClockEvent(data, now, site, geofence),
+        checkIn: toClockEvent(data, photo, now, site, geofence),
       });
     } catch (error) {
+      await discardPhoto(photo);
       if (isDuplicateKeyError(error)) {
         throw new ConflictError("You've already clocked in today");
       }
@@ -160,15 +175,25 @@ export const SelfServiceAttendanceService = {
     const site = await ClockSiteService.resolve(organizationId, projectId, { allowInactiveProject: true });
     const geofence = await assertWithinSite("check_out", data, site, { employeeId, organizationId, actorUserId: actor.userId });
 
+    const photo = await AttendancePhotoStorage.save({ organizationId, employeeId, dataUrl: data.photo });
     record.projectId ??= new Types.ObjectId(site.projectId);
     record.checkOutAt = now;
-    record.checkOut = toClockEvent(data, now, site, geofence);
+    record.checkOut = toClockEvent(data, photo, now, site, geofence);
     // Saved only if no other clock-out landed first (two tabs or devices at once).
-    const saved = await AttendanceRecordModel.updateOne(
-      { _id: record._id, checkOutAt: null },
-      { $set: { projectId: record.projectId, checkOutAt: record.checkOutAt, checkOut: record.checkOut } },
-    );
-    if (saved.modifiedCount === 0) throw new BusinessRuleError("You've already clocked out today");
+    let saved;
+    try {
+      saved = await AttendanceRecordModel.updateOne(
+        { _id: record._id, checkOutAt: null },
+        { $set: { projectId: record.projectId, checkOutAt: record.checkOutAt, checkOut: record.checkOut } },
+      );
+    } catch (error) {
+      await discardPhoto(photo);
+      throw error;
+    }
+    if (saved.modifiedCount === 0) {
+      await discardPhoto(photo);
+      throw new BusinessRuleError("You've already clocked out today");
+    }
 
     await AuditService.record({
       organizationId,
@@ -190,7 +215,7 @@ export const SelfServiceAttendanceService = {
       employeeId: new Types.ObjectId(employeeId),
       date,
     })
-      .select("-checkIn.photo -checkOut.photo")
+      .select("-checkIn.photo -checkOut.photo -checkIn.photoStorage -checkOut.photoStorage")
       .lean();
   },
 };

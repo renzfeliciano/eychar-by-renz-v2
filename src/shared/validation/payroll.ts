@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { calendarDateSchema, dateSpanInDays } from "./schedule";
 import { objectId } from "@/shared/validation/object-id";
+import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 
 const PAY_FREQUENCY = z.enum(["weekly", "semi-monthly", "monthly"]);
 const optionalId = z.string().max(200).trim().min(1).optional();
@@ -55,6 +56,10 @@ export const createPayrollPolicySchema = z.object({
   workWeekDays: z.array(z.number().int().min(0).max(6)).min(1, "Pick at least one workday").default([1, 2, 3, 4, 5]),
   deductLateAndUndertime: z.boolean().default(true),
   contributionTiming: z.enum(["every_cutoff", "last_cutoff_of_month"]).default("every_cutoff"),
+  // Multiples of the hourly / daily rate (1.25 = 125%).
+  overtimeMultiplier: z.coerce.number().min(1, "Overtime pay can't be below the regular rate").max(5).default(PAY_PREMIUM_DEFAULTS.overtimeMultiplier),
+  restDayMultiplier: z.coerce.number().min(1, "Rest day pay can't be below the regular rate").max(5).default(PAY_PREMIUM_DEFAULTS.restDayMultiplier),
+  thirteenthMonthDivisor: z.coerce.number().min(1, "The 13th month divisor must be at least 1").max(24).default(PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor),
   effectiveFrom: calendarDateSchema.optional(),
 });
 

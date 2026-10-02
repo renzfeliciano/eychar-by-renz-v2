@@ -9,10 +9,11 @@ import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { BinActions } from "./bin-actions";
 import { getSession } from "@/server/auth/session";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatDateTime } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Recycle bin" };
 
-const WHEN = { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" } as const;
 const DAY_MS = 86_400_000;
 
 /** Whole days until an entry is purged (never negative). */
@@ -22,11 +23,11 @@ function daysUntil(date: Date | string): number {
 
 export default async function RecycleBinPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   const session = await getSession();
   if (!(await SuperAdminService.isSuperAdmin(session?.user?.id, organizationId))) {
-    return <p className="text-sm text-muted-foreground">Only the Super Administrator can see the recycle bin.</p>;
+    return <NoAccessState superAdminOnly message="Only the Super Administrator can see the recycle bin." />;
   }
 
   // Anything past its 30 days goes for good before the list is shown.
@@ -67,7 +68,7 @@ export default async function RecycleBinPage() {
             header: "Deleted",
             render: (entry) => (
               <div className="flex flex-col text-sm">
-                <span>{new Date(entry.deletedAt).toLocaleString("en-US", WHEN)}</span>
+                <span>{formatDateTime(entry.deletedAt)}</span>
                 <span className="text-xs text-muted-foreground">by {names.get(entry.deletedBy?.toString() ?? "") ?? "—"}</span>
               </div>
             ),

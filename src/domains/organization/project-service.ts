@@ -51,9 +51,10 @@ export const ProjectService = {
     return project;
   },
 
-  async listCurrent(organizationId: string) {
+  /** The organization's projects; `only` narrows to a project-scoped viewer's projects (from `accessibleProjectIds`). */
+  async listCurrent(organizationId: string, only: "all" | Types.ObjectId[] = "all") {
     await connectMongoDB();
-    return ProjectModel.find({ organizationId: new Types.ObjectId(organizationId) }).lean();
+    return ProjectModel.find({ organizationId: new Types.ObjectId(organizationId), ...(only === "all" ? {} : { _id: { $in: only } }) }).lean();
   },
 
   /** "" clears description/locationId — same $set/$unset convention as LocationService.update. */

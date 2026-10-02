@@ -1,5 +1,7 @@
 import { roundMoney, sumMoney } from "@/domains/payroll/engine/money";
 import { addDays, dateKeysBetween, formatDateRange, weekdayOf } from "@/lib/date-key";
+import { payPremiumsOf } from "@/domains/payroll/engine/premiums";
+import { formatMoney } from "@/lib/money";
 
 export type SettlementLineCode = "salary_balance" | "leave_encashment" | "thirteenth_month" | "accountability" | "manual";
 
@@ -28,14 +30,15 @@ export type SettlementInputs = {
   /** Basic pay (net of absences and tardiness) in approved or released payroll this calendar year. */
   basicEarnedThisYear: number;
   thirteenthMonthPaidThisYear: number;
+  /** The payroll policy's 13th month divisor (basic pay earned ÷ this); PAY_PREMIUM_DEFAULTS when unset. */
+  thirteenthMonthDivisor?: number;
   /** Unused days of leave types HR marked convertible to cash. */
   convertibleLeave: { leaveTypeName: string; days: number }[];
   accountabilities: { itemId: string; label: string; amount: number }[];
   manualLines: ManualLine[];
 };
 
-const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
-const peso = (value: number) => PESO.format(value);
+const peso = formatMoney;
 
 export function countWorkdays(from: string, to: string, workWeekDays: number[]): number {
   if (from > to) return 0;
@@ -78,7 +81,8 @@ export function computeSettlement(inputs: SettlementInputs) {
     });
   }
 
-  const thirteenth = roundMoney((inputs.basicEarnedThisYear + salaryBalance) / 12 - inputs.thirteenthMonthPaidThisYear);
+  const { thirteenthMonthDivisor } = payPremiumsOf(inputs);
+  const thirteenth = roundMoney((inputs.basicEarnedThisYear + salaryBalance) / thirteenthMonthDivisor - inputs.thirteenthMonthPaidThisYear);
   if (thirteenth > 0) {
     lines.push({
       code: "thirteenth_month",
@@ -86,7 +90,7 @@ export function computeSettlement(inputs: SettlementInputs) {
       label: "Pro-rated 13th month pay",
       amount: thirteenth,
       source: "Payroll this year",
-      basis: `(${peso(inputs.basicEarnedThisYear)} earned + ${peso(salaryBalance)} salary balance) ÷ 12 − ${peso(inputs.thirteenthMonthPaidThisYear)} already paid`,
+      basis: `(${peso(inputs.basicEarnedThisYear)} earned + ${peso(salaryBalance)} salary balance) ÷ ${thirteenthMonthDivisor} − ${peso(inputs.thirteenthMonthPaidThisYear)} already paid`,
     });
   }
 

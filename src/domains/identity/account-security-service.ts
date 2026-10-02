@@ -1,5 +1,5 @@
 import { organizationIdsForUser, organizationUserIds } from "./user-directory";
-import { heldPermissions } from "@/server/authorization/authorize";
+import { heldPermissions, missingGrants } from "@/server/authorization/authorize";
 import { confirmAccountPassword } from "./confirm-password";
 import { randomInt } from "crypto";
 import { Types } from "mongoose";
@@ -216,7 +216,9 @@ export const AccountSecurityService = {
         heldPermissions({ userId: actor.userId, organizationId }),
         heldPermissions({ userId: targetUserId, organizationId }),
       ]);
-      if (!actorHeld.superAdmin && [...targetHeld.keys].some((key) => !actorHeld.keys.has(key))) {
+      // Project-scoped grants count too: the actor must hold each of the
+      // target's grants at least as broadly (organization-wide, or on that project).
+      if (missingGrants(actorHeld, targetHeld).length > 0) {
         throw new AuthorizationError("This account has access you don't have yourself, so only the Super Administrator can change it");
       }
     }

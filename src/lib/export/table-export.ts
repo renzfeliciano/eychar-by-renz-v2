@@ -1,6 +1,7 @@
 import type ExcelJS from "exceljs";
 import { buildCsvContent } from "@/lib/csv";
 import { BRAND } from "@/lib/brand";
+import { formatDateTime } from "@/lib/app-time";
 
 export type ExportValue = string | number | null;
 
@@ -78,7 +79,7 @@ export async function buildTableWorkbook<Row>(
 
   sheet.getCell(1, 1).value = `${options.organizationName}: ${spec.title}`;
   sheet.getCell(1, 1).font = { bold: true, size: 14 };
-  sheet.getCell(2, 1).value = `${countLabel(rows.length, spec.noun)} · generated ${generatedAt.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}`;
+  sheet.getCell(2, 1).value = `${countLabel(rows.length, spec.noun)} · generated ${formatDateTime(generatedAt, "long")}`;
   sheet.getCell(2, 1).font = { color: { argb: MUTED_TEXT } };
 
   const header = sheet.getRow(HEADER_ROW);

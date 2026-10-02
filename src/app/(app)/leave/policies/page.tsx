@@ -11,16 +11,17 @@ import { Building2, FolderKanban, ListChecks } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreateLeavePolicyDialog } from "./create-leave-policy-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Leave policies" };
 
 export default async function LeavePoliciesPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("leave-policies.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view leave policies.</p>;
+    return <NoAccessState permission="leave-policies.read" message="You don't have access to view leave policies." />;
   }
 
   const [policies, leaveTypes, projects] = await Promise.all([

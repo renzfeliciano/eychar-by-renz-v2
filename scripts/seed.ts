@@ -35,9 +35,6 @@ import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
 import type { Model } from "mongoose";
 
-config({ path: ".env.local", override: true });
-config({ path: ".env" });
-
 // Baseline permission catalog. This is seeded *data*, not hardcoded
 // authorization logic (AGENTS.md §54) — new permission keys are added here
 // as later phases introduce the domains that need them. Granular
@@ -57,6 +54,7 @@ const BASELINE_PERMISSIONS = [
   { key: "organization.create", description: "Create organizations", category: "organization" },
   { key: "organization.read", description: "View organization details", category: "organization" },
   { key: "organization.update", description: "Update organization details", category: "organization" },
+  { key: "org-chart.update", description: "Build and change the organization chart", category: "organization" },
 
   { key: "organization-units.create", description: "Create organization units", category: "organization" },
   { key: "organization-units.read", description: "View organization units", category: "organization" },
@@ -255,7 +253,12 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
   return { firstName, lastName: rest.join(" ") || firstName };
 }
 
-async function seed() {
+/**
+ * The baseline seed, idempotent. Reads the SEED_* variables from process.env;
+ * `npm run db:seed` loads them from .env.local/.env first (below), and
+ * scripts/seed-e2e.ts calls this directly against the E2E database.
+ */
+export async function seed(): Promise<{ organizationId: string; hrUserId: string }> {
   await connectMongoDB();
   await upsertPermissionCatalog();
   await retireSupersededPermissions();
@@ -449,7 +452,7 @@ async function seed() {
 
   await seedCatalogDefaults(EmploymentTypeModel, [
     { code: "regular", name: "Regular", sortOrder: 0 },
-    { code: "probationary", name: "Probationary", sortOrder: 1, metadata: { requiresEndOfContract: true } },
+    { code: "probationary", name: "Probationary", sortOrder: 1, metadata: { requiresEndOfContract: true, regularizeAfterMonths: 6 } },
     { code: "contractual", name: "Contractual", sortOrder: 2, metadata: { requiresEndOfContract: true } },
     { code: "transfer", name: "Transfer", sortOrder: 3 },
   ]);
@@ -631,13 +634,19 @@ async function seed() {
   await SuperAdminService.ensure(organization._id.toString(), hrUser._id.toString());
 
   console.log(`Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrUsername}.`);
+  return { organizationId: organization._id.toString(), hrUserId: hrUser._id.toString() };
 }
 
-seed()
-  .catch((error: unknown) => {
-    console.error("Seed failed", error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await mongoose.connection.close();
-  });
+// `npm run db:seed` (tsx scripts/seed.ts). Imported (scripts/seed-e2e.ts), nothing runs on its own.
+if (require.main === module) {
+  config({ path: ".env.local", override: true });
+  config({ path: ".env" });
+  seed()
+    .catch((error: unknown) => {
+      console.error("Seed failed", error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await mongoose.connection.close();
+    });
+}

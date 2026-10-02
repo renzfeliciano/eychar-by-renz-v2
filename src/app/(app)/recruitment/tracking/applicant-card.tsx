@@ -14,7 +14,7 @@ import {
 import { daysSince, describeApplied } from "@/domains/recruitment/pipeline";
 import { cn } from "@/lib/utils";
 
-export type StageInfo = { code: string; name: string; isTerminal?: boolean };
+export type StageInfo = { code: string; name: string; isTerminal?: boolean; isHired?: boolean };
 export type ApplicantCardData = {
   _id: string;
   positionId: string;
@@ -97,7 +97,7 @@ export function ApplicantCard({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label={`Actions for ${applicant.applicantName}`}
-                className="flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="flex size-7 max-md:size-10 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 data-testid={`move-applicant-${applicant._id}`}
               >
                 <MoreHorizontal className="size-4" />
@@ -122,7 +122,7 @@ export function ApplicantCard({
             </DropdownMenu>
             <button
               type="button"
-              className="flex size-7 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/70 hover:bg-muted hover:text-foreground active:cursor-grabbing"
+              className="flex size-7 max-md:size-10 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/70 hover:bg-muted hover:text-foreground active:cursor-grabbing"
               aria-label={`Drag ${applicant.applicantName}'s card to another stage`}
               data-testid={`drag-applicant-${applicant._id}`}
               {...attributes}

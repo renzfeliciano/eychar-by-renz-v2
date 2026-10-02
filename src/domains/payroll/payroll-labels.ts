@@ -14,9 +14,8 @@ export const PAYROLL_RUN_STEPS: PayrollRunStatus[] = ["draft", "submitted", "app
 
 export const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export function formatPeso(value: number): string {
-  return `₱${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+/** Kept for existing imports: the one money formatter is `formatMoney` in `@/lib/money`. */
+export { formatMoney as formatPeso } from "@/lib/money";
 
 /** "Every 10th and 25th", "Every month on the 31st", "Weekly, ending Saturday". */
 export function describeCutoffs(payFrequency: string, cutoffDay: number): string {

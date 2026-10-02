@@ -4,6 +4,7 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { CATALOG_REGISTRY, type CatalogTypeSlug } from "@/domains/catalog/catalog-registry";
 import { PageHeader } from "@/components/shared/page-header";
 import { CatalogSection } from "@/components/shared/catalog-section";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Catalogs" };
 
@@ -24,7 +25,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
 
 export default async function CatalogsSettingsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
 
@@ -56,7 +57,7 @@ export default async function CatalogsSettingsPage() {
   const visibleSections = sectionsWithAccess.filter((section) => section !== null);
 
   if (visibleSections.length === 0) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view any catalogs.</p>;
+    return <NoAccessState needed="Read access to at least one catalog" message="You don't have access to view any catalogs." />;
   }
 
   return (

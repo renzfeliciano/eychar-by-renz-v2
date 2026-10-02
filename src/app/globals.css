@@ -3,6 +3,10 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Short screens (laptops with browser chrome, landscape tablets): tighter vertical spacing so a
+   whole card fits without scrolling. Used by the sign-in page. */
+@custom-variant short (@media (max-height: 820px));
+@custom-variant shorter (@media (max-height: 680px));
 
 :root {
   /* Cards were rendering flush with the page (both pure white) — a hairline

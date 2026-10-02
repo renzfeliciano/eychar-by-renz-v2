@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn } from "./helpers";
+import { acknowledgeReplacedSession, signIn, signInAsHR } from "./helpers";
 
 // A period far in the future so it never overlaps a real run, unique per test run.
 function futurePeriod() {
@@ -17,6 +17,7 @@ function futurePeriod() {
  */
 test("HR prepares a payroll run and submits it; a second person approves it", async ({ page, browser }) => {
   const period = futurePeriod();
+  await signInAsHR(page);
   await page.goto("/payroll");
   await page.getByTestId("payroll-new-run-button").click();
   await page.getByLabel("Period from").fill(period.start);
@@ -43,10 +44,11 @@ test("HR prepares a payroll run and submits it; a second person approves it", as
     return;
   }
 
-  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext();
   const approverPage = await context.newPage();
   await signIn(approverPage, approver, process.env.E2E_APPROVER_PASSWORD!);
   await expect(approverPage).toHaveURL(/\/dashboard/);
+  await acknowledgeReplacedSession(approverPage);
   await approverPage.goto(runUrl);
   await approverPage.getByTestId("payroll-run-approve").click();
   await approverPage.getByTestId("payroll-run-dialog-confirm").click();

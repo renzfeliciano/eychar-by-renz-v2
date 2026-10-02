@@ -16,8 +16,6 @@ export const SETTLEMENT_STATUS_TONES: Record<string, "warning" | "success" | "in
   cancelled: "neutral",
 };
 
-export const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
-
 const DAY_MS = 86_400_000;
 
 /** The deadline length a settlement was computed with (from its payroll policy). */

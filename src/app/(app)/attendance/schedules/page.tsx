@@ -18,17 +18,18 @@ import { ScheduleGrid } from "./schedule-grid";
 import { ShiftTemplatesDialog } from "./shift-templates-dialog";
 import { ScheduleRosterDialog } from "./schedule-roster-dialog";
 import { HolidaysDialog } from "./holidays-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Schedules" };
 
 export default async function SchedulesPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: monthParam } = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("attendance.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view schedules.</p>;
+    return <NoAccessState permission="attendance.read" message="You don't have access to view schedules." />;
   }
 
   const todayKey = localDateKey();

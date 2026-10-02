@@ -134,7 +134,7 @@ export function ApplicantPipeline({
               aria-checked={view === value}
               onClick={() => setView(value)}
               className={cn(
-                "flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:text-foreground",
+                "flex h-7 max-md:h-10 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:text-foreground",
                 view === value && "bg-background text-foreground shadow-[var(--shadow-soft)]",
               )}
             >

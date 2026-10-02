@@ -3,38 +3,42 @@
 Playwright tests for the flows only a real browser, server and database can prove: sign-in,
 idle sign-out and a payroll run. Unit, domain and UI tests stay in Vitest (`npm test`).
 
-## One-time setup
+## In CI
+
+The `e2e` job in `.github/workflows/ci.yml` runs after the `check` job passes. It starts MongoDB 7
+as a single-node replica set (transactions need one, ADR-041), seeds it with
+`scripts/seed-e2e.ts`, then runs `npm run test:e2e`. All its accounts and passwords are throwaway
+values that only exist inside that job. A failed run keeps the HTML report and traces as the
+`playwright-report` artifact for 7 days.
+
+## Locally
+
+You need a MongoDB **replica set** you can throw away (Atlas free tier is one; so is a local
+`mongod --replSet rs0` after `rs.initiate()`). Never use the database from `.env.local`.
 
 ```bash
-npm i -D @playwright/test
-npx playwright install chromium
-```
+npx playwright install chromium     # once
 
-## Database: never the real one
+export E2E_MONGODB_URI=mongodb://127.0.0.1:27017/eychar_e2e
+export E2E_USERNAME=hr.e2e E2E_PASSWORD='choose-a-long-passphrase-1'
+export E2E_APPROVER_USERNAME=approver.e2e E2E_APPROVER_PASSWORD='another-long-passphrase-2'
 
-The tests start their own production build on port 4200 and point it at `E2E_MONGODB_URI`
-(which overrides `.env.local`). `global-setup.ts` refuses to run unless that database is local,
-or its name contains `e2e` or `test`.
-
-1. Create a throwaway database, e.g. `mongodb://127.0.0.1:27017/eychar_e2e`.
-2. Seed it: `MONGODB_URI=<that uri> npm run db:seed` with the `SEED_*` values.
-3. Sign in once by hand and replace the seeded HR account's temporary password (and set up
-   two-step if the organization requires it, or leave that off for the E2E organization).
-4. For the payroll test: add a payroll policy and rule version, and pay terms for at least one
-   employee. For the approval step, create a second account with `payroll.approve`.
-
-## Run
-
-```bash
-E2E_MONGODB_URI=mongodb://127.0.0.1:27017/eychar_e2e \
-E2E_USERNAME=hr.e2e E2E_PASSWORD='...' \
-E2E_APPROVER_USERNAME=approver.e2e E2E_APPROVER_PASSWORD='...' \
+npx tsx scripts/seed-e2e.ts         # sets everything up; safe to re-run
 npm run test:e2e
 ```
 
-`E2E_REUSE_SERVER=1` reuses a server already running on port 4200. Failures keep a trace:
-`npx playwright show-trace test-results/<test>/trace.zip`.
+`scripts/seed-e2e.ts` runs the normal seed, makes the HR account sign in with `E2E_PASSWORD`
+(no forced change, no two-step), keeps the idle limit at one minute, hires one employee with pay
+terms, and creates the approver account with a role that can approve payroll. Without the
+approver variables, the payroll test skips its approval step.
 
-`tsconfig.json` leaves `tests/e2e` and `playwright.config.ts` out of `npm run typecheck` so the
-check passes before `@playwright/test` is installed. Once it's installed, remove them from
-`exclude` to type-check the specs too.
+Both the seed and the tests refuse a database that isn't local or whose name doesn't contain
+`e2e` or `test` (`assertSafeE2EDatabase` in `global-setup.ts`).
+
+Each test signs in on its own (`signInAsHR` in `helpers.ts`). An account has one active session
+at a time, so signing in again ends the previous test's session and the app shows "Signed out on
+your other device"; the helper acknowledges it the way a person would.
+
+The config builds the app and starts it on port 4200 (`E2E_PORT`). `E2E_REUSE_SERVER=1` reuses a
+server already running there. Failures keep a trace:
+`npx playwright show-trace test-results/<test>/trace.zip`.

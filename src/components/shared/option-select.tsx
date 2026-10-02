@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormField } from "./form-field";
 
@@ -22,6 +23,9 @@ export function OptionSelect({
   placeholder = "None",
   testId,
   required,
+  id,
+  error,
+  description,
 }: {
   label: string;
   value: string;
@@ -30,13 +34,19 @@ export function OptionSelect({
   placeholder?: string;
   testId?: string;
   required?: boolean;
+  /** The trigger's id (the label points at it); generated when omitted. */
+  id?: string;
+  error?: string | null;
+  description?: string;
 }) {
+  const generatedId = useId();
+  const triggerId = id ?? `option-select${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const selectedLabel = value ? options.find((option) => option.id === value)?.label ?? placeholder : placeholder;
 
   return (
-    <FormField label={label} required={required}>
+    <FormField label={label} htmlFor={triggerId} required={required} error={error} description={description}>
       <Select value={value || NONE} onValueChange={(next) => onChange(!next || next === NONE ? "" : next)}>
-        <SelectTrigger className="w-full" data-testid={testId}>
+        <SelectTrigger id={triggerId} className="w-full" data-testid={testId}>
           {/* Computed from our own state rather than SelectValue's default
               label lookup, which only resolves once the popup's items have
               registered — before that it renders the raw sentinel value. */}

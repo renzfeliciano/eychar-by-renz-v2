@@ -8,12 +8,19 @@ import { addDays, dateKeyToDate, dateToDateKey, localDateKey } from "@/lib/date-
 import { periodContaining, periodEndingOnOrBefore, type CutoffSpec, type PayPeriod } from "./engine/pay-periods";
 import type { PayFrequency } from "./engine/pay-frequency";
 import { PayrollRunService } from "./payroll-run-service";
+import { withSharedRoster } from "./payroll-run-compute";
 import type { CreatePayrollScheduleInput, UpdatePayrollScheduleInput } from "@/shared/validation/payroll";
 
 export type PrepareOutcome =
   | { scheduleId: string; outcome: "prepared" | "exists"; period: PayPeriod; runNumber: string }
-  | { scheduleId: string; outcome: "not_started"; period: PayPeriod }
+  | { scheduleId: string; outcome: "not_started" | "deferred"; period: PayPeriod }
   | { scheduleId: string; outcome: "failed"; period: PayPeriod; error: string };
+
+/**
+ * How many due schedules one pass prepares. Each prepare computes a whole
+ * payroll; three keeps a pass well inside a Vercel Hobby function's ~10s.
+ */
+export const PREPARE_LIMIT_PER_PASS = 3;
 
 function specOf(schedule: { payFrequency: string; cutoffDay: number; payDateOffsetDays: number }): CutoffSpec {
   return { payFrequency: schedule.payFrequency as PayFrequency, cutoffDay: schedule.cutoffDay, payDateOffsetDays: schedule.payDateOffsetDays };
@@ -98,8 +105,18 @@ export const PayrollScheduleService = {
    * dates for the same people counts as done. Failures (e.g. no policy yet)
    * are recorded on the schedule, never thrown, so one bad schedule doesn't
    * stop the rest. Without `organizationId`, covers every organization (cron).
+   *
+   * Preparing a run computes the whole payroll, so one pass prepares at most
+   * `limit` of the due schedules (oldest closed cutoff first, ones that
+   * already failed for that cutoff last) to stay inside a serverless
+   * request's time budget; the rest come back as "deferred" and are picked
+   * up by the next pass (the next day's cron, or the next payroll page visit).
    */
-  async prepareDue({ organizationId, today = localDateKey() }: { organizationId?: string; today?: string } = {}): Promise<PrepareOutcome[]> {
+  async prepareDueBatch({
+    organizationId,
+    today = localDateKey(),
+    limit = PREPARE_LIMIT_PER_PASS,
+  }: { organizationId?: string; today?: string; limit?: number } = {}): Promise<{ outcomes: PrepareOutcome[]; remaining: number }> {
     await connectMongoDB();
     const schedules = await PayrollScheduleModel.find({
       status: "active",
@@ -108,49 +125,94 @@ export const PayrollScheduleService = {
     }).lean();
 
     const outcomes: PrepareOutcome[] = [];
+    const candidates: { schedule: (typeof schedules)[number]; scheduleId: string; period: PayPeriod }[] = [];
     for (const schedule of schedules) {
       const scheduleId = schedule._id.toString();
       const period = periodEndingOnOrBefore(specOf(schedule), addDays(today, -1));
-      if (period.end < dateToDateKey(schedule.startsOn)) {
-        outcomes.push({ scheduleId, outcome: "not_started", period });
-        continue;
-      }
-
-      const existing = await PayrollRunModel.findOne({
-        organizationId: schedule.organizationId,
-        status: { $ne: "cancelled" },
-        payPeriodStart: dateKeyToDate(period.start),
-        payPeriodEnd: dateKeyToDate(period.end),
-        ...(schedule.projectId ? { projectId: schedule.projectId } : { projectId: { $exists: false } }),
-      }).lean();
-      if (existing) {
-        outcomes.push({ scheduleId, outcome: "exists", period, runNumber: existing.runNumber });
-        continue;
-      }
-
-      try {
-        const run = await PayrollRunService.prepare(
-          {
-            organizationId: schedule.organizationId.toString(),
-            projectId: schedule.projectId?.toString(),
-            payPeriodStart: period.start,
-            payPeriodEnd: period.end,
-            payDate: period.payDate,
-          },
-          {},
-          { source: { type: "schedule", scheduleId } },
-        );
-        await PayrollScheduleModel.updateOne(
-          { _id: schedule._id },
-          { $set: { lastPreparedPeriodEnd: dateKeyToDate(period.end), lastRunId: run._id, lastAttemptAt: new Date() }, $unset: { lastError: 1 } },
-        );
-        outcomes.push({ scheduleId, outcome: "prepared", period, runNumber: run.runNumber });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Couldn't prepare the run";
-        await PayrollScheduleModel.updateOne({ _id: schedule._id }, { $set: { lastError: message, lastAttemptAt: new Date() } });
-        outcomes.push({ scheduleId, outcome: "failed", period, error: message });
-      }
+      if (period.end < dateToDateKey(schedule.startsOn)) outcomes.push({ scheduleId, outcome: "not_started", period });
+      else candidates.push({ schedule, scheduleId, period });
     }
-    return outcomes;
+
+    // Which candidates already have their run, in one query rather than one per schedule.
+    const existingRuns = candidates.length
+      ? await PayrollRunModel.find({
+          status: { $ne: "cancelled" },
+          $or: candidates.map(({ schedule, period }) => ({
+            organizationId: schedule.organizationId,
+            payPeriodStart: dateKeyToDate(period.start),
+            payPeriodEnd: dateKeyToDate(period.end),
+            ...(schedule.projectId ? { projectId: schedule.projectId } : { projectId: { $exists: false } }),
+          })),
+        })
+          .select("organizationId projectId payPeriodStart payPeriodEnd runNumber")
+          .sort({ _id: 1 })
+          .lean()
+      : [];
+    const runKey = (orgId: unknown, projectId: unknown, start: string, end: string) => `${String(orgId)}|${projectId ? String(projectId) : "-"}|${start}|${end}`;
+    const existingByKey = new Map<string, string>();
+    for (const run of existingRuns) {
+      const key = runKey(run.organizationId, run.projectId, dateToDateKey(run.payPeriodStart), dateToDateKey(run.payPeriodEnd));
+      if (!existingByKey.has(key)) existingByKey.set(key, run.runNumber as string);
+    }
+
+    const due: typeof candidates = [];
+    for (const candidate of candidates) {
+      const { schedule, scheduleId, period } = candidate;
+      const runNumber = existingByKey.get(runKey(schedule.organizationId, schedule.projectId, period.start, period.end));
+      if (runNumber) outcomes.push({ scheduleId, outcome: "exists", period, runNumber });
+      else due.push(candidate);
+    }
+
+    // Oldest closed cutoff first; a schedule that already failed since this
+    // cutoff closed goes after the ones not tried yet, so it can't keep
+    // taking a slot from them.
+    const closedOn = (period: PayPeriod) => dateKeyToDate(addDays(period.end, 1)).getTime();
+    const failedThisCutoff = ({ schedule, period }: (typeof due)[number]) =>
+      schedule.lastError && schedule.lastAttemptAt && new Date(schedule.lastAttemptAt).getTime() >= closedOn(period) ? 1 : 0;
+    due.sort(
+      (a, b) =>
+        failedThisCutoff(a) - failedThisCutoff(b) ||
+        a.period.end.localeCompare(b.period.end) ||
+        (a.schedule.lastAttemptAt ? new Date(a.schedule.lastAttemptAt).getTime() : 0) - (b.schedule.lastAttemptAt ? new Date(b.schedule.lastAttemptAt).getTime() : 0) ||
+        a.scheduleId.localeCompare(b.scheduleId),
+    );
+    const now = due.slice(0, Math.max(0, limit));
+    const later = due.slice(now.length);
+
+    // Runs of the same organization share one roster load.
+    await withSharedRoster(async () => {
+      for (const { schedule, scheduleId, period } of now) {
+        try {
+          const run = await PayrollRunService.prepare(
+            {
+              organizationId: schedule.organizationId.toString(),
+              projectId: schedule.projectId?.toString(),
+              payPeriodStart: period.start,
+              payPeriodEnd: period.end,
+              payDate: period.payDate,
+            },
+            {},
+            { source: { type: "schedule", scheduleId } },
+          );
+          await PayrollScheduleModel.updateOne(
+            { _id: schedule._id },
+            { $set: { lastPreparedPeriodEnd: dateKeyToDate(period.end), lastRunId: run._id, lastAttemptAt: new Date() }, $unset: { lastError: 1 } },
+          );
+          outcomes.push({ scheduleId, outcome: "prepared", period, runNumber: run.runNumber });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Couldn't prepare the run";
+          await PayrollScheduleModel.updateOne({ _id: schedule._id }, { $set: { lastError: message, lastAttemptAt: new Date() } });
+          outcomes.push({ scheduleId, outcome: "failed", period, error: message });
+        }
+      }
+    });
+    for (const { scheduleId, period } of later) outcomes.push({ scheduleId, outcome: "deferred", period });
+
+    return { outcomes, remaining: later.length };
+  },
+
+  /** `prepareDueBatch`'s outcomes alone (the "Prepare due runs" button and the payroll page). */
+  async prepareDue(options: { organizationId?: string; today?: string; limit?: number } = {}): Promise<PrepareOutcome[]> {
+    return (await this.prepareDueBatch(options)).outcomes;
   },
 };

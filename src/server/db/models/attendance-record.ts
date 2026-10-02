@@ -17,7 +17,20 @@ const clockEventSchema = new Schema(
     latitude: { type: Number },
     longitude: { type: Number },
     accuracy: { type: Number },
+    // Legacy/inline: the base64 JPEG data URL. Only set when photoStorage
+    // is "inline" (no Blob store configured) or on records written before
+    // photoStorage existed. With Blob configured the bytes live at
+    // photoStorage.key and this stays unset (AttendancePhotoStorage).
     photo: { type: String },
+    photoStorage: {
+      type: new Schema(
+        {
+          provider: { type: String, enum: ["vercel-blob", "inline"], required: true },
+          key: { type: String },
+        },
+        { _id: false },
+      ),
+    },
     verified: { type: Boolean, default: false },
     locationId: { type: Schema.Types.ObjectId, ref: "Location" },
     distanceMeters: { type: Number },

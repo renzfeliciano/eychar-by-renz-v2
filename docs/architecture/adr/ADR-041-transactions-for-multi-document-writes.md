@@ -42,3 +42,14 @@ is a one-file change.
 - Hiring (Person → Employee → Employment → Assignment) stays as separately audited writes (ADR-005);
   making it atomic means passing a session through four services, worth doing only if a partial hire is
   ever seen.
+
+## Addendum (October 2026): check the state inside the transaction
+
+A transaction makes a set of writes all-or-nothing, but it doesn't stop two of them from both
+starting from the same earlier read: the losing one is retried from data read before the other
+committed. So a status checked before the transaction is only for the user-facing message. The
+transition itself must be a conditional update on that status, as the first write inside the
+transaction, with a `ConflictError` when nothing matches. This now applies to recycle-bin restore
+and purge (`claimBatch`), transfers (closing the open assignment), and every final-settlement
+transition; draft edits use Mongoose's `doc.$where`. `purgeExpired` skips entries restored after
+it listed them. Tests: `tests/security/races-2026-10.test.ts`.

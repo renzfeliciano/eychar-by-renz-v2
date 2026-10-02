@@ -4,21 +4,24 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { RecruitmentStageService } from "@/domains/catalog/recruitment-stage-service";
 import { ApplicantService } from "@/domains/recruitment/applicant-service";
+import { LEGACY_HIRED_STAGE_CODES, isHiredStage } from "@/domains/recruitment/pipeline";
+import { codesWithFlag } from "@/domains/catalog/catalog-flags";
 import { PositionService } from "@/domains/organization/position-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard } from "@/components/shared/metric-card";
 import { ApplicantPipeline } from "./applicant-pipeline";
 import { ApplicantFormDialog } from "./applicant-form-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Application tracking" };
 
 export default async function ApplicationTrackingPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("applicants.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view applicants.</p>;
+    return <NoAccessState permission="applicants.read" message="You don't have access to view applicants." />;
   }
 
   const [canCreate, canUpdate] = await Promise.all([
@@ -35,7 +38,7 @@ export default async function ApplicationTrackingPage() {
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const positionOptions = positions.map((position) => ({ id: position._id.toString(), label: position.title }));
 
-  const stageRows = stages.map((stage) => ({ code: stage.code, name: stage.name, isTerminal: Boolean(stage.metadata?.isTerminal) }));
+  const stageRows = stages.map((stage) => ({ code: stage.code, name: stage.name, isTerminal: Boolean(stage.metadata?.isTerminal), isHired: isHiredStage(stage) }));
 
   const applicantRows = applicants.map((applicant) => ({
     _id: applicant._id.toString(),
@@ -62,7 +65,9 @@ export default async function ApplicationTrackingPage() {
   const terminalCodes = new Set(stages.filter((stage) => stage.metadata?.isTerminal).map((stage) => stage.code));
   const inPipeline = applicantRows.filter((applicant) => !terminalCodes.has(applicant.stage));
   const recent = applicantRows.filter((applicant) => new Date().getTime() - new Date(applicant.appliedDate).getTime() <= 30 * 86_400_000).length;
-  const hired = applicantRows.filter((applicant) => applicant.stage === "hired").length;
+  // Hires are the stages flagged isHired in the catalog (an unconfigured "hired" code still counts).
+  const hiredCodes = codesWithFlag(stages, "isHired", LEGACY_HIRED_STAGE_CODES);
+  const hired = applicantRows.filter((applicant) => hiredCodes.has(applicant.stage)).length;
   const hiringFor = new Set(inPipeline.map((applicant) => applicant.positionId)).size;
   const closed = applicantRows.filter((applicant) => terminalCodes.has(applicant.stage)).length;
   const stalled = inPipeline.filter((applicant) => new Date().getTime() - new Date(applicant.appliedDate).getTime() > 30 * 86_400_000).length;

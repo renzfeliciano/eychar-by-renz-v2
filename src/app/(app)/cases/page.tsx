@@ -6,7 +6,7 @@ import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { CaseService } from "@/domains/cases/case-service";
-import { filterCasesByView, isStaleCase, summarizeCases, CASE_STALE_DAYS } from "@/domains/cases/case-summary";
+import { closedCaseCodes, filterCasesByView, isStaleCase, summarizeCases, CASE_STALE_DAYS } from "@/domains/cases/case-summary";
 import { CaseClassificationService } from "@/domains/catalog/case-classification-service";
 import { CaseStatusService } from "@/domains/catalog/case-status-service";
 import { ProjectService } from "@/domains/organization/project-service";
@@ -25,6 +25,7 @@ import { CaseFormDialog } from "./case-form-dialog";
 import { CaseExportActions, type CaseExportRow } from "./case-export-actions";
 import { CasePrintReport } from "./case-print-report";
 import { CaseDetailSheet } from "./case-detail-sheet";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Case monitoring" };
 
@@ -33,12 +34,12 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export default async function CasesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("cases.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view cases.</p>;
+    return <NoAccessState permission="cases.read" message="You don't have access to view cases." />;
   }
 
   const [canCreate, canUpdate] = await Promise.all([
@@ -72,7 +73,8 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
 
   // Status tabs: all, open, closed, then each status that has cases.
   const now = new Date();
-  const summary = summarizeCases(cases, now);
+  const closedCodes = closedCaseCodes(statuses);
+  const summary = summarizeCases(cases, now, closedCodes);
   const statusCounts = new Map<string, number>();
   for (const item of cases) statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
   const viewOptions = [
@@ -85,7 +87,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
   const view = viewOptions.some((option) => option.value === requestedView) ? requestedView : "all";
 
   const tableQuery = parseTableQuery(params, "caseName");
-  const { rows: pageRows, total } = applyTableQuery(filterCasesByView(cases, view), tableQuery, {
+  const { rows: pageRows, total } = applyTableQuery(filterCasesByView(cases, view, closedCodes), tableQuery, {
     searchFields: (item) => [item.caseName, item.caseNumber, item.legalCounsel, projectNameById.get(item.projectId.toString())],
     sortValues: {
       project: (item) => projectNameById.get(item.projectId.toString()) ?? "",
@@ -209,7 +211,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
             { key: "project", header: "Project", sortKey: "project", render: (item) => projectNameById.get(item.projectId.toString()) ?? "—" },
             {
               key: "classification",
-              header: "Classification",
+              header: "Classification", mobile: "subtitle",
               sortKey: "classification",
               render: (item) => (
                 <span className="inline-flex rounded-full border px-2 py-0.5 text-xs whitespace-nowrap text-muted-foreground">
@@ -218,13 +220,13 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
               ),
             },
             { key: "status", header: "Status", sortKey: "status", render: (item) => <StatusBadge status={item.status} label={statusNameByCode.get(item.status)} /> },
-            { key: "legalCounsel", header: "Legal counsel", render: (item) => item.legalCounsel || <span className="text-muted-foreground">Not assigned</span> },
+            { key: "legalCounsel", header: "Legal counsel", mobile: "hidden", render: (item) => item.legalCounsel || <span className="text-muted-foreground">Not assigned</span> },
             {
               key: "updatedAt",
               header: "Last updated",
               sortKey: "updatedAt",
               render: (item) => {
-                const stale = isStaleCase(item, now);
+                const stale = isStaleCase(item, now, closedCodes);
                 return (
                   <span className={cn("whitespace-nowrap", stale ? "font-medium text-destructive" : "text-muted-foreground")} title={stale ? `No update in over ${CASE_STALE_DAYS} days` : undefined}>
                     {formatRelativeDays(item.updatedAt, now)}

@@ -1,5 +1,6 @@
 // Recomputing a draft run: gather the inputs, compute every employee's pay
 // in memory, then replace the records and totals in one transaction.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Types } from "mongoose";
 import { withTransaction } from "@/server/db/transaction";
 import {
@@ -24,12 +25,58 @@ import { sumMoney } from "./engine/money";
 import { summarizeAttendance } from "./payroll-attendance";
 import { projectsAsOf } from "./payroll-scope";
 import { CompensationService } from "./compensation-service";
+import { formatMoney } from "@/lib/money";
 
 /** A net pay change bigger than this against the last released payroll is flagged for review. */
 const NET_PAY_CHANGE_THRESHOLD = 0.2;
 
-const peso = (value: number) => `₱${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const peso = formatMoney;
 const toObjectId = (id?: string | null) => (id ? new Types.ObjectId(id) : undefined);
+
+type RosterInputs = {
+  roster: Awaited<ReturnType<typeof EmployeeService.listWithCurrentStatus>>;
+  isCurrentStaff: Awaited<ReturnType<typeof loadCurrentStaffCheck>>;
+  employments: Awaited<ReturnType<typeof loadEmployments>>;
+};
+
+function loadEmployments(employeeIds: string[]) {
+  return EmploymentModel.find({ employeeId: { $in: employeeIds.map((id) => new Types.ObjectId(id)) } })
+    .sort({ effectiveFrom: 1 })
+    .lean();
+}
+
+/** The organization's roster, which staff statuses count, and everyone's employment history. */
+async function loadRosterInputs(organizationId: string): Promise<RosterInputs> {
+  const [roster, isCurrentStaff] = await Promise.all([EmployeeService.listWithCurrentStatus(organizationId), loadCurrentStaffCheck(organizationId)]);
+  const employments = await loadEmployments(roster.map((row) => row._id.toString()));
+  return { roster, isCurrentStaff, employments };
+}
+
+const sharedRoster = new AsyncLocalStorage<Map<string, Promise<RosterInputs>>>();
+
+/**
+ * Runs `work` with one roster load per organization shared by every
+ * `computeRun` inside it, e.g. a batch of scheduled drafts, instead of
+ * reloading the whole roster for each run. Preparing runs doesn't change
+ * employees or employments, so each run computes exactly what it would
+ * have alone. Outside this scope, `computeRun` loads fresh inputs each time.
+ */
+export function withSharedRoster<T>(work: () => Promise<T>): Promise<T> {
+  return sharedRoster.run(new Map(), work);
+}
+
+function rosterInputsFor(organizationId: string): Promise<RosterInputs> {
+  const cache = sharedRoster.getStore();
+  if (!cache) return loadRosterInputs(organizationId);
+  let inputs = cache.get(organizationId);
+  if (!inputs) {
+    inputs = loadRosterInputs(organizationId);
+    cache.set(organizationId, inputs);
+    // A failed load isn't kept: the next run tries again.
+    inputs.catch(() => cache.delete(organizationId));
+  }
+  return inputs;
+}
 
 /**
  * Computes every record of a draft run from current inputs and replaces
@@ -44,11 +91,10 @@ export async function computeRun(runId: Types.ObjectId) {
   const end = dateToDateKey(run.payPeriodEnd);
   const periodDays = dateKeysBetween(start, end);
 
-  const [policy, rules, roster, isCurrentStaff] = await Promise.all([
+  const [policy, rules, { roster, isCurrentStaff, employments }] = await Promise.all([
     PayrollPolicyModel.findById(run.policyId).lean(),
     PayrollRuleVersionModel.findById(run.ruleVersionId).lean(),
-    EmployeeService.listWithCurrentStatus(organizationId),
-    loadCurrentStaffCheck(organizationId),
+    rosterInputsFor(organizationId),
   ]);
   if (!policy || !rules) throw new NotFoundError("This run's policy or rule version no longer exists");
   const payFrequency = policy.payFrequency as PayFrequency;
@@ -56,10 +102,6 @@ export async function computeRun(runId: Types.ObjectId) {
   if (!taxTable) throw new BusinessRuleError(`Rule version v${rules.versionNumber} has no ${payFrequency} withholding tax table.`);
 
   // Who was employed on which days of the period.
-  const rosterIds = roster.map((row) => row._id.toString());
-  const employments = await EmploymentModel.find({ employeeId: { $in: rosterIds.map((id) => new Types.ObjectId(id)) } })
-    .sort({ effectiveFrom: 1 })
-    .lean();
   const employmentsByEmployee = new Map<string, typeof employments>();
   for (const employment of employments) {
     const key = employment.employeeId.toString();
@@ -172,6 +214,7 @@ export async function computeRun(runId: Types.ObjectId) {
         hoursPerDay: policy.hoursPerDay,
         deductLateAndUndertime: policy.deductLateAndUndertime,
         contributionTiming: policy.contributionTiming as "every_cutoff" | "last_cutoff_of_month",
+        restDayMultiplier: policy.restDayMultiplier ?? undefined,
       },
       rules: { taxTable: taxTable.brackets, contributions: rules.contributions },
       attendance: summary,

@@ -56,3 +56,14 @@ export function formatDateRange(from: string, to: string): string {
   if (fromYear === toYear) return `${formatDateKey(from, { month: "short", day: "numeric" })} – ${formatDateKey(to)}`;
   return `${formatDateKey(from)} – ${formatDateKey(to)}`;
 }
+
+/**
+ * A calendar date stored as UTC midnight (a Date from `z.coerce.date()` of
+ * "2026-10-01", or `dateKeyToDate`): read in UTC so it prints the day that
+ * was entered, whatever the server's or organization's time zone. Not for
+ * instants (createdAt, timestamps): those go through `formatDate` /
+ * `formatDateTime` in `@/lib/app-time`.
+ */
+export function formatCalendarDate(value: Date | string, options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }): string {
+  return new Date(value).toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
+}

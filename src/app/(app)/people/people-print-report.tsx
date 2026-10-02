@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { PeopleExportRow } from "./people-export-actions";
 import { BRAND } from "@/lib/brand";
+import { formatDateTime } from "@/lib/app-time";
 
 const cellClass = "border border-[#c3c2b7] p-[7px_8px] text-left align-top text-[11px]";
 
@@ -19,7 +20,7 @@ export function PeoplePrintReport({ rows }: { rows: PeopleExportRow[] }) {
       <div className="mb-4.5 border-b-2 border-[#0b0b0b] pb-3">
         <h1 className="m-0 mb-1 text-xl">{BRAND.fullName} — Employee Roster</h1>
         <p className="m-0 my-0.5 text-[11px] text-[#52514e]">
-          Generated {generatedAt.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })} ·{" "}
+          Generated {formatDateTime(generatedAt, "long")} ·{" "}
           {rows.length} employee{rows.length === 1 ? "" : "s"}
         </p>
       </div>

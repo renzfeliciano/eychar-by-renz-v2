@@ -21,14 +21,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"], storageState: "tests/e2e/.auth/hr.json" },
-      dependencies: ["setup"],
-    },
-  ],
+  // Every test starts signed out and signs in itself (helpers.ts, signInAsHR).
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     // Production mode, so the nonce CSP and service worker are exercised.
     command: `npm run build && npx next start -p ${PORT}`,

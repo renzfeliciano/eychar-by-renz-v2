@@ -306,8 +306,10 @@ pages in the database (`$facet` for rows + total). The summary strip comes from
 `EmployeeRosterService.summary()`, which returns counts only. The export and print rows (contact
 details, statutory IDs) are no longer embedded in the page: `GET /api/employees/export` serves
 them on demand, behind `employees.read`, the `export` rate limit and an `employees.exported` audit
-entry. Other list pages still filter an already-fetched list in memory (`applyTableQuery`); move
-one to the same pattern when its organization-wide size makes that slow.
+entry. The Leave page (`LeaveRequestService.page` / `summary`), the daily attendance roster
+(`AttendanceService.dayRoster`) and the dashboard's leave numbers page or count in the database
+too (ADR-044). Other list pages still filter an already-fetched list in memory
+(`applyTableQuery`); move one to the same pattern when its organization-wide size makes that slow.
 
 ## Travel Orders & Asset Issuance (ADR-022)
 
@@ -442,9 +444,14 @@ would refuse.
 `category` (grouping — now actually used by `/settings/access`'s permission-checkbox editor,
 ADR-023) and `isSystem` (reserved) — display metadata only, never read by `authorize()`.
 
-`RoleAssignment.scope` is a discriminated `{ type: "organization" }` shape today so `project` /
-`organizationUnit` scope types can be added in a later phase without a schema migration —
-without building the full multi-scope policy-resolution hierarchy prematurely (AGENTS.md §21/§26).
+`RoleAssignment.scope` is `{ type: "organization" }` or `{ type: "project", projectIds }`
+(ADR-043). `authorize({ …, projectId })` lets a project grant pass only for its own projects; without
+a `projectId` only organization-wide grants count. `requireProjectAccess` guards one project;
+`requireAccessibleProjects` / `accessibleProjectIds` return `"all"` or the caller's projects for
+list endpoints that filter (attendance, projects, payroll runs today). Granting and account
+administration compare grants project by project (`missingGrants`). Older assignments without a
+scope are organization-wide; an unknown scope type grants nothing. The required §60 matrix is
+`tests/server/authorization/project-scope.test.ts`.
 
 ## Custom roles & staff accounts (ADR-023)
 
@@ -489,7 +496,15 @@ Indexes (all justified by an actual query above): `organizations.slug` (unique),
 `employments.employeeId+effectiveFrom`, `employeeAssignments.employeeId+effectiveFrom`,
 `employeeAssignments.reportsToEmployeeId`, `attendancePolicies.organizationId+projectId`,
 `attendanceRecords.organizationId+employeeId+date` (unique),
-`attendanceRecords.organizationId+date`.
+`attendanceRecords.organizationId+date`; and from ADR-044: `employeeAssignments.organizationId+effectiveFrom`,
+`auditLogs.resourceType+resourceId+timestamp`, `auditLogs.organizationId+actorUserId+timestamp`,
+`employees.organizationId`, `leaveRequests.organizationId+startDate`,
+`compensations.organizationId+effectiveFrom`, `roleAssignments.organizationId+createdAt`.
+
+**Production builds no indexes at runtime** (ADR-044): run `npx tsx scripts/sync-indexes.ts`
+against the production `MONGODB_URI` after a deploy that adds or changes an index. It only creates
+indexes and lists ones the schemas no longer declare. The connection pool is 5 per instance
+(`MONGODB_MAX_POOL_SIZE`), closing idle connections after 10 seconds.
 
 ## Audit (part of ADR-007's server-side trust boundary)
 
@@ -545,6 +560,26 @@ revoked assignment takes effect immediately rather than waiting for the token to
 Single-active-session and idle-timeout enforcement (`src/server/auth/session-policy.ts`,
 `ConcurrentSessionGuard`) are layered on top — see ADR-010's later section for the mechanism.
 
+## UI standards (mobile-first, AGENTS.md §23/§41)
+
+- **Tables:** `DataTable` columns take `mobile: "title" | "subtitle" | "badge" | "meta" | "actions" |
+  "hidden"`; below `md` each row becomes a stacked card from the same markup.
+- **Touch targets:** buttons and inputs keep their desktop size and get a 40px minimum height on
+  phones (`max-md:min-h-10`); override with a className, not extra `md:` heights.
+- **Viewport:** `h-dvh` / `min-h-dvh` plus `env(safe-area-inset-bottom)` padding, never `h-screen`.
+- **Navigation:** each nav item declares the permission its page checks (a test enforces the match);
+  hiding is a convenience only. A page the viewer can't open renders `<NoAccessState permission=… />`,
+  which names the missing access and the viewer's roles and offers a copyable request.
+- **Detail pages:** phones get a back link in the top bar from the nav structure; `[id]` routes add a
+  `loading.tsx` with `PageLoader variant="detail"`.
+- **Forms:** `FormField error/description` wires `aria-invalid` / `aria-describedby`;
+  `useFieldErrors` maps an API `{ error, field }` onto the field. `FormError` is for errors that
+  aren't about one field.
+- **Destructive actions** go through `ConfirmDialog`; its `onConfirm` throws on failure so the reason
+  stays in the dialog.
+- **Display rules** (ADR-045): instants via `formatDateTime` (Manila time), calendar dates via
+  `formatCalendarDate`, money via `formatMoney`.
+
 ## Known gaps (tracked, not silently ignored)
 
 - **Biometric devices:** any signed-in self-service session may register another device for
@@ -555,17 +590,14 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 - **Eid'l Fitr and future years' proclamations** aren't built in: the Philippine preset flags
   years it hasn't verified, and HR adds proclaimed days by hand.
 
-- **Two-step verification is optional.** It isn't yet required per role. Settings › Accounts
-  shows which HR accounts are missing it. An organization-wide "require for HR" switch would be
-  the next step.
-- **`@simplewebauthn/server` 9.x** has a low-severity advisory (GHSA-6hxq-p678-4hr2) about
-  attestation trust anchors. Registration uses `attestationType: "none"`, so the check it concerns
-  never runs. The v14 upgrade changes the API on server and browser and needs testing on a real
-  phone, so it's a separate task.
-- **CSP allows `'unsafe-inline'` scripts**, for Next's inline hydration data. A nonce-based CSP
-  would remove that.
-- **A temporary password is enforced by the page layouts, not the API.** Its holder could call the
-  API directly, but they already hold that account's credentials.
+- **Two-step verification can be required for HR and admin accounts** (ADR-039), not per role.
+- **Project scope covers attendance, projects and payroll runs** (ADR-043). Other modules use
+  organization-wide checks, so a project-scoped holder is refused there rather than over-granted.
+- **Catalog flags** (`isClosed`, `isHired`) can only be set through the catalog API for now
+  (ADR-045); the catalog editor doesn't show metadata flags yet.
+- **Concurrency tests need a real replica set.** `tests/security/races-2026-10.test.ts` has
+  stale-read tests that run anywhere and concurrent ones that run where transactions work (the
+  Vitest in-memory replica set and CI).
 - `lastActivityAt` idle tracking lives in the JWT, not rewritten to the database on every
   request — avoids write-amplification, at the cost of trusting the (signed, tamper-proof)
   token's own timestamp rather than a server-side clock.

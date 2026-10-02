@@ -90,7 +90,7 @@ export const AttendanceReportService = {
       EmployeeService.listWithCurrentStatus(organizationId),
       loadCurrentStaffCheck(organizationId),
       AttendanceStatusService.listCurrent(organizationId),
-      AttendanceRecordModel.find({ organizationId: orgObjectId, date: dateRange }).select("-checkIn.photo -checkOut.photo").lean(),
+      AttendanceRecordModel.find({ organizationId: orgObjectId, date: dateRange }).select("-checkIn.photo -checkOut.photo -checkIn.photoStorage -checkOut.photoStorage").lean(),
       ScheduleEntryModel.find({ organizationId: orgObjectId, date: dateRange }).lean(),
       ProjectModel.find({ organizationId: orgObjectId }).select("name").lean(),
     ]);

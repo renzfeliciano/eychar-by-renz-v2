@@ -14,10 +14,28 @@ export const roleSchema = z.object({
 export const createRoleSchema = roleSchema;
 export const updateRoleSchema = roleSchema;
 
+/**
+ * Where a role assignment applies: the whole organization (the default, and
+ * what every assignment before scopes meant) or only the listed projects.
+ * The projects are checked against the organization server-side.
+ */
+export const roleAssignmentScopeSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("organization") }),
+  z.object({
+    type: z.literal("project"),
+    projectIds: z
+      .array(objectId())
+      .min(1, "Choose at least one project")
+      .max(200)
+      .transform((ids) => [...new Set(ids.map((id) => id.toLowerCase()))]),
+  }),
+]);
+
 export const assignRoleSchema = z.object({
   organizationId: objectId(),
   roleId: objectId(),
   userId: objectId(),
+  scope: roleAssignmentScopeSchema.default({ type: "organization" }),
 });
 
 export const revokeRoleAssignmentSchema = z.object({
@@ -27,3 +45,4 @@ export const revokeRoleAssignmentSchema = z.object({
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 export type AssignRoleInput = z.infer<typeof assignRoleSchema>;
+export type RoleAssignmentScope = z.infer<typeof roleAssignmentScopeSchema>;

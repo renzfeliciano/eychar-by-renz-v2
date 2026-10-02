@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { signInAsHR } from "./helpers";
 
 // The idle guard runs on the browser's clock, so the tests move that clock
 // forward instead of waiting. The idle limit is whatever Settings › Security
@@ -16,8 +17,7 @@ async function waitForIdleWarning(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.clock.install();
-  await page.goto("/dashboard");
-  await expect(page).toHaveURL(/\/dashboard/);
+  await signInAsHR(page);
 });
 
 test("an idle session warns, then signs out to the login page with a notice", async ({ page }) => {

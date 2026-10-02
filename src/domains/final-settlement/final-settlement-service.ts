@@ -1,6 +1,6 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { withTransaction } from "@/server/db/transaction";
+import { withTransaction, type ClientSession } from "@/server/db/transaction";
 import {
   ClearanceCaseModel,
   FinalSettlementModel,
@@ -20,6 +20,7 @@ import { sumMoney } from "@/domains/payroll/engine/money";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError, ValidationError } from "@/shared/errors";
 import type { FinalSettlementActionInput, ManualLineInput } from "@/shared/validation/final-settlement";
 import { computeSettlement, type ManualLine } from "./settlement-calculator";
+import { payPremiumsOf } from "@/domains/payroll/engine/premiums";
 
 type Actor = { userId?: string };
 
@@ -34,6 +35,26 @@ async function requireSettlement(id: string, organizationId: string) {
   const settlement = await FinalSettlementModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
   if (!settlement) throw new NotFoundError("Final settlement not found in this organization");
   return settlement;
+}
+
+const CHANGED_ELSEWHERE = "This settlement was just changed by someone else. Reload and try again.";
+
+/**
+ * Saves edits to a settlement that was checked to be a draft, only if it is
+ * still one: a submit (or anything else) that landed in between makes this
+ * a ConflictError instead of rewriting lines on a settlement already moving
+ * through approval.
+ */
+async function saveWhileDraft(settlement: InstanceType<typeof FinalSettlementModel>) {
+  if (!settlement.isNew) settlement.$where = { status: { $in: EDITABLE } };
+  try {
+    await settlement.save();
+  } catch (error) {
+    // No longer a draft (DocumentNotFoundError), or its lines changed since
+    // it was read (VersionError): either way someone else got there first.
+    if (error instanceof mongoose.Error.DocumentNotFoundError || error instanceof mongoose.Error.VersionError) throw new ConflictError(CHANGED_ELSEWHERE);
+    throw error;
+  }
 }
 
 /** Everything the calculator needs, read from the system of record as of the last working day. */
@@ -91,6 +112,7 @@ async function gatherInputs(organizationId: string, employeeId: string, lastWork
     lastPaidThrough,
     basicEarnedThisYear,
     thirteenthMonthPaidThisYear: sumMoney(thirteenth.map((adjustment) => adjustment.amount)),
+    thirteenthMonthDivisor: payPremiumsOf(policy).thirteenthMonthDivisor,
     convertibleLeave,
   };
 }
@@ -145,7 +167,7 @@ export const FinalSettlementService = {
     }
     settlement.set({ lines: result.lines, totals: result.totals, inputs });
     settlement.history.push({ action: isNew ? "prepared" : "recomputed", at: new Date(), by: toObjectId(actor.userId), version: settlement.version });
-    await settlement.save();
+    await saveWhileDraft(settlement);
 
     await AuditService.record({
       organizationId,
@@ -164,7 +186,7 @@ export const FinalSettlementService = {
     if (!input.reason.trim()) throw new ValidationError("Give the reason or basis for this line");
     if (!(input.amount > 0)) throw new ValidationError("Enter an amount above zero");
     settlement.manualLines.push({ direction: input.direction, label: input.label.trim(), amount: input.amount, reason: input.reason.trim(), addedBy: toObjectId(actor.userId), addedAt: new Date() });
-    await settlement.save();
+    await saveWhileDraft(settlement);
     await AuditService.record({
       organizationId,
       actorUserId: actor.userId,
@@ -183,7 +205,7 @@ export const FinalSettlementService = {
     if (!line) throw new NotFoundError("Line not found on this settlement");
     const before = { label: line.label, amount: line.amount, reason: line.reason };
     line.deleteOne();
-    await settlement.save();
+    await saveWhileDraft(settlement);
     await AuditService.record({ organizationId, actorUserId: actor.userId, action: "final-settlement.line-removed", resourceType: "FinalSettlement", resourceId: id, before });
     return FinalSettlementService.prepare(settlement.clearanceCaseId.toString(), organizationId, actor);
   },
@@ -192,7 +214,14 @@ export const FinalSettlementService = {
     const settlement = await requireSettlement(id, organizationId);
     const note = input.note?.trim();
     const now = new Date();
-    const record = (action: string) => settlement.history.push({ action, at: now, by: toObjectId(actor.userId), note: note || undefined, version: settlement.version });
+    // Every transition below is checked against the status read here, and
+    // written only if the stored status is still that one (see `commit`).
+    const fromStatus = settlement.status;
+    let entry: { action: string; at: Date; by?: Types.ObjectId; note?: string; version: number } | undefined;
+    const record = (action: string) => {
+      entry = { action, at: now, by: toObjectId(actor.userId), note: note || undefined, version: settlement.version };
+      settlement.history.push(entry);
+    };
 
     let closesClearance = false;
     switch (input.action) {
@@ -243,14 +272,31 @@ export const FinalSettlementService = {
         record("cancelled");
         break;
     }
+    // The status change is a conditional update on the status checked above,
+    // not a save of the in-memory document: two people acting at once (two
+    // disbursals, approve vs return, cancel vs submit) can't both win, and
+    // the loser gets a ConflictError instead of overwriting the winner.
+    const commit = async (session?: ClientSession) => {
+      const result = await FinalSettlementModel.updateOne(
+        { _id: settlement._id, organizationId: settlement.organizationId, status: fromStatus },
+        {
+          $set: { status: settlement.status, ...(input.action === "disburse" ? { payment: settlement.payment } : {}) },
+          ...(entry ? { $push: { history: entry } } : {}),
+        },
+        { session },
+      );
+      if (result.matchedCount === 0) throw new ConflictError(CHANGED_ELSEWHERE);
+    };
     if (closesClearance) {
-      // Disbursed and clearance closed is one change (ADR-041): never one without the other.
+      // Disbursed and clearance closed is one change (ADR-041): never one
+      // without the other. The settlement's conditional update goes first,
+      // so a disbursal that lost the race closes nothing.
       await withTransaction(async (session) => {
-        await settlement.save({ session });
-        await ClearanceCaseModel.updateOne({ _id: settlement.clearanceCaseId }, { $set: { status: "closed", active: false } }, { session });
+        await commit(session);
+        await ClearanceCaseModel.updateOne({ _id: settlement.clearanceCaseId, organizationId: settlement.organizationId }, { $set: { status: "closed", active: false } }, { session });
       });
     } else {
-      await settlement.save();
+      await commit();
     }
 
     await AuditService.record({

@@ -41,6 +41,8 @@ compensationSchema.index({ employeeId: 1, effectiveFrom: 1 });
 // Pay terms are always looked up within an organization (payroll runs, settlements, bulk changes).
 compensationSchema.index({ organizationId: 1, employeeId: 1, effectiveFrom: 1 });
 compensationSchema.index({ organizationId: 1, batchId: 1 });
+// CompensationService.listForOrganization: every row in the organization, oldest first.
+compensationSchema.index({ organizationId: 1, effectiveFrom: 1 });
 
 export type Compensation = InferSchemaType<typeof compensationSchema>;
 

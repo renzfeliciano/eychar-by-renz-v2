@@ -7,7 +7,7 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { TravelOrderService } from "@/domains/travel-orders/travel-order-service";
 import { travelTiming, type TravelTiming } from "@/domains/travel-orders/travel-timing";
-import { dateToDateKey, localDateKey } from "@/lib/date-key";
+import { dateToDateKey, formatCalendarDate, localDateKey } from "@/lib/date-key";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
@@ -22,6 +22,10 @@ import { CancelTravelOrderButton } from "./cancel-travel-order-button";
 import { TravelOrderExportActions, type TravelOrderExportRow } from "./travel-order-export-actions";
 import { TravelOrderPrintReport } from "./travel-order-print-report";
 import { TravelTimeline } from "./travel-timeline";
+import { NoAccessState } from "@/components/shared/no-access-state";
+
+/** "10/1/2026": travel dates are calendar days (UTC midnight). */
+const NUMERIC_DATE = { year: "numeric", month: "numeric", day: "numeric" } as const;
 
 export const metadata: Metadata = { title: "Travel orders" };
 
@@ -30,12 +34,12 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export default async function TravelOrdersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("travel-orders.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view travel orders.</p>;
+    return <NoAccessState permission="travel-orders.read" message="You don't have access to view travel orders." />;
   }
 
   const [canCreate, canUpdate] = await Promise.all([
@@ -55,8 +59,8 @@ export default async function TravelOrdersPage({ searchParams }: { searchParams:
 
   const exportRows: TravelOrderExportRow[] = travelOrders.map((order) => ({
     employees: order.employeeIds.map((id: { toString(): string }) => employeeNameById.get(id.toString()) ?? "—").join("; "),
-    startDate: new Date(order.startDate).toLocaleDateString(),
-    endDate: new Date(order.endDate).toLocaleDateString(),
+    startDate: formatCalendarDate(order.startDate, NUMERIC_DATE),
+    endDate: formatCalendarDate(order.endDate, NUMERIC_DATE),
     remarks: order.remarks ?? "",
     status: order.status,
   }));
@@ -188,15 +192,15 @@ export default async function TravelOrdersPage({ searchParams }: { searchParams:
                 return (
                   <div className="flex flex-col">
                     <span>
-                      {new Date(order.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} –{" "}
-                      {new Date(order.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      {formatCalendarDate(order.startDate, { month: "short", day: "numeric" })} –{" "}
+                      {formatCalendarDate(order.endDate)}
                     </span>
                     <span className="text-xs text-muted-foreground">{days === 1 ? "1 day" : `${days} days`}</span>
                   </div>
                 );
               },
             },
-            { key: "remarks", header: "Remarks", render: (order) => <span className="line-clamp-2 max-w-64 whitespace-normal">{order.remarks || "—"}</span> },
+            { key: "remarks", header: "Remarks", mobile: "hidden", render: (order) => <span className="line-clamp-2 max-w-64 whitespace-normal">{order.remarks || "—"}</span> },
             {
               key: "status",
               header: "Status",

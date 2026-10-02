@@ -9,18 +9,21 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateReviewCycleDialog } from "./create-review-cycle-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatCalendarDate } from "@/lib/date-key";
 
 export const metadata: Metadata = { title: "Review cycles" };
 
+// Review periods are calendar days (UTC midnight).
 const SHORT = { month: "short", day: "numeric", year: "numeric" } as const;
 
 export default async function PerformancePage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("review-cycles.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view review cycles.</p>;
+    return <NoAccessState permission="review-cycles.read" message="You don't have access to view review cycles." />;
   }
 
   const canCreate = await hasPermission("review-cycles.create", organizationId);
@@ -59,7 +62,7 @@ export default async function PerformancePage() {
             render: (cycle) => (
               <div className="flex flex-col">
                 <span>
-                  {new Date(cycle.periodStart).toLocaleDateString("en-US", SHORT)} – {new Date(cycle.periodEnd).toLocaleDateString("en-US", SHORT)}
+                  {formatCalendarDate(cycle.periodStart, SHORT)} – {formatCalendarDate(cycle.periodEnd, SHORT)}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {Math.max(1, Math.round((new Date(cycle.periodEnd).getTime() - new Date(cycle.periodStart).getTime()) / (30.44 * 86_400_000)))} months

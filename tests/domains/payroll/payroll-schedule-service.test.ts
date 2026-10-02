@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { PayrollRunModel, PayrollScheduleModel } from "@/server/db/models";
+import { PayrollRecordModel, PayrollRunModel, PayrollScheduleModel } from "@/server/db/models";
+import { EmployeeService } from "@/domains/workforce/employee-service";
+import { computeRun } from "@/domains/payroll/payroll-run-compute";
 import { PayrollScheduleService } from "@/domains/payroll/payroll-schedule-service";
 import { dateKeyToDate } from "@/lib/date-key";
 import { seedEmployee, seedPayrollOrganization } from "./fixtures";
@@ -68,5 +70,63 @@ describe("PayrollScheduleService", () => {
     const [row] = await PayrollScheduleService.list(organizationId, "2026-10-12");
     expect(row.currentPeriod).toEqual({ start: "2026-10-11", end: "2026-10-25", payDate: "2026-10-30" });
     expect(row.lastClosedPeriod).toEqual({ start: "2026-09-26", end: "2026-10-10", payDate: "2026-10-15" });
+  });
+
+  it("prepares at most `limit` due schedules per pass, oldest cutoff first, and reports how many remain", async () => {
+    const { organizationId, projectId, otherProjectId } = await seedPayrollOrganization();
+    await seedEmployee(organizationId, "Angela", { projectId });
+    await seedEmployee(organizationId, "Bert", { projectId: otherProjectId });
+    const create = (name: string, cutoffDay: number, scope?: string) =>
+      PayrollScheduleService.create({ organizationId, projectId: scope, name, payFrequency: "semi-monthly", cutoffDay, payDateOffsetDays: 5, autoPrepare: true, startsOn: "2026-09-01" }, {});
+    // On Oct 12: cutoff 10 closed Oct 10 (Sep 26–Oct 10); cutoff 5 closed Oct 5 (Sep 21–Oct 5).
+    const newer = await create("Rufino 10th", 10, projectId);
+    const older = await create("Makati 5th", 5, otherProjectId);
+
+    const spy = vi.spyOn(EmployeeService, "listWithCurrentStatus");
+    const first = await PayrollScheduleService.prepareDueBatch({ organizationId, today: "2026-10-12", limit: 1 });
+    expect(first.remaining).toBe(1);
+    expect(first.outcomes).toEqual([
+      expect.objectContaining({ scheduleId: older._id.toString(), outcome: "prepared", period: expect.objectContaining({ end: "2026-10-05" }) }),
+      expect.objectContaining({ scheduleId: newer._id.toString(), outcome: "deferred", period: expect.objectContaining({ end: "2026-10-10" }) }),
+    ]);
+
+    spy.mockClear();
+    const second = await PayrollScheduleService.prepareDueBatch({ organizationId, today: "2026-10-12", limit: 1 });
+    expect(second.remaining).toBe(0);
+    expect(second.outcomes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ scheduleId: older._id.toString(), outcome: "exists" }),
+        expect.objectContaining({ scheduleId: newer._id.toString(), outcome: "prepared" }),
+      ]),
+    );
+    expect(await PayrollRunModel.countDocuments({ organizationId })).toBe(2);
+    spy.mockRestore();
+  });
+
+  it("loads the roster once per organization for every run prepared in one pass, with the same results", async () => {
+    const { organizationId, projectId, otherProjectId } = await seedPayrollOrganization();
+    await seedEmployee(organizationId, "Angela", { projectId });
+    await seedEmployee(organizationId, "Bert", { projectId: otherProjectId });
+    for (const [name, scope] of [["Rufino", projectId], ["Makati", otherProjectId]] as const) {
+      await PayrollScheduleService.create({ organizationId, projectId: scope, name, payFrequency: "semi-monthly", cutoffDay: 10, payDateOffsetDays: 5, autoPrepare: true, startsOn: "2026-09-01" }, {});
+    }
+    const spy = vi.spyOn(EmployeeService, "listWithCurrentStatus");
+    const { outcomes, remaining } = await PayrollScheduleService.prepareDueBatch({ organizationId, today: "2026-10-12" });
+    expect(remaining).toBe(0);
+    expect(outcomes.filter((outcome) => outcome.outcome === "prepared")).toHaveLength(2);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+
+    // Each run holds only its own project's employee, as when computed alone.
+    const runs = await PayrollRunModel.find({ organizationId }).lean();
+    for (const run of runs) {
+      const records = await PayrollRecordModel.find({ payrollRunId: run._id }).lean();
+      expect(records).toHaveLength(1);
+    }
+    // Recomputing one alone (fresh roster load) gives the same totals.
+    const [run] = runs;
+    await computeRun(run._id);
+    const fresh = await PayrollRunModel.findById(run._id).lean();
+    expect(fresh!.totals).toEqual(run.totals);
   });
 });

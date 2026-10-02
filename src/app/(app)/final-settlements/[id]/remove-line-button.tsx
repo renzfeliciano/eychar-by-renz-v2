@@ -1,28 +1,41 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
-/** Removes a manual line from a draft settlement (recorded in the audit log). */
+/**
+ * Removes a manual line from a draft settlement (recorded in the audit log).
+ * Asks first — the button is a small × beside the amount, easy to hit by
+ * accident on a phone — and a failure stays in the dialog.
+ */
 export function RemoveLineButton({ organizationId, settlementId, lineId, label }: { organizationId: string; settlementId: string; lineId: string; label: string }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
 
-  async function handleClick() {
-    setBusy(true);
+  async function handleConfirm() {
     const response = await fetch(`/api/final-settlements/${settlementId}/lines/${lineId}?organizationId=${organizationId}`, { method: "DELETE" });
     const body = await response.json().catch(() => ({}));
-    setBusy(false);
-    if (!response.ok) return toast.error(body.error ?? "Couldn't remove the line.");
+    if (!response.ok) throw new Error(body.error ?? "Couldn't remove the line.");
+    toast.success(`Removed ${label}`);
     router.refresh();
   }
 
   return (
-    <Button size="icon-sm" variant="ghost" onClick={handleClick} disabled={busy} aria-label={`Remove ${label}`}>
-      {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <X className="size-3.5" aria-hidden="true" />}
-    </Button>
+    <ConfirmDialog
+      trigger={
+        <Button size="icon-sm" variant="ghost" className="max-md:min-h-10 max-md:min-w-10" aria-label={`Remove ${label}`}>
+          <X className="size-3.5" aria-hidden="true" />
+        </Button>
+      }
+      title={`Remove ${label}?`}
+      description="The line comes off this draft settlement and the totals are recalculated. You can add it again if needed."
+      confirmLabel="Remove line"
+      confirmLoadingLabel="Removing…"
+      cancelLabel="Keep it"
+      onConfirm={handleConfirm}
+      testId={`settlement-line-remove-${lineId}`}
+    />
   );
 }

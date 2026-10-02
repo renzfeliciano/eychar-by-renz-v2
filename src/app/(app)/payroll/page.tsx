@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { after } from "next/server";
 import { CalendarClock, CircleCheck, FilePen, Hourglass, Wallet } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -16,6 +17,7 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "./payroll-status-badge";
 import { NewRunDialog, type RunSuggestion } from "./new-run-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll runs" };
 
@@ -25,18 +27,20 @@ const STATUS_FILTERS = ["all", "draft", "submitted", "approved", "released", "ca
 export default async function PayrollRunsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-runs.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view payroll runs.</p>;
+    return <NoAccessState permission="payroll-runs.read" message="You don't have access to view payroll runs." />;
   }
   const canCreate = await hasPermission("payroll-runs.create", organizationId);
 
   // Catch up on scheduled drafts whose cutoff has closed, so they're here
   // even if the daily cron didn't run. Idempotent; failures are recorded
-  // on the schedule and shown on the schedules screen.
-  if (canCreate) await PayrollScheduleService.prepareDue({ organizationId }).catch(() => []);
+  // on the schedule and shown on the schedules screen. Runs after the
+  // response is sent (it computes whole payrolls), so the page never waits
+  // on it: drafts it prepares show up on the next visit or refresh.
+  if (canCreate) after(() => PayrollScheduleService.prepareDue({ organizationId }).then(() => undefined, () => undefined));
 
   const today = localDateKey();
   const [runs, projects, schedules] = await Promise.all([
@@ -154,10 +158,10 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
                 </div>
               ),
             },
-            { key: "scope", header: "Scope", render: (run) => (run.projectId ? (projectNameById.get(run.projectId.toString()) ?? "Project") : "All projects") },
+            { key: "scope", header: "Scope", mobile: "subtitle", render: (run) => (run.projectId ? (projectNameById.get(run.projectId.toString()) ?? "Project") : "All projects") },
             { key: "period", header: "Period", sortKey: "period", render: (run) => formatDateRange(dateToDateKey(run.payPeriodStart), dateToDateKey(run.payPeriodEnd)) },
             { key: "payDate", header: "Pay date", sortKey: "payDate", render: (run) => formatDateKey(dateToDateKey(run.payDate)) },
-            { key: "employees", header: "Employees", className: "text-right", render: (run) => <span className="tabular-nums">{run.totals?.employees ?? 0}</span> },
+            { key: "employees", header: "Employees", mobile: "hidden", className: "text-right", render: (run) => <span className="tabular-nums">{run.totals?.employees ?? 0}</span> },
             {
               key: "netPay",
               header: "Net pay",
@@ -168,7 +172,7 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
             { key: "status", header: "Status", sortKey: "status", render: (run) => <PayrollStatusBadge status={run.status} /> },
             {
               key: "preparedBy",
-              header: "Prepared by",
+              header: "Prepared by", mobile: "hidden",
               render: (run) => <span className="text-muted-foreground">{run.preparedBy ? (userNames.get(run.preparedBy.toString()) ?? "—") : "Payroll schedule"}</span>,
             },
           ]}

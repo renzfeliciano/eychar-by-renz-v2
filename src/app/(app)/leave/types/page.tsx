@@ -14,17 +14,18 @@ import { ConvertibleToggle } from "./convertible-toggle";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { LeaveTypeFormDialog } from "./leave-type-form-dialog";
 import { DeleteLeaveTypeButton } from "./delete-leave-type-button";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Leave types" };
 
 export default async function LeaveTypesPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("leave-types.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view leave types.</p>;
+    return <NoAccessState permission="leave-types.read" message="You don't have access to view leave types." />;
   }
 
   const [canUpdate, canDelete] = await Promise.all([
@@ -71,7 +72,7 @@ export default async function LeaveTypesPage() {
               </div>
             ),
           },
-          { key: "code", header: "Code", render: (leaveType) => <span className="font-mono text-xs">{leaveType.code}</span> },
+          { key: "code", header: "Code", mobile: "subtitle", render: (leaveType) => <span className="font-mono text-xs">{leaveType.code}</span> },
           {
             key: "approval",
             header: "Approval",

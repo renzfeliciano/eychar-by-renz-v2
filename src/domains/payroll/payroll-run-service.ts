@@ -266,8 +266,8 @@ export const PayrollRunService = {
     const [records, adjustments, policy, ruleVersion] = await Promise.all([
       PayrollRecordModel.find({ payrollRunId: run._id }).sort({ employeeName: 1 }).lean(),
       PayrollAdjustmentModel.find({ payrollRunId: run._id }).sort({ createdAt: 1 }).lean(),
-      PayrollPolicyModel.findById(run.policyId).select("name payFrequency workDaysPerYear hoursPerDay contributionTiming").lean(),
-      PayrollRuleVersionModel.findById(run.ruleVersionId).select("name versionNumber").lean(),
+      PayrollPolicyModel.findById(run.policyId).select("name payFrequency workDaysPerYear hoursPerDay contributionTiming overtimeMultiplier restDayMultiplier").lean(),
+      PayrollRuleVersionModel.findById(run.ruleVersionId).select("name versionNumber contributions.name contributions.extraLabel").lean(),
     ]);
     return { run: run.toObject(), records, adjustments, policy, ruleVersion };
   },

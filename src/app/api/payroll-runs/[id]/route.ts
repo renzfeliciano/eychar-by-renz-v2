@@ -1,6 +1,7 @@
 import { enforceRateLimit } from "@/server/security/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/server/authorization";
+import { includesProject, requireAccessibleProjects, requirePermission } from "@/server/authorization";
+import { NotFoundError } from "@/shared/errors";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { payrollRunActionSchema, type PayrollRunActionInput } from "@/shared/validation/payroll";
 import { organizationIdParamSchema } from "@/shared/validation/organization";
@@ -20,8 +21,10 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/payroll-
   try {
     const { id } = await ctx.params;
     const { organizationId } = organizationIdParamSchema.parse({ organizationId: request.nextUrl.searchParams.get("organizationId") });
-    await requirePermission("payroll-runs.read", organizationId);
+    const { projects } = await requireAccessibleProjects("payroll-runs.read", organizationId);
     const detail = await PayrollRunService.getDetail(id, organizationId);
+    // A project-scoped reader only opens their projects' runs; anything else reads as not found, like the list.
+    if (!includesProject(projects, detail.run.projectId)) throw new NotFoundError("Payroll run not found in this organization");
     return NextResponse.json({ detail });
   } catch (error) {
     return toErrorResponse(error);

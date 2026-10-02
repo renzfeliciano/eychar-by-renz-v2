@@ -12,17 +12,18 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreatePositionDialog } from "./create-position-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Positions" };
 
 export default async function PositionsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("positions.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view positions.</p>;
+    return <NoAccessState permission="positions.read" message="You don't have access to view positions." />;
   }
 
   const [positions, headcount] = await Promise.all([PositionService.listCurrent(organizationId), loadHeadcount(organizationId)]);

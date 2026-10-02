@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { OpenClearanceDialog } from "./open-clearance-dialog";
 import { ChecklistDialog } from "./checklist-dialog";
 import { CLEARANCE_STATUS_LABELS, CLEARANCE_STATUS_TONES } from "./clearance-labels";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Clearance" };
 
@@ -30,10 +31,10 @@ const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC"
 export default async function ClearancePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   if (!(await hasPermission("clearance.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view clearances.</p>;
+    return <NoAccessState permission="clearance.read" message="You don't have access to view clearances." />;
   }
 
   const [canCreate, canManage, cases, separationTypes, departments, checklist, roster, isCurrentStaff] = await Promise.all([

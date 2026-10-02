@@ -55,3 +55,40 @@ export function zonedInstant(dateKey: string, time: string): Date {
   const seenAsUtc = Date.UTC(Number(seen.year), Number(seen.month) - 1, Number(seen.day), seen.hour, seen.minute);
   return new Date(asIfUtc - (seenAsUtc - asIfUtc));
 }
+
+/**
+ * Display presets for instants (createdAt, audit timestamps, sign-ins).
+ * Every one is rendered on the organization's wall clock, never the
+ * server's: a Vercel function runs in UTC and would print Manila's 9 AM
+ * as 1 AM. Calendar dates stored as UTC midnight (hire dates, periods,
+ * last working days) are not instants: format those with
+ * `formatCalendarDate` from `@/lib/date-key`.
+ */
+export const DATE_TIME_STYLES = {
+  /** "Oct 2, 2026, 3:04 PM" */
+  medium: { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" },
+  /** "Oct 2, 2026, 3:04:05 PM" */
+  seconds: { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" },
+  /** "Oct 2, 3:04 PM" */
+  short: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
+  /** "October 2, 2026 at 3:04 PM" */
+  long: { dateStyle: "long", timeStyle: "short" },
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+export type DateTimeStyle = keyof typeof DATE_TIME_STYLES;
+
+/** An instant as date and time in the organization's time zone. */
+export function formatDateTime(value: Date | string | number, style: DateTimeStyle | Intl.DateTimeFormatOptions = "medium"): string {
+  const options = typeof style === "string" ? DATE_TIME_STYLES[style] : style;
+  return new Date(value).toLocaleString("en-US", { ...options, timeZone: APP_TIME_ZONE });
+}
+
+/** The calendar day an instant fell on there: "Oct 2, 2026". */
+export function formatDate(value: Date | string | number, options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" }): string {
+  return new Date(value).toLocaleDateString("en-US", { ...options, timeZone: APP_TIME_ZONE });
+}
+
+/** An instant's wall-clock time there: "3:04 PM". */
+export function formatTime(value: Date | string | number, options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" }): string {
+  return new Date(value).toLocaleTimeString("en-US", { ...options, timeZone: APP_TIME_ZONE });
+}

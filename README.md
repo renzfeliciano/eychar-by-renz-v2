@@ -35,8 +35,11 @@ The app runs on http://localhost:4100.
 - `npm run typecheck` — `next typegen` + `tsc --noEmit`
 - `npm run lint` — ESLint
 - `npm test` — Vitest (uses an in-memory MongoDB; no `MONGODB_URI` needed)
+- `npm run test:e2e` — Playwright end-to-end tests against a throwaway database; one-command setup
+  with `npx tsx scripts/seed-e2e.ts` (see `tests/e2e/README.md`)
 - The pre-commit hook runs lint and typecheck only; the full test suite and build run in
-  GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and every pull request
+  GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and every pull request; the
+  end-to-end tests run there too, after those pass, against a MongoDB replica set
 - `npm run db:seed` — idempotent: seeds the initial organization, permission catalog, HR
   Administrator role, and HR user from `SEED_*` env vars
 
@@ -48,6 +51,10 @@ The app runs on http://localhost:4100.
 - **Document files:** connect a Blob store (Storage › Blob) so employee documents are kept in private
   object storage instead of the database (ADR-038). Without one they stay in MongoDB. Uploads are
   limited to 4MB.
+- **Clock-in photos** go to the same Blob store (ADR-044). To move photos already in the database:
+  `npx tsx scripts/migrate-attendance-photos.ts` (dry run), then add `--apply`.
+- **Indexes:** production doesn't build indexes at runtime. After a deploy that adds or changes an
+  index, run `npx tsx scripts/sync-indexes.ts` with the production `MONGODB_URI` (create-only).
 
 ## Holiday calendar
 

@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 
 // How pay is computed for an organization, or a project that overrides it
 // (resolved via the shared resolveOrgProjectPolicy(), AGENTS.md §26).
@@ -20,6 +21,11 @@ const payrollPolicySchema = new Schema(
     // Workdays counted in a period (0 = Sunday … 6 = Saturday).
     workWeekDays: { type: [Number], default: [1, 2, 3, 4, 5] },
     deductLateAndUndertime: { type: Boolean, required: true, default: true },
+    // Premiums and the 13th month divisor (seeded defaults in PAY_PREMIUM_DEFAULTS). Not
+    // required: policies saved before these existed read as the defaults.
+    overtimeMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.overtimeMultiplier },
+    restDayMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.restDayMultiplier },
+    thirteenthMonthDivisor: { type: Number, min: 1, max: 24, default: PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor },
     // Split the month's contributions across cutoffs, or deduct them whole on the month's last cutoff.
     contributionTiming: { type: String, enum: ["every_cutoff", "last_cutoff_of_month"], required: true, default: "every_cutoff" },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },

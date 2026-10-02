@@ -13,17 +13,18 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateLocationDialog } from "./create-location-dialog";
 import { EditLocationDialog } from "./edit-location-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Locations" };
 
 export default async function LocationsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("locations.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view locations.</p>;
+    return <NoAccessState permission="locations.read" message="You don't have access to view locations." />;
   }
 
   const [locations, canCreate, canUpdate, headcount] = await Promise.all([
@@ -71,7 +72,7 @@ export default async function LocationsPage() {
               </div>
             ),
           },
-          { key: "code", header: "Code", render: (location) => <span className="font-mono text-xs">{location.code}</span> },
+          { key: "code", header: "Code", mobile: "subtitle", render: (location) => <span className="font-mono text-xs">{location.code}</span> },
           {
             key: "headcount",
             header: "Headcount",

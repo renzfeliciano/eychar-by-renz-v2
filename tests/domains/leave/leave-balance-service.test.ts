@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, PersonModel, EmployeeModel, LeaveRequestModel, AuditLogModel } from "@/server/db/models";
+import mongoose from "mongoose";
+import { OrganizationModel, PersonModel, EmployeeModel, LeaveRequestModel, AuditLogModel, LeaveBalanceModel } from "@/server/db/models";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { LeaveBalanceService } from "@/domains/leave/leave-balance-service";
 import { ConflictError } from "@/shared/errors";
@@ -237,5 +238,39 @@ describe("LeaveBalanceService", () => {
     const audits = await AuditLogModel.find({ organizationId, action: "leave-balance.granted-in-bulk" }).lean();
     expect(audits).toHaveLength(1);
     expect(audits[0].metadata).toMatchObject({ granted: 1, year: 2026, entitledDays: 15 });
+  });
+
+  it("grants ~50 employees in one balance insert and one audit insert, with one audit entry per balance", async () => {
+    const { organization, employee, leaveType } = await seedOrgEmployeeAndType("50");
+    const organizationId = organization._id.toString();
+    const people = await PersonModel.insertMany(Array.from({ length: 49 }, (_, i) => ({ organizationId, firstName: `P${i}`, lastName: "Bulk" })));
+    await EmployeeModel.insertMany(people.map((person, i) => ({ organizationId, personId: person._id, employeeNumber: `EMP-50-${i}-${Math.random()}` })));
+    await LeaveBalanceService.create({ organizationId, employeeId: employee._id.toString(), leaveTypeId: leaveType._id.toString(), year: 2027, entitledDays: 5 }, {});
+
+    const writes: string[] = [];
+    mongoose.set("debug", (collection: string, method: string) => {
+      if (["insertOne", "insertMany", "updateOne", "save", "create"].includes(method)) writes.push(`${collection}.${method}`);
+    });
+    let result;
+    try {
+      result = await LeaveBalanceService.grantMissing({ organizationId, leaveTypeId: leaveType._id.toString(), year: 2027, entitledDays: 12 }, { userId: undefined });
+    } finally {
+      mongoose.set("debug", false);
+    }
+
+    expect(result).toEqual({ granted: 49, alreadyHad: 1 });
+    expect(writes.filter((w) => w.startsWith("leavebalances."))).toEqual(["leavebalances.insertMany"]);
+    expect(writes.filter((w) => w.startsWith("auditlogs."))).toEqual(["auditlogs.insertMany"]);
+
+    const balances = await LeaveBalanceModel.find({ organizationId, leaveTypeId: leaveType._id, year: 2027 }).lean();
+    expect(balances).toHaveLength(50);
+    expect(balances.filter((balance) => balance.entitledDays === 12)).toHaveLength(49);
+    const created = await AuditLogModel.find({ organizationId, action: "leave-balance.created", resourceId: { $in: balances.map((balance) => balance._id) } }).lean();
+    // 49 from the bulk grant + 1 from the create() above.
+    expect(created).toHaveLength(50);
+    expect(created.every((entry) => (entry.after as { year: number }).year === 2027)).toBe(true);
+    const bulk = await AuditLogModel.find({ organizationId, action: "leave-balance.granted-in-bulk" }).lean();
+    expect(bulk).toHaveLength(1);
+    expect(bulk[0].metadata).toMatchObject({ granted: 49, alreadyHad: 1, year: 2027, entitledDays: 12, unlimited: false });
   });
 });

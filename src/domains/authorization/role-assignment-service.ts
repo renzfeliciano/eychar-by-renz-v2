@@ -1,43 +1,61 @@
 import { organizationUserIds, userBelongsToOrganization } from "@/domains/identity/user-directory";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { RoleAssignmentModel, RoleModel, UserModel, PersonModel } from "@/server/db/models";
+import { RoleAssignmentModel, RoleModel, UserModel, PersonModel, ProjectModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
-import { heldPermissions } from "@/server/authorization/authorize";
+import { heldPermissions, missingGrants } from "@/server/authorization/authorize";
 import { SuperAdminService } from "./super-admin-service";
 import { viewerSeesHidden } from "@/server/db/visibility-context";
 import { formatPersonName } from "@/lib/person-name";
-import type { AssignRoleInput } from "@/shared/validation/roles";
+import type { AssignRoleInput, RoleAssignmentScope } from "@/shared/validation/roles";
+
+/** Every project named by a scope must be this organization's (else "not found", so other tenants' ids can't be probed). */
+async function assertScopeInOrganization(scope: RoleAssignmentScope, organizationId: string) {
+  if (scope.type !== "project") return;
+  const found = await ProjectModel.countDocuments({ _id: { $in: scope.projectIds.map((id) => new Types.ObjectId(id)) }, organizationId: new Types.ObjectId(organizationId) }).setOptions({
+    includeHidden: true,
+  });
+  if (found !== scope.projectIds.length) throw new NotFoundError("Project not found in this organization");
+}
 
 export const RoleAssignmentService = {
   /**
-   * Whether `actor` may hand this role out in this organization, checked
-   * before anything is written (StaffAccountService runs it before creating
-   * the account). A person (not a system/seed call, which has no actor) may
-   * only grant permissions they hold themselves, unless they're the
-   * organization's Super Administrator; admin-power roles stay the Super
-   * Administrator's alone (assertCanManageAdminRole).
+   * Whether `actor` may hand this role out in this organization, at this
+   * scope, checked before anything is written (StaffAccountService runs it
+   * before creating the account). A person (not a system/seed call, which
+   * has no actor) may only grant permissions they hold themselves, at least
+   * as broadly as the grant: an organization-wide grant needs them
+   * organization-wide; a grant on projects needs them organization-wide or
+   * on each of those projects. The Super Administrator is exempt;
+   * admin-power roles stay the Super Administrator's alone
+   * (assertCanManageAdminRole).
    */
-  async assertCanGrant(input: Pick<AssignRoleInput, "organizationId" | "roleId">, actor: { userId?: string }) {
+  async assertCanGrant(input: Pick<AssignRoleInput, "organizationId" | "roleId"> & { scope?: RoleAssignmentScope }, actor: { userId?: string }) {
     await connectMongoDB();
     if (!Types.ObjectId.isValid(input.roleId) || !Types.ObjectId.isValid(input.organizationId)) throw new NotFoundError("Role not found in this organization");
     const role = await RoleModel.findOne({ _id: new Types.ObjectId(input.roleId), organizationId: new Types.ObjectId(input.organizationId) }).select("system permissionKeys").lean();
     if (!role) throw new NotFoundError("Role not found in this organization");
     if (role.system === "super_admin") throw new BusinessRuleError("The Super Administrator role can't be assigned from the app");
     await SuperAdminService.assertCanManageAdminRole(actor.userId, input.organizationId, role.permissionKeys);
+    const scope: RoleAssignmentScope = input.scope ?? { type: "organization" };
+    await assertScopeInOrganization(scope, input.organizationId);
 
     if (!actor.userId) return role;
     const held = await heldPermissions({ userId: actor.userId, organizationId: input.organizationId });
-    if (held.superAdmin) return role;
-    const beyond = ((role.permissionKeys ?? []) as string[]).filter((key) => !held.keys.has(key));
+    const roleKeys = (role.permissionKeys ?? []) as string[];
+    const beyond = missingGrants(
+      held,
+      scope.type === "organization" ? { keys: roleKeys } : { keys: [], projectKeys: new Map(scope.projectIds.map((projectId) => [projectId, roleKeys])) },
+    );
     if (beyond.length > 0) {
-      throw new AuthorizationError(`You can't give a role with access you don't have yourself (${beyond.slice(0, 5).join(", ")}${beyond.length > 5 ? ", …" : ""})`);
+      const where = scope.type === "organization" ? " across the organization" : " on those projects";
+      throw new AuthorizationError(`You can't give a role with access you don't have yourself${where} (${beyond.slice(0, 5).join(", ")}${beyond.length > 5 ? ", …" : ""})`);
     }
     return role;
   },
 
-  async assign(input: AssignRoleInput, actor: { userId?: string }) {
+  async assign(input: Omit<AssignRoleInput, "scope"> & { scope?: RoleAssignmentScope }, actor: { userId?: string }) {
     await connectMongoDB();
 
     await RoleAssignmentService.assertCanGrant(input, actor);
@@ -62,10 +80,12 @@ export const RoleAssignmentService = {
     });
     if (alreadyAssigned) throw new ConflictError("This user already holds this role");
 
+    const scope: RoleAssignmentScope = input.scope ?? { type: "organization" };
     const assignment = await RoleAssignmentModel.create({
       userId: new Types.ObjectId(input.userId),
       roleId: new Types.ObjectId(input.roleId),
       organizationId: new Types.ObjectId(input.organizationId),
+      scope: scope.type === "project" ? { type: "project", projectIds: scope.projectIds.map((id) => new Types.ObjectId(id)) } : { type: "organization" },
     });
 
     await AuditService.record({
@@ -74,7 +94,7 @@ export const RoleAssignmentService = {
       action: "role-assignment.created",
       resourceType: "RoleAssignment",
       resourceId: assignment._id.toString(),
-      after: { userId: assignment.userId, roleId: assignment.roleId },
+      after: { userId: assignment.userId, roleId: assignment.roleId, scope },
     });
 
     return assignment;

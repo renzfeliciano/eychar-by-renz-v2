@@ -4,6 +4,7 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { RoleService } from "@/domains/authorization/role-service";
 import { RoleAssignmentService } from "@/domains/authorization/role-assignment-service";
+import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -17,6 +18,8 @@ import { AssignRoleDialog } from "./assign-role-dialog";
 import { RevokeRoleAssignmentButton } from "./revoke-role-assignment-button";
 import { CreateStaffAccountDialog } from "./create-staff-account-dialog";
 import { getSession } from "@/server/auth/session";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatDate } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Roles & access" };
 
@@ -25,11 +28,11 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export default async function AccessSettingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("roles.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view roles and access.</p>;
+    return <NoAccessState permission="roles.read" message="You don't have access to view roles and access." />;
   }
 
   const [canCreateRole, canUpdateRole, canAssign, canCreateStaffAccount] = await Promise.all([
@@ -44,11 +47,12 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
   // The system role is never managed here; admin-power roles only by the Super Administrator.
   const canManageRole = (role: { system?: string | null; permissionKeys?: string[] | null }) => role.system !== "super_admin" && (isSuperAdmin || !grantsAdminPower(role.permissionKeys));
 
-  const [roles, availablePermissions, assignments, members] = await Promise.all([
+  const [roles, availablePermissions, assignments, members, projects] = await Promise.all([
     RoleService.listCurrent(organizationId),
     RoleService.listAvailablePermissions(),
     RoleAssignmentService.listForOrganization(organizationId),
     RoleAssignmentService.listOrganizationMembers(organizationId),
+    ProjectService.listCurrent(organizationId),
   ]);
 
   const permissionOptions = availablePermissions.map((permission) => ({
@@ -60,6 +64,17 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
   const memberByUserId = new Map(members.map((member) => [member.userId, member]));
   const roleOptions = roles.filter((role) => role.status !== "inactive" && canManageRole(role)).map((role) => ({ id: role._id.toString(), label: role.name }));
   const memberOptions = members.map((member) => ({ id: member.userId, label: `${member.name} (${member.username})` }));
+  const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name as string]));
+  const projectOptions = projects
+    .filter((project) => project.status === "active")
+    .map((project) => ({ id: project._id.toString(), label: project.name as string }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  // Where an assignment applies; one written before scopes existed is organization-wide.
+  const scopeLabel = (assignment: (typeof assignments)[number]) => {
+    const scope = assignment.scope as { type?: string; projectIds?: { toString(): string }[] } | undefined;
+    if (scope?.type !== "project") return null;
+    return (scope.projectIds ?? []).map((id) => projectNameById.get(id.toString()) ?? "Unknown project");
+  };
 
   const membersByRoleId = new Map<string, number>();
   for (const assignment of assignments) membersByRoleId.set(assignment.roleId.toString(), (membersByRoleId.get(assignment.roleId.toString()) ?? 0) + 1);
@@ -86,7 +101,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
 
   const assignmentQuery = parseTableQuery(params, undefined, "assignment");
   const { rows: assignmentPageRows, total: assignmentTotal } = applyTableQuery(assignments, assignmentQuery, {
-    searchFields: (assignment) => [memberByUserId.get(assignment.userId.toString())?.name, roleById.get(assignment.roleId.toString())?.name],
+    searchFields: (assignment) => [memberByUserId.get(assignment.userId.toString())?.name, roleById.get(assignment.roleId.toString())?.name, ...(scopeLabel(assignment) ?? [])],
     sortValues: {
       person: (assignment) => memberByUserId.get(assignment.userId.toString())?.name ?? "",
       role: (assignment) => roleById.get(assignment.roleId.toString())?.name ?? "",
@@ -144,7 +159,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
               },
               {
                 key: "permissions",
-                header: "Permissions",
+                header: "Permissions", mobile: "subtitle",
                 render: (role) => {
                   if (role.system === "super_admin") {
                     return <span className="text-xs font-medium text-primary">All permissions, including delete</span>;
@@ -203,12 +218,12 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-base">Access</CardTitle>
-            <CardDescription>Who holds which role, and since when.</CardDescription>
+            <CardDescription>Who holds which role, where it applies, and since when.</CardDescription>
           </div>
-          {canAssign && <AssignRoleDialog organizationId={organizationId} members={memberOptions} roles={roleOptions} />}
+          {canAssign && <AssignRoleDialog organizationId={organizationId} members={memberOptions} roles={roleOptions} projects={projectOptions} />}
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <TableSearchInput placeholder="Search by person or role…" paramName="assignmentQ" pageParamName="assignmentPage" />
+          <TableSearchInput placeholder="Search by person, role or project…" paramName="assignmentQ" pageParamName="assignmentPage" />
           <DataTable
             caption="Role assignments"
             sort={{
@@ -259,10 +274,24 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                 },
               },
               {
+                key: "scope",
+                header: "Applies to",
+                render: (assignment) => {
+                  const projectNames = scopeLabel(assignment);
+                  if (!projectNames) return <span className="text-muted-foreground">Whole organization</span>;
+                  return (
+                    <span className="line-clamp-2 max-w-xs text-sm whitespace-normal" title={projectNames.join(", ")}>
+                      <span className="sr-only">Projects: </span>
+                      {projectNames.join(", ")}
+                    </span>
+                  );
+                },
+              },
+              {
                 key: "since",
                 header: "Since",
                 sortKey: "since",
-                render: (assignment) => new Date(assignment.effectiveFrom).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+                render: (assignment) => formatDate(assignment.effectiveFrom),
               },
               {
                 key: "action",

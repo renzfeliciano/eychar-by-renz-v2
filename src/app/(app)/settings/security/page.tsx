@@ -6,14 +6,15 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SecuritySettingsForm } from "./security-settings-form";
 import { TwoStepRequirementForm } from "./two-step-requirement-form";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Security settings" };
 
 export default async function SecuritySettingsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
-  if (!(await isSuperAdmin(organizationId))) return <p className="text-sm text-muted-foreground">Only the Super Administrator can change security settings.</p>;
+  if (!(await isSuperAdmin(organizationId))) return <NoAccessState superAdminOnly message="Only the Super Administrator can change security settings." />;
 
   const [settings, staffWithoutTwoStep] = await Promise.all([SecuritySettingsService.get(organizationId), SecuritySettingsService.staffWithoutTwoStep(organizationId)]);
   return (

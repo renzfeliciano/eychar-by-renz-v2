@@ -11,7 +11,7 @@ import { CATALOG_REGISTRY } from "@/domains/catalog/catalog-registry";
  * breaks one of these fails here, before review.
  */
 const API_ROOT = "src/app/api";
-const GUARD = /require(Permission|AuthenticatedUser|OrganizationAccess|SelfServiceEmployee)\(|checkCronAuthorization\(/;
+const GUARD = /require(Permission|AuthenticatedUser|OrganizationAccess|SelfServiceEmployee|ProjectAccess|AccessibleProjects)\(|checkCronAuthorization\(/;
 // Public on purpose: Auth.js's own endpoints and the uptime check.
 const PUBLIC = new Set(["src/app/api/auth/[...nextauth]/route.ts", "src/app/api/health/route.ts"]);
 // A POST that only reads (a preview) may use a read permission.
@@ -34,7 +34,7 @@ function handlers(source: string): { method: string; body: string }[] {
 
 /** Permission keys a handler asks for: string literals passed to requirePermission, or held in a PERMISSION map. */
 function literalPermissions(source: string, body: string): string[] {
-  const direct = [...body.matchAll(/requirePermission\(\s*(?:[^,]*\?\s*)?"([^"]+)"(?:\s*:\s*"([^"]+)")?/g)].flatMap((match) => [match[1], match[2]].filter(Boolean));
+  const direct = [...body.matchAll(/require(?:Permission|ProjectAccess|AccessibleProjects)\(\s*(?:[^,]*\?\s*)?"([^"]+)"(?:\s*:\s*"([^"]+)")?/g)].flatMap((match) => [match[1], match[2]].filter(Boolean));
   const maps = [...source.matchAll(/const PERMISSION\w*[^=]*=\s*\{([\s\S]*?)\};/g)].flatMap((match) => [...match[1].matchAll(/"([a-z-]+\.[a-z-]+)"/g)].map((key) => key[1]));
   return [...direct, ...(/requirePermission\(PERMISSION/.test(body) ? maps : [])];
 }

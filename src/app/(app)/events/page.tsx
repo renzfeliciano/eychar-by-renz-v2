@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard } from "@/components/shared/metric-card";
 import { addDays, formatDateKey, localDateKey } from "@/lib/date-key";
 import { EventsCalendar } from "./events-calendar";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Company calendar" };
 
@@ -21,11 +22,11 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 export default async function EventsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("events.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view events.</p>;
+    return <NoAccessState permission="events.read" message="You don't have access to view events." />;
   }
 
   const todayKey = localDateKey();

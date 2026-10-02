@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { zonedInstant } from "@/lib/app-time";
 import { connectMongoDB } from "@/server/db/connection";
-import { OrganizationModel, PersonModel, EmployeeModel, AuditLogModel, AttendanceRecordModel } from "@/server/db/models";
+import { Types } from "mongoose";
+import { OrganizationModel, PersonModel, EmployeeModel, AuditLogModel, AttendanceRecordModel, EmployeeAssignmentModel, EmploymentModel, ProjectModel } from "@/server/db/models";
+import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
+import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { AttendancePolicyService } from "@/domains/attendance/attendance-policy-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
@@ -177,5 +180,104 @@ describe("AttendanceService", () => {
         {},
       ),
     ).rejects.toThrow(BusinessRuleError);
+  });
+});
+
+describe("AttendanceService.listForOrganization project filter", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("resolves each record's project as of its own date with one batched lookup, matching getAsOf per record", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-att-proj-${Date.now()}-${Math.random()}` });
+    const projectA = await ProjectModel.create({ organizationId: organization._id, name: "Site A", code: `A-${Math.random()}` });
+    const projectB = await ProjectModel.create({ organizationId: organization._id, name: "Site B", code: `B-${Math.random()}` });
+    const makeEmployee = async (n: string) => {
+      const person = await PersonModel.create({ organizationId: organization._id, firstName: n, lastName: "Doe" });
+      return EmployeeModel.create({ organizationId: organization._id, personId: person._id, employeeNumber: `EMP-${n}-${Math.random()}` });
+    };
+    const mover = await makeEmployee("Mover");
+    const stayer = await makeEmployee("Stayer");
+    const unassigned = await makeEmployee("Unassigned");
+
+    const day = (d: number) => new Date(Date.UTC(2026, 0, d));
+    // Mover: Site A from Jan 1, transferred to Site B on Jan 10 (close/open share the instant).
+    await EmployeeAssignmentModel.create({ organizationId: organization._id, employeeId: mover._id, projectId: projectA._id, effectiveFrom: day(1), effectiveTo: day(10) });
+    await EmployeeAssignmentModel.create({ organizationId: organization._id, employeeId: mover._id, projectId: projectB._id, effectiveFrom: day(10) });
+    await EmployeeAssignmentModel.create({ organizationId: organization._id, employeeId: stayer._id, projectId: projectA._id, effectiveFrom: day(1) });
+
+    for (const employee of [mover, stayer, unassigned]) {
+      for (const d of [5, 10, 15]) {
+        await AttendanceRecordModel.create({ organizationId: organization._id, employeeId: employee._id, date: day(d), status: "present" });
+      }
+    }
+
+    const organizationId = organization._id.toString();
+    const key = (record: { employeeId: unknown; date: Date }) => `${String(record.employeeId)}@${record.date.toISOString().slice(0, 10)}`;
+    const atA = (await AttendanceService.listForOrganization(organizationId, { projectId: projectA._id.toString() })).map(key).sort();
+    const atB = (await AttendanceService.listForOrganization(organizationId, { projectId: projectB._id.toString() })).map(key).sort();
+
+    // The previous per-record implementation, as the reference.
+    const all = await AttendanceService.listForOrganization(organizationId);
+    const reference = async (projectId: string) => {
+      const out = [];
+      for (const record of all) {
+        const assignment = await EmployeeAssignmentService.getAsOf(record.employeeId.toString(), record.date);
+        if (assignment?.projectId?.toString() === projectId) out.push(key(record));
+      }
+      return out.sort();
+    };
+    expect(atA).toEqual(await reference(projectA._id.toString()));
+    expect(atB).toEqual(await reference(projectB._id.toString()));
+
+    const m = mover._id.toString();
+    const s = stayer._id.toString();
+    expect(atA).toEqual([`${m}@2026-01-05`, `${m}@2026-01-10`, `${s}@2026-01-05`, `${s}@2026-01-10`, `${s}@2026-01-15`].sort());
+    expect(atB).toEqual([`${m}@2026-01-15`]);
+  });
+});
+
+describe("AttendanceService.dayRoster", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("pages current staff plus anyone with a record that day, and counts the whole day", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-att-day-${Date.now()}-${Math.random()}` });
+    const organizationId = organization._id.toString();
+    await EmploymentStatusService.create({ organizationId, code: "active", name: "Active", metadata: { isActiveHeadcount: true } }, {});
+    await EmploymentStatusService.create({ organizationId, code: "resigned", name: "Resigned", metadata: { isActiveHeadcount: false } }, {});
+    const project = await ProjectModel.create({ organizationId, name: "Site A", code: `A-${Math.random()}` });
+    const day = new Date(Date.UTC(2026, 2, 3));
+    const make = async (name: string, status: string, recordStatus?: string) => {
+      const person = await PersonModel.create({ organizationId, firstName: name, lastName: "Doe" });
+      const employee = await EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: `EMP-${name}-${Math.random()}` });
+      await EmploymentModel.create({ organizationId, employeeId: employee._id, employmentType: "regular", status, effectiveFrom: new Date(Date.UTC(2025, 0, 1)) });
+      await EmployeeAssignmentModel.create({ organizationId, employeeId: employee._id, projectId: project._id, effectiveFrom: new Date(Date.UTC(2025, 0, 1)) });
+      if (recordStatus) {
+        await AttendanceRecordModel.create({ organizationId, employeeId: employee._id, date: day, status: recordStatus, checkIn: { at: day, photo: "data:image/jpeg;base64,xx", distanceMeters: 12 } });
+      }
+      return employee._id.toString();
+    };
+    const present = await make("Present", "active", "present");
+    const missing = await make("Missing", "active");
+    const separated = await make("Separated", "resigned", "late");
+    await make("Gone", "resigned");
+    // Another day's record doesn't count.
+    await AttendanceRecordModel.create({ organizationId, employeeId: new Types.ObjectId(missing), date: new Date(Date.UTC(2026, 2, 4)), status: "absent" });
+
+    const first = await AttendanceService.dayRoster(organizationId, new Date(Date.UTC(2026, 2, 3, 15)), { page: 1, pageSize: 2 });
+    expect(first.total).toBe(3);
+    expect(first.notRecorded).toBe(1);
+    expect(Object.fromEntries(first.countByStatus)).toEqual({ present: 1, late: 1 });
+    expect(first.rows.map((row) => row._id.toString())).toEqual([present, missing]);
+    expect(first.rows[0]).toMatchObject({ person: { firstName: "Present", lastName: "Doe" }, record: { status: "present", checkIn: { distanceMeters: 12 } } });
+    expect((first.rows[0].record?.checkIn as { photo?: string }).photo).toBeUndefined();
+    expect(first.rows[0].currentAssignment?.projectId?.toString()).toBe(project._id.toString());
+    expect(first.rows[1].record).toBeUndefined();
+
+    const second = await AttendanceService.dayRoster(organizationId, day, { page: 2, pageSize: 2 });
+    expect(second.rows.map((row) => row._id.toString())).toEqual([separated]);
+    expect(second.total).toBe(3);
   });
 });

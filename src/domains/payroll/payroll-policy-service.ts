@@ -12,8 +12,12 @@ export type { PolicySource };
 
 type PayrollPolicyDoc = NonNullable<Awaited<ReturnType<typeof PayrollPolicyModel.findOne>>>;
 
+/** The premiums are optional for callers that predate them (seed, fixtures): the schema defaults fill them in. */
+type PremiumKey = "overtimeMultiplier" | "restDayMultiplier" | "thirteenthMonthDivisor";
+type CreatePolicyInput = Omit<CreatePayrollPolicyInput, PremiumKey> & Partial<Pick<CreatePayrollPolicyInput, PremiumKey>>;
+
 export const PayrollPolicyService = {
-  async create(input: CreatePayrollPolicyInput, actor: { userId?: string }) {
+  async create(input: CreatePolicyInput, actor: { userId?: string }) {
     await connectMongoDB();
     await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
 
@@ -28,6 +32,9 @@ export const PayrollPolicyService = {
       workWeekDays: [...new Set(input.workWeekDays)].sort(),
       deductLateAndUndertime: input.deductLateAndUndertime,
       contributionTiming: input.contributionTiming,
+      overtimeMultiplier: input.overtimeMultiplier,
+      restDayMultiplier: input.restDayMultiplier,
+      thirteenthMonthDivisor: input.thirteenthMonthDivisor,
       ...(input.effectiveFrom ? { effectiveFrom: dateKeyToDate(input.effectiveFrom) } : {}),
     });
 
@@ -42,6 +49,9 @@ export const PayrollPolicyService = {
         payFrequency: policy.payFrequency,
         workDaysPerYear: policy.workDaysPerYear,
         contributionTiming: policy.contributionTiming,
+        overtimeMultiplier: policy.overtimeMultiplier,
+        restDayMultiplier: policy.restDayMultiplier,
+        thirteenthMonthDivisor: policy.thirteenthMonthDivisor,
         projectId: policy.projectId,
       },
     });

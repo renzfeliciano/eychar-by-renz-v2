@@ -25,6 +25,8 @@ const leaveRequestSchema = new Schema(
 
 leaveRequestSchema.index({ organizationId: 1, employeeId: 1, startDate: 1 });
 leaveRequestSchema.index({ organizationId: 1, status: 1 });
+// LeaveRequestService.listForOrganization / page / listCoveringDate: the organization's requests, newest start first.
+leaveRequestSchema.index({ organizationId: 1, startDate: -1 });
 
 export type LeaveRequest = InferSchemaType<typeof leaveRequestSchema>;
 

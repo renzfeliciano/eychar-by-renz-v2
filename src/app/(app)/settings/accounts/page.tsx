@@ -14,6 +14,7 @@ import { formatRelativeDays } from "@/lib/relative-time";
 import { RoleService } from "@/domains/authorization/role-service";
 import { AccountActions } from "./account-actions";
 import { getSession } from "@/server/auth/session";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Accounts" };
 
@@ -48,11 +49,11 @@ function accountState(account: AccountSummary) {
 export default async function AccountsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("users.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view accounts.</p>;
+    return <NoAccessState permission="users.read" message="You don't have access to view accounts." />;
   }
   const [canUpdate, session] = await Promise.all([hasPermission("users.update", organizationId), getSession()]);
 
@@ -153,7 +154,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
           },
           {
             key: "mfa",
-            header: "Two-step",
+            header: "Two-step", mobile: "hidden",
             render: (account) => <StatusBadge status={account.mfaEnabled ? "on" : "off"} label={account.mfaEnabled ? "On" : "Off"} tone={account.mfaEnabled ? "success" : account.kind === "staff" ? "warning" : "neutral"} />,
           },
           { key: "state", header: "Status", render: accountState },

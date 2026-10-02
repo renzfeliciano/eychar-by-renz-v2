@@ -12,17 +12,18 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateUnitDialog } from "./create-unit-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Units" };
 
 export default async function OrganizationUnitsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("organization-units.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view organization units.</p>;
+    return <NoAccessState permission="organization-units.read" message="You don't have access to view organization units." />;
   }
 
   const [units, headcount] = await Promise.all([OrganizationUnitService.listCurrent(organizationId), loadHeadcount(organizationId)]);
@@ -58,9 +59,9 @@ export default async function OrganizationUnitsPage() {
               );
             },
           },
-          { key: "code", header: "Code", render: (unit) => <span className="font-mono text-xs">{unit.code}</span> },
+          { key: "code", header: "Code", mobile: "subtitle", render: (unit) => <span className="font-mono text-xs">{unit.code}</span> },
           { key: "type", header: "Type", render: (unit) => <span className="capitalize">{unit.type}</span> },
-          { key: "headcount", header: "Headcount", className: "text-right", render: (unit) => <span className="font-medium tabular-nums">{headcount.byUnit.get(unit._id.toString()) ?? 0}</span> },
+          { key: "headcount", header: "Headcount", mobile: "hidden", className: "text-right", render: (unit) => <span className="font-medium tabular-nums">{headcount.byUnit.get(unit._id.toString()) ?? 0}</span> },
           { key: "status", header: "Status", render: (unit) => <StatusBadge status={unit.status} /> },
           {
             key: "delete",

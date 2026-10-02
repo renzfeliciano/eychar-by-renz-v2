@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
+import { formatMultiplierPercent, payPremiumsOf } from "@/domains/payroll/engine/premiums";
 import { ProjectService } from "@/domains/organization/project-service";
 import { PAY_FREQUENCY_LABELS, type PayFrequency } from "@/domains/payroll/engine/pay-frequency";
 import { WEEKDAY_NAMES } from "@/domains/payroll/payroll-labels";
@@ -13,6 +14,7 @@ import { Building2, CalendarClock, FolderKanban } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreatePayrollPolicyDialog } from "./create-payroll-policy-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll policies" };
 
@@ -25,11 +27,11 @@ function describeWorkWeek(days: number[]): string {
 
 export default async function PayrollPoliciesPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-policies.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view payroll policies.</p>;
+    return <NoAccessState permission="payroll-policies.read" message="You don't have access to view payroll policies." />;
   }
 
   const [canCreate, policies, projects] = await Promise.all([
@@ -81,7 +83,7 @@ export default async function PayrollPoliciesPage() {
           },
           {
             key: "days",
-            header: "Work week",
+            header: "Work week", mobile: "hidden",
             render: (policy) => (
               <div className="flex flex-col">
                 <span>{describeWorkWeek(policy.workWeekDays ?? [])}</span>
@@ -93,7 +95,7 @@ export default async function PayrollPoliciesPage() {
           },
           {
             key: "rules",
-            header: "Deductions",
+            header: "Deductions", mobile: "hidden",
             render: (policy) => (
               <div className="flex flex-col text-xs">
                 <span>{policy.deductLateAndUndertime ? "Lates and undertime deducted" : "Lates not deducted"}</span>
@@ -102,6 +104,21 @@ export default async function PayrollPoliciesPage() {
                 </span>
               </div>
             ),
+          },
+          {
+            key: "premiums",
+            header: "Premiums", mobile: "hidden",
+            render: (policy) => {
+              const premiums = payPremiumsOf(policy);
+              return (
+                <div className="flex flex-col text-xs">
+                  <span>
+                    Overtime {formatMultiplierPercent(premiums.overtimeMultiplier)} · rest day {formatMultiplierPercent(premiums.restDayMultiplier)}
+                  </span>
+                  <span className="text-muted-foreground">13th month: basic pay ÷ {premiums.thirteenthMonthDivisor}</span>
+                </div>
+              );
+            },
           },
           {
             key: "effective",

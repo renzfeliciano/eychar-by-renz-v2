@@ -12,16 +12,17 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Rule versions" };
 
 export default async function PayrollRuleVersionsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-rule-versions.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view payroll rule versions.</p>;
+    return <NoAccessState permission="payroll-rule-versions.read" message="You don't have access to view payroll rule versions." />;
   }
 
   const [canCreate, ruleVersions, resolved] = await Promise.all([
@@ -78,7 +79,7 @@ export default async function PayrollRuleVersionsPage() {
           { key: "effective", header: "Effective from", render: (version) => formatDateKey(dateToDateKey(version.effectiveFrom)) },
           {
             key: "tax",
-            header: "Tax tables",
+            header: "Tax tables", mobile: "hidden",
             render: (version) =>
               version.taxTables?.length ? (
                 version.taxTables.map((table: { payFrequency: string }) => PAY_FREQUENCY_LABELS[table.payFrequency as PayFrequency]).join(", ")
@@ -88,7 +89,7 @@ export default async function PayrollRuleVersionsPage() {
           },
           {
             key: "contributions",
-            header: "Contributions",
+            header: "Contributions", mobile: "hidden",
             render: (version) => (version.contributions?.length ? version.contributions.map((rule: { name: string }) => rule.name).join(", ") : <span className="text-muted-foreground">—</span>),
           },
           { key: "status", header: "Status", render: (version) => <StatusBadge status={version.status} /> },
