@@ -12,16 +12,16 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { TableSearchInput } from "@/components/shared/table-search-input";
-import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
+import { parseTableQuery, buildTableHref } from "@/lib/table-query";
 import { NewRequestDialog } from "./new-request-dialog";
 import { DecideActions } from "./decide-actions";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Leave requests" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const STATUSES = ["pending", "approved", "rejected", "cancelled"] as const;
-const DAY_MS = 86_400_000;
 
 function formatRange(start: Date, end: Date): string {
   const from = new Date(start);
@@ -45,11 +45,11 @@ function initials(name: string) {
 export default async function LeavePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("leave.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view leave requests.</p>;
+    return <NoAccessState permission="leave.read" message="You don't have access to view leave requests." />;
   }
 
   const [canCreate, canApprove, canCancel] = await Promise.all([
@@ -58,42 +58,39 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
     hasPermission("leave.update", organizationId),
   ]);
 
-  const [requests, leaveTypes, employees] = await Promise.all([
-    LeaveRequestService.listForOrganization(organizationId),
-    LeaveTypeService.listCurrent(organizationId),
-    EmployeeService.listWithCurrentStatus(organizationId),
-  ]);
+  const statusFilter = (STATUSES as readonly string[]).includes(String(params.status)) ? String(params.status) : "all";
+  const tableQuery = parseTableQuery(params, "startDate");
+
+  const [leaveTypes, employees] = await Promise.all([LeaveTypeService.listCurrent(organizationId), EmployeeService.listWithCurrentStatus(organizationId)]);
   const leaveTypeNameById = new Map(leaveTypes.map((leaveType) => [leaveType._id.toString(), leaveType.name]));
   const employeeById = new Map(employees.map((employee) => [employee._id.toString(), employee]));
 
-  // Summary: what's waiting, who's out today, what's coming, and this month's approved days.
-  const today = new Date();
-  const todayKey = today.toISOString().slice(0, 10);
-  const covers = (request: (typeof requests)[number], key: string) =>
-    new Date(request.startDate).toISOString().slice(0, 10) <= key && new Date(request.endDate).toISOString().slice(0, 10) >= key;
-  const pending = requests.filter((request) => request.status === "pending");
-  const approved = requests.filter((request) => request.status === "approved");
-  const onLeaveToday = new Set(approved.filter((request) => covers(request, todayKey)).map((request) => request.employeeId.toString())).size;
-  const upcoming = approved.filter((request) => {
-    const start = new Date(request.startDate).getTime();
-    return start > today.getTime() && start - today.getTime() <= 30 * DAY_MS;
-  }).length;
-  const monthKey = todayKey.slice(0, 7);
-  const approvedDaysThisMonth = approved.filter((request) => new Date(request.startDate).toISOString().startsWith(monthKey)).reduce((sum, request) => sum + request.totalDays, 0);
-
-  const statusFilter = (STATUSES as readonly string[]).includes(String(params.status)) ? String(params.status) : "all";
-  const visible = statusFilter === "all" ? requests : requests.filter((request) => request.status === statusFilter);
-
-  const tableQuery = parseTableQuery(params, "startDate");
-  const { rows: pageRows, total } = applyTableQuery(visible, tableQuery, {
-    searchFields: (request) => [employeeName(employeeById.get(request.employeeId.toString())?.person ?? null), leaveTypeNameById.get(request.leaveTypeId.toString())],
-    sortValues: {
-      employee: (request) => employeeName(employeeById.get(request.employeeId.toString())?.person ?? null),
-      startDate: (request) => new Date(request.startDate),
-      days: (request) => request.totalDays,
-      status: (request) => request.status,
-    },
-  });
+  // Search and the employee-name sort work on names, which live outside
+  // leave requests: resolve them to ids here, then let the database filter,
+  // sort, count and page (only one page of requests is read).
+  const needle = tableQuery.q?.toLowerCase();
+  const nameOf = (employee: (typeof employees)[number]) => employeeName(employee.person);
+  // Ranks for the employee sort: distinct names in order; a request whose
+  // employee isn't on the roster sorts as "—", the name the table shows.
+  const missingName = employeeName(null);
+  const names = tableQuery.sort === "employee" ? [...new Set([...employees.map(nameOf), missingName])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)) : [];
+  const rankOfName = new Map(names.map((name, index) => [name, index]));
+  const [{ rows: pageRows, total }, summary] = await Promise.all([
+    LeaveRequestService.page(organizationId, {
+      ...tableQuery,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      employeeIdsMatchingQ: needle ? employees.filter((employee) => nameOf(employee).toLowerCase().includes(needle)).map((employee) => employee._id.toString()) : undefined,
+      leaveTypeIdsMatchingQ: needle ? leaveTypes.filter((leaveType) => leaveType.name.toLowerCase().includes(needle)).map((leaveType) => leaveType._id.toString()) : undefined,
+      employeeOrder:
+        tableQuery.sort === "employee"
+          ? { ids: employees.map((employee) => employee._id.toString()), ranks: employees.map((employee) => rankOfName.get(nameOf(employee))!), missingRank: rankOfName.get(missingName)! }
+          : undefined,
+    }),
+    // Summary: what's waiting, who's out today, what's coming, and this month's approved days.
+    LeaveRequestService.summary(organizationId, new Date()),
+  ]);
+  const pending = summary.byStatus.get("pending") ?? { count: 0, days: 0 };
+  const { onLeaveToday, upcoming, approvedDaysThisMonth } = summary;
 
   const createAction = canCreate ? (
     <NewRequestDialog
@@ -110,10 +107,10 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard
           label="Awaiting approval"
-          value={pending.length}
-          hint={`${pending.reduce((sum, request) => sum + request.totalDays, 0)} days requested`}
+          value={pending.count}
+          hint={`${pending.days} days requested`}
           icon={Hourglass}
-          tone={pending.length ? "warning" : "default"}
+          tone={pending.count ? "warning" : "default"}
         />
         <MetricCard label="On leave today" value={onLeaveToday} hint="Approved leave covering today" icon={Palmtree} emphasis />
         <MetricCard label="Starting soon" value={upcoming} hint="Approved, within 30 days" icon={CalendarClock} />
@@ -127,8 +124,8 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
             params={params}
             active={statusFilter}
             options={[
-              { value: "all", label: "All", count: requests.length },
-              ...STATUSES.map((status) => ({ value: status, label: status.charAt(0).toUpperCase() + status.slice(1), count: requests.filter((request) => request.status === status).length })),
+              { value: "all", label: "All", count: summary.total },
+              ...STATUSES.map((status) => ({ value: status, label: status.charAt(0).toUpperCase() + status.slice(1), count: summary.byStatus.get(status)?.count ?? 0 })),
             ]}
           />
           <TableSearchInput placeholder="Search by employee or leave type…" />

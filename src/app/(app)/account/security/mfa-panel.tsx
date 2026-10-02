@@ -3,13 +3,15 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Copy, Download, KeyRound, Loader2, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
+import { Copy, Download, KeyRound, ShieldCheck, ShieldOff, Smartphone, Check, X } from "lucide-react";
+import { iconForAction } from "@/components/ui/action-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormError, FormField } from "@/components/shared/form-field";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BRAND } from "@/lib/brand";
+import { formatDate } from "@/lib/app-time";
 
 type Setup = { secret: string; qrCode: string };
 
@@ -97,7 +99,7 @@ function EnrollDialog({ setup, onCancel, onDone }: { setup: Setup; onCancel: () 
           <>
             <RecoveryCodes codes={codes} />
             <DialogFooter>
-              <Button type="button" onClick={onDone}>
+              <Button type="button" onClick={onDone} icon={Check}>
                 I&apos;ve saved my codes
               </Button>
             </DialogFooter>
@@ -139,12 +141,11 @@ function EnrollDialog({ setup, onCancel, onDone }: { setup: Setup; onCancel: () 
             </ol>
             <FormError message={error} />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
+              <Button type="button" variant="outline" onClick={onCancel} disabled={busy} icon={X}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={busy || code.length !== 6}>
-                {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="size-4" aria-hidden="true" />}
-                {busy ? "Verifying…" : "Verify and turn on"}
+              <Button type="submit" disabled={busy || code.length !== 6} icon={ShieldCheck} pending={busy} pendingLabel="Verifying…">
+                Verify and turn on
               </Button>
             </DialogFooter>
           </form>
@@ -205,12 +206,11 @@ function PasswordConfirmDialog({
             </FormField>
             <FormError message={error} />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy} icon={X}>
                 Cancel
               </Button>
-              <Button type="submit" variant={destructive ? "destructive" : "default"} disabled={busy || !password}>
-                {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-                {busy ? busyLabel : confirmLabel}
+              <Button type="submit" variant={destructive ? "destructive" : "default"} disabled={!password} icon={iconForAction(confirmLabel)} pending={busy} pendingLabel={busyLabel}>
+                {confirmLabel}
               </Button>
             </DialogFooter>
           </form>
@@ -242,7 +242,7 @@ export function MfaPanel({ enabled, enabledAt, recoveryCodesLeft }: { enabled: b
           </span>
           <span className="text-sm text-muted-foreground">
             {enabled
-              ? `${enabledAt ? `On since ${new Date(enabledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : "On"} · ${recoveryCodesLeft} of 10 recovery codes left`
+              ? `${enabledAt ? `On since ${formatDate(enabledAt, { month: "long", day: "numeric", year: "numeric" })}` : "On"} · ${recoveryCodesLeft} of 10 recovery codes left`
               : "Sign-in asks for a code from your phone as well as your password, so a stolen password alone isn't enough."}
           </span>
         </div>

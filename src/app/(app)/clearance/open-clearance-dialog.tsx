@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, UserMinus } from "lucide-react";
+import { UserMinus, FolderOpen } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -138,9 +138,8 @@ export function OpenClearanceDialog({
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="open-clearance-form" disabled={isSubmitting} data-testid="clearance-open-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Opening…" : "Open clearance"}
+          <Button type="submit" form="open-clearance-form" data-testid="clearance-open-submit-button" icon={FolderOpen} pending={isSubmitting} pendingLabel="Opening…">
+            Open clearance
           </Button>
         </DialogFooter>
       </DialogContent>

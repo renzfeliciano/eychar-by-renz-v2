@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarPlus, Loader2, Pencil } from "lucide-react";
+import { CalendarPlus, Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -202,9 +202,8 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
         </div>
 
         <DialogFooter>
-          <Button onClick={save} disabled={saving} data-testid="payroll-schedule-save">
-            {saving && <Loader2 className="size-3.5 animate-spin" />}
-            {saving ? "Saving…" : isEdit ? "Save changes" : "Create schedule"}
+          <Button onClick={save} data-testid="payroll-schedule-save" icon={Save} pending={saving} pendingLabel="Saving…">
+            {isEdit ? "Save changes" : "Create schedule"}
           </Button>
         </DialogFooter>
       </DialogContent>

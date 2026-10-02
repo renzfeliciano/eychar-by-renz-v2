@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Clock3, Globe, KeyRound, LogIn, LogOut, MonitorSmartphone, ShieldAlert, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Clock3, Globe, KeyRound, LogIn, LogOut, MonitorSmartphone, ShieldAlert, ShieldCheck, type LucideIcon, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/app-time";
 
 type Notice = {
   icon: LucideIcon;
@@ -104,7 +105,7 @@ function NoticePoints({ notice }: { notice: Notice }) {
 /** When and where the sign-in that ended this session happened, so people can tell whether it was them. */
 function SignInDetails({ replacedBy }: { replacedBy: ReplacedBy }) {
   const rows = [
-    replacedBy.at && { icon: Clock3, label: "When", value: `${new Date(replacedBy.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} (${lastActive(replacedBy.at)})` },
+    replacedBy.at && { icon: Clock3, label: "When", value: `${formatDateTime(replacedBy.at, { dateStyle: "medium", timeStyle: "short" })} (${lastActive(replacedBy.at)})` },
     replacedBy.device && { icon: MonitorSmartphone, label: "Device", value: replacedBy.device },
     replacedBy.host && { icon: Globe, label: "Site", value: replacedBy.host },
   ].filter((row): row is { icon: LucideIcon; label: string; value: string } => Boolean(row));
@@ -179,7 +180,7 @@ export function ConcurrentSessionGuard() {
           <NoticeHeader notice={notice} />
           <NoticePoints notice={notice} />
           <DialogFooter>
-            <Button onClick={acknowledge}>Got it</Button>
+            <Button onClick={acknowledge} icon={Check}>Got it</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

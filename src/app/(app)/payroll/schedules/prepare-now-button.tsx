@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, PlayCircle } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Runs the same idempotent "prepare what's due" pass as the daily cron, on demand. */
@@ -31,9 +31,8 @@ export function PrepareNowButton({ organizationId }: { organizationId: string })
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={prepare} disabled={busy} data-testid="payroll-schedules-prepare-now">
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <PlayCircle className="size-3.5" />}
-      {busy ? "Preparing…" : "Prepare due runs"}
+    <Button size="sm" variant="outline" onClick={prepare} data-testid="payroll-schedules-prepare-now" icon={PlayCircle} pending={busy} pendingLabel="Preparing…">
+      Prepare due runs
     </Button>
   );
 }

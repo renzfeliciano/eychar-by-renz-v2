@@ -11,6 +11,8 @@ import { PAYROLL_RUN_STATUS_LABELS, PAYROLL_RUN_STEPS, formatPeso, type PayrollR
 import { PAY_FREQUENCY_LABELS, type PayFrequency } from "@/domains/payroll/engine/pay-frequency";
 import { NotFoundError } from "@/shared/errors";
 import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
+import { formatDateTime } from "@/lib/app-time";
+import { payPremiumsOf } from "@/domains/payroll/engine/premiums";
 import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +21,7 @@ import { PayrollStatusBadge } from "../payroll-status-badge";
 import { RunActions } from "./run-actions";
 import { RunRegister } from "./run-register";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll run" };
 
@@ -32,18 +35,22 @@ const HISTORY_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-function formatTimestamp(value: Date): string {
-  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const formatTimestamp = (value: Date) => formatDateTime(value);
+
+/** "SSS, EC, PhilHealth, Pag-IBIG": the employer-paid contributions this run's rule version defines, in its order. */
+function employerShareLabel(rules: { name: string; extraLabel?: string | null }[]): string {
+  const names = rules.flatMap((rule) => (rule.extraLabel ? [rule.name, rule.extraLabel] : [rule.name]));
+  return [...new Set(names)].join(", ") || "No contributions";
 }
 
 export default async function PayrollRunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("payroll-runs.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view this payroll run.</p>;
+    return <NoAccessState permission="payroll-runs.read" message="You don't have access to view this payroll run." />;
   }
 
   let detail;
@@ -135,6 +142,9 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
     if (["prepared", "submitted", "approved", "released"].includes(entry.action)) reachedAt.set(entry.status, { at: entry.at, by: entry.by });
   }
   const currentStepIndex = PAYROLL_RUN_STEPS.indexOf(status);
+  // The rules this run used; a run without its rule version (never expected) falls back to what its records computed.
+  const contributionRules: { name: string; extraLabel?: string | null }[] =
+    ruleVersion?.contributions ?? records.flatMap((record) => record.contributions as { name: string; extraLabel?: string | null }[]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -256,10 +266,17 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           icon={Landmark}
         />
         <MetricCard label="Net pay" value={formatPeso(totals.netPay)} hint={`Pay date ${formatDateKey(dateToDateKey(run.payDate), { month: "short", day: "numeric" })}`} icon={Wallet} emphasis />
-        <MetricCard label="Employer share" value={formatPeso(totals.employerContributions)} hint="SSS, EC, PhilHealth, Pag-IBIG" icon={Building2} className="col-span-2 lg:col-span-1" />
+        <MetricCard label="Employer share" value={formatPeso(totals.employerContributions)} hint={employerShareLabel(contributionRules)} icon={Building2} className="col-span-2 lg:col-span-1" />
       </div>
 
-      <RunRegister runId={run._id.toString()} organizationId={organizationId} records={registerRows} adjustments={adjustmentRows} editable={status === "draft" && canUpdate} />
+      <RunRegister
+        runId={run._id.toString()}
+        organizationId={organizationId}
+        records={registerRows}
+        adjustments={adjustmentRows}
+        editable={status === "draft" && canUpdate}
+        overtimeMultiplier={payPremiumsOf(policy).overtimeMultiplier}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>

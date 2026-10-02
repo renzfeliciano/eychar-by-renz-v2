@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Check, Clock, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
+import { Check, Clock, Pencil, Ban, RotateCcw, Save, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -321,13 +321,12 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
           <FormError message={error} />
           <div className="flex justify-end gap-2">
             {editingId && (
-              <Button type="button" variant="ghost" onClick={resetForm}>
+              <Button type="button" variant="ghost" onClick={resetForm} icon={X}>
                 Cancel edit
               </Button>
             )}
-            <Button type="submit" disabled={isSubmitting} data-testid="shift-submit-button">
-              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-              {isSubmitting ? "Saving…" : editingId ? "Save changes" : "Add shift"}
+            <Button type="submit" data-testid="shift-submit-button" icon={Save} pending={isSubmitting} pendingLabel="Saving…">
+              {editingId ? "Save changes" : "Add shift"}
             </Button>
           </div>
         </form>
@@ -350,18 +349,11 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  disabled={togglingId === shift.id}
+                  icon={shift.status === "active" ? Ban : RotateCcw}
+                  pending={togglingId === shift.id}
                   onClick={() => toggleStatus(shift)}
                   aria-label={shift.status === "active" ? `Deactivate ${shift.name}` : `Reactivate ${shift.name}`}
-                >
-                  {togglingId === shift.id ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : shift.status === "active" ? (
-                    <Ban className="size-3.5" />
-                  ) : (
-                    <RotateCcw className="size-3.5" />
-                  )}
-                </Button>
+                />
               </li>
             ))}
           </ul>

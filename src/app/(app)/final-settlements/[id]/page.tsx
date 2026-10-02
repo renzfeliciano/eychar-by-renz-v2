@@ -17,15 +17,17 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { PESO, SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_TONES, daysToDeadline, deadlineDaysOf } from "../settlement-labels";
+import { formatMoney } from "@/lib/money";
+import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_TONES, daysToDeadline, deadlineDaysOf } from "../settlement-labels";
 import { SettlementActions } from "./settlement-actions";
 import { ManualLineForm } from "./manual-line-form";
 import { RemoveLineButton } from "./remove-line-button";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatDateTime } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Final settlement" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
-const WHEN = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;
 const HISTORY_LABELS: Record<string, string> = {
   prepared: "Prepared",
   recomputed: "Recomputed",
@@ -47,7 +49,7 @@ function LinesTable({ title, lines, total, tone, removable }: { title: string; l
           {tone === "earning" ? <ArrowUpRight className="size-4 text-success" aria-hidden="true" /> : <ArrowDownRight className="size-4 text-destructive" aria-hidden="true" />}
           {title}
         </CardTitle>
-        <span className="font-semibold tabular-nums">{PESO.format(total)}</span>
+        <span className="font-semibold tabular-nums">{formatMoney(total)}</span>
       </CardHeader>
       <CardContent className="p-0">
         {lines.length === 0 ? (
@@ -62,7 +64,7 @@ function LinesTable({ title, lines, total, tone, removable }: { title: string; l
                     <span className="font-medium">{line.source}</span> · {line.basis}
                   </p>
                 </div>
-                <span className="text-sm font-medium tabular-nums">{PESO.format(line.amount)}</span>
+                <span className="text-sm font-medium tabular-nums">{formatMoney(line.amount)}</span>
                 {removable?.(line)}
               </li>
             ))}
@@ -76,11 +78,11 @@ function LinesTable({ title, lines, total, tone, removable }: { title: string; l
 export default async function FinalSettlementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("final-settlements.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view final settlements.</p>;
+    return <NoAccessState permission="final-settlements.read" message="You don't have access to view final settlements." />;
   }
 
   const settlement = await FinalSettlementService.getById(id, organizationId).catch((error) => {
@@ -126,9 +128,9 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
       />
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Net pay" value={PESO.format(totals.net)} hint={totals.net < 0 ? "Balance due from the employee" : "To be paid to the employee"} icon={Wallet} emphasis tone={totals.net < 0 ? "danger" : "default"} />
-        <MetricCard label="Earnings" value={PESO.format(totals.earnings)} hint={`${lines.filter((line) => line.direction === "earning").length} lines`} icon={ArrowUpRight} />
-        <MetricCard label="Deductions" value={PESO.format(totals.deductions)} hint={`${lines.filter((line) => line.direction === "deduction").length} lines`} icon={ArrowDownRight} />
+        <MetricCard label="Net pay" value={formatMoney(totals.net)} hint={totals.net < 0 ? "Balance due from the employee" : "To be paid to the employee"} icon={Wallet} emphasis tone={totals.net < 0 ? "danger" : "default"} />
+        <MetricCard label="Earnings" value={formatMoney(totals.earnings)} hint={`${lines.filter((line) => line.direction === "earning").length} lines`} icon={ArrowUpRight} />
+        <MetricCard label="Deductions" value={formatMoney(totals.deductions)} hint={`${lines.filter((line) => line.direction === "deduction").length} lines`} icon={ArrowDownRight} />
         <MetricCard
           label="Pay by"
           value={settlement.status === "disbursed" ? "Paid" : daysLeft < 0 ? `${-daysLeft} days overdue` : `${daysLeft} days left`}
@@ -187,8 +189,8 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
             <CardContent>
               <dl className="grid gap-2 text-sm">
                 {[
-                  ["Pay terms", inputs.rate ? `${PESO.format(inputs.rate)} ${inputs.rateType === "daily" ? "a day" : "a month"}` : "—"],
-                  ["Daily rate", inputs.dailyRate ? PESO.format(inputs.dailyRate) : "—"],
+                  ["Pay terms", inputs.rate ? `${formatMoney(inputs.rate)} ${inputs.rateType === "daily" ? "a day" : "a month"}` : "—"],
+                  ["Daily rate", inputs.dailyRate ? formatMoney(inputs.dailyRate) : "—"],
                   ["Paid through", inputs.lastPaidThrough ? new Date(`${inputs.lastPaidThrough}T00:00:00Z`).toLocaleDateString("en-US", SHORT) : "No payroll this year"],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-3">
@@ -214,7 +216,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
                     </p>
                     {entry.note && <p className="text-xs text-muted-foreground">{entry.note}</p>}
                     <p className="text-xs text-muted-foreground">
-                      {names.get(entry.by?.toString() ?? "") ?? "System"} · {new Date(entry.at).toLocaleString("en-US", WHEN)}
+                      {names.get(entry.by?.toString() ?? "") ?? "System"} · {formatDateTime(entry.at, "short")}
                     </p>
                   </li>
                 ))}

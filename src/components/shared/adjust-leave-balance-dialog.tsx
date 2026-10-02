@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -101,9 +101,8 @@ export function AdjustLeaveBalanceDialog({
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="adjust-leave-balance-form" disabled={isSubmitting} data-testid="adjust-leave-balance-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Saving…" : "Save adjustment"}
+          <Button type="submit" form="adjust-leave-balance-form" data-testid="adjust-leave-balance-submit-button" icon={Save} pending={isSubmitting} pendingLabel="Saving…">
+            Save adjustment
           </Button>
         </DialogFooter>
       </DialogContent>

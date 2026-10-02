@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,8 +17,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
+import { useFieldErrors } from "@/lib/field-errors";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
+
+/** API field → the control it's about, for field-level errors (see useFieldErrors). */
+const LEAVE_REQUEST_FIELD_IDS = {
+  startDate: "request-start-date",
+  endDate: "request-end-date",
+  reason: "request-reason",
+  employeeId: "request-employee",
+  leaveTypeId: "request-leave-type",
+} as const;
 
 export function NewRequestDialog({
   organizationId,
@@ -36,7 +46,7 @@ export function NewRequestDialog({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const { fieldErrors, formError: error, setFormError: setError, setFromResponse } = useFieldErrors({ fieldIds: LEAVE_REQUEST_FIELD_IDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit() {
@@ -57,7 +67,7 @@ export function NewRequestDialog({
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? "Failed to submit leave request.");
+      setFromResponse(body, "Failed to submit leave request.");
       return;
     }
 
@@ -97,26 +107,25 @@ export function NewRequestDialog({
 
         <div className="flex flex-col gap-4">
           <RequiredFieldsHint />
-          <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
-          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
+          <OptionSelect id="request-employee" error={fieldErrors.employeeId} label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
+          <OptionSelect id="request-leave-type" error={fieldErrors.leaveTypeId} label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Start date" htmlFor="request-start-date" required>
+            <FormField label="Start date" htmlFor="request-start-date" error={fieldErrors.startDate} required>
               <Input id="request-start-date" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
             </FormField>
-            <FormField label="End date" htmlFor="request-end-date" required>
+            <FormField label="End date" htmlFor="request-end-date" error={fieldErrors.endDate} required>
               <Input id="request-end-date" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
             </FormField>
           </div>
-          <FormField label="Reason" htmlFor="request-reason">
+          <FormField label="Reason" htmlFor="request-reason" error={fieldErrors.reason}>
             <Textarea id="request-reason" placeholder="e.g. Family emergency" value={reason} onChange={(event) => setReason(event.target.value)} />
           </FormField>
           <FormError message={error} />
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="leave-new-request-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Submitting…" : "Submit"}
+          <Button onClick={handleSubmit} data-testid="leave-new-request-submit-button" icon={Send} pending={isSubmitting} pendingLabel="Submitting…">
+            Submit
           </Button>
         </DialogFooter>
       </DialogContent>

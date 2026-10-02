@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { cn } from "@/lib/utils";
-import { focusInvalidField } from "@/lib/focus-invalid-field";
+import { useFieldErrors } from "@/lib/field-errors";
 
 export type LeaveTypeFormValue = {
   id: string;
@@ -40,8 +40,7 @@ export function LeaveTypeFormDialog({
   const [name, setName] = useState(initialValue?.name ?? "");
   const [code, setCode] = useState(initialValue?.code ?? "");
   const [description, setDescription] = useState(initialValue?.description ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [invalidField, setInvalidField] = useState<string | null>(null);
+  const { fieldErrors, formError: error, setFormError: setError, setFromResponse, clearField } = useFieldErrors({ formId, fields: ["name", "code", "description"] });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -59,9 +58,7 @@ export function LeaveTypeFormDialog({
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? `Failed to ${isEdit ? "save" : "create"} leave type.`);
-      setInvalidField(body.field ?? null);
-      focusInvalidField(formId, body.field);
+      setFromResponse(body, `Failed to ${isEdit ? "save" : "create"} leave type.`);
       return;
     }
 
@@ -80,7 +77,6 @@ export function LeaveTypeFormDialog({
       setCode(initialValue?.code ?? "");
       setDescription(initialValue?.description ?? "");
       setError(null);
-      setInvalidField(null);
     }
     setOpen(nextOpen);
   }
@@ -104,49 +100,46 @@ export function LeaveTypeFormDialog({
         </DialogHeader>
         <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
-          <FormField label="Name" htmlFor={`${formId}-name`} required>
+          <FormField label="Name" htmlFor={`${formId}-name`} error={fieldErrors.name} required>
             <Input
               id={`${formId}-name`}
               placeholder="e.g. Vacation Leave"
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
-                if (invalidField === "name") setInvalidField(null);
+                clearField("name");
               }}
-              aria-invalid={invalidField === "name"}
               required
             />
           </FormField>
-          <FormField label="Code" htmlFor={`${formId}-code`} required>
+          <FormField label="Code" htmlFor={`${formId}-code`} error={fieldErrors.code} required>
             <Input
               id={`${formId}-code`}
               placeholder="e.g. VL"
               value={code}
               onChange={(event) => {
                 setCode(event.target.value);
-                if (invalidField === "code") setInvalidField(null);
+                clearField("code");
               }}
-              aria-invalid={invalidField === "code"}
               required
             />
           </FormField>
-          <FormField label="Description" htmlFor={`${formId}-description`}>
+          <FormField label="Description" htmlFor={`${formId}-description`} error={fieldErrors.description}>
             <Input
               id={`${formId}-description`}
               placeholder="e.g. Paid time off for rest and personal matters"
               value={description}
               onChange={(event) => {
                 setDescription(event.target.value);
-                if (invalidField === "description") setInvalidField(null);
+                clearField("description");
               }}
-              aria-invalid={invalidField === "description"}
             />
           </FormField>
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form={formId} disabled={isSubmitting} data-testid="leave-types-form-submit-button">
-            {isSubmitting ? (isEdit ? "Saving…" : "Adding…") : isEdit ? "Save changes" : "Add leave type"}
+          <Button type="submit" form={formId} data-testid="leave-types-form-submit-button" icon={Save} pending={isSubmitting} pendingLabel={isEdit ? "Saving…" : "Adding…"}>
+            {isEdit ? "Save changes" : "Add leave type"}
           </Button>
         </DialogFooter>
       </DialogContent>

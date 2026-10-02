@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, RotateCcw, Trash2 } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
@@ -31,9 +31,8 @@ export function BinActions({ organizationId, batchId, label }: { organizationId:
 
   return (
     <div className="flex justify-end gap-1">
-      <Button size="sm" variant="outline" disabled={busy} onClick={() => send("restore").catch(() => undefined)}>
-        {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <RotateCcw className="size-3.5" aria-hidden="true" />}
-        {busy ? "Restoring…" : "Restore"}
+      <Button size="sm" variant="outline" onClick={() => send("restore").catch(() => undefined)} icon={RotateCcw} pending={busy} pendingLabel="Restoring…">
+        Restore
       </Button>
       <ConfirmDialog
         trigger={

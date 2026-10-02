@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, AlertTriangle, LogIn, ScrollText } from "lucide-react";
+import { Activity, AlertTriangle, LogIn, ScrollText, Check } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { AuditQueryService } from "@/server/audit/audit-query-service";
@@ -14,24 +14,25 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { addDays, localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 import { AuditEntrySheet } from "./audit-entry-sheet";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatDateTime } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Audit log" };
 
 type SearchParams = Record<string, string | string[] | undefined>;
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) || undefined;
 const isDateKey = (value: string | undefined) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
-const WHEN = { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" } as const;
 const PAGE_SIZE = 25;
 
 /** Every recorded change and sign-in in the organization, newest first. Read-only: entries can't be edited or deleted. */
 export default async function AuditLogPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("audit-logs.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view the audit log.</p>;
+    return <NoAccessState permission="audit-logs.read" message="You don't have access to view the audit log." />;
   }
 
   const area = first(params.area);
@@ -98,7 +99,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           <Label htmlFor="audit-to">To</Label>
           <Input id="audit-to" name="to" type="date" defaultValue={to} className="w-40" />
         </div>
-        <Button type="submit">Apply</Button>
+        <Button type="submit" icon={Check}>Apply</Button>
         {(area || from || to) && (
           <Link href="/settings/audit" className={buttonVariants({ variant: "ghost" })}>
             Clear
@@ -111,13 +112,13 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
         columns={[
           {
             key: "when",
-            header: "When",
-            render: (row) => <span className="whitespace-nowrap tabular-nums">{new Date(row.timestamp).toLocaleString("en-US", WHEN)}</span>,
+            header: "When", mobile: "subtitle",
+            render: (row) => <span className="whitespace-nowrap tabular-nums">{formatDateTime(row.timestamp, "seconds")}</span>,
           },
           { key: "who", header: "Who", render: (row) => <span className="font-medium">{row.actorName}</span> },
           {
             key: "what",
-            header: "What happened",
+            header: "What happened", mobile: "title",
             render: (row) => (
               <span className={cn("flex items-center gap-1.5", WARNING_SECURITY_EVENTS.has(row.action) && "text-warning")}>
                 {WARNING_SECURITY_EVENTS.has(row.action) && <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />}
@@ -133,7 +134,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
               <AuditEntrySheet
                 entry={{
                   id: row.id,
-                  when: new Date(row.timestamp).toLocaleString("en-US", WHEN),
+                  when: formatDateTime(row.timestamp, "seconds"),
                   actorName: row.actorName,
                   actionLabel: describeAuditAction(row.action),
                   action: row.action,

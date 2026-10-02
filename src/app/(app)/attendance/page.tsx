@@ -3,13 +3,12 @@ import { CalendarCheck2, CircleDashed, Clock3, Palmtree, UserX } from "lucide-re
 import { clockTime } from "@/lib/app-time";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
-import { EmployeeService } from "@/domains/workforce/employee-service";
 import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { ProjectService } from "@/domains/organization/project-service";
-import { loadCurrentStaffCheck } from "@/domains/attendance/current-staff";
 import { formatDistance } from "@/domains/attendance/geofence";
 import { formatPersonName } from "@/lib/person-name";
+import { parseTableQuery, buildTableHref } from "@/lib/table-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -17,6 +16,7 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { DateNav } from "./date-nav";
 import { RecordDialog } from "./record-dialog";
 import { ExportAttendanceDialog } from "./export-attendance-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Daily roster" };
 
@@ -40,39 +40,40 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
-  const { date: dateParam } = await searchParams;
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function AttendancePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
+  const dateParam = Array.isArray(params.date) ? params.date[0] : params.date;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("attendance.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view attendance.</p>;
+    return <NoAccessState permission="attendance.read" message="You don't have access to view attendance." />;
   }
 
   const date = dateParam ? new Date(dateParam) : new Date();
   const canRecord = await hasPermission("attendance.create", organizationId);
+  const tableQuery = parseTableQuery(params);
 
-  const [roster, records, statusItems, projects, isCurrentStaff] = await Promise.all([
-    EmployeeService.listWithCurrentStatus(organizationId),
-    AttendanceService.listForOrganization(organizationId, { date }),
+  // Only one page of people is read and rendered. Who is on the day's roster
+  // (current staff, plus anyone with a record that day, e.g. since
+  // separated) and the cards' counts come from ids and statuses alone.
+  const [{ rows, total, notRecorded, countByStatus }, statusItems, projects] = await Promise.all([
+    AttendanceService.dayRoster(organizationId, date, { page: tableQuery.page, pageSize: tableQuery.pageSize }),
     AttendanceStatusService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
-    loadCurrentStaffCheck(organizationId),
   ]);
-  const recordByEmployeeId = new Map(records.map((record) => [record.employeeId.toString(), record]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
   const statusOptions = statusItems.map((item) => ({ id: item.code, label: item.name }));
   const statusNameByCode = new Map(statusItems.map((item) => [item.code, item.name]));
 
-  // Current staff, plus anyone who has a record that day (e.g. since separated).
-  const rows = roster.filter((row) => isCurrentStaff(row.currentEmployment?.status) || recordByEmployeeId.has(row._id.toString()));
-  const count = (status: string) => rows.filter((row) => recordByEmployeeId.get(row._id.toString())?.status === status).length;
+  const count = (status: string) => countByStatus.get(status) ?? 0;
   const present = count("present");
   const late = count("late");
   const onLeave = count("on_leave");
   const absent = count("absent");
-  const notRecorded = rows.filter((row) => !recordByEmployeeId.has(row._id.toString())).length;
   const dayLabel = date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 
   return (
@@ -89,7 +90,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <MetricCard label="Present" value={present} hint={`of ${rows.length} employees`} icon={CalendarCheck2} tone="success" />
+        <MetricCard label="Present" value={present} hint={`of ${total} employees`} icon={CalendarCheck2} tone="success" />
         <MetricCard label="Late" value={late} hint="Past the grace period" icon={Clock3} tone={late ? "warning" : "default"} />
         <MetricCard label="Absent" value={absent} hint="Marked absent" icon={UserX} tone={absent ? "danger" : "default"} />
         <MetricCard label="On leave" value={onLeave} hint="Approved leave" icon={Palmtree} />
@@ -124,17 +125,17 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
             key: "status",
             header: "Status",
             render: (row) => {
-              const status = recordByEmployeeId.get(row._id.toString())?.status;
+              const status = row.record?.status;
               return status ? <StatusBadge status={status} label={statusNameByCode.get(status)} /> : <StatusBadge status="not_recorded" label="Not recorded" tone="neutral" />;
             },
           },
-          { key: "checkIn", header: "Check-in", render: (row) => formatTime(recordByEmployeeId.get(row._id.toString())?.checkInAt) },
-          { key: "checkOut", header: "Check-out", render: (row) => formatTime(recordByEmployeeId.get(row._id.toString())?.checkOutAt) },
+          { key: "checkIn", header: "Check-in", render: (row) => formatTime(row.record?.checkInAt) },
+          { key: "checkOut", header: "Check-out", render: (row) => formatTime(row.record?.checkOutAt) },
           {
             key: "site",
             header: "Site",
             render: (row) => {
-              const record = recordByEmployeeId.get(row._id.toString());
+              const record = row.record;
               if (!record?.projectId) return <span className="text-muted-foreground">—</span>;
               const distance = record.checkIn?.distanceMeters;
               return (
@@ -151,7 +152,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
             className: "text-right",
             render: (row) => {
               if (!canRecord) return null;
-              const existing = recordByEmployeeId.get(row._id.toString());
+              const existing = row.record;
               return (
                 <RecordDialog
                   organizationId={organizationId}
@@ -168,6 +169,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           },
         ]}
         rows={rows}
+        pagination={{ page: tableQuery.page, pageSize: tableQuery.pageSize, total, buildHref: (page, pageSize) => buildTableHref("/attendance", params, { page, pageSize }) }}
         getRowKey={(row) => row._id.toString()}
         emptyMessage="No employees yet."
         emptyDescription="Add employees under People; they'll appear here each day."

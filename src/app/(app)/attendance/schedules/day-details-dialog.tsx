@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarDays, Loader2, MousePointerClick, NotebookPen, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { CalendarDays, MousePointerClick, NotebookPen, Pencil, Plus, Trash2, Users, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -254,9 +254,8 @@ export function DayDetailsDialog({ organizationId, date, onOpenChange, info, hea
                 <FormError message={noteError} />
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground tabular-nums">{note.length}/500</span>
-                  <Button type="button" size="sm" variant="secondary" onClick={saveNote} disabled={isSavingNote || !noteChanged} data-testid="day-details-note-save">
-                    {isSavingNote && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-                    {isSavingNote ? "Saving…" : note.trim() || !savedNote ? "Save note" : "Clear note"}
+                  <Button type="button" size="sm" variant="secondary" onClick={saveNote} disabled={isSavingNote || !noteChanged} data-testid="day-details-note-save" icon={Save} pending={isSavingNote} pendingLabel="Saving…">
+                    {note.trim() || !savedNote ? "Save note" : "Clear note"}
                   </Button>
                 </div>
               </div>

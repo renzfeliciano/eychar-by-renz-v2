@@ -4,7 +4,8 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Ban, CircleCheck, Loader2, Printer, RefreshCw, SendHorizontal, Undo2, Wallet } from "lucide-react";
+import { Ban, CircleCheck, Printer, RefreshCw, SendHorizontal, Undo2, Wallet, ArrowLeft } from "lucide-react";
+import { iconForAction } from "@/components/ui/action-icon";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,9 +108,8 @@ export function RunActions(props: Props) {
   const buttons: ReactNode[] = [];
   if (status === "draft" && props.canUpdate) {
     buttons.push(
-      <Button key="recompute" size="sm" variant="outline" onClick={() => run("recompute")} disabled={busy !== null} data-testid="payroll-run-recompute">
-        {busy === "recompute" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-        {busy === "recompute" ? "Recomputing…" : "Recompute"}
+      <Button key="recompute" size="sm" variant="outline" onClick={() => run("recompute")} disabled={busy !== null} data-testid="payroll-run-recompute" icon={RefreshCw} pending={busy === "recompute"} pendingLabel="Recomputing…">
+        Recompute
       </Button>,
       <Button
         key="submit"
@@ -284,12 +284,11 @@ export function RunActions(props: Props) {
                 <FormError message={error} />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialog(null)} disabled={busy !== null}>
+                <Button variant="outline" onClick={() => setDialog(null)} disabled={busy !== null} icon={ArrowLeft}>
                   Back
                 </Button>
-                <Button variant={dialog.tone} onClick={confirm} disabled={busy !== null} data-testid="payroll-run-dialog-confirm">
-                  {busy && <Loader2 className="size-3.5 animate-spin" />}
-                  {busy ? dialog.busyLabel : dialog.confirmLabel}
+                <Button variant={dialog.tone} onClick={confirm} disabled={busy !== null} icon={iconForAction(dialog.confirmLabel)} pending={busy !== null} pendingLabel={dialog.busyLabel} data-testid="payroll-run-dialog-confirm">
+                  {dialog.confirmLabel}
                 </Button>
               </DialogFooter>
             </>

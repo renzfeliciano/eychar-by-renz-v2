@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -47,12 +47,11 @@ export function HideToggle({ organizationId, type, id, label, hidden }: { organi
         size="icon-sm"
         variant="ghost"
         onClick={toggle}
-        disabled={busy}
+        icon={hidden ? Eye : EyeOff}
+        pending={busy}
         aria-label={hidden ? `Unhide ${label}` : `Hide ${label} from everyone else`}
         title={hidden ? "Unhide (show to everyone again)" : "Hide from everyone else (test data)"}
-      >
-        {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : hidden ? <Eye className="size-3.5" aria-hidden="true" /> : <EyeOff className="size-3.5" aria-hidden="true" />}
-      </Button>
+      />
     </span>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,8 +16,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
+import { useFieldErrors } from "@/lib/field-errors";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
+
+/** API field → the control it's about, for field-level errors (see useFieldErrors). */
+const LEAVE_POLICY_FIELD_IDS = {
+  name: "leave-policy-name",
+  annualEntitlementDays: "leave-policy-days",
+  leaveTypeId: "leave-policy-leave-type",
+  projectId: "leave-policy-project",
+} as const;
 
 export function CreateLeavePolicyDialog({
   organizationId,
@@ -34,7 +43,7 @@ export function CreateLeavePolicyDialog({
   const [leaveTypeId, setLeaveTypeId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [annualEntitlementDays, setAnnualEntitlementDays] = useState("15");
-  const [error, setError] = useState<string | null>(null);
+  const { fieldErrors, formError: error, setFormError: setError, setFromResponse } = useFieldErrors({ fieldIds: LEAVE_POLICY_FIELD_IDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -63,7 +72,7 @@ export function CreateLeavePolicyDialog({
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      setError(body.error ?? "Failed to create leave policy.");
+      setFromResponse(body, "Failed to create leave policy.");
       return;
     }
 
@@ -98,12 +107,12 @@ export function CreateLeavePolicyDialog({
         </DialogHeader>
         <form id="create-leave-policy-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
-          <FormField label="Name" htmlFor="leave-policy-name" required>
+          <FormField label="Name" htmlFor="leave-policy-name" error={fieldErrors.name} required>
             <Input id="leave-policy-name" placeholder="e.g. Standard Vacation Leave Policy" value={name} onChange={(event) => setName(event.target.value)} required />
           </FormField>
-          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
-          <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
-          <FormField label="Annual entitlement (days)" htmlFor="leave-policy-days" required>
+          <OptionSelect id="leave-policy-leave-type" error={fieldErrors.leaveTypeId} label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
+          <OptionSelect id="leave-policy-project" error={fieldErrors.projectId} label="Project" value={projectId} onChange={setProjectId} options={projects} placeholder="Org-wide" />
+          <FormField label="Annual entitlement (days)" htmlFor="leave-policy-days" error={fieldErrors.annualEntitlementDays} required>
             <Input
               id="leave-policy-days"
               type="number"
@@ -117,9 +126,8 @@ export function CreateLeavePolicyDialog({
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="create-leave-policy-form" disabled={isSubmitting} data-testid="leave-policies-create-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Adding…" : "Add policy"}
+          <Button type="submit" form="create-leave-policy-form" data-testid="leave-policies-create-submit-button" icon={Plus} pending={isSubmitting} pendingLabel="Adding…">
+            Add policy
           </Button>
         </DialogFooter>
       </DialogContent>

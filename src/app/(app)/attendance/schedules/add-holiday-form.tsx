@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,13 +111,12 @@ export function HolidayForm({ organizationId, holiday, date, onSaved, onCancel }
       <FormError message={error} />
       <div className="flex justify-end gap-2">
         {onCancel && (
-          <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={isSaving}>
+          <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={isSaving} icon={X}>
             Cancel
           </Button>
         )}
-        <Button type="button" size="sm" onClick={handleSave} disabled={isSaving} data-testid={editing ? "edit-holiday-submit" : "add-holiday-submit"}>
-          {isSaving && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-          {isSaving ? (editing ? "Saving…" : "Adding…") : editing ? "Save changes" : "Add holiday"}
+        <Button type="button" size="sm" onClick={handleSave} data-testid={editing ? "edit-holiday-submit" : "add-holiday-submit"} icon={Save} pending={isSaving} pendingLabel={editing ? "Saving…" : "Adding…"}>
+          {editing ? "Save changes" : "Add holiday"}
         </Button>
       </div>
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, cloneElement, type ReactElement } from "react";
-import { Loader2, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
+import { iconForAction } from "@/components/ui/action-icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -83,12 +84,11 @@ export function ConfirmDialog({
         </DialogHeader>
         {error && <FormError message={error} />}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting} icon={iconForAction(cancelLabel)}>
             {cancelLabel}
           </Button>
-          <Button type="button" variant={variant} onClick={handleConfirm} disabled={isSubmitting} data-testid={testId ? `${testId}-confirm` : undefined}>
-            {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-            {isSubmitting ? confirmLoadingLabel : confirmLabel}
+          <Button type="button" variant={variant} onClick={handleConfirm} icon={iconForAction(confirmLabel)} pending={isSubmitting} pendingLabel={confirmLoadingLabel} data-testid={testId ? `${testId}-confirm` : undefined}>
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

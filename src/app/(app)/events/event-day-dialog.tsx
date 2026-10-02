@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Pencil, Plus, Save, Trash2, Loader2 } from "lucide-react";
+import { CalendarPlus, Pencil, Plus, Save, Trash2, ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -120,7 +120,7 @@ export function EventDayDialog({
             <FormError message={listError} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} icon={X}>
               Close
             </Button>
             {canManage && (
@@ -232,13 +232,11 @@ function EventForm({
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onBack} disabled={isSubmitting}>
+          <Button type="button" variant="outline" onClick={onBack} disabled={isSubmitting} icon={ArrowLeft}>
             Back
           </Button>
-          <Button type="submit" form="event-form" disabled={isSubmitting}>
-            {isEdit ? <Save className="size-3.5" /> : <CalendarPlus className="size-3.5" />}
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isEdit ? (isSubmitting ? "Saving…" : "Save changes") : isSubmitting ? "Adding…" : "Add event"}
+          <Button type="submit" form="event-form" icon={isEdit ? Save : CalendarPlus} pending={isSubmitting} pendingLabel={isEdit ? "Saving…" : "Adding…"}>
+            {isEdit ? "Save changes" : "Add event"}
           </Button>
         </DialogFooter>
       </DialogContent>

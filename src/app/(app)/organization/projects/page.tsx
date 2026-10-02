@@ -5,6 +5,8 @@ import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
+import { accessibleProjects } from "@/app/_shared/accessible-projects";
+import { includesProject } from "@/server/authorization";
 import { ProjectService } from "@/domains/organization/project-service";
 import { LocationService } from "@/domains/organization/location-service";
 import { loadHeadcount } from "@/domains/workforce/headcount";
@@ -14,26 +16,31 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard } from "@/components/shared/metric-card";
 import { CreateProjectDialog } from "./create-project-dialog";
 import { EditProjectDialog } from "./edit-project-dialog";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Projects" };
 
 export default async function ProjectsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
-  if (!(await hasPermission("projects.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view projects.</p>;
+  // Organization-wide readers see every project; a project-scoped reader (e.g. a Project Manager) only theirs.
+  const readable = await accessibleProjects("projects.read", organizationId);
+  if (!readable) {
+    return <NoAccessState permission="projects.read" message="You don't have access to view projects." />;
   }
+  const organizationWide = readable === "all";
 
-  const [projects, locations, canCreate, canUpdate, headcount] = await Promise.all([
-    ProjectService.listCurrent(organizationId),
+  const [projects, locations, canCreate, updatable, headcount] = await Promise.all([
+    ProjectService.listCurrent(organizationId, readable),
     LocationService.listCurrent(organizationId),
     hasPermission("projects.create", organizationId),
-    hasPermission("projects.update", organizationId),
+    accessibleProjects("projects.update", organizationId),
     loadHeadcount(organizationId),
   ]);
+  const canUpdate = (projectId: string) => Boolean(updatable && includesProject(updatable, projectId));
   const locationById = new Map(locations.map((location) => [location._id.toString(), location]));
   const locationOptions = locations.map((location) => ({ id: location._id.toString(), label: location.name }));
   const active = projects.filter((project) => project.status === "active");
@@ -52,7 +59,17 @@ export default async function ProjectsPage() {
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard label="Active projects" value={active.length} hint={`${projects.length - active.length} closed or inactive`} icon={FolderKanban} />
-        <MetricCard label="Staff on projects" value={headcount.total - headcount.unassigned.project} hint={`of ${headcount.total} current employees`} icon={Users} emphasis />
+        {organizationWide ? (
+          <MetricCard label="Staff on projects" value={headcount.total - headcount.unassigned.project} hint={`of ${headcount.total} current employees`} icon={Users} emphasis />
+        ) : (
+          <MetricCard
+            label="Staff on your projects"
+            value={projects.reduce((sum, project) => sum + (headcount.byProject.get(project._id.toString()) ?? 0), 0)}
+            hint="Current employees"
+            icon={Users}
+            emphasis
+          />
+        )}
         <MetricCard
           label="Clock-in ready"
           value={`${clockInReady} / ${active.length}`}
@@ -60,7 +77,10 @@ export default async function ProjectsPage() {
           icon={Navigation}
           tone={clockInReady < active.length ? "warning" : "success"}
         />
-        <MetricCard label="Not on a project" value={headcount.unassigned.project} hint="Current employees" icon={MapPin} tone={headcount.unassigned.project ? "warning" : "default"} />
+        {/* Organization-wide figure: not shown to a viewer scoped to particular projects. */}
+        {organizationWide && (
+          <MetricCard label="Not on a project" value={headcount.unassigned.project} hint="Current employees" icon={MapPin} tone={headcount.unassigned.project ? "warning" : "default"} />
+        )}
       </div>
 
       <DataTable
@@ -109,7 +129,7 @@ export default async function ProjectsPage() {
             key: "action",
             header: "",
             render: (project) =>
-              canUpdate ? (
+              canUpdate(project._id.toString()) ? (
                 <EditProjectDialog
                   organizationId={organizationId}
                   project={{

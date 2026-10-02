@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarClock, Loader2, Plus } from "lucide-react";
+import { CalendarClock, Plus, PlayCircle } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -123,9 +123,8 @@ export function NewRunDialog({ organizationId, projects, suggestions }: { organi
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="payroll-new-run-submit">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-            {isSubmitting ? "Preparing…" : "Prepare draft"}
+          <Button onClick={handleSubmit} data-testid="payroll-new-run-submit" icon={PlayCircle} pending={isSubmitting} pendingLabel="Preparing…">
+            Prepare draft
           </Button>
         </DialogFooter>
       </DialogContent>

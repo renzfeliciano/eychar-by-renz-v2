@@ -11,7 +11,9 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import { PrepareSettlementButton } from "./prepare-settlement-button";
-import { PESO, SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_TONES, daysToDeadline, deadlineDaysOf } from "./settlement-labels";
+import { formatMoney } from "@/lib/money";
+import { SETTLEMENT_STATUS_LABELS, SETTLEMENT_STATUS_TONES, daysToDeadline, deadlineDaysOf } from "./settlement-labels";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Final settlement" };
 
@@ -19,10 +21,10 @@ const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC"
 
 export default async function FinalSettlementsPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   if (!(await hasPermission("final-settlements.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view final settlements.</p>;
+    return <NoAccessState permission="final-settlements.read" message="You don't have access to view final settlements." />;
   }
 
   const [settlements, clearances, canPrepare] = await Promise.all([
@@ -55,8 +57,8 @@ export default async function FinalSettlementsPage() {
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard label="In progress" value={open.length} hint={`${waiting.length} clearance${waiting.length === 1 ? "" : "s"} not started yet`} icon={Hourglass} emphasis />
         <MetricCard label="Past the deadline" value={overdue} hint={overdue ? "Past the payroll policy's final pay deadline" : "Everything is within its deadline"} icon={AlarmClock} tone={overdue ? "danger" : "success"} />
-        <MetricCard label="Approved, to pay" value={PESO.format(toPay.reduce((sum, { settlement }) => sum + Math.max(settlement.totals.net, 0), 0))} hint={`${toPay.length} settlement${toPay.length === 1 ? "" : "s"}`} icon={Banknote} tone={toPay.length ? "warning" : "default"} />
-        <MetricCard label="Paid this month" value={paidThisMonth.length} hint={PESO.format(paidThisMonth.reduce((sum, { settlement }) => sum + settlement.totals.net, 0))} icon={ClipboardCheck} />
+        <MetricCard label="Approved, to pay" value={formatMoney(toPay.reduce((sum, { settlement }) => sum + Math.max(settlement.totals.net, 0), 0))} hint={`${toPay.length} settlement${toPay.length === 1 ? "" : "s"}`} icon={Banknote} tone={toPay.length ? "warning" : "default"} />
+        <MetricCard label="Paid this month" value={paidThisMonth.length} hint={formatMoney(paidThisMonth.reduce((sum, { settlement }) => sum + settlement.totals.net, 0))} icon={ClipboardCheck} />
       </div>
 
       {waiting.length > 0 && canPrepare && (
@@ -102,7 +104,7 @@ export default async function FinalSettlementsPage() {
           },
           {
             key: "deadline",
-            header: "Pay by",
+            header: "Pay by", mobile: "hidden",
             render: ({ settlement, clearance }) => {
               const deadlineDays = deadlineDaysOf(settlement);
               if (!clearance || deadlineDays === null || ["disbursed", "cancelled"].includes(settlement.status)) return <span className="text-muted-foreground">—</span>;
@@ -114,7 +116,7 @@ export default async function FinalSettlementsPage() {
             key: "net",
             header: "Net pay",
             className: "text-right",
-            render: ({ settlement }) => <span className={cn("font-medium tabular-nums", settlement.totals.net < 0 && "text-destructive")}>{PESO.format(settlement.totals.net)}</span>,
+            render: ({ settlement }) => <span className={cn("font-medium tabular-nums", settlement.totals.net < 0 && "text-destructive")}>{formatMoney(settlement.totals.net)}</span>,
           },
           { key: "status", header: "Status", render: ({ settlement }) => <StatusBadge status={settlement.status} label={SETTLEMENT_STATUS_LABELS[settlement.status]} tone={SETTLEMENT_STATUS_TONES[settlement.status]} /> },
         ]}

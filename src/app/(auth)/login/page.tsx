@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { ArrowBigUpDash, ArrowLeft, ArrowRight, Eye, EyeOff, Info, KeyRound, Loader2, Lock, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowBigUpDash, ArrowLeft, Eye, EyeOff, Info, KeyRound, Lock, ShieldCheck, UserRound, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,14 +109,17 @@ export default function LoginPage() {
     // height, centered in the right column. Phones: the card rises from the
     // bottom as a sheet under a band of photo.
     // h-dvh + overflow-hidden: the page never scrolls. On a short screen the
-    // card keeps its full height (header, form and footer) and the column
-    // scrolls instead; justify-center-safe stops centering from cropping it.
+    // spacing tightens (the `short`/`shorter` variants, globals.css) so the
+    // whole card, footer included, usually fits; below that the card keeps
+    // its full height and the column scrolls instead (justify-center-safe
+    // stops centering from cropping it). Never let the card itself scroll:
+    // that squeezes the footer.
     // dvh so iOS's address bar can't hide the button.
     <main className="relative min-h-dvh bg-neutral-950 lg:h-dvh lg:overflow-hidden">
       <div className="relative grid min-h-dvh grid-rows-[minmax(13.5rem,1fr)_auto] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-1">
         <LoginVisual />
 
-        <div className="relative z-10 flex min-h-0 flex-col lg:w-[31rem] lg:justify-center-safe lg:overflow-y-auto lg:p-10 xl:w-[34rem] xl:p-12">
+        <div className="relative z-10 flex min-h-0 flex-col lg:w-[31rem] lg:justify-center-safe lg:overflow-y-auto lg:px-10 lg:py-10 xl:w-[34rem] xl:px-12 xl:py-12 lg:short:py-6 xl:short:py-6 lg:shorter:py-4 xl:shorter:py-4">
           <section
             aria-labelledby="login-title"
             className="flex min-h-0 animate-in flex-col overflow-hidden rounded-t-3xl bg-background lg:shrink-0 shadow-[var(--shadow-modal)] duration-500 ease-out fade-in slide-in-from-bottom-8 lg:max-h-none lg:rounded-2xl lg:ring-1 lg:ring-white/15 lg:slide-in-from-bottom-4"
@@ -126,7 +129,7 @@ export default function LoginPage() {
                 footer band. The form between stays on plain background, with
                 only a whisper of the texture in its far corner, so it reads
                 cleanly. */}
-            <div className="relative shrink-0 overflow-hidden border-b bg-primary/[0.035] px-6 pt-6 pb-6 sm:px-9 sm:pt-8 sm:pb-7 dark:bg-primary/[0.08]">
+            <div className="relative shrink-0 overflow-hidden border-b bg-primary/[0.035] px-6 pt-6 pb-6 sm:px-9 sm:pt-8 sm:pb-7 lg:short:pt-6 lg:short:pb-5 lg:shorter:pt-5 lg:shorter:pb-4 dark:bg-primary/[0.08]">
               <span className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden="true" />
               <DotTexture mask="linear-gradient(to left, black 10%, transparent 75%)" />
               <div className="relative flex items-center gap-3">
@@ -137,7 +140,7 @@ export default function LoginPage() {
 
               <div className="relative">
                 <div {...stagger(1)}>
-                  <h1 id="login-title" className="mt-8 text-2xl font-semibold tracking-tight text-balance sm:text-[1.75rem]">
+                  <h1 id="login-title" className="mt-8 text-2xl font-semibold tracking-tight text-balance sm:text-[1.75rem] lg:short:mt-5 lg:shorter:mt-4">
                     {step === "code" ? "Two-step verification" : "Sign in to your account"}
                   </h1>
                   <p className="mt-1.5 text-sm text-muted-foreground">
@@ -151,9 +154,9 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="relative flex flex-col px-6 pt-6 pb-7 sm:px-9 sm:pt-7 sm:pb-9">
+            <div className="relative flex flex-col px-6 pt-6 pb-7 sm:px-9 sm:pt-7 sm:pb-9 lg:short:pt-5 lg:short:pb-6 lg:shorter:pt-4 lg:shorter:pb-5">
               <DotTexture mask="radial-gradient(circle at 100% 100%, black 0%, transparent 38%)" className="text-primary/20 dark:text-primary/25" />
-              <form onSubmit={handleSubmit} noValidate className="relative flex flex-col gap-5" aria-label="Sign in">
+              <form onSubmit={handleSubmit} noValidate className="relative flex flex-col gap-5 lg:short:gap-4" aria-label="Sign in">
                 {step === "password" ? (
                   <>
                     <div {...stagger(2)}>
@@ -299,16 +302,21 @@ export default function LoginPage() {
                 <FormError message={error} />
 
                 <div {...stagger(4)}>
-                  <Button type="submit" disabled={isSubmitting} className="group mt-1 h-11 w-full rounded-lg text-[15px]" data-testid="login-submit-button">
-                    {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-                    {step === "code" ? (isSubmitting ? "Verifying…" : "Verify") : isSubmitting ? "Signing in…" : "Sign in"}
-                    {!isSubmitting && <ArrowRight className="size-4 transition-[translate] duration-200 ease-out group-hover:translate-x-0.5" aria-hidden="true" />}
+                  <Button
+                    type="submit"
+                    icon={step === "code" ? ShieldCheck : LogIn}
+                    pending={isSubmitting}
+                    pendingLabel={step === "code" ? "Verifying…" : "Signing in…"}
+                    className="mt-1 h-11 w-full rounded-lg text-[15px]"
+                    data-testid="login-submit-button"
+                  >
+                    {step === "code" ? "Verify" : "Sign in"}
                   </Button>
                 </div>
               </form>
             </div>
 
-            <footer className="relative mt-auto flex shrink-0 items-center gap-3 overflow-hidden border-t bg-primary/[0.035] px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-9 lg:rounded-b-2xl dark:bg-primary/[0.08]">
+            <footer className="relative mt-auto flex shrink-0 items-center gap-3 overflow-hidden border-t bg-primary/[0.035] px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-9 lg:rounded-b-2xl lg:shorter:pt-3 dark:bg-primary/[0.08]">
               <DotTexture mask="linear-gradient(to right, black 0%, transparent 45%)" />
               <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15" aria-hidden="true">
                 <ShieldCheck className="size-4" />
@@ -317,7 +325,7 @@ export default function LoginPage() {
             </footer>
           </section>
 
-          <p className="mt-5 hidden text-center text-xs text-white/60 lg:block">© {new Date().getFullYear()} {BRAND.fullName}. All rights reserved.</p>
+          <p className="mt-5 hidden shrink-0 text-center text-xs text-white/60 lg:block lg:short:mt-3">© {new Date().getFullYear()} {BRAND.fullName}. All rights reserved.</p>
         </div>
       </div>
     </main>

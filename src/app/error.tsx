@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { TriangleAlertIcon } from "lucide-react";
+import { TriangleAlertIcon, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -23,7 +23,7 @@ export default function RootError({ error, reset }: { error: Error & { digest?: 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={reset} className="w-full">
+          <Button onClick={reset} className="w-full" icon={RotateCcw}>
             Try again
           </Button>
         </CardContent>

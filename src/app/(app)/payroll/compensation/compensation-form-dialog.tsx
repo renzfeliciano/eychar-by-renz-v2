@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/form-field";
+import { useFieldErrors } from "@/lib/field-errors";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,13 @@ type Props = {
   current?: CompensationTerms;
 };
 
+/** API field → the control it's about, for field-level errors (see useFieldErrors). */
+const COMPENSATION_FIELD_IDS = {
+  rate: "compensation-rate",
+  effectiveFrom: "compensation-effective-from",
+  reason: "compensation-reason",
+} as const;
+
 /** Sets an employee's first pay terms, or revises them from a date (the old terms close the day before). */
 export function CompensationFormDialog({ organizationId, employeeId, employeeName, current }: Props) {
   const router = useRouter();
@@ -42,7 +50,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
   });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
+  const { fieldErrors, formError: error, setFormError: setError, setFieldError, setFromResponse } = useFieldErrors({ fieldIds: COMPENSATION_FIELD_IDS });
   const [saving, setSaving] = useState(false);
 
   function updateAllowance(index: number, patch: Partial<Allowance>) {
@@ -51,7 +59,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
 
   async function save() {
     setError(null);
-    if (!(Number(form.rate) > 0)) return setError(`Enter the ${form.rateType === "daily" ? "daily rate" : "monthly salary"}.`);
+    if (!(Number(form.rate) > 0)) return setFieldError("rate", `Enter the ${form.rateType === "daily" ? "daily rate" : "monthly salary"}.`);
     if (form.allowances.some((allowance) => !allowance.name.trim() || !(Number(allowance.amount) >= 0))) return setError("Name each allowance and give it an amount.");
     setSaving(true);
     const payload = {
@@ -71,7 +79,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
     });
     const body = await response.json().catch(() => ({}));
     setSaving(false);
-    if (!response.ok) return setError(body.error ?? "Couldn't save the pay terms.");
+    if (!response.ok) return setFromResponse(body, "Couldn't save the pay terms.");
     toast.success(isRevision ? `${employeeName}'s pay terms revised` : `Pay terms set for ${employeeName}`);
     setOpen(false);
     router.refresh();
@@ -128,7 +136,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label={form.rateType === "monthly" ? "Monthly salary (₱)" : "Daily rate (₱)"} htmlFor="compensation-rate" required>
+            <FormField label={form.rateType === "monthly" ? "Monthly salary (₱)" : "Daily rate (₱)"} htmlFor="compensation-rate" error={fieldErrors.rate} required>
               <Input
                 id="compensation-rate"
                 type="number"
@@ -140,7 +148,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
                 placeholder={form.rateType === "monthly" ? "e.g. 25000" : "e.g. 695"}
               />
             </FormField>
-            <FormField label={isRevision ? "Effective from" : "Starting"} htmlFor="compensation-effective-from" required>
+            <FormField label={isRevision ? "Effective from" : "Starting"} htmlFor="compensation-effective-from" error={fieldErrors.effectiveFrom} required>
               <Input id="compensation-effective-from" type="date" value={form.effectiveFrom} onChange={(event) => setForm({ ...form, effectiveFrom: event.target.value })} />
             </FormField>
           </div>
@@ -208,16 +216,15 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
             </Button>
           </div>
 
-          <FormField label="Reason" htmlFor="compensation-reason">
+          <FormField label="Reason" htmlFor="compensation-reason" error={fieldErrors.reason}>
             <Input id="compensation-reason" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder={isRevision ? "e.g. Annual merit increase" : "e.g. Hired as site engineer"} />
           </FormField>
           <FormError message={error} />
         </div>
 
         <DialogFooter>
-          <Button onClick={save} disabled={saving} data-testid="compensation-save">
-            {saving && <Loader2 className="size-3.5 animate-spin" />}
-            {saving ? "Saving…" : isRevision ? "Save revision" : "Save pay terms"}
+          <Button onClick={save} data-testid="compensation-save" icon={Save} pending={saving} pendingLabel="Saving…">
+            {isRevision ? "Save revision" : "Save pay terms"}
           </Button>
         </DialogFooter>
       </DialogContent>

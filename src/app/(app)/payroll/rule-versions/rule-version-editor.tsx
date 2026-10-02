@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -236,7 +236,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
                     setTaxTables(taxTables.filter((_, t) => t !== activeTax));
                     setActiveTax(0);
                   }}
-                >
+                 icon={Trash2}>
                   Remove this table
                 </Button>
               )}
@@ -320,7 +320,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
                   <Plus className="size-3.5" />
                   Add row
                 </Button>
-                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => setContributions(contributions.filter((_, i) => i !== ruleIndex))}>
+                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => setContributions(contributions.filter((_, i) => i !== ruleIndex))} icon={Trash2}>
                   Remove contribution
                 </Button>
               </div>
@@ -332,12 +332,11 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
       <div className="flex flex-col items-end gap-3">
         <FormError message={error} />
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.back()} disabled={saving}>
+          <Button variant="outline" onClick={() => router.back()} disabled={saving} icon={X}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={saving} data-testid="rule-version-save">
-            {saving && <Loader2 className="size-3.5 animate-spin" />}
-            {saving ? "Saving…" : "Create version"}
+          <Button onClick={save} data-testid="rule-version-save" icon={Plus} pending={saving} pendingLabel="Saving…">
+            Create version
           </Button>
         </div>
       </div>

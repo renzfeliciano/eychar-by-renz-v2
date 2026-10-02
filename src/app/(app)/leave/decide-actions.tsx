@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Check, X, Ban, Loader2 } from "lucide-react";
+import { Check, X, Ban } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -93,10 +93,9 @@ export function DecideActions({
             onClick={handleApprove}
             disabled={pendingAction !== null}
             data-testid="leave-approve-request-button"
-          >
-            <Check className="size-3.5" />
-            {pendingAction === "approve" && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {pendingAction === "approve" ? "Approving…" : "Approve"}
+           icon={Check} pending={pendingAction === "approve"} pendingLabel="Approving…">
+            
+            Approve
           </Button>
           <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
             <DialogTrigger
@@ -123,9 +122,8 @@ export function DecideActions({
                   onClick={handleReject}
                   disabled={pendingAction !== null}
                   data-testid="leave-reject-request-submit-button"
-                >
-                  {pendingAction === "reject" && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {pendingAction === "reject" ? "Rejecting…" : "Reject"}
+                 icon={X} pending={pendingAction === "reject"} pendingLabel="Rejecting…">
+            Reject
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -139,10 +137,9 @@ export function DecideActions({
           onClick={handleCancel}
           disabled={pendingAction !== null}
           data-testid="leave-cancel-request-button"
-        >
-          <Ban className="size-3.5" />
-          {pendingAction === "cancel" && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {pendingAction === "cancel" ? "Cancelling…" : "Cancel"}
+         icon={Ban} pending={pendingAction === "cancel"} pendingLabel="Cancelling…">
+          
+            Cancel
         </Button>
       )}
     </div>

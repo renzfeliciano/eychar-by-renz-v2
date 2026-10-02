@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+
+import { iconForAction } from "@/components/ui/action-icon";
 import { Button } from "@/components/ui/button";
 
 export function CycleStatusButton({
@@ -40,9 +41,8 @@ export function CycleStatusButton({
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={handleClick} disabled={isSubmitting} data-testid={`review-cycle-${nextStatus}-button`}>
-      {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-      {isSubmitting ? loadingLabel : label}
+    <Button size="sm" variant="outline" onClick={handleClick} icon={iconForAction(label)} pending={isSubmitting} pendingLabel={loadingLabel} data-testid={`review-cycle-${nextStatus}-button`}>
+      {label}
     </Button>
   );
 }

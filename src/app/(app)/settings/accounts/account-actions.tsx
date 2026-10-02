@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Copy, KeyRound, Loader2, LockOpen, MoreHorizontal, PencilLine, ShieldOff, UserCheck, UserX } from "lucide-react";
+import { Copy, KeyRound, LockOpen, MoreHorizontal, PencilLine, ShieldOff, UserCheck, UserX, Check, Save, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { iconForAction } from "@/components/ui/action-icon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -175,12 +176,11 @@ export function AccountActions({
             </DialogHeader>
             <FormError message={error} />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setPending(null)} disabled={busy}>
+              <Button type="button" variant="outline" onClick={() => setPending(null)} disabled={busy} icon={X}>
                 Cancel
               </Button>
-              <Button type="button" variant={confirm.destructive ? "destructive" : "default"} onClick={() => run(pending)} disabled={busy}>
-                {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-                {busy ? confirm.busy : confirm.label}
+              <Button type="button" variant={confirm.destructive ? "destructive" : "default"} onClick={() => run(pending)} icon={iconForAction(confirm.label)} pending={busy} pendingLabel={confirm.busy}>
+                {confirm.label}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -204,12 +204,11 @@ export function AccountActions({
             </div>
             <FormError message={error} />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRenaming(false)} disabled={busy}>
+              <Button type="button" variant="outline" onClick={() => setRenaming(false)} disabled={busy} icon={X}>
                 Cancel
               </Button>
-              <Button type="button" onClick={saveName} disabled={busy}>
-                {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-                {busy ? "Saving…" : "Save name"}
+              <Button type="button" onClick={saveName} icon={Save} pending={busy} pendingLabel="Saving…">
+                Save name
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -239,7 +238,7 @@ export function AccountActions({
               </Button>
             </div>
             <DialogFooter>
-              <Button type="button" onClick={() => setTemporaryPassword(null)}>
+              <Button type="button" onClick={() => setTemporaryPassword(null)} icon={Check}>
                 Done
               </Button>
             </DialogFooter>

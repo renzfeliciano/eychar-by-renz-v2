@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormError } from "@/components/shared/form-field";
@@ -52,9 +52,8 @@ export function TwoStepRequirementForm({ organizationId, required, idleTimeoutSe
         </span>
       </label>
       <FormError message={error} />
-      <Button type="button" onClick={save} disabled={isSaving || value === required} className="self-start">
-        {isSaving && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-        {isSaving ? "Saving…" : "Save"}
+      <Button type="button" onClick={save} disabled={isSaving || value === required} className="self-start" icon={Save} pending={isSaving} pendingLabel="Saving…">
+        Save
       </Button>
     </div>
   );

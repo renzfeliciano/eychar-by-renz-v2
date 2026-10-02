@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Ban, Check, Flag, Loader2, MinusCircle, MoreHorizontal, RotateCcw } from "lucide-react";
+import { iconForAction } from "@/components/ui/action-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -114,9 +115,8 @@ export function ClearanceItemActions({
   return (
     <div className="flex shrink-0 items-center gap-1">
       {pending && canSignOff && (
-        <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => act("clear")} aria-label={`Clear ${itemTitle}`}>
-          {busy === "clear" ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Check className="size-3.5" aria-hidden="true" />}
-          {busy === "clear" ? "Clearing…" : "Clear"}
+        <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => act("clear")} aria-label={`Clear ${itemTitle}`} icon={Check} pending={busy === "clear"} pendingLabel="Clearing…">
+          Clear
         </Button>
       )}
       <DropdownMenu>
@@ -172,9 +172,8 @@ export function ClearanceItemActions({
               <FormError message={error} />
             </div>
             <DialogFooter>
-              <Button onClick={confirmDialog} disabled={busy !== null} variant={dialog === "flag" ? "destructive" : "default"} data-testid="clearance-item-confirm-button">
-                {busy && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-                {busy ? copy.busy : copy.confirm}
+              <Button onClick={confirmDialog} disabled={busy !== null} variant={dialog === "flag" ? "destructive" : "default"} icon={iconForAction(copy.confirm)} pending={busy !== null} pendingLabel={copy.busy} data-testid="clearance-item-confirm-button">
+                {copy.confirm}
               </Button>
             </DialogFooter>
           </DialogContent>

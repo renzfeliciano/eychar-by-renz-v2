@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { signIn, signOut } from "next-auth/react";
-import { Check, Circle, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
+import { Check, Circle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError, FormField } from "@/components/shared/form-field";
@@ -116,8 +116,7 @@ export function ChangePasswordForm({ onChanged, submitLabel = "Change password" 
         <Input id="confirm-password" type={type} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} placeholder="Type the new password again" />
       </FormField>
       <FormError message={error} />
-      <Button type="submit" disabled={isSubmitting} className="self-start">
-        {isSubmitting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <KeyRound className="size-4" aria-hidden="true" />}
+      <Button type="submit" className="self-start" icon={KeyRound} pending={isSubmitting}>
         {signingIn ? "Signing you in again…" : isSubmitting ? "Saving…" : submitLabel}
       </Button>
     </form>

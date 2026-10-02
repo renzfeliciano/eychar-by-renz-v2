@@ -18,27 +18,28 @@ import { MetricCard } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
 import { CLEARANCE_STATUS_LABELS, CLEARANCE_STATUS_TONES, ITEM_STATUS_LABELS, ITEM_STATUS_TONES } from "../clearance-labels";
 import { ClearanceItemActions } from "./clearance-item-actions";
 import { CancelClearanceButton } from "./cancel-clearance-button";
 import { PrepareSettlementButton } from "../../final-settlements/prepare-settlement-button";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatDate, formatDateTime } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Clearance" };
 
 const SHORT = { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
-const WHEN = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;
-const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 const DAY_MS = 86_400_000;
 
 export default async function ClearanceCasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
   const organizationId = organization._id.toString();
   const superAdmin = await isSuperAdmin(organizationId);
   if (!(await hasPermission("clearance.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view clearances.</p>;
+    return <NoAccessState permission="clearance.read" message="You don't have access to view clearances." />;
   }
 
   const [settlement, canPrepareSettlement] = await Promise.all([
@@ -97,7 +98,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
           hint={new Date(clearance.lastWorkingDay).toLocaleDateString("en-US", SHORT)}
           icon={CalendarClock}
         />
-        <MetricCard label="Flagged amounts" value={PESO.format(progress.flaggedAmount)} hint="Proposed deductions for final settlement" icon={CircleDollarSign} tone={progress.flaggedAmount ? "warning" : "default"} />
+        <MetricCard label="Flagged amounts" value={formatMoney(progress.flaggedAmount)} hint="Proposed deductions for final settlement" icon={CircleDollarSign} tone={progress.flaggedAmount ? "warning" : "default"} />
       </div>
 
       {clearance.status === "cancelled" && (
@@ -139,7 +140,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
                           </div>
                           <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
                             {overdue ? "Overdue · " : ""}Due {item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-US", SHORT) : "—"}
-                            {item.actedAt && item.status !== "pending" && ` · ${ITEM_STATUS_LABELS[item.status].toLowerCase()} by ${names.get(item.actedBy?.toString() ?? "") ?? "system"} on ${new Date(item.actedAt).toLocaleDateString("en-US", SHORT)}`}
+                            {item.actedAt && item.status !== "pending" && ` · ${ITEM_STATUS_LABELS[item.status].toLowerCase()} by ${names.get(item.actedBy?.toString() ?? "") ?? "system"} on ${formatDate(item.actedAt)}`}
                           </p>
                           {item.autoSource && facts && item.status === "pending" && (() => {
                             const evaluation = evaluateSource(item.autoSource as ClearanceAutoSource, facts);
@@ -162,7 +163,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
                           {(item.note || item.amount) && (
                             <p className="mt-1 text-sm text-muted-foreground">
                               {item.note}
-                              {item.status === "flagged" && item.amount ? <span className="font-medium text-foreground"> · {PESO.format(item.amount)}</span> : null}
+                              {item.status === "flagged" && item.amount ? <span className="font-medium text-foreground"> · {formatMoney(item.amount)}</span> : null}
                             </p>
                           )}
                         </div>
@@ -235,7 +236,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
                       <span className="absolute top-1.5 -left-[3.5px] size-1.5 rounded-full bg-primary" aria-hidden="true" />
                       <p>{text}</p>
                       <p className="text-xs text-muted-foreground">
-                        {names.get(event.actorUserId?.toString() ?? "") ?? "System"} · {new Date(event.createdAt).toLocaleString("en-US", WHEN)}
+                        {names.get(event.actorUserId?.toString() ?? "") ?? "System"} · {formatDateTime(event.createdAt, "short")}
                       </p>
                     </li>
                   );

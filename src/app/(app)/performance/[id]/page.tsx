@@ -19,9 +19,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AddReviewDialog } from "./add-review-dialog";
 import { SubmitReviewDialog } from "./submit-review-dialog";
 import { CycleStatusButton } from "./cycle-status-button";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { formatCalendarDate } from "@/lib/date-key";
+import { formatDate } from "@/lib/app-time";
 
 export const metadata: Metadata = { title: "Review cycle" };
 
+// Review periods are calendar days (UTC midnight).
 const SHORT = { month: "short", day: "numeric", year: "numeric" } as const;
 // Ratings are ordinal (best to worst in catalog order), so they use the ordinal ramp, not identity colors.
 const ORDINAL = ["var(--viz-ordinal-4)", "var(--viz-ordinal-3)", "var(--viz-ordinal-2)", "var(--viz-ordinal-1)"];
@@ -39,11 +43,11 @@ function initials(name: string) {
 export default async function ReviewCycleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("review-cycles.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view review cycles.</p>;
+    return <NoAccessState permission="review-cycles.read" message="You don't have access to view review cycles." />;
   }
 
   const [canReadReviews, canUpdateCycle, canCreateReview, canUpdateReview] = await Promise.all([
@@ -76,7 +80,7 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
     now: new Date(),
   });
   const distribution = summary.distribution.map((row, index) => ({ label: row.name, count: row.count, color: ORDINAL[Math.min(index, ORDINAL.length - 1)] }));
-  const period = `${new Date(cycle.periodStart).toLocaleDateString("en-US", SHORT)} – ${new Date(cycle.periodEnd).toLocaleDateString("en-US", SHORT)}`;
+  const period = `${formatCalendarDate(cycle.periodStart, SHORT)} – ${formatCalendarDate(cycle.periodEnd, SHORT)}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -104,7 +108,7 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
         <MetricCard
           label={cycle.status === "closed" ? "Period" : "Days left"}
           value={cycle.status === "closed" ? "Closed" : summary.daysLeft}
-          hint={cycle.status === "closed" ? "No more reviews can be added" : `Period ends ${new Date(cycle.periodEnd).toLocaleDateString("en-US", SHORT)}`}
+          hint={cycle.status === "closed" ? "No more reviews can be added" : `Period ends ${formatCalendarDate(cycle.periodEnd, SHORT)}`}
           icon={CalendarClock}
           tone={cycle.status !== "closed" && summary.daysLeft <= 7 && summary.notReviewedIds.length ? "warning" : "default"}
         />
@@ -195,8 +199,8 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
           { key: "status", header: "Status", render: (review) => <StatusBadge status={review.status} /> },
           {
             key: "submitted",
-            header: "Submitted",
-            render: (review) => <span className="text-muted-foreground">{review.submittedAt ? new Date(review.submittedAt).toLocaleDateString("en-US", SHORT) : "—"}</span>,
+            header: "Submitted", mobile: "hidden",
+            render: (review) => <span className="text-muted-foreground">{review.submittedAt ? formatDate(review.submittedAt, SHORT) : "—"}</span>,
           },
           {
             key: "action",

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Calculator, Loader2 } from "lucide-react";
+import { Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Prepares the final settlement for a clearance (or opens it if one exists) and goes to it. */
@@ -26,9 +26,8 @@ export function PrepareSettlementButton({ organizationId, clearanceCaseId, exist
   }
 
   return (
-    <Button size="sm" onClick={handleClick} disabled={busy}>
-      {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Calculator className="size-3.5" aria-hidden="true" />}
-      {busy ? "Preparing…" : existingId ? "Open final settlement" : "Prepare final settlement"}
+    <Button size="sm" onClick={handleClick} icon={Calculator} pending={busy} pendingLabel="Preparing…">
+      {existingId ? "Open final settlement" : "Prepare final settlement"}
     </Button>
   );
 }

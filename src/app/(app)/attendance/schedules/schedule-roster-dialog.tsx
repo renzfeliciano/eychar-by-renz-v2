@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Search, Users } from "lucide-react";
+import { Search, Users, CheckCheck, Eraser, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -97,10 +97,10 @@ export function ScheduleRosterDialog({ organizationId, roster, canHide = false }
               {includedCount} of {roster.length} on the schedule
             </span>
             <span className="flex items-center gap-1">
-              <Button type="button" size="xs" variant="ghost" onClick={() => setAll(true)} disabled={visible.length === 0}>
+              <Button type="button" size="xs" variant="ghost" onClick={() => setAll(true)} disabled={visible.length === 0} icon={CheckCheck}>
                 Include all
               </Button>
-              <Button type="button" size="xs" variant="ghost" onClick={() => setAll(false)} disabled={visible.length === 0}>
+              <Button type="button" size="xs" variant="ghost" onClick={() => setAll(false)} disabled={visible.length === 0} icon={Eraser}>
                 Exclude all
               </Button>
             </span>
@@ -137,9 +137,8 @@ export function ScheduleRosterDialog({ organizationId, roster, canHide = false }
 
         <FormError message={error} />
         <DialogFooter>
-          <Button onClick={handleSave} disabled={isSaving || changes.length === 0} data-testid="schedule-roster-save-button">
-            {isSaving && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSaving ? "Saving…" : changes.length ? `Save ${changes.length === 1 ? "1 change" : `${changes.length} changes`}` : "No changes"}
+          <Button onClick={handleSave} disabled={isSaving || changes.length === 0} data-testid="schedule-roster-save-button" icon={Save} pending={isSaving} pendingLabel="Saving…">
+            {changes.length ? `Save ${changes.length === 1 ? "1 change" : `${changes.length} changes`}` : "No changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

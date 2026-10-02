@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ClipboardEvent } from "react";
-import { ExternalLink, Loader2, LocateFixed, MapPin } from "lucide-react";
+import { ExternalLink, LocateFixed, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/shared/form-field";
@@ -116,9 +116,8 @@ export function SiteCoordinatesFields({
       </FormField>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={fillFromCurrentLocation} disabled={isLocating} data-testid={`${idPrefix}-use-current-location`}>
-          {isLocating ? <Loader2 className="size-3.5 animate-spin" /> : <LocateFixed className="size-3.5" />}
-          {isLocating ? "Locating…" : "Use my current location"}
+        <Button type="button" variant="outline" size="sm" onClick={fillFromCurrentLocation} data-testid={`${idPrefix}-use-current-location`} icon={LocateFixed} pending={isLocating} pendingLabel="Locating…">
+          Use my current location
         </Button>
         {hasPair && (
           <a

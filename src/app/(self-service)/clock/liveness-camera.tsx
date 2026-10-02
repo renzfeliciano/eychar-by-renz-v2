@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
-import { ArrowLeft, ArrowRight, CheckCircle2, Eye, Loader2, RotateCcw, ScanFace, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Eye, Loader2, RotateCcw, ScanFace, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -265,7 +265,7 @@ export function LivenessCamera({ onCaptured, onCancel }: { onCaptured: (capture:
       <p className="text-center text-xs text-muted-foreground">
         A live check that it&apos;s really you — your photo is taken automatically at the end. Nothing is analyzed off your device.
       </p>
-      <Button variant="ghost" onClick={onCancel} data-testid="liveness-cancel-button">
+      <Button variant="ghost" onClick={onCancel} data-testid="liveness-cancel-button" icon={X}>
         Cancel
       </Button>
     </div>

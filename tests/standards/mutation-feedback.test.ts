@@ -10,8 +10,9 @@ import { join, relative } from "node:path";
  */
 const ROOTS = ["src/app", "src/components"];
 const MUTATION = /method:\s*"(POST|PATCH|PUT|DELETE)"/;
-// ConfirmDialog renders its own spinner with confirmLoadingLabel.
-const SPINNER = /Loader2|animate-spin|<ConfirmDialog/;
+// `pending` on <Button> (the button standard) swaps the icon for a spinner;
+// ConfirmDialog does the same with confirmLoadingLabel.
+const SPINNER = /\bpending=\{|Loader2|animate-spin|<ConfirmDialog/;
 const TOAST = /toast\.(success|error)/;
 
 // Deliberate exceptions, each with its reason.

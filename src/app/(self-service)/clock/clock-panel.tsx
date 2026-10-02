@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
-import { Fingerprint, MapPin, LogIn, LogOut, Loader2, CheckCircle2, ScanFace, Building2 } from "lucide-react";
+import { Fingerprint, MapPin, Loader2, CheckCircle2, ScanFace, Building2 , LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { describeWebAuthnError } from "@/lib/webauthn-error-message";
 import { evaluateGeofence, formatDistance } from "@/domains/attendance/geofence";
 import type { ClockSite } from "@/domains/attendance/clock-site-service";
 import { LivenessCamera, preloadFaceLandmarker, type LivenessCapture } from "./liveness-camera";
+import { formatTime } from "@/lib/app-time";
 
 export type TodayRecord = {
   checkInAt?: string | null;
@@ -63,10 +64,6 @@ const CHECKS = [
   { key: "biometric", label: "Biometric", icon: Fingerprint },
 ] as const;
 const CHECK_STATE_LABEL: Record<ClockCheckState, string> = { waiting: "(waiting)", active: "(in progress)", done: "(done)" };
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
 
 async function readError(response: Response, fallback: string): Promise<string> {
   const body = await response.json().catch(() => ({}));
@@ -223,9 +220,8 @@ export function ClockPanel({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <FormError message={error} />
-          <Button onClick={handleRegisterBiometric} disabled={isRegistering} data-testid="register-biometric-button">
-            {isRegistering ? <Loader2 className="size-4 animate-spin" /> : <Fingerprint className="size-4" />}
-            {isRegistering ? "Setting up…" : "Set up biometric verification"}
+          <Button onClick={handleRegisterBiometric} data-testid="register-biometric-button" icon={Fingerprint} pending={isRegistering} pendingLabel="Setting up…">
+            Set up biometric verification
           </Button>
         </CardContent>
       </Card>
@@ -328,10 +324,12 @@ export function ClockPanel({
               onClick={startClock}
               disabled={isBusy || (needsProjectChoice && !selectedProjectId)}
               size="lg"
+              icon={action === "clock-in" ? LogIn : LogOut}
+              pending={isBusy}
+              pendingLabel={action === "clock-in" ? "Clocking in…" : "Clocking out…"}
               data-testid={action === "clock-in" ? "clock-in-button" : "clock-out-button"}
             >
-              {isBusy ? <Loader2 className="size-4 animate-spin" /> : action === "clock-in" ? <LogIn className="size-4" /> : <LogOut className="size-4" />}
-              {isBusy ? (action === "clock-in" ? "Clocking in…" : "Clocking out…") : action === "clock-in" ? "Clock In" : "Clock Out"}
+              {action === "clock-in" ? "Clock In" : "Clock Out"}
             </Button>
 
             <ol className="grid grid-cols-3 gap-2 text-center text-[0.7rem]" aria-label="What clocking in checks">

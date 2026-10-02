@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -130,13 +130,12 @@ export function DeleteRecordButton({
 
           <FormError message={error} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy} icon={X}>
               {blocked ? "Close" : "Cancel"}
             </Button>
             {preview && !blocked && (
-              <Button variant="destructive" onClick={handleDelete} disabled={busy || confirm.trim() !== preview.label}>
-                {busy && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-                {busy ? "Deleting…" : "Move to recycle bin"}
+              <Button variant="destructive" onClick={handleDelete} disabled={busy || confirm.trim() !== preview.label} icon={Trash2} pending={busy} pendingLabel="Deleting…">
+                Move to recycle bin
               </Button>
             )}
           </DialogFooter>

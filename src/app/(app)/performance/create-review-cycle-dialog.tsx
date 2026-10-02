@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -89,9 +89,8 @@ export function CreateReviewCycleDialog({ organizationId }: { organizationId: st
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="create-review-cycle-form" disabled={isSubmitting} data-testid="review-cycles-create-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Adding…" : "Add review cycle"}
+          <Button type="submit" form="create-review-cycle-form" data-testid="review-cycles-create-submit-button" icon={Plus} pending={isSubmitting} pendingLabel="Adding…">
+            Add review cycle
           </Button>
         </DialogFooter>
       </DialogContent>

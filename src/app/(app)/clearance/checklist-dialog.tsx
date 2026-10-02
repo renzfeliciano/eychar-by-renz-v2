@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Ban, ListChecks, Loader2, RotateCcw } from "lucide-react";
+import { Ban, ListChecks, RotateCcw, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -115,9 +115,8 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
               <input type="checkbox" checked={blocking} onChange={(event) => setBlocking(event.target.checked)} className="size-4 accent-primary" />
               Must be resolved before final pay
             </label>
-            <Button type="submit" size="sm" className="ml-auto" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-              {isSubmitting ? "Adding…" : "Add item"}
+            <Button type="submit" size="sm" className="ml-auto" icon={Plus} pending={isSubmitting} pendingLabel="Adding…">
+              Add item
             </Button>
           </div>
           <FormError message={error} />
@@ -144,12 +143,11 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
                       <Button
                         size="icon-sm"
                         variant="ghost"
-                        disabled={togglingId === item.id}
+                        icon={item.status === "active" ? Ban : RotateCcw}
+                        pending={togglingId === item.id}
                         onClick={() => toggle(item)}
                         aria-label={item.status === "active" ? `Retire ${item.title}` : `Restore ${item.title}`}
-                      >
-                        {togglingId === item.id ? <Loader2 className="size-3.5 animate-spin" /> : item.status === "active" ? <Ban className="size-3.5" /> : <RotateCcw className="size-3.5" />}
-                      </Button>
+                      />
                     </li>
                   ))}
                 </ul>

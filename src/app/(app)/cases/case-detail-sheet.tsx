@@ -5,6 +5,7 @@ import { Briefcase, CalendarPlus, History, Scale, UserRound } from "lucide-react
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatRelativeDays } from "@/lib/relative-time";
+import { formatDate } from "@/lib/app-time";
 
 export type CaseDetail = {
   caseName: string;
@@ -19,7 +20,8 @@ export type CaseDetail = {
   updatedAt: string;
 };
 
-const LONG_DATE = { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" } as const;
+// The day the case was recorded, on the organization's calendar (formatDate adds the time zone).
+const LONG_DATE = { month: "long", day: "numeric", year: "numeric" } as const;
 
 /** The case name in the table, opening the full record in a side panel. */
 export function CaseDetailSheet({ item, nowIso, actions }: { item: CaseDetail; nowIso: string; actions?: React.ReactNode }) {
@@ -57,7 +59,7 @@ export function CaseDetailSheet({ item, nowIso, actions }: { item: CaseDetail; n
               {item.legalCounsel || <span className="text-muted-foreground">No counsel assigned</span>}
             </Fact>
             <Fact icon={CalendarPlus} label="On record since">
-              {new Date(item.createdAt).toLocaleDateString("en-US", LONG_DATE)}
+              {formatDate(item.createdAt, LONG_DATE)}
             </Fact>
             <Fact icon={History} label="Last updated">
               {formatRelativeDays(item.updatedAt, now)}

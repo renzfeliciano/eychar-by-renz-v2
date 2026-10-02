@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, Layers, Loader2 } from "lucide-react";
+import { ArrowRight, Layers, ArrowLeft, Check, Eye } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -209,18 +209,16 @@ export function BulkChangeDialog({ organizationId, projects }: { organizationId:
         <DialogFooter>
           {preview ? (
             <>
-              <Button variant="outline" onClick={() => setPreview(null)} disabled={busy !== null}>
+              <Button variant="outline" onClick={() => setPreview(null)} disabled={busy !== null} icon={ArrowLeft}>
                 Back
               </Button>
-              <Button onClick={apply} disabled={busy !== null || picked.size === 0} data-testid="compensation-bulk-apply">
-                {busy === "apply" && <Loader2 className="size-3.5 animate-spin" />}
-                {busy === "apply" ? "Applying…" : `Apply to ${picked.size}`}
+              <Button onClick={apply} disabled={busy !== null || picked.size === 0} data-testid="compensation-bulk-apply" icon={Check} pending={busy === "apply"} pendingLabel="Applying…">
+                {`Apply to ${picked.size}`}
               </Button>
             </>
           ) : (
-            <Button onClick={runPreview} disabled={busy !== null} data-testid="compensation-bulk-preview">
-              {busy === "preview" && <Loader2 className="size-3.5 animate-spin" />}
-              {busy === "preview" ? "Checking…" : "Preview change"}
+            <Button onClick={runPreview} disabled={busy !== null} data-testid="compensation-bulk-preview" icon={Eye} pending={busy === "preview"} pendingLabel="Checking…">
+              Preview change
             </Button>
           )}
         </DialogFooter>

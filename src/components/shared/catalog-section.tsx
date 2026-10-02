@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Ban, RotateCcw, Loader2 } from "lucide-react";
+import { Plus, Pencil, Ban, RotateCcw, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardAction, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -184,8 +184,8 @@ export function CatalogSection({
                   <FormError message={error} />
                 </form>
                 <DialogFooter>
-                  <Button type="submit" form={formId} disabled={isSubmitting} data-testid={`catalog-${catalogType}-add-submit-button`}>
-                    {isSubmitting ? "Adding…" : "Add"}
+                  <Button type="submit" form={formId} data-testid={`catalog-${catalogType}-add-submit-button`} icon={Plus} pending={isSubmitting} pendingLabel="Adding…">
+                    Add
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -215,9 +215,7 @@ export function CatalogSection({
                     {item.status === "active" ? (
                       <ConfirmDialog
                         trigger={
-                          <Button size="sm" variant="ghost" disabled={isToggling} aria-label={isToggling ? `Deactivating ${item.name}` : `Deactivate ${item.name}`}>
-                            {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
-                          </Button>
+                          <Button size="icon-sm" variant="ghost" icon={Ban} pending={isToggling} aria-label={isToggling ? `Deactivating ${item.name}` : `Deactivate ${item.name}`} />
                         }
                         title={`Deactivate "${item.name}"?`}
                         description="It stops appearing as a choice in new records — anything already using it is unaffected."
@@ -227,14 +225,13 @@ export function CatalogSection({
                       />
                     ) : (
                       <Button
-                        size="sm"
+                        size="icon-sm"
                         variant="ghost"
-                        disabled={isToggling}
+                        icon={RotateCcw}
+                        pending={isToggling}
                         onClick={() => handleToggleStatus(item._id, "active").catch((err) => setToggleError(err instanceof Error ? err.message : "Failed to update item."))}
                         aria-label={isToggling ? `Reactivating ${item.name}` : `Reactivate ${item.name}`}
-                      >
-                        {isToggling ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
-                      </Button>
+                      />
                     )}
                   </div>
                 );
@@ -264,8 +261,8 @@ export function CatalogSection({
             <FormError message={editError} />
           </form>
           <DialogFooter>
-            <Button type="submit" form={editFormId} disabled={isEditSubmitting} data-testid={`catalog-${catalogType}-edit-submit-button`}>
-              {isEditSubmitting ? "Saving…" : "Save"}
+            <Button type="submit" form={editFormId} data-testid={`catalog-${catalogType}-edit-submit-button`} icon={Save} pending={isEditSubmitting} pendingLabel="Saving…">
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

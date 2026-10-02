@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Banknote, CheckCheck, Loader2, RefreshCw, Send, ShieldCheck, Undo2, XCircle } from "lucide-react";
+import { Banknote, CheckCheck, Loader2, RefreshCw, Send, ShieldCheck, Undo2, XCircle, BadgeCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -187,9 +187,15 @@ export function SettlementActions({
             )}
             <FormError message={error} />
             <DialogFooter>
-              <Button onClick={confirm} disabled={anyBusy} variant={dialog === "cancel" ? "destructive" : "default"}>
-                {busy && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-                {dialog === "disburse" ? (busy ? "Saving…" : "Mark as paid") : dialog === "return" ? (busy ? "Returning…" : "Return to draft") : busy ? "Cancelling…" : "Cancel settlement"}
+              <Button
+                onClick={confirm}
+                disabled={anyBusy}
+                variant={dialog === "cancel" ? "destructive" : "default"}
+                icon={dialog === "disburse" ? BadgeCheck : dialog === "return" ? Undo2 : X}
+                pending={Boolean(busy)}
+                pendingLabel={dialog === "disburse" ? "Saving…" : dialog === "return" ? "Returning…" : "Cancelling…"}
+              >
+                {dialog === "disburse" ? "Mark as paid" : dialog === "return" ? "Return to draft" : "Cancel settlement"}
               </Button>
             </DialogFooter>
           </DialogContent>

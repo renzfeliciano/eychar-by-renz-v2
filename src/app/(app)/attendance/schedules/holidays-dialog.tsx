@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Loader2, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Loader2, Pencil, Plus, Trash2, TriangleAlert, ArrowLeft, Check, CheckCheck, Eraser, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -155,16 +155,11 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                 <Plus className="size-3.5" />
                 Add
               </Button>
-              <Button size="sm" variant="outline" onClick={openPreview} disabled={isPreviewing} data-testid="holidays-load-ph">
-                {isPreviewing ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Download className="size-3.5" />}
-                {isPreviewing ? (
-                  "Loading…"
-                ) : (
-                  <>
+              <Button size="sm" variant="outline" onClick={openPreview} data-testid="holidays-load-ph" icon={Download} pending={isPreviewing} pendingLabel="Loading…">
+                {<>
                     <span className="min-[420px]:hidden">Load PH holidays</span>
                     <span className="hidden min-[420px]:inline">Load Philippine holidays</span>
-                  </>
-                )}
+                  </>}
               </Button>
             </div>
           )}
@@ -200,10 +195,10 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                     {alreadyCount > 0 && <span className="font-normal"> · {alreadyCount} already on your calendar</span>}
                   </span>
                   <span className="flex shrink-0 gap-1">
-                    <Button size="xs" variant="ghost" onClick={() => setPicked(new Set(selectable.map((entry) => entry.date)))}>
+                    <Button size="xs" variant="ghost" onClick={() => setPicked(new Set(selectable.map((entry) => entry.date)))} icon={CheckCheck}>
                       Select all
                     </Button>
-                    <Button size="xs" variant="ghost" onClick={() => setPicked(new Set())}>
+                    <Button size="xs" variant="ghost" onClick={() => setPicked(new Set())} icon={Eraser}>
                       Clear
                     </Button>
                   </span>
@@ -323,17 +318,16 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
         {preview && (
           <DialogFooter>
             {upToDate ? (
-              <Button onClick={() => setPreview(null)} data-testid="holidays-preview-done">
+              <Button onClick={() => setPreview(null)} data-testid="holidays-preview-done" icon={Check}>
                 Done
               </Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => setPreview(null)} disabled={isImporting}>
+                <Button variant="ghost" onClick={() => setPreview(null)} disabled={isImporting} icon={ArrowLeft}>
                   Back
                 </Button>
-                <Button onClick={importPicked} disabled={isImporting || picked.size === 0} data-testid="holidays-import-submit">
-                  {isImporting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-                  {isImporting ? "Saving…" : picked.size === 0 ? "Pick holidays to save" : picked.size === 1 ? "Save 1 holiday" : `Save ${picked.size} holidays`}
+                <Button onClick={importPicked} disabled={picked.size === 0} icon={Save} pending={isImporting} pendingLabel="Saving…" data-testid="holidays-import-submit">
+                  {picked.size === 0 ? "Pick holidays to save" : picked.size === 1 ? "Save 1 holiday" : `Save ${picked.size} holidays`}
                 </Button>
               </>
             )}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { clockTime, zonedInstant } from "@/lib/app-time";
 import { useRouter } from "next/navigation";
-import { Clock, Pencil, Loader2 } from "lucide-react";
+import { Clock, Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -132,9 +132,8 @@ export function RecordDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="attendance-record-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Saving…" : "Save"}
+          <Button onClick={handleSubmit} data-testid="attendance-record-submit-button" icon={Save} pending={isSubmitting} pendingLabel="Saving…">
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

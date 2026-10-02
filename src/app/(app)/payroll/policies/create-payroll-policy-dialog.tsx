@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { WEEKDAY_NAMES } from "@/domains/payroll/payroll-labels";
+import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 
@@ -33,8 +34,14 @@ const EMPTY = {
   workWeekDays: [1, 2, 3, 4, 5],
   deductLateAndUndertime: true,
   contributionTiming: "every_cutoff",
+  // Entered as percentages of the regular rate; sent as multiples (125 → 1.25).
+  overtimePercent: String(PAY_PREMIUM_DEFAULTS.overtimeMultiplier * 100),
+  restDayPercent: String(PAY_PREMIUM_DEFAULTS.restDayMultiplier * 100),
+  thirteenthMonthDivisor: String(PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor),
   effectiveFrom: localDateKey(),
 };
+
+const toMultiplier = (percent: string) => Number((Number(percent) / 100).toPrecision(12));
 
 /** How pay is computed for the organization, or one project that works differently (e.g. a 6-day site). */
 export function CreatePayrollPolicyDialog({ organizationId, projects }: { organizationId: string; projects: SelectOption[] }) {
@@ -69,6 +76,9 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
         workWeekDays: form.workWeekDays,
         deductLateAndUndertime: form.deductLateAndUndertime,
         contributionTiming: form.contributionTiming,
+        overtimeMultiplier: toMultiplier(form.overtimePercent),
+        restDayMultiplier: toMultiplier(form.restDayPercent),
+        thirteenthMonthDivisor: Number(form.thirteenthMonthDivisor),
         effectiveFrom: form.effectiveFrom,
       }),
     });
@@ -153,6 +163,20 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
             />
           </FormField>
           <p className="-mt-2 text-xs text-muted-foreground">In the Philippines this is 30 days (DOLE Labor Advisory No. 06-2020). Final settlements count down to it.</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <FormField label="Overtime pay (%)" htmlFor="policy-overtime-percent" required>
+              <Input id="policy-overtime-percent" type="number" min={100} max={500} step="any" inputMode="decimal" value={form.overtimePercent} onChange={(event) => setForm({ ...form, overtimePercent: event.target.value })} placeholder="e.g. 125" />
+            </FormField>
+            <FormField label="Rest day pay (%)" htmlFor="policy-rest-day-percent" required>
+              <Input id="policy-rest-day-percent" type="number" min={100} max={500} step="any" inputMode="decimal" value={form.restDayPercent} onChange={(event) => setForm({ ...form, restDayPercent: event.target.value })} placeholder="e.g. 130" />
+            </FormField>
+            <FormField label="13th month divisor" htmlFor="policy-thirteenth-divisor" required>
+              <Input id="policy-thirteenth-divisor" type="number" min={1} max={24} step="any" inputMode="decimal" value={form.thirteenthMonthDivisor} onChange={(event) => setForm({ ...form, thirteenthMonthDivisor: event.target.value })} placeholder="e.g. 12" />
+            </FormField>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Overtime is a percentage of the hourly rate, rest day pay of the daily rate (Philippines: 125% and 130%). 13th month pay is the year&apos;s basic pay divided by the divisor (Philippines: 12).
+          </p>
           <OptionSelect label="Government contributions" value={form.contributionTiming} onChange={(value) => setForm({ ...form, contributionTiming: value || "every_cutoff" })} options={TIMING} placeholder="Split across cutoffs" required />
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={form.deductLateAndUndertime} onCheckedChange={(checked) => setForm({ ...form, deductLateAndUndertime: checked === true })} />
@@ -161,9 +185,8 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
           <FormError message={error} />
         </div>
         <DialogFooter>
-          <Button onClick={save} disabled={saving} data-testid="payroll-policies-create-submit-button">
-            {saving && <Loader2 className="size-3.5 animate-spin" />}
-            {saving ? "Creating…" : "Create policy"}
+          <Button onClick={save} data-testid="payroll-policies-create-submit-button" icon={Plus} pending={saving} pendingLabel="Creating…">
+            Create policy
           </Button>
         </DialogFooter>
       </DialogContent>

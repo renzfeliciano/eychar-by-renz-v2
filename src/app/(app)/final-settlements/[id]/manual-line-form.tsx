@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/form-field";
@@ -82,12 +82,11 @@ export function ManualLineForm({ organizationId, settlementId }: { organizationI
       </FormField>
       <FormError message={error} />
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting}>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting} icon={X}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-          {isSubmitting ? "Adding…" : "Add line"}
+        <Button type="submit" icon={Plus} pending={isSubmitting} pendingLabel="Adding…">
+          Add line
         </Button>
       </div>
     </form>

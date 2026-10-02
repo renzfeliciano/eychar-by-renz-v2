@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -77,9 +77,8 @@ export function CreatePositionDialog({ organizationId }: { organizationId: strin
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="create-position-form" disabled={isSubmitting} data-testid="positions-create-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Adding…" : "Add position"}
+          <Button type="submit" form="create-position-form" data-testid="positions-create-submit-button" icon={Plus} pending={isSubmitting} pendingLabel="Adding…">
+            Add position
           </Button>
         </DialogFooter>
       </DialogContent>

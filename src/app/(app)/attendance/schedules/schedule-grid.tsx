@@ -3,7 +3,7 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eraser, Loader2, MousePointerClick, Search, SlidersHorizontal, X } from "lucide-react";
+import { Eraser, Loader2, MousePointerClick, Search, SlidersHorizontal, X, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -492,9 +492,8 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
             <FormError message={error} />
           </div>
           <DialogFooter>
-            <Button onClick={handleAssign} disabled={isSaving} data-testid="schedule-assign-submit-button">
-              {isSaving && <Loader2 className="size-3.5 animate-spin" />}
-              {isSaving ? "Saving…" : "Assign"}
+            <Button onClick={handleAssign} data-testid="schedule-assign-submit-button" icon={UserCheck} pending={isSaving} pendingLabel="Saving…">
+              Assign
             </Button>
           </DialogFooter>
         </DialogContent>

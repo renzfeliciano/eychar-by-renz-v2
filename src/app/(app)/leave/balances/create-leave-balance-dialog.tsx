@@ -3,12 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
+import { Plus, Gift } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
+import { useFieldErrors } from "@/lib/field-errors";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,14 @@ type Props = {
   variant?: "button" | "cell";
 };
 
+/** API field → the control it's about, for field-level errors (see useFieldErrors). */
+const LEAVE_BALANCE_FIELD_IDS = {
+  year: "leave-balance-year",
+  entitledDays: "leave-balance-days",
+  employeeId: "leave-balance-employee",
+  leaveTypeId: "leave-balance-leave-type",
+} as const;
+
 /**
  * Grants a leave balance to one employee, or opens a leave type for the
  * year for everyone who doesn't have it yet (how HR usually starts a year).
@@ -37,7 +46,7 @@ export function CreateLeaveBalanceDialog({ organizationId, employees, leaveTypes
   const [yearValue, setYearValue] = useState(String(year));
   const [entitledDays, setEntitledDays] = useState("15.00");
   const [hasNoFixedAmount, setHasNoFixedAmount] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { fieldErrors, formError: error, setFormError: setError, setFromResponse } = useFieldErrors({ fieldIds: LEAVE_BALANCE_FIELD_IDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const employeeName = employees.find((employee) => employee.id === presetEmployee)?.label;
   const typeName = leaveTypes.find((type) => type.id === leaveTypeId)?.label ?? "this leave type";
@@ -59,7 +68,7 @@ export function CreateLeaveBalanceDialog({ organizationId, employees, leaveTypes
     const body = await response.json().catch(() => ({}));
     setIsSubmitting(false);
     if (!response.ok) {
-      setError(body.error ?? "Couldn't grant the leave balance.");
+      setFromResponse(body, "Couldn't grant the leave balance.");
       return;
     }
     if (scope === "everyone") {
@@ -123,14 +132,14 @@ export function CreateLeaveBalanceDialog({ organizationId, employees, leaveTypes
           )}
           <RequiredFieldsHint />
           {scope === "one" && !presetLocked && (
-            <OptionSelect label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
+            <OptionSelect id="leave-balance-employee" error={fieldErrors.employeeId} label="Employee" value={employeeId} onChange={setEmployeeId} options={employees} placeholder="Select an employee" required />
           )}
-          <OptionSelect label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
+          <OptionSelect id="leave-balance-leave-type" error={fieldErrors.leaveTypeId} label="Leave type" value={leaveTypeId} onChange={setLeaveTypeId} options={leaveTypes} placeholder="Select a leave type" required />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Year" htmlFor="leave-balance-year" required>
+            <FormField label="Year" htmlFor="leave-balance-year" error={fieldErrors.year} required>
               <Input id="leave-balance-year" type="number" value={yearValue} onChange={(event) => setYearValue(event.target.value)} placeholder="e.g. 2026" required />
             </FormField>
-            <FormField label="Entitled days" htmlFor="leave-balance-days" required={!hasNoFixedAmount}>
+            <FormField label="Entitled days" htmlFor="leave-balance-days" error={fieldErrors.entitledDays} required={!hasNoFixedAmount}>
               <Input
                 id="leave-balance-days"
                 type="number"
@@ -157,9 +166,8 @@ export function CreateLeaveBalanceDialog({ organizationId, employees, leaveTypes
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form="create-leave-balance-form" disabled={isSubmitting} data-testid="leave-balances-create-submit-button">
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-            {isSubmitting ? "Granting…" : scope === "everyone" ? "Grant to everyone" : "Grant balance"}
+          <Button type="submit" form="create-leave-balance-form" icon={Gift} pending={isSubmitting} pendingLabel="Granting…" data-testid="leave-balances-create-submit-button">
+            {scope === "everyone" ? "Grant to everyone" : "Grant balance"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, Pencil } from "lucide-react";
+import { Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -134,9 +134,8 @@ export function EditLocationDialog({ organizationId, location }: { organizationI
           <FormError message={error} />
         </form>
         <DialogFooter>
-          <Button type="submit" form={`edit-location-form-${location.id}`} disabled={isSubmitting} data-testid="locations-edit-submit-button">
-            {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Saving…" : "Save"}
+          <Button type="submit" form={`edit-location-form-${location.id}`} data-testid="locations-edit-submit-button" icon={Save} pending={isSubmitting} pendingLabel="Saving…">
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

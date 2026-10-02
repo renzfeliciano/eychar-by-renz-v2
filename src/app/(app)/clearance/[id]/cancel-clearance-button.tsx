@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -65,9 +65,8 @@ export function CancelClearanceButton({ organizationId, caseId }: { organization
         </FormField>
         <FormError message={error} />
         <DialogFooter>
-          <Button variant="destructive" onClick={handleCancel} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Cancelling…" : "Cancel clearance"}
+          <Button variant="destructive" onClick={handleCancel} icon={XCircle} pending={isSubmitting} pendingLabel="Cancelling…">
+            Cancel clearance
           </Button>
         </DialogFooter>
       </DialogContent>
