@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, PersonModel, EmploymentModel, EmployeeAssignmentModel } from "@/server/db/models";
@@ -21,6 +22,48 @@ function latestPerEmployee<T extends { employeeId: Types.ObjectId }>(rows: T[]):
   }
   return latest;
 }
+
+// Only the fields roster callers read (names, contact details and statutory
+// IDs for the roster export, status/type/dates for headcount, payroll and
+// contracts, position/project/manager for scoping) — not Person.metadata or
+// the timestamps of every history row.
+const ROSTER_PERSON_FIELDS = "firstName middleName lastName email phone gender birthDate address sssNumber philHealthNumber pagIbigNumber tinNumber";
+const ROSTER_EMPLOYMENT_FIELDS = "employeeId employmentType status effectiveFrom effectiveTo endOfContract";
+const ROSTER_ASSIGNMENT_FIELDS = "employeeId positionId organizationUnitId projectId locationId effectiveFrom effectiveTo";
+
+async function loadWithCurrentStatus(organizationId: string) {
+  await connectMongoDB();
+
+  const orgObjectId = new Types.ObjectId(organizationId);
+  const employees = await EmployeeModel.find({ organizationId: orgObjectId }).lean();
+  if (employees.length === 0) return [];
+
+  const employeeIds = employees.map((employee) => employee._id);
+  const [persons, employments, assignments] = await Promise.all([
+    PersonModel.find({ _id: { $in: employees.map((employee) => employee.personId) } }).select(ROSTER_PERSON_FIELDS).lean(),
+    EmploymentModel.find({ employeeId: { $in: employeeIds } }).select(ROSTER_EMPLOYMENT_FIELDS).sort({ effectiveFrom: -1 }).lean(),
+    EmployeeAssignmentModel.find({ employeeId: { $in: employeeIds } }).select(ROSTER_ASSIGNMENT_FIELDS).sort({ effectiveFrom: -1 }).lean(),
+  ]);
+
+  const personById = new Map(persons.map((person) => [person._id.toString(), person]));
+  const latestEmploymentByEmployee = latestPerEmployee(employments);
+  const latestAssignmentByEmployee = latestPerEmployee(assignments);
+
+  return employees.map((employee) => ({
+    ...employee,
+    person: personById.get(employee.personId.toString()) ?? null,
+    currentEmployment: latestEmploymentByEmployee.get(employee._id.toString()) ?? null,
+    currentAssignment: latestAssignmentByEmployee.get(employee._id.toString()) ?? null,
+  }));
+}
+
+/**
+ * Memoized per server render, like `activeGrants` in authorize.ts: a page
+ * and the services it calls share one roster read. Outside a render (route
+ * handlers, cron, tests) React's cache doesn't memoize, so every call reads
+ * fresh. Callers must treat the rows as read-only.
+ */
+const listWithCurrentStatusOnce = cache(loadWithCurrentStatus);
 
 export const EmployeeService = {
   async create(input: CreateEmployeeInput, actor: { userId?: string }) {
@@ -96,33 +139,12 @@ export const EmployeeService = {
   /**
    * Roster view: each employee joined with their latest Employment and
    * latest EmployeeAssignment. Application-level joins, not an aggregation
-   * pipeline — roster size is small at this phase, and this mirrors the
-   * same Map-join style already used on the Positions/Projects pages.
+   * pipeline — this mirrors the same Map-join style already used on the
+   * Positions/Projects pages. Read once per server render (several widgets
+   * and services on one page ask for it); see `listWithCurrentStatusOnce`.
    */
-  async listWithCurrentStatus(organizationId: string) {
-    await connectMongoDB();
-
-    const orgObjectId = new Types.ObjectId(organizationId);
-    const employees = await EmployeeModel.find({ organizationId: orgObjectId }).lean();
-    if (employees.length === 0) return [];
-
-    const employeeIds = employees.map((employee) => employee._id);
-    const [persons, employments, assignments] = await Promise.all([
-      PersonModel.find({ _id: { $in: employees.map((employee) => employee.personId) } }).lean(),
-      EmploymentModel.find({ employeeId: { $in: employeeIds } }).sort({ effectiveFrom: -1 }).lean(),
-      EmployeeAssignmentModel.find({ employeeId: { $in: employeeIds } }).sort({ effectiveFrom: -1 }).lean(),
-    ]);
-
-    const personById = new Map(persons.map((person) => [person._id.toString(), person]));
-    const latestEmploymentByEmployee = latestPerEmployee(employments);
-    const latestAssignmentByEmployee = latestPerEmployee(assignments);
-
-    return employees.map((employee) => ({
-      ...employee,
-      person: personById.get(employee.personId.toString()) ?? null,
-      currentEmployment: latestEmploymentByEmployee.get(employee._id.toString()) ?? null,
-      currentAssignment: latestAssignmentByEmployee.get(employee._id.toString()) ?? null,
-    }));
+  listWithCurrentStatus(organizationId: string) {
+    return listWithCurrentStatusOnce(organizationId);
   },
 
   async getDetail(employeeId: string, organizationId: string) {

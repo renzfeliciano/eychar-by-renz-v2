@@ -56,3 +56,4 @@ export { DeletionBatchModel } from "./deletion-batch";
 export { DeletedRecordModel } from "./deleted-record";
 export { HolidayModel } from "./holiday";
 export { DayNoteModel } from "./day-note";
+export { OrgChartModel } from "./org-chart";

@@ -11,14 +11,11 @@ export function JobTab({
   assignmentHistory,
   positionTitleById,
   projectNameById,
-  employeeNameById,
   canUpdate,
   positionOptions,
   projectOptions,
-  managerOptions,
   currentPositionId,
   currentProjectId,
-  managerId,
 }: {
   organizationId: string;
   employeeId: string;
@@ -28,18 +25,14 @@ export function JobTab({
     effectiveTo?: Date | null;
     positionId?: Types.ObjectId | null;
     projectId?: Types.ObjectId | null;
-    reportsToEmployeeId?: Types.ObjectId | null;
   }[];
   positionTitleById: Map<string, string>;
   projectNameById: Map<string, string>;
-  employeeNameById: Map<string, string>;
   canUpdate: boolean;
   positionOptions: { id: string; label: string }[];
   projectOptions: { id: string; label: string }[];
-  managerOptions: { id: string; label: string }[];
   currentPositionId?: string;
   currentProjectId?: string;
-  managerId?: string;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -57,7 +50,6 @@ export function JobTab({
                 .sort((a, b) => new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime())
                 .map((row) => {
                   const current = !row.effectiveTo;
-                  const manager = row.reportsToEmployeeId ? employeeNameById.get(row.reportsToEmployeeId.toString()) : undefined;
                   return (
                     <li key={row._id.toString()} className="relative">
                       <span
@@ -70,7 +62,7 @@ export function JobTab({
                       </p>
                       <p className="mt-0.5 font-medium">{row.positionId ? (positionTitleById.get(row.positionId.toString()) ?? "Unknown position") : "No position"}</p>
                       <p className="text-sm text-muted-foreground">
-                        {[row.projectId ? projectNameById.get(row.projectId.toString()) : null, manager ? `Reports to ${manager}` : null].filter(Boolean).join(" · ") || "No project or manager"}
+                        {row.projectId ? (projectNameById.get(row.projectId.toString()) ?? "Unknown project") : "No project"}
                       </p>
                     </li>
                   );
@@ -85,10 +77,8 @@ export function JobTab({
           organizationId={organizationId}
           positions={positionOptions}
           projects={projectOptions}
-          managers={managerOptions}
           currentPositionId={currentPositionId}
           currentProjectId={currentProjectId}
-          currentReportsToEmployeeId={managerId}
         />
       )}
     </div>

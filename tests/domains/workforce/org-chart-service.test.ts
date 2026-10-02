@@ -1,196 +1,111 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import {
-  OrganizationModel,
-  PersonModel,
-  EmployeeModel,
-  PositionModel,
-  ProjectModel,
-  EmployeeAssignmentModel,
-  EmploymentModel,
-} from "@/server/db/models";
+import { OrganizationModel, PersonModel, EmployeeModel, EmployeeAssignmentModel, OrgChartModel, AuditLogModel } from "@/server/db/models";
 import { OrgChartService } from "@/domains/workforce/org-chart-service";
-import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
+import type { SaveOrgChartInput } from "@/shared/validation/org-chart";
 
-async function seedEmployee(organizationId: object, suffix: string) {
+type ChartNode = SaveOrgChartInput["nodes"][number];
+
+async function seedEmployee(organizationId: Types.ObjectId, suffix: string) {
   const person = await PersonModel.create({ organizationId, firstName: `First${suffix}`, lastName: `Last${suffix}` });
   return EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: `EMP-${suffix}-${Date.now()}-${Math.random()}` });
 }
+
+async function seedOrg() {
+  const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-${Date.now()}-${Math.random()}` });
+  const [boss, ana, ben] = await Promise.all(["BOSS", "ANA", "BEN"].map((suffix) => seedEmployee(organization._id, suffix)));
+  return { orgId: organization._id.toString(), organization, boss, ana, ben };
+}
+
+/** Old data still carries `reportsToEmployeeId` (written before ADR-046); the model no longer knows the field. */
+async function legacyAssignment(organizationId: Types.ObjectId, employeeId: Types.ObjectId, reportsTo?: Types.ObjectId) {
+  await EmployeeAssignmentModel.collection.insertOne({ organizationId, employeeId, reportsToEmployeeId: reportsTo, effectiveFrom: new Date("2026-01-01"), status: "active" });
+}
+
+const person = (key: string, employeeId: string, x = 0, y = 0): ChartNode => ({ key, type: "person", employeeId, x, y });
 
 describe("OrgChartService", () => {
   beforeEach(async () => {
     await connectMongoDB();
   });
 
-  it("builds a parent/child tree from reportsToEmployeeId", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-${Date.now()}-${Math.random()}` });
-    const orgId = organization._id.toString();
+  it("first visit: builds the chart from the old reports-to links, unsaved", async () => {
+    const s = await seedOrg();
+    await legacyAssignment(s.organization._id, s.boss._id);
+    await legacyAssignment(s.organization._id, s.ana._id, s.boss._id);
+    await legacyAssignment(s.organization._id, s.ben._id, s.boss._id);
 
-    const ceo = await seedEmployee(organization._id, "CEO");
-    const manager = await seedEmployee(organization._id, "MGR");
-    const report = await seedEmployee(organization._id, "REP");
-
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: ceo._id.toString() }, {});
-    await EmployeeAssignmentService.create(
-      { organizationId: orgId, employeeId: manager._id.toString(), reportsToEmployeeId: ceo._id.toString() },
-      {},
-    );
-    await EmployeeAssignmentService.create(
-      { organizationId: orgId, employeeId: report._id.toString(), reportsToEmployeeId: manager._id.toString() },
-      {},
-    );
-
-    const snapshot = await OrgChartService.getSnapshot(orgId, {});
-
-    expect(snapshot.roots).toHaveLength(1);
-    expect(snapshot.roots[0].employeeId).toBe(ceo._id.toString());
-    expect(snapshot.roots[0].children).toHaveLength(1);
-    expect(snapshot.roots[0].children[0].employeeId).toBe(manager._id.toString());
-    expect(snapshot.roots[0].children[0].children[0].employeeId).toBe(report._id.toString());
+    const chart = await OrgChartService.get(s.orgId);
+    expect(chart.saved).toBe(false);
+    expect(chart.nodes).toHaveLength(3);
+    const keyOf = (id: Types.ObjectId) => chart.nodes.find((node) => node.employeeId === id.toString())!.key;
+    // Two people under one person.
+    expect(chart.edges).toEqual(expect.arrayContaining([{ from: keyOf(s.boss._id), to: keyOf(s.ana._id) }, { from: keyOf(s.boss._id), to: keyOf(s.ben._id) }]));
+    expect(chart.edges).toHaveLength(2);
+    // Arranged as a tree: the boss sits above both.
+    const y = (id: Types.ObjectId) => chart.nodes.find((node) => node.employeeId === id.toString())!.y;
+    expect(y(s.boss._id)).toBeLessThan(y(s.ana._id));
+    expect(y(s.ana._id)).toBe(y(s.ben._id));
   });
 
-  it("reconstructs the historical manager as of a past date, and the current manager for now", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-hist-${Date.now()}-${Math.random()}` });
-    const orgId = organization._id.toString();
+  it("first visit: breaks a loop in old data instead of failing", async () => {
+    const s = await seedOrg();
+    await legacyAssignment(s.organization._id, s.ana._id, s.ben._id);
+    await legacyAssignment(s.organization._id, s.ben._id, s.ana._id);
 
-    const managerB = await seedEmployee(organization._id, "B");
-    const managerC = await seedEmployee(organization._id, "C");
-    const employee = await seedEmployee(organization._id, "EMP");
-    const position = await PositionModel.create({ organizationId: organization._id, title: "Staff", code: `STAFF-${Date.now()}` });
-    const project = await ProjectModel.create({ organizationId: organization._id, name: "Project X", code: `PX-${Date.now()}` });
-
-    const date2025 = new Date("2025-01-15T00:00:00Z");
-    const date2026 = new Date("2026-01-15T00:00:00Z");
-    const midway2025 = new Date("2025-06-01T00:00:00Z");
-
-    // Managers need their own assignment to appear as tree nodes at all —
-    // a manager with no assignment of their own can't be a node, so their
-    // reports would surface as roots instead (this is exercised on its own
-    // in the "re-roots" test below).
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: managerB._id.toString(), effectiveFrom: date2025 }, {});
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: managerC._id.toString(), effectiveFrom: date2025 }, {});
-
-    await EmployeeAssignmentService.create(
-      {
-        organizationId: orgId,
-        employeeId: employee._id.toString(),
-        positionId: position._id.toString(),
-        projectId: project._id.toString(),
-        reportsToEmployeeId: managerB._id.toString(),
-        effectiveFrom: date2025,
-      },
-      {},
-    );
-    // Only the manager changes here — position and project carry over from
-    // the assignment above (EmployeeAssignmentService.transfer's own
-    // "required, no exceptions" rule is covered by its own test file).
-    await EmployeeAssignmentService.transfer(
-      employee._id.toString(),
-      orgId,
-      { reportsToEmployeeId: managerC._id.toString(), effectiveFrom: date2026 },
-      {},
-    );
-
-    const historical = await OrgChartService.getSnapshot(orgId, { asOf: midway2025 });
-    const historicalManagerB = historical.roots.find((root) => root.employeeId === managerB._id.toString());
-    const historicalManagerC = historical.roots.find((root) => root.employeeId === managerC._id.toString());
-    expect(historicalManagerB?.children.map((c) => c.employeeId)).toContain(employee._id.toString());
-    expect(historicalManagerC?.children.map((c) => c.employeeId) ?? []).not.toContain(employee._id.toString());
-
-    const current = await OrgChartService.getSnapshot(orgId, {});
-    const currentManagerC = current.roots.find((root) => root.employeeId === managerC._id.toString());
-    expect(currentManagerC?.children.map((c) => c.employeeId)).toContain(employee._id.toString());
+    const chart = await OrgChartService.get(s.orgId);
+    expect(chart.edges.length).toBeLessThan(2);
   });
 
-  it("re-roots an employee whose manager was filtered out of the set", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-filter-${Date.now()}-${Math.random()}` });
-    const orgId = organization._id.toString();
-
-    const projectA = await ProjectModel.create({ organizationId: organization._id, name: "Project A", code: `PA-${Date.now()}` });
-    const manager = await seedEmployee(organization._id, "MGRNOPROJECT");
-    const report = await seedEmployee(organization._id, "REPINPROJECT");
-
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: manager._id.toString() }, {});
-    await EmployeeAssignmentService.create(
+  it("saves the canvas whole, audits it, and returns it on the next visit", async () => {
+    const s = await seedOrg();
+    const group: ChartNode = { key: "g1", type: "group", label: "Operations", color: "violet", x: 0, y: 0 };
+    await OrgChartService.save(
       {
-        organizationId: orgId,
-        employeeId: report._id.toString(),
-        reportsToEmployeeId: manager._id.toString(),
-        projectId: projectA._id.toString(),
+        organizationId: s.orgId,
+        nodes: [group, person("b", s.boss._id.toString(), 0, 120), person("a", s.ana._id.toString(), -120, 240), person("n", s.ben._id.toString(), 120, 240)],
+        edges: [{ from: "g1", to: "b" }, { from: "b", to: "a" }, { from: "b", to: "n" }],
       },
       {},
     );
 
-    const snapshot = await OrgChartService.getSnapshot(orgId, { projectId: projectA._id.toString() });
-
-    expect(snapshot.roots).toHaveLength(1);
-    expect(snapshot.roots[0].employeeId).toBe(report._id.toString());
-    expect(snapshot.roots[0].children).toHaveLength(0);
+    const chart = await OrgChartService.get(s.orgId);
+    expect(chart.saved).toBe(true);
+    expect(chart.nodes.find((node) => node.key === "g1")).toMatchObject({ type: "group", label: "Operations", color: "violet" });
+    expect(chart.edges).toHaveLength(3);
+    expect(await AuditLogModel.exists({ organizationId: s.organization._id, action: "org-chart.updated" })).toBeTruthy();
   });
 
-  it("does not hang and surfaces every member when the reporting chain contains a cycle", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-cycle-${Date.now()}-${Math.random()}` });
-    const orgId = organization._id.toString();
-
-    const a = await seedEmployee(organization._id, "A");
-    const b = await seedEmployee(organization._id, "B");
-
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: a._id.toString() }, {});
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: b._id.toString() }, {});
-    // Force a 2-cycle directly at the data layer — the service must not
-    // block this at create-time (only direct self-report is blocked), but
-    // getSnapshot must still terminate and must not silently drop either.
-    await EmployeeAssignmentModel.updateOne(
-      { employeeId: a._id, organizationId: orgId },
-      { $set: { reportsToEmployeeId: b._id } },
-    );
-    await EmployeeAssignmentModel.updateOne(
-      { employeeId: b._id, organizationId: orgId },
-      { $set: { reportsToEmployeeId: a._id } },
-    );
-
-    const snapshot = await OrgChartService.getSnapshot(orgId, {});
-    const rootIds = snapshot.roots.map((root) => root.employeeId);
-
-    expect(rootIds).toContain(a._id.toString());
-    expect(rootIds).toContain(b._id.toString());
+  it("rejects a loop", async () => {
+    const s = await seedOrg();
+    await expect(
+      OrgChartService.save(
+        { organizationId: s.orgId, nodes: [person("a", s.ana._id.toString()), person("b", s.ben._id.toString())], edges: [{ from: "a", to: "b" }, { from: "b", to: "a" }] },
+        {},
+      ),
+    ).rejects.toThrow();
+    expect(await OrgChartModel.exists({ organizationId: s.organization._id })).toBeNull();
   });
 
-  it("excludes a terminated employee even though their EmployeeAssignment was never closed", async () => {
-    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-chart-term-${Date.now()}-${Math.random()}` });
-    const orgId = organization._id.toString();
+  it("rejects someone from another organization", async () => {
+    const s = await seedOrg();
+    const other = await seedOrg();
+    await expect(
+      OrgChartService.save({ organizationId: s.orgId, nodes: [person("x", other.ana._id.toString())], edges: [] }, {}),
+    ).rejects.toThrow(/isn't an employee of this organization/);
+  });
 
-    const manager = await seedEmployee(organization._id, "MGRTERM");
-    const stillActive = await seedEmployee(organization._id, "ACTIVE");
-    const terminated = await seedEmployee(organization._id, "GONE");
-
-    await EmployeeAssignmentService.create({ organizationId: orgId, employeeId: manager._id.toString() }, {});
-    await EmployeeAssignmentService.create(
-      { organizationId: orgId, employeeId: stillActive._id.toString(), reportsToEmployeeId: manager._id.toString() },
+  it("drops the card of a deleted employee, and the lines to it", async () => {
+    const s = await seedOrg();
+    await OrgChartService.save(
+      { organizationId: s.orgId, nodes: [person("b", s.boss._id.toString()), person("a", s.ana._id.toString())], edges: [{ from: "b", to: "a" }] },
       {},
     );
-    await EmployeeAssignmentService.create(
-      { organizationId: orgId, employeeId: terminated._id.toString(), reportsToEmployeeId: manager._id.toString() },
-      {},
-    );
-    // Termination only ever touches Employment, never the
-    // EmployeeAssignment (see EmploymentService.terminate) — so this row
-    // stays "current" and would keep surfacing on the chart without the
-    // active-headcount filter this test is pinning down.
-    await EmploymentModel.create({
-      organizationId: organization._id,
-      employeeId: terminated._id,
-      employmentType: "regular",
-      status: "terminated",
-    });
+    await EmployeeModel.deleteOne({ _id: s.ana._id });
 
-    const snapshot = await OrgChartService.getSnapshot(orgId, {});
-    const allIds = [
-      ...snapshot.roots.map((root) => root.employeeId),
-      ...snapshot.roots.flatMap((root) => root.children.map((child) => child.employeeId)),
-    ];
-
-    expect(allIds).toContain(stillActive._id.toString());
-    expect(allIds).not.toContain(terminated._id.toString());
+    const chart = await OrgChartService.get(s.orgId);
+    expect(chart.nodes.map((node) => node.key)).toEqual(["b"]);
+    expect(chart.edges).toEqual([]);
   });
 });

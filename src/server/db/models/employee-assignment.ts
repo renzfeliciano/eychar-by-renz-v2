@@ -13,7 +13,6 @@ const employeeAssignmentSchema = new Schema(
     organizationUnitId: { type: Schema.Types.ObjectId, ref: "OrganizationUnit" },
     projectId: { type: Schema.Types.ObjectId, ref: "Project" },
     locationId: { type: Schema.Types.ObjectId, ref: "Location" },
-    reportsToEmployeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     effectiveTo: { type: Date },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
@@ -22,7 +21,8 @@ const employeeAssignmentSchema = new Schema(
 );
 
 employeeAssignmentSchema.index({ employeeId: 1, effectiveFrom: 1 });
-employeeAssignmentSchema.index({ reportsToEmployeeId: 1 });
+// Every assignment in the organization in effect on a date.
+employeeAssignmentSchema.index({ organizationId: 1, effectiveFrom: 1 });
 
 export type EmployeeAssignment = InferSchemaType<typeof employeeAssignmentSchema>;
 

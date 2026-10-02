@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import {
   AuditLogModel,
-  EmployeeAssignmentModel,
+  EmployeeAssignmentModel, OrgChartModel,
   EmployeeModel,
   EmploymentModel,
   LeaveTypeModel,
@@ -15,6 +15,7 @@ import {
   DeletedRecordModel,
   DeletionBatchModel,
 } from "@/server/db/models";
+import { OrgChartService } from "@/domains/workforce/org-chart-service";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { DeletionService } from "@/domains/deletion/deletion-service";
 import { AuthorizationError, BusinessRuleError, ValidationError } from "@/shared/errors";
@@ -27,8 +28,9 @@ async function seed() {
   await SuperAdminService.ensure(organizationId, owner._id.toString());
   const ana = await seedEmployee(organizationId, "Ana");
   const ben = await seedEmployee(organizationId, "Ben");
-  // Ben reports to Ana; both travel together.
-  await EmployeeAssignmentModel.create({ organizationId, employeeId: ben, reportsToEmployeeId: ana, effectiveFrom: new Date("2026-01-01") });
+  // Ben sits under Ana on the org chart; both travel together.
+  await EmployeeAssignmentModel.create({ organizationId, employeeId: ben, effectiveFrom: new Date("2026-01-01") });
+  await OrgChartModel.create({ organizationId, nodes: [{ key: "a", type: "person", employeeId: ana, x: 0, y: 0 }, { key: "b", type: "person", employeeId: ben, x: 0, y: 120 }], edges: [{ from: "a", to: "b" }] });
   const trip = await TravelOrderModel.create({ organizationId, employeeIds: [ana, ben], startDate: new Date("2026-10-01"), endDate: new Date("2026-10-03") });
   const selfService = await UserModel.create({ username: `ana.${Date.now()}.${Math.random()}`, passwordHash: "x", employeeId: ana });
   return { organizationId, owner: owner._id.toString(), hr: hr._id.toString(), ana, ben, tripId: trip._id, selfServiceId: selfService._id };
@@ -67,7 +69,10 @@ describe("DeletionService", () => {
     expect(await EmploymentModel.countDocuments({ employeeId: s.ana })).toBe(0);
     expect(await UserModel.exists({ _id: s.selfServiceId })).toBeNull();
     expect((await TravelOrderModel.findById(s.tripId).lean())?.employeeIds.map(String)).toEqual([s.ben]);
-    expect((await EmployeeAssignmentModel.findOne({ employeeId: s.ben }).lean())?.reportsToEmployeeId).toBeUndefined();
+    // Her card (and the line to Ben) drops off the chart; Ben stays.
+    const chartAfterDelete = await OrgChartService.get(String(s.organizationId));
+    expect(chartAfterDelete.nodes.map((node) => node.key)).toEqual(["b"]);
+    expect(chartAfterDelete.edges).toEqual([]);
     expect(batch).toMatchObject({ entityType: "employee", label: "Ana Santos", status: "in_bin" });
     expect(await AuditLogModel.countDocuments({ action: "record.deleted", resourceId: s.ana })).toBe(1);
 
@@ -77,7 +82,7 @@ describe("DeletionService", () => {
     expect(await PersonModel.countDocuments({ organizationId: s.organizationId, firstName: "Ana" })).toBe(1);
     expect(await UserModel.exists({ _id: s.selfServiceId })).toBeTruthy();
     expect((await TravelOrderModel.findById(s.tripId).lean())?.employeeIds.map(String).sort()).toEqual([s.ana, s.ben].sort());
-    expect((await EmployeeAssignmentModel.findOne({ employeeId: s.ben }).lean())?.reportsToEmployeeId?.toString()).toBe(s.ana);
+    expect((await OrgChartService.get(String(s.organizationId))).edges).toEqual([{ from: "a", to: "b" }]);
     expect((await DeletionBatchModel.findById(batch._id).lean())?.status).toBe("restored");
     expect(await DeletedRecordModel.countDocuments({ batchId: batch._id })).toBe(0);
   });

@@ -56,7 +56,6 @@ export const HireService = {
         organizationUnitId: input.organizationUnitId,
         projectId: input.projectId,
         locationId: input.locationId,
-        reportsToEmployeeId: input.reportsToEmployeeId,
         effectiveFrom: input.effectiveFrom,
       },
       actor,

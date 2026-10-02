@@ -1,86 +1,34 @@
 import type { Metadata } from "next";
-import { GitBranch, Layers, UserRoundX, Users } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { OrgChartService } from "@/domains/workforce/org-chart-service";
-import { summarizeOrgChart } from "@/domains/workforce/org-chart-summary";
-import { OrganizationUnitService } from "@/domains/organization/organization-unit-service";
-import { PositionService } from "@/domains/organization/position-service";
-import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
-import { formatDateKey } from "@/lib/date-key";
-import { ChartFilters } from "./chart-filters";
-import { OrgChartView } from "./org-chart-view";
+import { NoAccessState } from "@/components/shared/no-access-state";
+import { OrgChartCanvas } from "./org-chart-canvas";
 
 export const metadata: Metadata = { title: "Organization chart" };
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
-function firstValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-export default async function OrganizationChartPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const params = await searchParams;
+export default async function OrganizationChartPage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("employees.read", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to view the organizational chart.</p>;
+    return <NoAccessState permission="employees.read" message="You don't have access to view the organizational chart." />;
   }
-
-  const asOfRaw = firstValue(params.asOf);
-  const asOf = asOfRaw && /^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) ? asOfRaw : undefined;
-  const [snapshot, units, positions, projects] = await Promise.all([
-    OrgChartService.getSnapshot(organizationId, {
-      asOf: asOf ? new Date(asOf) : undefined,
-      search: firstValue(params.search),
-      organizationUnitId: firstValue(params.organizationUnitId),
-      positionId: firstValue(params.positionId),
-      projectId: firstValue(params.projectId),
-      employmentStatus: firstValue(params.employmentStatus),
-    }),
-    OrganizationUnitService.listCurrent(organizationId),
-    PositionService.listCurrent(organizationId),
-    ProjectService.listCurrent(organizationId),
-  ]);
-  const summary = summarizeOrgChart(snapshot.roots);
-  // Several people at the top usually means managers haven't been set, not several CEOs.
-  const unlinked = Math.max(summary.topLevel - 1, 0);
+  const [chart, canEdit] = await Promise.all([OrgChartService.get(organizationId), hasPermission("org-chart.update", organizationId)]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
-        title="Organizational chart"
+        title="Organization chart"
         description={
-          asOf
-            ? `Reporting lines as they were on ${formatDateKey(asOf, { month: "long", day: "numeric", year: "numeric" })}. Built from assignments; change them on each person's profile.`
-            : "Who reports to whom today, built from each person's current assignment. Change reporting lines on their profile."
+          canEdit
+            ? "Build it like blocks: add people and group boxes, drag them where you want, and drag the dot on top of a card onto the person they report to. The chart tidies itself into a tree."
+            : "Who sits under whom, as HR has drawn it."
         }
       />
-
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="People on the chart" value={summary.people} hint={`${summary.managers} with a team`} icon={Users} emphasis />
-        <MetricCard label="Levels" value={summary.levels} hint="From the top to the deepest team" icon={Layers} />
-        <MetricCard label="Largest team" value={summary.largestTeam} hint="Direct reports to one manager" icon={GitBranch} />
-        <MetricCard
-          label="No manager set"
-          value={unlinked}
-          hint={unlinked ? "Extra people at the top of the chart" : "Everyone reports to someone"}
-          icon={UserRoundX}
-          tone={unlinked ? "warning" : "success"}
-        />
-      </div>
-
-      <ChartFilters
-        units={units.map((unit) => ({ id: unit._id.toString(), label: unit.name }))}
-        positions={positions.map((position) => ({ id: position._id.toString(), label: position.title }))}
-        projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
-      />
-
-      <OrgChartView roots={snapshot.roots} />
+      <OrgChartCanvas key={chart.updatedAt ?? "draft"} organizationId={organizationId} initial={chart} canEdit={canEdit} />
     </div>
   );
 }

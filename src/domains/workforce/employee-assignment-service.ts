@@ -10,7 +10,7 @@ import {
   EmployeeAssignmentModel,
 } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
-import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
 
 export type AssignmentFields = {
@@ -18,7 +18,6 @@ export type AssignmentFields = {
   organizationUnitId?: string;
   projectId?: string;
   locationId?: string;
-  reportsToEmployeeId?: string;
   effectiveFrom?: Date;
 };
 
@@ -34,8 +33,8 @@ const OPEN_ASSIGNMENT_FILTER = {
 /**
  * Every referenced position/unit/project/location must belong to the same
  * organization (never trust a client-supplied id, AGENTS.md §36) — same
- * pattern as Phase 2's FK checks. `reportsToEmployeeId` gets the same
- * self-reference guard OrganizationUnitService uses for `parentUnitId`.
+ * pattern as Phase 2's FK checks. Who sits under whom lives on the org
+ * chart (ADR-046), not on assignments.
  */
 async function validateAssignmentRefs(organizationId: string, employeeId: string, fields: AssignmentFields) {
   // The employee being assigned must itself belong to this organization.
@@ -73,18 +72,6 @@ async function validateAssignmentRefs(organizationId: string, employeeId: string
       }),
     );
   }
-  if (fields.reportsToEmployeeId) {
-    if (fields.reportsToEmployeeId === employeeId) {
-      throw new BusinessRuleError("An employee cannot report to themselves");
-    }
-    checks.push(
-      EmployeeModel.exists({ _id: new Types.ObjectId(fields.reportsToEmployeeId), organizationId: orgObjectId }).then(
-        (found) => {
-          if (!found) throw new NotFoundError("Manager (reportsToEmployeeId) not found in this organization");
-        },
-      ),
-    );
-  }
 
   await Promise.all(checks);
 }
@@ -97,7 +84,6 @@ function toAssignmentDoc(input: CreateAssignmentInput) {
     organizationUnitId: input.organizationUnitId ? new Types.ObjectId(input.organizationUnitId) : undefined,
     projectId: input.projectId ? new Types.ObjectId(input.projectId) : undefined,
     locationId: input.locationId ? new Types.ObjectId(input.locationId) : undefined,
-    reportsToEmployeeId: input.reportsToEmployeeId ? new Types.ObjectId(input.reportsToEmployeeId) : undefined,
     effectiveFrom: input.effectiveFrom ?? new Date(),
   };
 }
@@ -116,7 +102,7 @@ export const EmployeeAssignmentService = {
       action: "employee-assignment.created",
       resourceType: "EmployeeAssignment",
       resourceId: assignment._id.toString(),
-      after: { positionId: assignment.positionId, projectId: assignment.projectId, reportsToEmployeeId: assignment.reportsToEmployeeId },
+      after: { positionId: assignment.positionId, projectId: assignment.projectId },
     });
 
     return assignment;
@@ -144,13 +130,10 @@ export const EmployeeAssignmentService = {
       organizationUnitId: fields.organizationUnitId ?? current?.organizationUnitId?.toString(),
       projectId: fields.projectId ?? current?.projectId?.toString(),
       locationId: fields.locationId ?? current?.locationId?.toString(),
-      // "" means "no manager"; undefined carries the current one over.
-      reportsToEmployeeId: fields.reportsToEmployeeId === "" ? undefined : (fields.reportsToEmployeeId ?? current?.reportsToEmployeeId?.toString()),
       effectiveFrom,
     };
 
-    // Position and project are required on every assignment; a manager is
-    // optional (not everyone reports to someone on record). Checked before
+    // Position and project are required on every assignment. Checked before
     // touching `current` so a rejected transfer never leaves the employee
     // mid-move with no open assignment.
     if (!merged.positionId || !merged.projectId) {
@@ -158,14 +141,25 @@ export const EmployeeAssignmentService = {
     }
 
     const before = current
-      ? { positionId: current.positionId, projectId: current.projectId, reportsToEmployeeId: current.reportsToEmployeeId }
+      ? { positionId: current.positionId, projectId: current.projectId }
       : null;
     // Closing the old assignment and opening the new one is one change
     // (ADR-041): the employee is never left with no open assignment, or two.
+    // `current` was read outside the transaction, so it's closed only if it
+    // is still open: a transfer that raced this one (two HR tabs, a double
+    // submit) and closed it first makes this one fail instead of opening a
+    // second assignment on top of the other's. Concurrent transactions on
+    // the same row also hit a write conflict; the retry then lands here.
     const next = await withTransaction(async (session) => {
       if (current) {
-        current.effectiveTo = effectiveFrom;
-        await current.save({ session });
+        const closed = await EmployeeAssignmentModel.findOneAndUpdate(
+          { _id: current._id, organizationId: new Types.ObjectId(organizationId), ...OPEN_ASSIGNMENT_FILTER },
+          { $set: { effectiveTo: effectiveFrom } },
+          { session, new: true },
+        );
+        if (!closed) throw new ConflictError("This employee's assignment was just changed by someone else. Reload and try again.");
+      } else if (await EmployeeAssignmentModel.exists({ employeeId: employeeObjectId, organizationId: new Types.ObjectId(organizationId), ...OPEN_ASSIGNMENT_FILTER }).session(session)) {
+        throw new ConflictError("This employee's assignment was just changed by someone else. Reload and try again.");
       }
       const [created] = await EmployeeAssignmentModel.create([toAssignmentDoc({ ...merged, organizationId, employeeId })], { session });
       return created;
@@ -178,7 +172,7 @@ export const EmployeeAssignmentService = {
       resourceType: "EmployeeAssignment",
       resourceId: next._id.toString(),
       before,
-      after: { positionId: next.positionId, projectId: next.projectId, reportsToEmployeeId: next.reportsToEmployeeId },
+      after: { positionId: next.positionId, projectId: next.projectId },
     });
 
     return next;

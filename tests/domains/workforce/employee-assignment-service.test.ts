@@ -59,7 +59,6 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
         employeeId: s.employee._id.toString(),
         positionId: s.supervisorPosition._id.toString(),
         projectId: s.projectA._id.toString(),
-        reportsToEmployeeId: s.managerB._id.toString(),
         effectiveFrom: date2025,
       },
       {},
@@ -71,7 +70,6 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
       {
         positionId: s.opsManagerPosition._id.toString(),
         projectId: s.projectB._id.toString(),
-        reportsToEmployeeId: s.managerC._id.toString(),
         effectiveFrom: date2026,
       },
       {},
@@ -84,14 +82,12 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
     const preserved2025 = await EmployeeAssignmentService.getAsOf(s.employee._id.toString(), midway);
     expect(preserved2025?._id.toString()).toBe(assignment2025._id.toString());
     expect(preserved2025?.positionId?.toString()).toBe(s.supervisorPosition._id.toString());
-    expect(preserved2025?.reportsToEmployeeId?.toString()).toBe(s.managerB._id.toString());
 
     // The current organization displays the 2026 state correctly.
     const current = await EmployeeAssignmentService.getCurrent(s.employee._id.toString());
     expect(current?._id.toString()).toBe(assignment2026._id.toString());
     expect(current?.positionId?.toString()).toBe(s.opsManagerPosition._id.toString());
     expect(current?.projectId?.toString()).toBe(s.projectB._id.toString());
-    expect(current?.reportsToEmployeeId?.toString()).toBe(s.managerC._id.toString());
 
     // Both states remain available in history.
     const history = await EmployeeAssignmentService.getHistory(s.employee._id.toString(), s.orgId);
@@ -108,12 +104,11 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
         employeeId: s.employee._id.toString(),
         positionId: s.supervisorPosition._id.toString(),
         projectId: s.projectA._id.toString(),
-        reportsToEmployeeId: s.managerB._id.toString(),
       },
       {},
     );
 
-    // Only the position is specified — project and manager should carry over.
+    // Only the position is specified — the project should carry over.
     const transferred = await EmployeeAssignmentService.transfer(
       s.employee._id.toString(),
       s.orgId,
@@ -123,7 +118,6 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
 
     expect(transferred.positionId?.toString()).toBe(s.opsManagerPosition._id.toString());
     expect(transferred.projectId?.toString()).toBe(s.projectA._id.toString());
-    expect(transferred.reportsToEmployeeId?.toString()).toBe(s.managerB._id.toString());
   });
 
   it("rejects a transfer that doesn't specify anything to change", async () => {
@@ -145,13 +139,13 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
       EmployeeAssignmentService.transfer(
         s.employee._id.toString(),
         s.orgId,
-        { positionId: s.supervisorPosition._id.toString(), reportsToEmployeeId: s.managerB._id.toString() },
+        { positionId: s.supervisorPosition._id.toString() },
         {},
       ),
     ).rejects.toThrow(BusinessRuleError);
   });
 
-  it("allows a transfer with no manager (position and project are what's required)", async () => {
+  it("allows a transfer with just position and project", async () => {
     const s = await seedScenario();
 
     const assignment = await EmployeeAssignmentService.transfer(
@@ -162,37 +156,6 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
     );
 
     expect(assignment.positionId?.toString()).toBe(s.supervisorPosition._id.toString());
-    expect(assignment.reportsToEmployeeId).toBeUndefined();
-  });
-
-  it("removes the manager when the transfer sets it to none", async () => {
-    const s = await seedScenario();
-    const base = { positionId: s.supervisorPosition._id.toString(), projectId: s.projectA._id.toString() };
-    await EmployeeAssignmentService.transfer(s.employee._id.toString(), s.orgId, { ...base, reportsToEmployeeId: s.managerB._id.toString() }, {});
-
-    const next = await EmployeeAssignmentService.transfer(s.employee._id.toString(), s.orgId, { reportsToEmployeeId: "" }, {});
-
-    expect(next.reportsToEmployeeId).toBeUndefined();
-    expect(next.positionId?.toString()).toBe(base.positionId);
-  });
-
-  it("allows a transfer once position, project, and manager are all specified", async () => {
-    const s = await seedScenario();
-
-    const assignment = await EmployeeAssignmentService.transfer(
-      s.employee._id.toString(),
-      s.orgId,
-      {
-        positionId: s.supervisorPosition._id.toString(),
-        projectId: s.projectA._id.toString(),
-        reportsToEmployeeId: s.managerB._id.toString(),
-      },
-      {},
-    );
-
-    expect(assignment.positionId?.toString()).toBe(s.supervisorPosition._id.toString());
-    expect(assignment.projectId?.toString()).toBe(s.projectA._id.toString());
-    expect(assignment.reportsToEmployeeId?.toString()).toBe(s.managerB._id.toString());
   });
 
   it("rejects a position that belongs to a different organization", async () => {
@@ -208,18 +171,4 @@ describe("EmployeeAssignmentService — required historical test (AGENTS.md §59
     ).rejects.toThrow(NotFoundError);
   });
 
-  it("rejects an employee reporting to themselves", async () => {
-    const s = await seedScenario();
-
-    await expect(
-      EmployeeAssignmentService.create(
-        {
-          organizationId: s.orgId,
-          employeeId: s.employee._id.toString(),
-          reportsToEmployeeId: s.employee._id.toString(),
-        },
-        {},
-      ),
-    ).rejects.toThrow(BusinessRuleError);
-  });
 });

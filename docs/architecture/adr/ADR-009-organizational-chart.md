@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by ADR-046 (October 2026): the chart is now drawn by HR, and `reportsToEmployeeId` is gone.
 
 ## Context
 

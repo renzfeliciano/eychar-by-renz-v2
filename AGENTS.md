@@ -456,13 +456,12 @@ Do not duplicate employees for each project.
 
 ## 18. ORGANIZATIONAL CHART
 
-The organizational chart is NOT a source of truth.
-It is a projection of Organization Units, Positions, Employee Assignments, Reporting Relationships, Projects, Employees.
+The organizational chart is drawn by HR on a free canvas and IS the source of truth for reporting lines (ADR-046, superseding ADR-009).
+There is no `reportsToEmployeeId` on assignments; do not reintroduce one. Anything that needs "who is above this person" reads the chart.
 
-Support: Tree view, Search, Employee filtering, Position filtering, Organization-unit filtering, Project filtering, Status filtering, Vacant positions, Multiple levels, Historical date selection where practical.
-
-The org chart should be dynamically generated.
-If a denormalized read model is eventually introduced for performance, clearly document: Source of Truth, Projection, Rebuild Strategy, Consistency Model.
+One chart per organization: person cards (an employee) and group boxes (a label), linked parent → child.
+Every saved chart must be a forest (no loops, one parent per card); validate with `org-chart-tree.ts` on both client and server.
+Employee, position and project details on a card always come from the live records, never copies on the chart.
 
 ## 19. IDENTITY AND AUTHENTICATION
 

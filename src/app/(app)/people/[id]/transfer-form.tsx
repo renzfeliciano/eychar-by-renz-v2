@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError, RequiredFieldsHint } from "@/components/shared/form-field";
@@ -16,33 +16,28 @@ export function TransferForm({
   organizationId,
   positions,
   projects,
-  managers,
   currentPositionId,
   currentProjectId,
-  currentReportsToEmployeeId,
 }: {
   employeeId: string;
   organizationId: string;
   positions: Option[];
   projects: Option[];
-  managers: Option[];
   currentPositionId?: string;
   currentProjectId?: string;
-  currentReportsToEmployeeId?: string;
 }) {
   const router = useRouter();
-  // Pre-filled with the employee's current position/project/manager — this
+  // Pre-filled with the employee's current position/project — this
   // form represents where they are now, not a blank slate. Submitting only
   // sends whichever fields the viewer actually changed, so leaving
   // everything as-is (or picking the same values back) never wipes the
   // rest of the assignment the way an always-blank form used to.
   const [positionId, setPositionId] = useState(currentPositionId ?? "");
   const [projectId, setProjectId] = useState(currentProjectId ?? "");
-  const [reportsToEmployeeId, setReportsToEmployeeId] = useState(currentReportsToEmployeeId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Position and project are required; the manager is optional (same rule as the API).
+  // Position and project are required (same rule as the API).
   const allFieldsFilled = Boolean(positionId && projectId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -57,8 +52,6 @@ export function TransferForm({
         organizationId,
         positionId: positionId !== (currentPositionId ?? "") ? positionId || undefined : undefined,
         projectId: projectId !== (currentProjectId ?? "") ? projectId || undefined : undefined,
-        // "" (None) removes the manager; unchanged sends nothing.
-        reportsToEmployeeId: reportsToEmployeeId !== (currentReportsToEmployeeId ?? "") ? reportsToEmployeeId : undefined,
       }),
     });
 
@@ -80,20 +73,18 @@ export function TransferForm({
       <CardHeader>
         <CardTitle className="text-base">Transfer</CardTitle>
         <CardDescription>
-          Change this employee&apos;s position, project, or manager. Position and project are required; the manager is optional.
+          Change this employee&apos;s position or project. Who they sit under is set on the org chart.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <RequiredFieldsHint />
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-3 sm:items-end xl:grid-cols-1">
+          <div className="grid gap-4 sm:grid-cols-2 sm:items-end xl:grid-cols-1">
             <OptionSelect label="Position" value={positionId} onChange={setPositionId} options={positions} required />
             <OptionSelect label="Project" value={projectId} onChange={setProjectId} options={projects} required />
-            <OptionSelect label="Manager" value={reportsToEmployeeId} onChange={setReportsToEmployeeId} options={managers} placeholder="No manager" />
           </div>
-          <Button type="submit" disabled={isSubmitting || !allFieldsFilled} className="w-fit">
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <ArrowRightLeft className="size-4" />}
-            {isSubmitting ? "Transferring…" : "Transfer"}
+          <Button type="submit" icon={ArrowRightLeft} pending={isSubmitting} pendingLabel="Transferring…" disabled={!allFieldsFilled} className="w-fit">
+            Transfer
           </Button>
         </form>
         <FormError message={error} />

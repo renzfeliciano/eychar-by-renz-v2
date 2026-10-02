@@ -1,8 +1,10 @@
 import mongoose, { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { DeletedRecordModel, DeletionBatchModel } from "@/server/db/models";
+import { AttendanceRecordModel, DeletedRecordModel, DeletionBatchModel, EmployeeDocumentModel } from "@/server/db/models";
+import { withTransaction, type ClientSession } from "@/server/db/transaction";
+import { DocumentStorage } from "@/server/storage/document-storage";
+import { AttendancePhotoStorage } from "@/server/storage/attendance-photo-storage";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
-import { withTransaction } from "@/server/db/transaction";
 import { AuditService } from "@/server/audit/audit-service";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError, ValidationError } from "@/shared/errors";
@@ -118,13 +120,18 @@ export const DeletionService = {
     const batch = await requireBatch(batchId, organizationId);
     if (batch.status !== "in_bin") throw new BusinessRuleError(batch.status === "purged" ? "This was purged for good and can't be restored" : "This was already restored");
 
-    const records = await DeletedRecordModel.find({ batchId: batch._id }).lean<{ collectionName: string; doc: Record<string, unknown> }[]>();
-    const byCollection = new Map<string, Record<string, unknown>[]>();
-    for (const record of records) byCollection.set(record.collectionName, [...(byCollection.get(record.collectionName) ?? []), record.doc]);
+    const restoredAt = new Date();
+    const restoredBy = actor.userId ? new Types.ObjectId(actor.userId) : undefined;
     // Putting everything back is one change (ADR-041): if any record can't
     // go back, none do, and the bin entry stays whole.
     try {
       await withTransaction(async (session) => {
+        // Claim the entry first: only one restore or purge can move it out of
+        // the bin, so a purge racing this restore can't delete what it puts back.
+        await claimBatch(batch, { status: "restored", restoredAt, restoredBy }, session);
+        const records = await DeletedRecordModel.find({ batchId: batch._id }).session(session).lean<{ collectionName: string; doc: Record<string, unknown> }[]>();
+        const byCollection = new Map<string, Record<string, unknown>[]>();
+        for (const record of records) byCollection.set(record.collectionName, [...(byCollection.get(record.collectionName) ?? []), record.doc]);
         for (const [name, docs] of byCollection) await db().collection(name).insertMany(docs, { session });
         for (const patch of batch.patches) {
           await db()
@@ -136,13 +143,12 @@ export const DeletionService = {
             );
         }
         await DeletedRecordModel.deleteMany({ batchId: batch._id }, { session });
-        batch.set({ status: "restored", restoredAt: new Date(), restoredBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined });
-        await batch.save({ session });
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) throw new ConflictError("Can't restore: something with the same number or code was created since. Rename or remove it first.");
       throw error;
     }
+    batch.set({ status: "restored", restoredAt, restoredBy });
     await AuditService.record({ organizationId, actorUserId: actor.userId, action: "record.restored", resourceType: batch.entityType, resourceId: batch.entityId, after: { label: batch.label } });
     return batch;
   },
@@ -160,8 +166,17 @@ export const DeletionService = {
   async purgeExpired(organizationId?: string) {
     await connectMongoDB();
     const expired = await DeletionBatchModel.find({ status: "in_bin", purgeAfter: { $lte: new Date() }, ...(organizationId ? { organizationId: new Types.ObjectId(organizationId) } : {}) });
-    for (const batch of expired) await purge(batch, undefined);
-    return expired.length;
+    let purged = 0;
+    for (const batch of expired) {
+      try {
+        await purge(batch, undefined);
+        purged += 1;
+      } catch (error) {
+        // Restored (or purged by another run) since it was listed: not ours to purge.
+        if (!(error instanceof ConflictError)) throw error;
+      }
+    }
+    return purged;
   },
 
   async listBin(organizationId: string) {
@@ -178,12 +193,58 @@ async function requireBatch(batchId: string, organizationId: string) {
   return batch;
 }
 
+/**
+ * Moves a bin entry out of `in_bin` as the first write of the caller's
+ * transaction (ADR-041), conditional on it still being there. The status
+ * check before the transaction only gives a friendly message; this is what
+ * stops a restore and a purge (or two of either) both going through.
+ */
+async function claimBatch(batch: InstanceType<typeof DeletionBatchModel>, set: Record<string, unknown>, session: ClientSession) {
+  const claimed = await DeletionBatchModel.updateOne({ _id: batch._id, organizationId: batch.organizationId, status: "in_bin" }, { $set: set }, { session });
+  if (claimed.matchedCount === 0) throw new ConflictError("This recycle bin entry was just restored or purged by someone else. Reload and try again.");
+}
+
+type StoredFileRef = { kind: "document"; storage: { provider: string; key: string } } | { kind: "photo"; photoStorage: { provider: string; key: string } };
+
+/** Blob-stored files of the records in a batch (documents, clock photos), to remove once the purge commits. */
+async function storedFilesOf(batchId: Types.ObjectId, session: ClientSession): Promise<StoredFileRef[]> {
+  const records = await DeletedRecordModel.find({
+    batchId,
+    collectionName: { $in: [EmployeeDocumentModel.collection.collectionName, AttendanceRecordModel.collection.collectionName] },
+  })
+    .session(session)
+    .lean<{ collectionName: string; doc: Record<string, unknown> }[]>();
+  const refs: StoredFileRef[] = [];
+  const isBlob = (value: unknown): value is { provider: string; key: string } =>
+    Boolean(value && typeof value === "object" && (value as { provider?: unknown }).provider === "vercel-blob" && typeof (value as { key?: unknown }).key === "string");
+  for (const record of records) {
+    if (record.collectionName === EmployeeDocumentModel.collection.collectionName) {
+      if (isBlob(record.doc.storage)) refs.push({ kind: "document", storage: record.doc.storage });
+      continue;
+    }
+    for (const event of ["checkIn", "checkOut"]) {
+      const photoStorage = (record.doc[event] as { photoStorage?: unknown } | undefined)?.photoStorage;
+      if (isBlob(photoStorage)) refs.push({ kind: "photo", photoStorage });
+    }
+  }
+  return refs;
+}
+
 async function purge(batch: InstanceType<typeof DeletionBatchModel>, actorUserId: string | undefined) {
-  await withTransaction(async (session) => {
+  const purgedAt = new Date();
+  const files = await withTransaction(async (session) => {
+    await claimBatch(batch, { status: "purged", purgedAt }, session);
+    const stored = await storedFilesOf(batch._id, session);
     await DeletedRecordModel.deleteMany({ batchId: batch._id }, { session });
-    batch.set({ status: "purged", purgedAt: new Date() });
-    await batch.save({ session });
+    return stored;
   });
+  batch.set({ status: "purged", purgedAt });
+  // Purged for good, so their files go too. Best effort, after the commit:
+  // a blob that fails to delete is orphaned (private, unreachable), never
+  // a record pointing at a missing file.
+  for (const file of files) {
+    await (file.kind === "document" ? DocumentStorage.remove({ storage: file.storage }) : AttendancePhotoStorage.remove({ photoStorage: file.photoStorage })).catch(() => undefined);
+  }
   await AuditService.record({
     organizationId: batch.organizationId.toString(),
     actorUserId,

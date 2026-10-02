@@ -3,27 +3,25 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
-import { EmployeeService } from "@/domains/workforce/employee-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { formatPersonName } from "@/lib/person-name";
 import { HireForm } from "./hire-form";
+import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Add employee" };
 
 export default async function NewEmployeePage() {
   const { organization } = await getCurrentOrganization();
-  if (!organization) return <p className="text-sm text-muted-foreground">No organization access yet.</p>;
+  if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
   if (!(await hasPermission("employees.create", organizationId))) {
-    return <p className="text-sm text-muted-foreground">You don&apos;t have access to add employees.</p>;
+    return <NoAccessState permission="employees.create" message="You don't have access to add employees." />;
   }
 
-  const [positions, projects, roster, employmentTypes] = await Promise.all([
+  const [positions, projects, employmentTypes] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
-    EmployeeService.listWithCurrentStatus(organizationId),
     EmploymentTypeService.listCurrent(organizationId),
   ]);
 
@@ -34,9 +32,6 @@ export default async function NewEmployeePage() {
         organizationId={organizationId}
         positions={positions.map((position) => ({ id: position._id.toString(), label: position.title }))}
         projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
-        managers={roster
-          .filter((row) => row.person)
-          .map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }))}
         employmentTypes={employmentTypes.map((item) => ({
           id: item.code,
           label: item.name,

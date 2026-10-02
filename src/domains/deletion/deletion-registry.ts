@@ -111,7 +111,8 @@ async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId):
     ],
     patches: [
       { model: models.TravelOrderModel, filter: { _id: { $in: sharedTrips } }, op: "pull", field: "employeeIds", value: id, label: "Travel orders shared with others (removed from them)" },
-      { model: models.EmployeeAssignmentModel, filter: { reportsToEmployeeId: id, employeeId: { $ne: id } }, op: "unset", field: "reportsToEmployeeId", label: "People reporting to them (manager cleared)" },
+      // Their org chart card needs no patch: OrgChartService.get hides cards for
+      // people who no longer exist, so it disappears now and returns on restore.
     ],
   };
 }
