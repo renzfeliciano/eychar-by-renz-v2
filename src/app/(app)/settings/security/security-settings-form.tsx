@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/form-field";
@@ -12,16 +12,19 @@ import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/fo
 export function SecuritySettingsForm({ organizationId, idleTimeoutSeconds, idleWarningSeconds }: { organizationId: string; idleTimeoutSeconds: number; idleWarningSeconds: number }) {
   const router = useRouter();
   const [timeoutValue, setTimeoutValue] = useState(String(idleTimeoutSeconds));
-  const [warning, setWarning] = useState(String(idleWarningSeconds));
+  // Asked the way people think about it: when the warning shows (seconds of
+  // idle), and when they're signed out. Stored as the warning's length.
+  const [warnAfter, setWarnAfter] = useState(String(idleTimeoutSeconds - idleWarningSeconds));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const timeoutSeconds = Number(timeoutValue);
-    const warningSeconds = Number(warning);
-    if (!Number.isInteger(timeoutSeconds) || !Number.isInteger(warningSeconds)) return setError("Enter whole seconds.");
-    if (warningSeconds >= timeoutSeconds) return setError("The warning must start before the idle limit is reached.");
+    const warnAfterSeconds = Number(warnAfter);
+    if (!Number.isInteger(timeoutSeconds) || !Number.isInteger(warnAfterSeconds)) return setError("Enter whole seconds.");
+    if (warnAfterSeconds < 1 || warnAfterSeconds > timeoutSeconds - 5) return setError("Show the warning at least 5 seconds before the sign-out, so there's time to choose to stay.");
+    const warningSeconds = timeoutSeconds - warnAfterSeconds;
     setError(null);
     setIsSaving(true);
     const response = await fetch("/api/settings/security", {
@@ -40,20 +43,19 @@ export function SecuritySettingsForm({ organizationId, idleTimeoutSeconds, idleW
     <form onSubmit={handleSubmit} noValidate className="flex max-w-xl flex-col gap-4">
       <RequiredFieldsHint />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Sign out after idle (seconds)" htmlFor="security-idle" required>
-          <Input id="security-idle" type="number" min={30} max={86400} value={timeoutValue} onChange={(event) => setTimeoutValue(event.target.value)} placeholder="e.g. 60" />
+        <FormField label="Show the warning after (seconds idle)" htmlFor="security-warning" required>
+          <Input id="security-warning" type="number" min={1} value={warnAfter} onChange={(event) => setWarnAfter(event.target.value)} placeholder="e.g. 45" />
         </FormField>
-        <FormField label="Warn before sign-out (seconds)" htmlFor="security-warning" required>
-          <Input id="security-warning" type="number" min={5} value={warning} onChange={(event) => setWarning(event.target.value)} placeholder="e.g. 15" />
+        <FormField label="Sign out after (seconds idle)" htmlFor="security-idle" required>
+          <Input id="security-idle" type="number" min={30} max={86400} value={timeoutValue} onChange={(event) => setTimeoutValue(event.target.value)} placeholder="e.g. 60" />
         </FormField>
       </div>
       <p className="text-xs text-muted-foreground">
-        Applies to every account, including the self-service clock portal. Activity in any open tab counts. A session also ends when the same account signs in somewhere else.
+        Default: warning at 45 seconds, sign-out at 60. Applies to every account, including the self-service clock portal. Activity in any open tab counts. A session also ends when the same account signs in somewhere else.
       </p>
       <FormError message={error} />
-      <Button type="submit" disabled={isSaving} className="self-start">
-        {isSaving && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-        {isSaving ? "Saving…" : "Save settings"}
+      <Button type="submit" className="self-start" icon={Save} pending={isSaving} pendingLabel="Saving…">
+        Save settings
       </Button>
     </form>
   );
