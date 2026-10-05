@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Building2, Layers, Users, UserX } from "lucide-react";
+
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
@@ -10,7 +10,7 @@ import { loadHeadcount } from "@/domains/workforce/headcount";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { CreateUnitDialog } from "./create-unit-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
@@ -36,12 +36,12 @@ export default async function OrganizationUnitsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Organization units" description="Divisions, departments, teams, and other organizational groupings." action={createAction} />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active units" value={activeUnits.length} hint={`${units.length - activeUnits.length} retired`} icon={Building2} />
-        <MetricCard label="Unit types" value={types.size} hint={[...types].slice(0, 3).join(", ") || "None yet"} icon={Layers} />
-        <MetricCard label="Staff in units" value={headcount.total - headcount.unassigned.unit} hint={`of ${headcount.total} current employees`} icon={Users} emphasis />
-        <MetricCard label="Not in a unit" value={headcount.unassigned.unit} hint={headcount.unassigned.unit ? "Assign them from their profile" : "Everyone is placed"} icon={UserX} tone={headcount.unassigned.unit ? "warning" : "success"} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="Active units" value={activeUnits.length} hint={`${units.length - activeUnits.length} retired`} />
+        <MetricCard label="Unit types" value={types.size} hint={[...types].slice(0, 3).join(", ") || "None yet"} />
+        <MetricCard label="Staff in units" value={headcount.total - headcount.unassigned.unit} hint={`of ${headcount.total} current employees`} emphasis />
+        <MetricCard label="Not in a unit" value={headcount.unassigned.unit} hint={headcount.unassigned.unit ? "Assign them from their profile" : "Everyone is placed"} tone={headcount.unassigned.unit ? "warning" : "success"} />
+      </MetricStrip>
 
       <DataTable
         caption="Organization units"

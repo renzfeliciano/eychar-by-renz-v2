@@ -37,9 +37,7 @@ export function CaseDetailSheet({ item, nowIso, actions }: { item: CaseDetail; n
         <SheetContent side="right" className="w-full gap-0 overflow-y-auto sm:max-w-md">
           <SheetHeader className="border-b">
             <div className="flex items-start gap-3 pr-8">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
-                <Scale className="size-5" />
-              </span>
+              <Scale className="mt-1 size-5 shrink-0 text-primary" aria-hidden="true" />
               <div className="min-w-0">
                 <SheetTitle>{item.caseName}</SheetTitle>
                 <SheetDescription className="font-mono text-xs">{item.caseNumber}</SheetDescription>
@@ -67,7 +65,7 @@ export function CaseDetailSheet({ item, nowIso, actions }: { item: CaseDetail; n
           </dl>
 
           <section className="flex flex-col gap-2 p-4" aria-labelledby="case-history-heading">
-            <h3 id="case-history-heading" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <h3 id="case-history-heading" className="text-[13px] font-semibold text-foreground">
               Brief history
             </h3>
             {item.briefHistory ? (

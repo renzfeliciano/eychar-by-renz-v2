@@ -42,7 +42,7 @@ export function HideToggle({ organizationId, type, id, label, hidden }: { organi
 
   return (
     <span className="inline-flex items-center gap-1">
-      {hidden && <span className="rounded-full border border-dashed px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Hidden</span>}
+      {hidden && <span className="rounded-full border border-dashed px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">Hidden</span>}
       <Button
         size="icon-sm"
         variant="ghost"

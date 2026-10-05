@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, History, Landmark, Plus, Receipt } from "lucide-react";
+import { Plus } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
@@ -9,7 +9,7 @@ import { dateToDateKey, formatDateKey } from "@/lib/date-key";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -47,20 +47,19 @@ export default async function PayrollRuleVersionsPage() {
           ) : undefined
         }
       />
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <MetricStrip columns={4}>
         <MetricCard
           label="In use today"
           value={inUse ? `v${inUse.versionNumber}` : "None"}
           hint={inUse ? `${inUse.name ?? "Untitled"}, since ${formatDateKey(dateToDateKey(inUse.effectiveFrom))}` : "Payroll can't compute tax or contributions yet"}
-          icon={BadgeCheck}
           emphasis={Boolean(inUse)}
           tone={inUse ? "default" : "danger"}
           href={inUse ? `/payroll/rule-versions/${inUse._id.toString()}` : undefined}
         />
-        <MetricCard label="Tax tables" value={inUse?.taxTables?.length ?? 0} hint="Pay frequencies the version covers" icon={Landmark} />
-        <MetricCard label="Contribution rules" value={inUse?.contributions?.length ?? 0} hint="SSS, PhilHealth, Pag-IBIG and others" icon={Receipt} />
-        <MetricCard label="Versions on record" value={ruleVersions.length} hint={upcoming ? `${upcoming} scheduled to start later` : "Past runs keep the version they used"} icon={History} />
-      </div>
+        <MetricCard label="Tax tables" value={inUse?.taxTables?.length ?? 0} hint="Pay frequencies the version covers" />
+        <MetricCard label="Contribution rules" value={inUse?.contributions?.length ?? 0} hint="SSS, PhilHealth, Pag-IBIG and others" />
+        <MetricCard label="Versions on record" value={ruleVersions.length} hint={upcoming ? `${upcoming} scheduled to start later` : "Past runs keep the version they used"} />
+      </MetricStrip>
       <DataTable
         caption="Payroll rule versions"
         columns={[

@@ -37,6 +37,50 @@ describe("LoginPage", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
   });
 
+  it("keeps the button loading after a successful sign-in, until the dashboard takes over", async () => {
+    const user = userEvent.setup();
+    signIn.mockResolvedValue({ error: null, ok: true });
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Password"), "secret");
+    await user.click(screen.getByRole("button", { name: /Sign in/ }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    const button = screen.getByTestId("login-submit-button");
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent("Signing in…");
+  });
+
+  it("gives the button back with a message when the server can't be reached", async () => {
+    const user = userEvent.setup();
+    signIn.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Password"), "secret");
+    await user.click(screen.getByRole("button", { name: /Sign in/ }));
+
+    expect(await screen.findByText(/Couldn't reach the server/)).toBeInTheDocument();
+    const button = screen.getByTestId("login-submit-button");
+    expect(button).toBeEnabled();
+    expect(button).toHaveTextContent("Sign in");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("gives the button back when the server answers with an error", async () => {
+    const user = userEvent.setup();
+    signIn.mockResolvedValueOnce({ error: null, ok: false, status: 500 });
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Password"), "secret");
+    await user.click(screen.getByRole("button", { name: /Sign in/ }));
+
+    expect(await screen.findByText(/The server couldn't finish signing you in/)).toBeInTheDocument();
+    expect(screen.getByTestId("login-submit-button")).toBeEnabled();
+  });
+
   it("says so when the credentials are wrong", async () => {
     const user = userEvent.setup();
     signIn.mockResolvedValue({ error: "CredentialsSignin" });

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { AccountSecurityService, type AccountSummary } from "@/domains/identity/account-security-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
@@ -83,18 +83,17 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
     <div className="flex flex-col gap-6">
       <PageHeader title="Accounts" description="Everyone who can sign in, and the state of their sign-in security. Reset a password, unlock, or disable an account." />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active accounts" value={active.length} hint={`${staffActive.length} HR & staff · ${active.length - staffActive.length} self-service`} icon={Users} emphasis />
+      <MetricStrip columns={4}>
+        <MetricCard label="Active accounts" value={active.length} hint={`${staffActive.length} HR & staff · ${active.length - staffActive.length} self-service`} emphasis />
         <MetricCard
           label="HR with two-step"
           value={staffActive.length ? `${staffWithMfa} of ${staffActive.length}` : "—"}
           hint={staffWithMfa < staffActive.length ? "Ask the rest to turn it on under Security" : "Every HR account is protected"}
-          icon={ShieldCheck}
           tone={staffWithMfa < staffActive.length ? "warning" : "success"}
         />
-        <MetricCard label="Locked now" value={locked} hint={locked ? "After repeated failed sign-ins" : "No locked accounts"} icon={Lock} tone={locked ? "danger" : "default"} />
-        <MetricCard label="Temporary passwords" value={temporary} hint="Must choose their own at next sign-in" icon={KeyRound} tone={temporary ? "warning" : "default"} />
-      </div>
+        <MetricCard label="Locked now" value={locked} hint={locked ? "After repeated failed sign-ins" : "No locked accounts"} tone={locked ? "danger" : "default"} />
+        <MetricCard label="Temporary passwords" value={temporary} hint="Must choose their own at next sign-in" tone={temporary ? "warning" : "default"} />
+      </MetricStrip>
 
       <div className="flex flex-col gap-3">
         <StatusFilterTabs basePath="/settings/accounts" params={params} active={view.value} paramName="view" options={VIEWS.map((option) => ({ value: option.value, label: option.label, count: accounts.filter(option.match).length }))} />
@@ -116,7 +115,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
             sortKey: "name",
             render: (account) => (
               <div className="flex items-center gap-2.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
                   {initials(account.displayName)}
                 </span>
                 <span className="flex min-w-0 flex-col">

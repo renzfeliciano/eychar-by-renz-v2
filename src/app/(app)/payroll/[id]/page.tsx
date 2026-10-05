@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarClock, Check, HandCoins, Landmark, OctagonAlert, Undo2, Users, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarClock, Check, OctagonAlert, Undo2 } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
@@ -14,7 +14,7 @@ import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
 import { formatDateTime } from "@/lib/app-time";
 import { payPremiumsOf } from "@/domains/payroll/engine/premiums";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "../payroll-status-badge";
@@ -174,7 +174,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
 
       {/* Lifecycle: where this run is, and who moved it there. */}
       {status === "cancelled" ? (
-        <div className="flex items-start gap-3 rounded-xl border bg-muted/40 px-4 py-3 text-sm" role="status">
+        <div className="flex items-start gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm" role="status">
           <Ban className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div>
             <p className="font-medium">Cancelled {run.cancelledAt ? formatTimestamp(run.cancelledAt) : ""}</p>
@@ -182,7 +182,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           </div>
         </div>
       ) : (
-        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Payroll run progress">
+        <ol className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border shadow-[var(--shadow-soft)] sm:grid-cols-4" aria-label="Payroll run progress">
           {PAYROLL_RUN_STEPS.map((step, index) => {
             const reached = reachedAt.get(step);
             const done = index < currentStepIndex || (index === currentStepIndex && step === "released");
@@ -191,7 +191,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
               <li
                 key={step}
                 aria-current={current ? "step" : undefined}
-                className={cn("flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 shadow-[var(--shadow-soft)]", current && "border-primary/50 ring-1 ring-primary/20")}
+                className={cn("relative flex items-center gap-3 bg-card px-4 py-3", current && "bg-accent/50 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary")}
               >
                 <span
                   className={cn(
@@ -216,7 +216,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
       )}
 
       {wasReturned && (
-        <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
           <Undo2 className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <div>
             <p className="font-medium">Returned by {whoDid(lastEntry?.by)}</p>
@@ -225,7 +225,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
         </div>
       )}
       {(run.blockingIssues ?? 0) > 0 && status === "draft" && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
           <OctagonAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>
             <span className="font-medium">
@@ -236,7 +236,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
         </div>
       )}
       {(run.exclusions?.length ?? 0) > 0 && (
-        <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <div className="min-w-0">
             <p className="font-medium">
@@ -256,18 +256,17 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <MetricCard label="Employees" value={totals.employees} hint={run.warningCount ? `${run.warningCount} to review` : "No warnings"} icon={Users} />
-        <MetricCard label="Gross pay" value={formatPeso(totals.grossPay)} icon={HandCoins} />
+      <MetricStrip columns={5}>
+        <MetricCard label="Employees" value={totals.employees} hint={run.warningCount ? `${run.warningCount} to review` : "No warnings"} />
+        <MetricCard label="Gross pay" value={formatPeso(totals.grossPay)} />
         <MetricCard
           label="Deductions"
           value={formatPeso(totals.employeeContributions + totals.tax + totals.otherDeductions)}
           hint={`Contributions ${formatPeso(totals.employeeContributions)} · tax ${formatPeso(totals.tax)}`}
-          icon={Landmark}
         />
-        <MetricCard label="Net pay" value={formatPeso(totals.netPay)} hint={`Pay date ${formatDateKey(dateToDateKey(run.payDate), { month: "short", day: "numeric" })}`} icon={Wallet} emphasis />
-        <MetricCard label="Employer share" value={formatPeso(totals.employerContributions)} hint={employerShareLabel(contributionRules)} icon={Building2} className="col-span-2 lg:col-span-1" />
-      </div>
+        <MetricCard label="Net pay" value={formatPeso(totals.netPay)} hint={`Pay date ${formatDateKey(dateToDateKey(run.payDate), { month: "short", day: "numeric" })}`} emphasis />
+        <MetricCard label="Employer share" value={formatPeso(totals.employerContributions)} hint={employerShareLabel(contributionRules)} className="col-span-2 lg:col-span-1" />
+      </MetricStrip>
 
       <RunRegister
         runId={run._id.toString()}

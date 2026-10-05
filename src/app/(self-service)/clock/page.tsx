@@ -37,19 +37,16 @@ export default async function ClockPage() {
   return (
     <div className="flex flex-col gap-4">
       {/* The day at a glance: who, what date, and today's shift, above the clock itself. */}
-      <section className="relative overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-soft)]" aria-label="Today">
-        <span className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden="true" />
-        <div className="bg-primary/[0.035] px-5 pt-5 pb-4 dark:bg-primary/[0.08]">
+      <section className="relative overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]" aria-label="Today">
+        <div className="px-5 pt-5 pb-4">
           <p className="text-xs font-medium text-muted-foreground">{formatDate(now, { weekday: "long", month: "long", day: "numeric" })}</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">
+          <h1 className="mt-1 text-xl font-semibold tracking-[-0.015em]">
             {greetingFor(hourInAppZone(now), session.name.split(" ")[0])}
           </h1>
           <p className="text-sm text-muted-foreground">Employee #{session.employeeNumber ?? "—"}</p>
         </div>
-        <div className="flex items-center gap-3 border-t px-5 py-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
-            <CalendarClock className="size-4.5" />
-          </span>
+        <div className="flex items-center gap-3 border-t bg-muted/40 px-5 py-3">
+          <CalendarClock className="size-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Today&apos;s shift</p>
             <p className="truncate text-sm font-medium">

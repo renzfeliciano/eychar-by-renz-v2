@@ -28,16 +28,16 @@ export function ApplicantList({
   );
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+    <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]">
       <DataTableFrame
         testId="applicant-list"
         head={
         <TableHeader className="sticky top-0 z-20 [&_th]:bg-muted">
           <TableRow className="hover:bg-transparent">
-            <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase md:w-full">Applicant</TableHead>
-            <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Position</TableHead>
-            <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Stage</TableHead>
-            <TableHead className="px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Applied</TableHead>
+            <TableHead className="px-3 text-xs font-medium text-muted-foreground md:w-full">Applicant</TableHead>
+            <TableHead className="px-3 text-xs font-medium text-muted-foreground">Position</TableHead>
+            <TableHead className="px-3 text-xs font-medium text-muted-foreground">Stage</TableHead>
+            <TableHead className="px-3 text-xs font-medium text-muted-foreground">Applied</TableHead>
           </TableRow>
         </TableHeader>
         }

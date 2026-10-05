@@ -27,8 +27,8 @@ export function SectionError({
   }, [error]);
 
   return (
-    <div role="alert" className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-xl border bg-card px-6 py-10 text-center shadow-[var(--shadow-soft)]" data-testid="section-error">
-      <span className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive" aria-hidden="true">
+    <div role="alert" className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-lg border bg-card px-6 py-10 text-center shadow-[var(--shadow-soft)]" data-testid="section-error">
+      <span className="text-destructive" aria-hidden="true">
         <TriangleAlert className="size-5" />
       </span>
       <div className="flex flex-col gap-1.5">

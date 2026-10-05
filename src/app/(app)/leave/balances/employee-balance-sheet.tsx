@@ -53,7 +53,7 @@ export function EmployeeBalanceSheet(props: Props) {
         aria-label={`Open ${props.employeeName}'s leave`}
         data-testid={`leave-balance-employee-${props.employeeId}`}
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
           {props.employeeName
             .split(" ")
             .filter(Boolean)
@@ -83,7 +83,7 @@ export function EmployeeBalanceSheet(props: Props) {
           </SheetHeader>
           <div className="flex flex-col gap-3 p-4">
             {lines.map((line) => (
-              <section key={line.leaveTypeId} className="rounded-xl border bg-card p-3" aria-label={line.leaveTypeName}>
+              <section key={line.leaveTypeId} className="rounded-lg border bg-card p-3" aria-label={line.leaveTypeName}>
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-medium">{line.leaveTypeName}</h3>
                   {line.balance && props.canUpdate && (

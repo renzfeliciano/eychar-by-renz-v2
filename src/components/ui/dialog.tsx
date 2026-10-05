@@ -34,7 +34,7 @@ function DialogOverlay({
         // A plain dim, matching the Sheet's scrim: it only has to push the
         // page back so the dialog reads as the one thing to act on — heavy
         // frosted glass here was decoration, not function.
-        "fixed inset-0 isolate z-50 bg-black/25 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-[oklch(0.2_0.04_262/0.3)] duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -96,7 +96,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-2xl bg-popover p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-foreground/15 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-lg bg-popover p-4 text-sm text-popover-foreground shadow-[var(--shadow-modal)] ring-1 ring-border duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -116,7 +116,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3 z-10 size-7 rounded-full bg-black/[0.04] text-muted-foreground transition-[color,background-color,transform,translate,scale,rotate] duration-150 hover:scale-105 active:scale-[0.97] hover:bg-black/[0.08] hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15"
+                className="absolute top-3 right-3 z-10 size-7 rounded-md bg-transparent text-muted-foreground transition-[color,background-color,transform,translate,scale,rotate] duration-150 hover:scale-105 active:scale-[0.97] hover:bg-black/[0.08] hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15"
                 size="icon-sm"
               />
             }
@@ -156,7 +156,7 @@ function DialogFooter({
         // breakpoint doesn't reflect the dialog's own width, so this stays
         // row + right-aligned unconditionally rather than stacking based on
         // how wide the browser window happens to be.
-        "-mx-4 -mb-4 flex shrink-0 flex-row justify-end gap-2 border-t bg-muted/50 p-4",
+        "-mx-4 -mb-4 flex shrink-0 flex-row justify-end gap-2 border-t bg-muted/40 px-4 py-3",
         className
       )}
       {...props}
@@ -176,7 +176,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-lg leading-none font-semibold tracking-tight",
+        "font-heading text-[17px] leading-tight font-semibold tracking-[-0.012em]",
         className
       )}
       {...props}

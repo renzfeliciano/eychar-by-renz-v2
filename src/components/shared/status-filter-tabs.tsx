@@ -22,7 +22,8 @@ export function StatusFilterTabs({
   paramName?: string;
 }) {
   return (
-    <nav aria-label="Filter by status" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+    // A segmented control: one ruled strip, the chosen status filled in navy.
+    <nav aria-label="Filter by status" className="flex max-w-full gap-0.5 self-start overflow-x-auto rounded-lg border bg-card p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((option) => {
         const isActive = active === option.value;
         return (
@@ -31,12 +32,12 @@ export function StatusFilterTabs({
             href={buildTableHref(basePath, params, { [paramName]: option.value === "all" ? undefined : option.value, page: undefined })}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-sm max-md:min-h-10 transition-[color,background-color,border-color] duration-150",
-              isActive ? "border-primary bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:border-ring/50 hover:text-foreground",
+              "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[13px] max-md:min-h-9 transition-[color,background-color] duration-150",
+              isActive ? "bg-primary font-medium text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             {option.label}
-            <span className={cn("rounded-full px-1.5 text-xs tabular-nums", isActive ? "bg-primary/15" : "bg-muted")}>{option.count}</span>
+            <span className={cn("text-xs tabular-nums", isActive ? "text-primary-foreground/70" : "text-muted-foreground/80")}>{option.count}</span>
           </Link>
         );
       })}

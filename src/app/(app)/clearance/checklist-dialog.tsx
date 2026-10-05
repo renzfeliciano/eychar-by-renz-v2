@@ -128,7 +128,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
           <div className="flex flex-col gap-4">
             {grouped.map((group) => (
               <section key={group.id} aria-label={group.label}>
-                <h3 className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">{departmentName.get(group.id)}</h3>
+                <h3 className="mb-1.5 text-xs font-medium text-muted-foreground">{departmentName.get(group.id)}</h3>
                 <ul className="divide-y rounded-lg border">
                   {group.rows.map((item) => (
                     <li key={item.id} className={cn("flex items-center gap-3 px-3 py-2", item.status !== "active" && "opacity-60")}>

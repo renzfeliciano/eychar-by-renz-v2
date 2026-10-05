@@ -53,8 +53,8 @@ export function LoginVisual() {
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="flex max-w-2xl animate-in flex-col gap-4 duration-700 ease-out fade-in slide-in-from-bottom-4">
             <p className="text-[1.625rem] leading-[1.1] font-semibold tracking-tight text-balance min-[400px]:text-3xl sm:text-4xl lg:text-5xl xl:text-6xl">
-              Your whole workforce,
-              <span className="block text-white/55">in one place.</span>
+              Workforce management,
+              <span className="block text-white/55">made simple.</span>
             </p>
             <p className="hidden max-w-md text-base leading-relaxed text-white/75 sm:block">Records, attendance, schedules, leave and payroll for every team and every site.</p>
           </div>

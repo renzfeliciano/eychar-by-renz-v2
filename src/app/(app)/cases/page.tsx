@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AlarmClock, FolderKanban, Gavel, Handshake } from "lucide-react";
+
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSearchInput } from "@/components/shared/table-search-input";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { HorizontalBarChart } from "@/components/shared/horizontal-bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,24 +124,23 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
             </div>
           }
         />
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <MetricCard label="Open cases" value={summary.open} hint={`${summary.closed} closed or dismissed`} icon={Gavel} tone={summary.open ? "warning" : "success"} />
-          <MetricCard label="In mediation" value={inMediation} hint="Being settled" icon={Handshake} />
+        <MetricStrip columns={4}>
+          <MetricCard label="Open cases" value={summary.open} hint={`${summary.closed} closed or dismissed`} tone={summary.open ? "warning" : "success"} />
+          <MetricCard label="In mediation" value={inMediation} hint="Being settled" />
           <MetricCard
             label="Needs follow-up"
             value={summary.stale}
             hint={summary.stale ? `Open, no update in ${CASE_STALE_DAYS} days` : "Every open case is current"}
-            icon={AlarmClock}
             tone={summary.stale ? "danger" : "default"}
           />
-          <MetricCard label="Projects involved" value={summary.byProject.length} hint="With an open case" icon={FolderKanban} />
-        </div>
+          <MetricCard label="Projects involved" value={summary.byProject.length} hint="With an open case" />
+        </MetricStrip>
 
         {summary.open > 0 && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Open cases by classification</CardTitle>
+                <CardTitle>Open cases by classification</CardTitle>
                 <CardDescription>What the open cases are about</CardDescription>
               </CardHeader>
               <CardContent>
@@ -150,7 +149,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Open cases by project</CardTitle>
+                <CardTitle>Open cases by project</CardTitle>
                 <CardDescription>Where they come from</CardDescription>
               </CardHeader>
               <CardContent>

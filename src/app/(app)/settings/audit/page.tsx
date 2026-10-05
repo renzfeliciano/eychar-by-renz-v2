@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, AlertTriangle, LogIn, ScrollText, Check } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { AuditQueryService } from "@/server/audit/audit-query-service";
 import { describeAuditAction, WARNING_SECURITY_EVENTS } from "@/domains/identity/security-event-labels";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { DataTable } from "@/components/shared/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,15 +66,15 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
     <div className="flex flex-col gap-6">
       <PageHeader title="Audit log" description="Every recorded change and sign-in in your organization, newest first. Entries can't be edited or deleted." />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Entries today" value={todayCount} hint="Changes and sign-ins" icon={Activity} emphasis />
-        <MetricCard label="Sign-ins" value={weekSignIns} hint="Last 7 days" icon={LogIn} />
-        <MetricCard label="Failed sign-ins & locks" value={weekFailures} hint="Last 7 days" icon={AlertTriangle} tone={weekFailures ? "warning" : "default"} />
-        <MetricCard label="Matching entries" value={result.total} hint={area || from || to ? "With the filters below" : "All time"} icon={ScrollText} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="Entries today" value={todayCount} hint="Changes and sign-ins" emphasis />
+        <MetricCard label="Sign-ins" value={weekSignIns} hint="Last 7 days" />
+        <MetricCard label="Failed sign-ins & locks" value={weekFailures} hint="Last 7 days" tone={weekFailures ? "warning" : "default"} />
+        <MetricCard label="Matching entries" value={result.total} hint={area || from || to ? "With the filters below" : "All time"} />
+      </MetricStrip>
 
       {/* A plain GET form: filters live in the URL, so a filtered view can be bookmarked or shared. */}
-      <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 shadow-[var(--shadow-soft)]">
+      <form method="get" className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3 shadow-[var(--shadow-soft)]">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="audit-area">Area</Label>
           <select

@@ -1,0 +1,8 @@
+{
+  // The browser tests are type-checked on their own (`npx tsc -p tests/e2e`) so the app's
+  // build and `npm run typecheck` don't depend on @playwright/test being installed.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["./**/*.ts", "../../playwright.config.ts"],
+  "exclude": []
+}

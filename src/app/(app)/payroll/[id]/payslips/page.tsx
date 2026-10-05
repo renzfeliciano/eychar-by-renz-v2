@@ -83,7 +83,7 @@ export default async function PayslipsPage({ params, searchParams }: { params: P
           return (
             <article
               key={record._id.toString()}
-              className="mx-auto w-full max-w-3xl break-after-page rounded-xl border bg-white p-6 text-[#18181b] shadow-[var(--shadow-soft)] print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none"
+              className="mx-auto w-full max-w-3xl break-after-page rounded-lg border bg-white p-6 text-[#18181b] shadow-[var(--shadow-soft)] print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none"
             >
               <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-[#18181b] pb-3">
                 <div>

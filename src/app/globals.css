@@ -9,62 +9,59 @@
 @custom-variant shorter (@media (max-height: 680px));
 
 :root {
-  /* Cards were rendering flush with the page (both pure white) — a hairline
-     ring was the only thing separating a card from empty page. A faint
-     cool-tinted page background gives every card real visual presence
-     without touching --card, which stays pure white so it still pops. */
-  --background: oklch(0.97 0.006 260);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.96 0.02 262.881);
-  --accent-foreground: oklch(0.35 0.15 262.881);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.546 0.245 262.881);
+  /* Navy ledger (ADR-048). The brand color is the navy of the PCAS mark
+     (#123262), used for primary actions, selection and state only. Surfaces
+     are warm paper rather than cool gray, separated by hairline rules more
+     than by shadows: a records office, not a template. */
+  --background: oklch(0.98 0.006 84);
+  --foreground: oklch(0.235 0.028 262);
+  --card: oklch(0.997 0.002 85);
+  --card-foreground: oklch(0.235 0.028 262);
+  --popover: oklch(0.997 0.002 85);
+  --popover-foreground: oklch(0.235 0.028 262);
+  --primary: oklch(0.335 0.095 260);
+  --primary-foreground: oklch(0.985 0.004 85);
+  --secondary: oklch(0.955 0.007 85);
+  --secondary-foreground: oklch(0.27 0.03 262);
+  --muted: oklch(0.955 0.007 85);
+  --muted-foreground: oklch(0.49 0.018 262);
+  --accent: oklch(0.945 0.018 258);
+  --accent-foreground: oklch(0.31 0.09 260);
+  --destructive: oklch(0.52 0.17 28);
+  --border: oklch(0.905 0.009 85);
+  --input: oklch(0.875 0.01 85);
+  --ring: oklch(0.5 0.12 258);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.97 0.006 260);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.96 0.02 262.881);
-  --sidebar-accent-foreground: oklch(0.35 0.15 262.881);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.546 0.245 262.881);
-  --success: oklch(0.6 0.14 155);
-  --success-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.75 0.17 70);
-  --warning-foreground: oklch(0.2 0 0);
-  --events: oklch(0.55 0.23 302);
-  --events-foreground: oklch(0.98 0 0);
+  --radius: 0.5rem;
+  /* The sidebar is a second paper layer, a shade deeper than the page. */
+  --sidebar: oklch(0.962 0.007 85);
+  --sidebar-foreground: oklch(0.27 0.03 262);
+  --sidebar-primary: oklch(0.335 0.095 260);
+  --sidebar-primary-foreground: oklch(0.985 0.004 85);
+  --sidebar-accent: oklch(0.925 0.012 85);
+  --sidebar-accent-foreground: oklch(0.235 0.028 262);
+  --sidebar-border: oklch(0.9 0.01 85);
+  --sidebar-ring: oklch(0.5 0.12 258);
+  --success: oklch(0.5 0.11 158);
+  --success-foreground: oklch(0.985 0.004 85);
+  --warning: oklch(0.56 0.13 62);
+  --warning-foreground: oklch(0.985 0.004 85);
+  --events: oklch(0.5 0.14 318);
+  --events-foreground: oklch(0.985 0.004 85);
+  /* Ruled lines inside tables and lists: lighter than a card's edge. */
+  --rule: oklch(0.93 0.007 85);
 
-  /* Restrained by design (impeccable Operate mode, taste-skill): one brand
-     blue, used for primary actions, selection and state — no blue→violet
-     brand gradient and no brand-colored glow halos. Depth comes from
-     neutral shadows with a real offset, the way physical light works. */
-  --shadow-soft: 0 1px 2px oklch(0.145 0 0 / 4%), 0 4px 12px -4px oklch(0.145 0 0 / 8%);
-  /* One step up from shadow-soft, for surfaces that float over content
-     (the login card, a dragged applicant card). */
-  --shadow-raised: 0 1px 2px oklch(0.145 0 0 / 5%), 0 12px 32px -12px oklch(0.145 0 0 / 22%);
-  /* A dialog has nothing but a dimmed page to read depth from, so it gets
-     the strongest neutral lift. */
-  --shadow-modal: 0 25px 50px -12px oklch(0.145 0 0 / 22%), 0 12px 28px -6px oklch(0.145 0 0 / 12%);
-  --glass-bg: oklch(1 0 0 / 70%);
-  --glass-border: oklch(1 0 0 / 40%);
+  /* Depth is mostly the hairline. Shadows stay neutral, offset and faint:
+     soft for resting cards, raised for things that float, modal for dialogs. */
+  --shadow-soft: 0 1px 0 oklch(0.235 0.028 262 / 3%);
+  --shadow-raised: 0 1px 2px oklch(0.235 0.028 262 / 6%), 0 10px 28px -12px oklch(0.235 0.028 262 / 20%);
+  --shadow-modal: 0 24px 48px -16px oklch(0.235 0.028 262 / 28%), 0 8px 20px -8px oklch(0.235 0.028 262 / 12%);
+  --glass-bg: oklch(0.982 0.004 85 / 82%);
+  --glass-border: oklch(0.905 0.009 85 / 70%);
 
   /* Dashboard chart colors — the dataviz skill's validated reference palette
      (own gate: worst adjacent CVD deltaE 9.1 light, normal-vision 19.6 light),
@@ -87,49 +84,51 @@
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.707 0.165 254.624);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.3 0.06 254.624);
-  --accent-foreground: oklch(0.9 0.05 254.624);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.707 0.165 254.624);
+  /* Night ledger: deep navy ink instead of neutral black, paper-colored text. */
+  --background: oklch(0.175 0.018 262);
+  --foreground: oklch(0.94 0.008 85);
+  --card: oklch(0.205 0.02 262);
+  --card-foreground: oklch(0.94 0.008 85);
+  --popover: oklch(0.225 0.022 262);
+  --popover-foreground: oklch(0.94 0.008 85);
+  --primary: oklch(0.8 0.075 255);
+  --primary-foreground: oklch(0.2 0.05 262);
+  --secondary: oklch(0.25 0.02 262);
+  --secondary-foreground: oklch(0.94 0.008 85);
+  --muted: oklch(0.245 0.02 262);
+  --muted-foreground: oklch(0.72 0.015 262);
+  --accent: oklch(0.28 0.045 258);
+  --accent-foreground: oklch(0.9 0.04 255);
+  --destructive: oklch(0.7 0.16 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.72 0.1 255);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.185 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.707 0.165 254.624);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.3 0.06 254.624);
-  --sidebar-accent-foreground: oklch(0.9 0.05 254.624);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.707 0.165 254.624);
-  --success: oklch(0.7 0.14 155);
-  --success-foreground: oklch(0.145 0 0);
-  --warning: oklch(0.8 0.17 70);
-  --warning-foreground: oklch(0.145 0 0);
-  --events: oklch(0.65 0.2 302);
-  --events-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.155 0.018 262);
+  --sidebar-foreground: oklch(0.9 0.01 85);
+  --sidebar-primary: oklch(0.8 0.075 255);
+  --sidebar-primary-foreground: oklch(0.2 0.05 262);
+  --sidebar-accent: oklch(0.24 0.025 262);
+  --sidebar-accent-foreground: oklch(0.96 0.006 85);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.72 0.1 255);
+  --success: oklch(0.72 0.12 158);
+  --success-foreground: oklch(0.18 0.03 158);
+  --warning: oklch(0.78 0.13 70);
+  --warning-foreground: oklch(0.2 0.04 70);
+  --events: oklch(0.72 0.14 318);
+  --events-foreground: oklch(0.18 0.03 318);
+  --rule: oklch(1 0 0 / 6%);
 
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 20%), 0 4px 12px -4px oklch(0 0 0 / 30%);
-  --shadow-raised: 0 1px 2px oklch(0 0 0 / 25%), 0 12px 32px -12px oklch(0 0 0 / 60%);
-  --shadow-modal: 0 25px 50px -12px oklch(0 0 0 / 55%), 0 12px 28px -6px oklch(0 0 0 / 35%);
-  --glass-bg: oklch(0.205 0 0 / 65%);
-  --glass-border: oklch(1 0 0 / 12%);
+  --shadow-soft: 0 1px 0 oklch(0 0 0 / 20%);
+  --shadow-raised: 0 1px 2px oklch(0 0 0 / 30%), 0 12px 32px -12px oklch(0 0 0 / 60%);
+  --shadow-modal: 0 24px 48px -16px oklch(0 0 0 / 60%), 0 8px 20px -8px oklch(0 0 0 / 35%);
+  --glass-bg: oklch(0.175 0.018 262 / 80%);
+  --glass-border: oklch(1 0 0 / 8%);
 
   /* Same reference palette, dark-surface steps (own gate: worst adjacent CVD
      deltaE 8.4, normal-vision 19.3) — not a flip of the light values. */
@@ -186,6 +185,7 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-events: var(--events);
   --color-events-foreground: var(--events-foreground);
+  --color-rule: var(--rule);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -211,6 +211,24 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  /* Figures in tables, totals and dates line up column-wise (Plex has true tabular numerals). */
+  table,
+  time,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Focus is a navy ring with a paper gap, the same everywhere. */
+  :focus-visible {
+    outline-offset: 2px;
+  }
+  /* Links in running text read as links without shouting. */
+  a {
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
   }
   html {
     @apply font-sans;

@@ -71,7 +71,7 @@ export function TransferForm({
   return (
     <Card className="self-start">
       <CardHeader>
-        <CardTitle className="text-base">Transfer</CardTitle>
+        <CardTitle>Transfer</CardTitle>
         <CardDescription>
           Change this employee&apos;s position or project. Who they sit under is set on the org chart.
         </CardDescription>

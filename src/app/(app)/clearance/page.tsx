@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlarmClock, BadgeCheck, CalendarClock, ClipboardList } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { ClearanceService } from "@/domains/clearance/clearance-service";
@@ -14,7 +14,7 @@ import { formatPersonName } from "@/lib/person-name";
 import { localDateKey } from "@/lib/date-key";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { cn } from "@/lib/utils";
@@ -82,18 +82,17 @@ export default async function ClearancePage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="In clearance" value={summary.inClearance} hint="Waiting on at least one blocking item" icon={ClipboardList} emphasis />
+      <MetricStrip columns={4}>
+        <MetricCard label="In clearance" value={summary.inClearance} hint="Waiting on at least one blocking item" emphasis />
         <MetricCard
           label="Overdue items"
           value={summary.overdueItems}
           hint={summary.overdueItems ? "Past their due date, still pending" : "Every item is on time"}
-          icon={AlarmClock}
           tone={summary.overdueItems ? "danger" : "success"}
         />
-        <MetricCard label="Last day this week" value={summary.lastDayThisWeek} hint="Leaving within 7 days" icon={CalendarClock} tone={summary.lastDayThisWeek ? "warning" : "default"} />
-        <MetricCard label="Ready for final pay" value={summary.readyForFinalPay} hint="All blocking items resolved" icon={BadgeCheck} tone={summary.readyForFinalPay ? "success" : "default"} />
-      </div>
+        <MetricCard label="Last day this week" value={summary.lastDayThisWeek} hint="Leaving within 7 days" tone={summary.lastDayThisWeek ? "warning" : "default"} />
+        <MetricCard label="Ready for final pay" value={summary.readyForFinalPay} hint="All blocking items resolved" tone={summary.readyForFinalPay ? "success" : "default"} />
+      </MetricStrip>
 
       <StatusFilterTabs options={tabs} active={view} params={params} basePath="/clearance" />
 

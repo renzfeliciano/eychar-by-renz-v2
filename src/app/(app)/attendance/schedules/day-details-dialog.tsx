@@ -36,7 +36,7 @@ type Props = {
 function Section({ icon: Icon, title, children, testId }: { icon: React.ElementType; title: string; children: React.ReactNode; testId?: string }) {
   return (
     <section className="flex flex-col gap-2" data-testid={testId}>
-      <h3 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
         <Icon className="size-3.5" aria-hidden="true" />
         {title}
       </h3>

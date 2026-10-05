@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+import { usePendingNavigation } from "./navigation-pending";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ export function TableSearchInput({
   paramName?: string;
   pageParamName?: string;
 }) {
-  const router = useRouter();
+  const { push } = usePendingNavigation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const paramValue = searchParams.get(paramName) ?? "";
@@ -39,7 +40,7 @@ export function TableSearchInput({
     if (nextValue) params.set(paramName, nextValue);
     else params.delete(paramName);
     params.delete(pageParamName);
-    router.push(`${pathname}?${params.toString()}`);
+    push(`${pathname}?${params.toString()}`);
   }
 
   function handleChange(nextValue: string) {

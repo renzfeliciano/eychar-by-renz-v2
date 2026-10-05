@@ -63,7 +63,7 @@ export function ApplicantSheet({
             </SheetHeader>
 
             <section className="flex flex-col gap-3 border-b p-4" aria-labelledby="applicant-stage-heading">
-              <h3 id="applicant-stage-heading" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <h3 id="applicant-stage-heading" className="text-[13px] font-semibold text-foreground">
                 Stage
               </h3>
               <ol className="flex flex-col gap-1">
@@ -127,7 +127,7 @@ export function ApplicantSheet({
             </section>
 
             <section className="flex flex-col gap-3 p-4" aria-labelledby="applicant-details-heading">
-              <h3 id="applicant-details-heading" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <h3 id="applicant-details-heading" className="text-[13px] font-semibold text-foreground">
                 Details
               </h3>
               <dl className="flex flex-col gap-3 text-sm">

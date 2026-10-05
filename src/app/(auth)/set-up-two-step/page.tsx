@@ -28,18 +28,17 @@ export default async function SetUpTwoStepPage() {
   if (user.mfa?.enabled || !(await SecuritySettingsService.mustSetUpTwoStep(session.user.id))) redirect("/dashboard");
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
-      <section aria-labelledby="set-up-two-step-title" className="w-full max-w-lg overflow-hidden rounded-2xl border bg-background shadow-[var(--shadow-modal)]">
-        <div className="relative border-b bg-primary/[0.035] px-6 pt-6 pb-5 sm:px-8 dark:bg-primary/[0.08]">
-          <span className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden="true" />
+    <main className="flex min-h-dvh items-center justify-center bg-background p-4">
+      <section aria-labelledby="set-up-two-step-title" className="w-full max-w-lg overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-raised)]">
+        <div className="relative border-b px-6 pt-6 pb-5 sm:px-8">
           <div className="flex items-center gap-3">
-            <Logo className="size-10 rounded-xl p-1" />
+            <Logo className="size-10 rounded-lg p-1" />
             <div className="flex flex-col leading-tight">
               <BrandName />
               <span className="text-xs text-muted-foreground">Signed in as {user.username ?? "your account"}</span>
             </div>
           </div>
-          <h1 id="set-up-two-step-title" className="mt-6 text-xl font-semibold tracking-tight">
+          <h1 id="set-up-two-step-title" className="mt-6 text-xl leading-tight font-semibold tracking-[-0.015em]">
             Set up two-step verification
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -49,7 +48,7 @@ export default async function SetUpTwoStepPage() {
         <div className="px-6 py-6 sm:px-8">
           <MfaPanel enabled={false} enabledAt={null} recoveryCodesLeft={0} />
         </div>
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t bg-primary/[0.035] px-6 py-3 text-xs text-muted-foreground sm:px-8 dark:bg-primary/[0.08]">
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/40 px-6 py-3 text-xs text-muted-foreground sm:px-8">
           <span className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
             A stolen password alone won&apos;t get into your account.

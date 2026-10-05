@@ -104,7 +104,7 @@ export function RecordDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
-        className={cn(buttonVariants({ variant: existingRecordId ? "outline" : "default", size: "sm" }))}
+        className={cn(buttonVariants({ variant: existingRecordId ? "ghost" : "outline", size: "sm" }))}
         data-testid={existingRecordId ? "attendance-adjust-button" : "attendance-record-button"}
       >
         {existingRecordId ? <Pencil className="size-3.5" /> : <Clock className="size-3.5" />}

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tone = "default" | "primary" | "warning" | "danger" | "success";
@@ -12,27 +11,22 @@ const VALUE_TONE: Record<Tone, string> = {
   success: "text-success",
 };
 
-const ICON_TONE: Record<Tone, string> = {
-  default: "bg-muted text-muted-foreground",
-  primary: "bg-primary/10 text-primary",
-  warning: "bg-warning/10 text-warning",
-  danger: "bg-destructive/10 text-destructive",
-  success: "bg-success/10 text-success",
-};
-
 /**
- * One headline number with its label, for the summary strip at the top of
- * a workspace. Numbers are tabular so a row of cards lines up; the hint
- * carries context in words, never color alone. `tone` marks the figure's
- * meaning: primary for the one number the page is about, warning/danger
- * for something that needs attention. With `href` the whole card is one link
- * to the screen behind the number (the dashboard uses this).
+ * One headline number with its label, for the summary at the top of a
+ * workspace. Set like a ledger total: the label in small type, the figure
+ * large and tabular, a short hint underneath in words (never color alone).
+ * `tone` marks the figure's meaning: primary for the one number the page is
+ * about, warning/danger for something that needs attention. With `href` the
+ * whole cell is one link to the screen behind the number.
+ *
+ * Put several in a MetricStrip: they share one ruled frame instead of each
+ * floating as its own card. On its own a MetricCard draws its own frame.
+ * There's no icon: a tinted icon tile beside every number is decoration.
  */
 export function MetricCard({
   label,
   value,
   hint,
-  icon: Icon,
   tone = "default",
   emphasis = false,
   className,
@@ -42,7 +36,6 @@ export function MetricCard({
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
-  icon?: LucideIcon;
   tone?: Tone;
   /** Shorthand for tone="primary". */
   emphasis?: boolean;
@@ -52,25 +45,20 @@ export function MetricCard({
 }) {
   const resolved: Tone = emphasis && tone === "default" ? "primary" : tone;
   const cardClass = cn(
-    "flex min-w-0 items-start gap-3 rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]",
-    href && "transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-[var(--shadow-raised)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+    "flex min-w-0 flex-col gap-1 rounded-lg border bg-card px-4 py-3.5",
+    // Inside a strip the strip draws the frame and the rules between cells.
+    "in-data-[slot=metric-strip]:rounded-none in-data-[slot=metric-strip]:border-t-0 in-data-[slot=metric-strip]:border-l-0",
+    href && "transition-colors duration-150 hover:bg-accent/50 focus-visible:z-10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
     className,
   );
   const body = (
     <>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase" title={label}>
-          {label}
-        </span>
-        <span className={cn("truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl", VALUE_TONE[resolved])}>{value}</span>
-        {/* Up to two lines: a hint is a short sentence, and cutting it mid-word hides its point. */}
-        {hint && <span className="line-clamp-2 text-xs text-muted-foreground">{hint}</span>}
-      </div>
-      {Icon && (
-        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", ICON_TONE[resolved])} aria-hidden="true">
-          <Icon className="size-4" />
-        </span>
-      )}
+      <span className="truncate text-[13px] text-muted-foreground" title={label}>
+        {label}
+      </span>
+      <span className={cn("truncate text-2xl leading-tight font-semibold tracking-[-0.02em] tabular-nums", VALUE_TONE[resolved])}>{value}</span>
+      {/* Up to two lines: a hint is a short sentence, and cutting it mid-word hides its point. */}
+      {hint && <span className="line-clamp-2 text-xs text-muted-foreground">{hint}</span>}
     </>
   );
   if (href) {
@@ -83,6 +71,26 @@ export function MetricCard({
   return (
     <div className={cardClass} data-testid={testId}>
       {body}
+    </div>
+  );
+}
+
+const STRIP_COLUMNS: Record<2 | 3 | 4 | 5, string> = {
+  2: "grid-cols-2",
+  3: "grid-cols-2 sm:grid-cols-3",
+  4: "grid-cols-2 lg:grid-cols-4",
+  5: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5",
+};
+
+/**
+ * A row of MetricCards in one ruled frame with hairlines between the cells,
+ * like the totals line of a ledger page. Each cell draws its right and
+ * bottom rule; the inner grid tucks the outermost ones under the frame.
+ */
+export function MetricStrip({ columns = 4, className, children, testId }: { columns?: 2 | 3 | 4 | 5; className?: string; children: React.ReactNode; testId?: string }) {
+  return (
+    <div data-slot="metric-strip" data-testid={testId} className={cn("overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]", className)}>
+      <div className={cn("-mr-px -mb-px grid", STRIP_COLUMNS[columns])}>{children}</div>
     </div>
   );
 }

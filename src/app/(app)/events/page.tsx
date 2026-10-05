@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { CalendarClock, CalendarDays, CalendarRange } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EventService } from "@/domains/events/event-service";
 import { EventCategoryService } from "@/domains/catalog/event-category-service";
 import { shiftMonth } from "@/domains/events/calendar";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { addDays, formatDateKey, localDateKey } from "@/lib/date-key";
 import { EventsCalendar } from "./events-calendar";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -69,7 +69,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
     <div className="flex flex-col gap-6">
       <PageHeader title="Company calendar" description="Meetings, holidays and deadlines for everyone. Pick a day to see or add its events." />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MetricStrip columns={3}>
         <MetricCard
           label="Next event"
           value={nextEvent ? nextEvent.title : "None"}
@@ -78,12 +78,11 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
               ? `${nextEvent.date === todayKey ? "Today" : formatDateKey(nextEvent.date, { weekday: "short", month: "short", day: "numeric" })}${nextEvent.time ? ` at ${nextEvent.time}` : ""}`
               : "No upcoming events this month or next"
           }
-          icon={CalendarClock}
           emphasis={Boolean(nextEvent)}
         />
-        <MetricCard label="Next 7 days" value={nextSevenDays} hint={nextSevenDays === 1 ? "event this week" : "events this week"} icon={CalendarDays} />
-        <MetricCard label={`In ${monthLabel}`} value={eventsForCalendar.length} hint={`${categoryOptions.length} categories`} icon={CalendarRange} />
-      </div>
+        <MetricCard label="Next 7 days" value={nextSevenDays} hint={nextSevenDays === 1 ? "event this week" : "events this week"} />
+        <MetricCard label={`In ${monthLabel}`} value={eventsForCalendar.length} hint={`${categoryOptions.length} categories`} />
+      </MetricStrip>
 
       <EventsCalendar
         organizationId={organizationId}

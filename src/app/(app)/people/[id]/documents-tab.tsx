@@ -31,7 +31,7 @@ export function DocumentsTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Documents</CardTitle>
+        <CardTitle>Documents</CardTitle>
         <CardDescription>Contracts, IDs and certificates on file, with expiry dates</CardDescription>
         {canCreateDocuments && (
           <CardAction>

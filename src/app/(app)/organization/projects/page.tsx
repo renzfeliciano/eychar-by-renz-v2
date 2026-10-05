@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FolderKanban, MapPin, Navigation, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
@@ -13,7 +13,7 @@ import { loadHeadcount } from "@/domains/workforce/headcount";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { CreateProjectDialog } from "./create-project-dialog";
 import { EditProjectDialog } from "./edit-project-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -57,16 +57,15 @@ export default async function ProjectsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Projects" description="Operational projects and client engagements. Payroll, schedules and clock-in can all run per project." action={createAction} />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active projects" value={active.length} hint={`${projects.length - active.length} closed or inactive`} icon={FolderKanban} />
+      <MetricStrip columns={5}>
+        <MetricCard label="Active projects" value={active.length} hint={`${projects.length - active.length} closed or inactive`} />
         {organizationWide ? (
-          <MetricCard label="Staff on projects" value={headcount.total - headcount.unassigned.project} hint={`of ${headcount.total} current employees`} icon={Users} emphasis />
+          <MetricCard label="Staff on projects" value={headcount.total - headcount.unassigned.project} hint={`of ${headcount.total} current employees`} emphasis />
         ) : (
           <MetricCard
             label="Staff on your projects"
             value={projects.reduce((sum, project) => sum + (headcount.byProject.get(project._id.toString()) ?? 0), 0)}
             hint="Current employees"
-            icon={Users}
             emphasis
           />
         )}
@@ -74,14 +73,13 @@ export default async function ProjectsPage() {
           label="Clock-in ready"
           value={`${clockInReady} / ${active.length}`}
           hint="Active projects with a geofenced site"
-          icon={Navigation}
           tone={clockInReady < active.length ? "warning" : "success"}
         />
         {/* Organization-wide figure: not shown to a viewer scoped to particular projects. */}
         {organizationWide && (
-          <MetricCard label="Not on a project" value={headcount.unassigned.project} hint="Current employees" icon={MapPin} tone={headcount.unassigned.project ? "warning" : "default"} />
+          <MetricCard label="Not on a project" value={headcount.unassigned.project} hint="Current employees" tone={headcount.unassigned.project ? "warning" : "default"} />
         )}
-      </div>
+      </MetricStrip>
 
       <DataTable
         caption="Projects"

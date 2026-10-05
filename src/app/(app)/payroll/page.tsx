@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { after } from "next/server";
-import { CalendarClock, CircleCheck, FilePen, Hourglass, Wallet } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
@@ -13,7 +13,7 @@ import { dateToDateKey, formatDateKey, formatDateRange, localDateKey } from "@/l
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "./payroll-status-badge";
 import { NewRunDialog, type RunSuggestion } from "./new-run-dialog";
@@ -97,21 +97,20 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Drafts" value={countByStatus.get("draft") ?? 0} hint="Being prepared" icon={FilePen} />
-        <MetricCard label="Awaiting approval" value={countByStatus.get("submitted") ?? 0} hint="Submitted for approval" icon={Hourglass} />
-        <MetricCard label="Ready to release" value={countByStatus.get("approved") ?? 0} hint="Approved, not yet paid" icon={CircleCheck} />
+      <MetricStrip columns={4}>
+        <MetricCard label="Drafts" value={countByStatus.get("draft") ?? 0} hint="Being prepared" />
+        <MetricCard label="Awaiting approval" value={countByStatus.get("submitted") ?? 0} hint="Submitted for approval" />
+        <MetricCard label="Ready to release" value={countByStatus.get("approved") ?? 0} hint="Approved, not yet paid" />
         <MetricCard
           label={`Released in ${year}`}
           value={formatPeso(releasedThisYear.reduce((sum, run) => sum + (run.totals?.netPay ?? 0), 0))}
           hint={nextPayDate ? `Next scheduled pay date ${formatDateKey(nextPayDate, { month: "short", day: "numeric" })}` : `${releasedThisYear.length} runs paid`}
-          icon={Wallet}
           emphasis
         />
-      </div>
+      </MetricStrip>
 
       <div className="flex flex-col gap-3">
-        <nav aria-label="Filter by status" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+        <nav aria-label="Filter by status" className="flex max-w-full gap-0.5 self-start overflow-x-auto rounded-lg border bg-card p-0.5">
           {STATUS_FILTERS.map((status) => {
             const count = status === "all" ? runs.length : (countByStatus.get(status) ?? 0);
             const active = statusFilter === status;
@@ -121,12 +120,12 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
                 href={buildTableHref("/payroll", params, { status: status === "all" ? undefined : status, page: undefined })}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-[color,background-color,border-color] duration-150",
-                  active ? "border-primary bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:border-ring/50 hover:text-foreground",
+                  "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[13px] max-md:min-h-9 transition-[color,background-color] duration-150",
+                  active ? "bg-primary font-medium text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {status === "all" ? "All" : PAYROLL_RUN_STATUS_LABELS[status]}
-                <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{count}</span>
+                <span className={cn("text-xs tabular-nums", active ? "text-primary-foreground/70" : "text-muted-foreground/80")}>{count}</span>
               </Link>
             );
           })}

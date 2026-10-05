@@ -11,10 +11,10 @@ export default function RootError({ error, reset }: { error: Error & { digest?: 
   }, [error]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm text-center shadow-lg">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm text-center shadow-[var(--shadow-raised)]">
         <CardHeader className="items-center">
-          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+          <div className="mb-1 text-destructive">
             <TriangleAlertIcon className="size-5" />
           </div>
           <CardTitle className="text-xl">This page couldn&apos;t load</CardTitle>

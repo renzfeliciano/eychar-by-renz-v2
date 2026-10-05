@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Ban, CalendarClock, CalendarDays, Plane } from "lucide-react";
+
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSearchInput } from "@/components/shared/table-search-input";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { TravelOrderFormDialog } from "./travel-order-form-dialog";
@@ -124,12 +124,12 @@ export default async function TravelOrdersPage({ searchParams }: { searchParams:
             </div>
           }
         />
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <MetricCard label="Away today" value={travellingToday} hint={`${ongoing.length} ongoing order${ongoing.length === 1 ? "" : "s"}`} icon={Plane} emphasis />
-          <MetricCard label="Upcoming" value={upcoming} hint="Starting after today" icon={CalendarClock} />
-          <MetricCard label="This month" value={thisMonth} hint="Orders overlapping this month" icon={CalendarDays} />
-          <MetricCard label="Cancelled" value={travelOrders.length - live.length} hint="Kept on record" icon={Ban} />
-        </div>
+        <MetricStrip columns={4}>
+          <MetricCard label="Away today" value={travellingToday} hint={`${ongoing.length} ongoing order${ongoing.length === 1 ? "" : "s"}`} emphasis />
+          <MetricCard label="Upcoming" value={upcoming} hint="Starting after today" />
+          <MetricCard label="This month" value={thisMonth} hint="Orders overlapping this month" />
+          <MetricCard label="Cancelled" value={travelOrders.length - live.length} hint="Kept on record" />
+        </MetricStrip>
 
         <TravelTimeline orders={timelineOrders} todayKey={todayKey} />
 
@@ -165,7 +165,7 @@ export default async function TravelOrdersPage({ searchParams }: { searchParams:
                   <div className="flex items-center gap-2.5">
                     <div className="flex -space-x-2" aria-hidden="true">
                       {names.slice(0, 3).map((name, index) => (
-                        <span key={`${name}-${index}`} className="flex size-7 items-center justify-center rounded-full border-2 border-card bg-primary/10 text-[10px] font-semibold text-primary">
+                        <span key={`${name}-${index}`} className="flex size-7 items-center justify-center rounded-full border-2 border-card bg-secondary text-[10px] font-semibold text-secondary-foreground">
                           {name
                             .split(" ")
                             .filter(Boolean)

@@ -38,7 +38,7 @@ export function JobTab({
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <Card className="self-start">
         <CardHeader>
-          <CardTitle className="text-base">Assignment history</CardTitle>
+          <CardTitle>Assignment history</CardTitle>
           <CardDescription>Every position, project and manager change, newest first</CardDescription>
         </CardHeader>
         <CardContent>

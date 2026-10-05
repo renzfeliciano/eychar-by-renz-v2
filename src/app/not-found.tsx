@@ -5,10 +5,10 @@ import { buttonVariants } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm text-center shadow-lg">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm text-center shadow-[var(--shadow-raised)]">
         <CardHeader className="items-center">
-          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="mb-1 text-primary">
             <CompassIcon className="size-5" />
           </div>
           <CardTitle className="text-xl">Page not found</CardTitle>

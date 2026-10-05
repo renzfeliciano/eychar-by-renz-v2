@@ -70,7 +70,7 @@ export function SiteCoordinatesFields({
   const hasPair = value.latitude.trim() !== "" && value.longitude.trim() !== "";
 
   return (
-    <fieldset className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-3">
+    <fieldset className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
       <legend className="sr-only">Clock-in site</legend>
       <div className="flex items-start gap-2">
         <MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />

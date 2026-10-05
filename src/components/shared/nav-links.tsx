@@ -302,7 +302,7 @@ export function NavLinks({
                 aria-expanded={!isCollapsed}
                 aria-controls={`nav-section-${slug}`}
                 data-testid={`nav-section-toggle-${slug}`}
-                className="group mb-0.5 flex h-7 cursor-pointer max-md:h-9 items-center justify-between rounded-md px-2.5 text-[11px] font-semibold tracking-[0.07em] text-muted-foreground/90 uppercase transition-colors duration-150 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
+                className="group mb-0.5 flex h-7 cursor-pointer max-md:h-9 items-center justify-between rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
               >
                 {section.label}
                 <ChevronDown
@@ -328,17 +328,18 @@ export function NavLinks({
                       title={collapsed ? item.label : undefined}
                       data-testid={`nav-link-${item.tabs ? sectionSlug(item.label) : slugify(item.href)}`}
                       className={cn(
-                        "group/nav relative flex h-[34px] items-center max-md:h-10 gap-3 rounded-md px-2.5 text-[13.5px] transition-[color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none",
+                        "group/nav relative flex h-[34px] items-center max-md:h-10 gap-3 rounded-md px-2.5 text-[13.5px] transition-[color,background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none",
                         collapsed && "h-9 justify-center px-0",
+                        // The current page is a sheet lifted off the sidebar: card surface, hairline edge, navy ink.
                         isActive
-                          ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-sidebar-primary"
-                          : "font-medium text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                          ? "bg-card font-semibold text-sidebar-primary shadow-[0_1px_2px_oklch(0.235_0.028_262/8%)] ring-1 ring-sidebar-border dark:bg-sidebar-accent dark:text-sidebar-accent-foreground"
+                          : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                       )}
                     >
                       <Icon
                         className={cn(
                           "size-4 shrink-0 transition-colors duration-150",
-                          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/55 group-hover/nav:text-sidebar-foreground/80",
+                          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80",
                         )}
                         strokeWidth={isActive ? 2 : 1.75}
                         aria-hidden="true"

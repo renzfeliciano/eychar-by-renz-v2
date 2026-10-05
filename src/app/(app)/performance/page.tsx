@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarRange, CircleCheck, FilePen, PlayCircle } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { ReviewCycleService } from "@/domains/performance/review-cycle-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { CreateReviewCycleDialog } from "./create-review-cycle-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 import { formatCalendarDate } from "@/lib/date-key";
@@ -37,12 +37,12 @@ export default async function PerformancePage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Review cycles" description="Performance review periods, and the reviews recorded within each." action={createAction} />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Open" value={count("open")} hint={current ? `Current: ${current.name}` : "Accepting reviews"} icon={PlayCircle} emphasis />
-        <MetricCard label="Drafts" value={count("draft")} hint="Not open for reviews yet" icon={FilePen} />
-        <MetricCard label="Closed" value={count("closed")} hint="Completed cycles" icon={CircleCheck} />
-        <MetricCard label="All cycles" value={cycles.length} hint="On record" icon={CalendarRange} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="Open" value={count("open")} hint={current ? `Current: ${current.name}` : "Accepting reviews"} emphasis />
+        <MetricCard label="Drafts" value={count("draft")} hint="Not open for reviews yet" />
+        <MetricCard label="Closed" value={count("closed")} hint="Completed cycles" />
+        <MetricCard label="All cycles" value={cycles.length} hint="On record" />
+      </MetricStrip>
 
       <DataTable
         caption="Review cycles"

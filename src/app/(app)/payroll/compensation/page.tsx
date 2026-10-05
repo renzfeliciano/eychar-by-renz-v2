@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CalendarClock, CircleAlert, Sun, Users } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { CompensationService } from "@/domains/payroll/compensation-service";
@@ -13,7 +13,7 @@ import { dateToDateKey, formatDateKey, localDateKey } from "@/lib/date-key";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { CompensationFormDialog, type CompensationTerms } from "./compensation-form-dialog";
 import { BulkChangeDialog } from "./bulk-change-dialog";
@@ -84,23 +84,21 @@ export default async function CompensationPage({ searchParams }: { searchParams:
         action={canUpdate ? <BulkChangeDialog organizationId={organizationId} projects={projectOptions} /> : undefined}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="With pay terms" value={`${withTerms.length} / ${rows.length}`} hint="Current employees" icon={Users} />
+      <MetricStrip columns={4}>
+        <MetricCard label="With pay terms" value={`${withTerms.length} / ${rows.length}`} hint="Current employees" />
         <MetricCard
           label="Monthly · daily"
           value={`${withTerms.filter((row) => row.current!.rateType === "monthly").length} · ${withTerms.filter((row) => row.current!.rateType === "daily").length}`}
           hint="By pay basis"
-          icon={Sun}
         />
-        <MetricCard label="Scheduled changes" value={rows.filter((row) => row.upcoming).length} hint="Dated after today" icon={CalendarClock} />
+        <MetricCard label="Scheduled changes" value={rows.filter((row) => row.upcoming).length} hint="Dated after today" />
         <MetricCard
           label="Missing pay terms"
           value={rows.length - withTerms.length}
           hint={rows.length - withTerms.length ? "Left out of payroll until set" : "Everyone is set"}
-          icon={CircleAlert}
           tone={rows.length - withTerms.length > 0 ? "warning" : "success"}
         />
-      </div>
+      </MetricStrip>
 
       <div className="flex flex-col gap-3">
         <TableSearchInput placeholder="Find by name, employee # or project" />

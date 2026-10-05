@@ -8,9 +8,9 @@ import { PAY_FREQUENCY_LABELS, type PayFrequency } from "@/domains/payroll/engin
 import { WEEKDAY_NAMES } from "@/domains/payroll/payroll-labels";
 import { dateToDateKey, formatDateKey } from "@/lib/date-key";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { policyCoverage } from "@/server/policies/policy-coverage";
-import { Building2, CalendarClock, FolderKanban } from "lucide-react";
+
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreatePayrollPolicyDialog } from "./create-payroll-policy-dialog";
@@ -51,18 +51,17 @@ export default async function PayrollPoliciesPage() {
         description="How pay is computed: frequency, workdays, lates, and when contributions come off. A project policy overrides the organization's."
         action={canCreate ? <CreatePayrollPolicyDialog organizationId={organizationId} projects={projectOptions} /> : undefined}
       />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MetricStrip columns={3}>
         <MetricCard
           label="Organization-wide"
           value={coverage.orgWide}
           hint={coverage.orgWide ? "Used where a project has none" : "None yet: payroll runs can't be prepared"}
-          icon={Building2}
           emphasis={coverage.orgWide > 0}
           tone={coverage.orgWide ? "default" : "danger"}
         />
-        <MetricCard label="Project overrides" value={coverage.projectOverrides} hint={`${coverage.projectsWithOwn} of ${projects.length} projects paid differently`} icon={FolderKanban} />
-        <MetricCard label="Pay frequencies" value={frequencies.length || "—"} hint={frequencies.join(", ") || "Set by the first policy"} icon={CalendarClock} />
-      </div>
+        <MetricCard label="Project overrides" value={coverage.projectOverrides} hint={`${coverage.projectsWithOwn} of ${projects.length} projects paid differently`} />
+        <MetricCard label="Pay frequencies" value={frequencies.length || "—"} hint={frequencies.join(", ") || "Set by the first policy"} />
+      </MetricStrip>
       <DataTable
         caption="Payroll policies"
         columns={[

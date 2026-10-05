@@ -14,6 +14,15 @@ Precedence: these conventions + `.claude/skills/THIRD_PARTY_SKILLS.md` (impeccab
 - Render `FormError` only when there's an error (`{error && <FormError …/>}`) so dialogs don't get empty bands.
 - Footer actions: primary on the right with a present-participle loading label ("Saving…"); secondary is `variant="ghost"` or `"outline"`.
 
+## Look (ADR-048, the navy ledger)
+- Tokens only (`primary`, `muted-foreground`, `border`, `rule`, `success`/`warning`/`destructive`): no Tailwind palette colors except user-chosen categorical ones (shift colors, chart groups).
+- Figures go in `MetricStrip` + `MetricCard` (no icons). Status is `StatusBadge` (dot + word). No uppercase micro-labels, eyebrows, gradients, tinted icon tiles or colored card edges.
+
+## Loading
+- Every route has its own `loading.tsx` built from `@/components/shared/skeletons` inside `PageLoader`, in the page's own order and shape.
+- Code that navigates on the same page (filters, pickers) uses `usePendingNavigation().push`; links inside the workspace are handled by `PendingNavigationRegion` automatically.
+- Lists fetched inside a dialog show skeleton rows (`Bone`), not a spinner line.
+
 ## Mutation feedback (enforced by `tests/standards/mutation-feedback.test.ts`)
 - Every POST/PATCH/PUT/DELETE shows a spinner (`Loader2 … animate-spin`) with present-participle text while running, and ends with `toast.success(...)` or an inline error / `toast.error(...)`.
 - Toast titles are short past-tense facts ("Added Cebu Charter Day"); add a description only when it tells something new. Reversible actions offer `action: { label: "Undo", onClick }` (see `HideToggle`).

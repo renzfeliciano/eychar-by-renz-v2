@@ -20,21 +20,19 @@ export function ModuleTabs({ isSuperAdmin = false, heldPermissions }: { isSuperA
   if (tabs.length < 2) return null;
 
   return (
-    <nav aria-label={active.item.label} className="-mx-1 mb-6 flex gap-1 overflow-x-auto border-b px-1 print:hidden" data-testid="module-tabs">
+    <nav aria-label={active.item.label} className="-mx-1 mb-7 flex gap-5 overflow-x-auto border-b px-1 [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden" data-testid="module-tabs">
       {tabs.map((tab) => {
         const isActive = tab.href === active.tab!.href;
-        const Icon = tab.icon;
         return (
           <Link
             key={tab.href}
             href={tab.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "relative -mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
-              isActive ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+              "relative -mb-px flex shrink-0 items-center border-b-2 py-2.5 text-sm whitespace-nowrap transition-colors duration-150",
+              isActive ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-muted-foreground hover:border-input hover:text-foreground",
             )}
           >
-            <Icon className="size-4" aria-hidden="true" />
             {tab.label}
           </Link>
         );

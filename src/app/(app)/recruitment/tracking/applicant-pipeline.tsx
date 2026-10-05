@@ -135,7 +135,7 @@ export function ApplicantPipeline({
               onClick={() => setView(value)}
               className={cn(
                 "flex h-7 max-md:h-10 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:text-foreground",
-                view === value && "bg-background text-foreground shadow-[var(--shadow-soft)]",
+                view === value && "bg-card text-foreground shadow-[0_1px_2px_oklch(0.235_0.028_262/10%)] ring-1 ring-border",
               )}
             >
               <Icon className="size-3.5" aria-hidden="true" />

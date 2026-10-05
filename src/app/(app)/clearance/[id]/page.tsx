@@ -4,7 +4,7 @@ import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
-import { AlarmClock, CalendarClock, CircleDollarSign, ListChecks, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { ClearanceService } from "@/domains/clearance/clearance-service";
@@ -14,7 +14,7 @@ import { userDisplayNames } from "@/domains/identity/user-directory";
 import { AuditLogModel } from "@/server/db/models";
 import { NotFoundError } from "@/shared/errors";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -89,17 +89,16 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Items resolved" value={`${progress.resolved} of ${progress.total}`} hint={progress.blockingOpen ? `${progress.blockingOpen} blocking still open` : "Nothing blocks final pay"} icon={ListChecks} emphasis />
-        <MetricCard label="Overdue" value={progress.overdue} hint={progress.overdue ? "Past due, still pending" : "Everything is on time"} icon={AlarmClock} tone={progress.overdue ? "danger" : "success"} />
+      <MetricStrip columns={4}>
+        <MetricCard label="Items resolved" value={`${progress.resolved} of ${progress.total}`} hint={progress.blockingOpen ? `${progress.blockingOpen} blocking still open` : "Nothing blocks final pay"} emphasis />
+        <MetricCard label="Overdue" value={progress.overdue} hint={progress.overdue ? "Past due, still pending" : "Everything is on time"} tone={progress.overdue ? "danger" : "success"} />
         <MetricCard
           label="Last working day"
           value={daysToLastDay > 0 ? `${daysToLastDay} day${daysToLastDay === 1 ? "" : "s"}` : daysToLastDay === 0 ? "Today" : "Passed"}
           hint={new Date(clearance.lastWorkingDay).toLocaleDateString("en-US", SHORT)}
-          icon={CalendarClock}
         />
-        <MetricCard label="Flagged amounts" value={formatMoney(progress.flaggedAmount)} hint="Proposed deductions for final settlement" icon={CircleDollarSign} tone={progress.flaggedAmount ? "warning" : "default"} />
-      </div>
+        <MetricCard label="Flagged amounts" value={formatMoney(progress.flaggedAmount)} hint="Proposed deductions for final settlement" tone={progress.flaggedAmount ? "warning" : "default"} />
+      </MetricStrip>
 
       {clearance.status === "cancelled" && (
         <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
@@ -113,7 +112,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
             <Card key={department.code}>
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base">{department.name}</CardTitle>
+                  <CardTitle>{department.name}</CardTitle>
                   <CardDescription>
                     {department.resolved} of {department.total} resolved{department.overdue ? ` · ${department.overdue} overdue` : ""}
                   </CardDescription>
@@ -136,7 +135,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-medium">{item.title}</p>
-                            {item.blocking && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase">Blocking</span>}
+                            {item.blocking && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">Blocking</span>}
                           </div>
                           <p className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
                             {overdue ? "Overdue · " : ""}Due {item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-US", SHORT) : "—"}
@@ -189,14 +188,14 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
             </Card>
           ))}
           {itemsByDepartment.length === 0 && (
-            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">This clearance has no checklist items. Add items from Clearance › Checklist for future cases.</p>
+            <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">This clearance has no checklist items. Add items from Clearance › Checklist for future cases.</p>
           )}
         </div>
 
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Separation</CardTitle>
+              <CardTitle>Separation</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="grid gap-3 text-sm">
@@ -217,7 +216,7 @@ export default async function ClearanceCasePage({ params }: { params: Promise<{ 
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Activity</CardTitle>
+              <CardTitle>Activity</CardTitle>
               <CardDescription>Every change, from the audit log</CardDescription>
             </CardHeader>
             <CardContent>

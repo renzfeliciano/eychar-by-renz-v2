@@ -122,7 +122,7 @@ export function CreateLeaveBalanceDialog({ organizationId, employees, leaveTypes
                   onClick={() => setScope(value)}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-150",
-                    scope === value ? "bg-background text-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground",
+                    scope === value ? "bg-card text-foreground shadow-[0_1px_2px_oklch(0.235_0.028_262/10%)] ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {value === "one" ? "One employee" : "Everyone without it"}

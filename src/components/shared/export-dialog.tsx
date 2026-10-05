@@ -84,7 +84,7 @@ export function ExportDialog({
               const isBuilding = building === format;
               const inactive = blocked || (building !== null && !isBuilding);
               const className = cn(
-                "group flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-[border-color,background-color,scale] duration-150 ease-out",
+                "group flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-[border-color,background-color,scale] duration-150 ease-out",
                 "hover:border-primary/60 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none active:scale-[0.98]",
                 inactive && "pointer-events-none opacity-50",
               );

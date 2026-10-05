@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CalendarCheck2, CircleDashed, Clock3, Palmtree, UserX } from "lucide-react";
+
 import { clockTime } from "@/lib/app-time";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -12,7 +12,7 @@ import { parseTableQuery, buildTableHref } from "@/lib/table-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { DateNav } from "./date-nav";
 import { RecordDialog } from "./record-dialog";
 import { ExportAttendanceDialog } from "./export-attendance-dialog";
@@ -89,13 +89,13 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
         <p className="text-sm text-muted-foreground">{dayLabel}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <MetricCard label="Present" value={present} hint={`of ${total} employees`} icon={CalendarCheck2} tone="success" />
-        <MetricCard label="Late" value={late} hint="Past the grace period" icon={Clock3} tone={late ? "warning" : "default"} />
-        <MetricCard label="Absent" value={absent} hint="Marked absent" icon={UserX} tone={absent ? "danger" : "default"} />
-        <MetricCard label="On leave" value={onLeave} hint="Approved leave" icon={Palmtree} />
-        <MetricCard label="Not recorded" value={notRecorded} hint={notRecorded ? "No clock-in or entry yet" : "Everyone is accounted for"} icon={CircleDashed} className="col-span-2 sm:col-span-1" />
-      </div>
+      <MetricStrip columns={5}>
+        <MetricCard label="Present" value={present} hint={`of ${total} employees`} tone="success" />
+        <MetricCard label="Late" value={late} hint="Past the grace period" tone={late ? "warning" : "default"} />
+        <MetricCard label="Absent" value={absent} hint="Marked absent" tone={absent ? "danger" : "default"} />
+        <MetricCard label="On leave" value={onLeave} hint="Approved leave" />
+        <MetricCard label="Not recorded" value={notRecorded} hint={notRecorded ? "No clock-in or entry yet" : "Everyone is accounted for"} className="col-span-2 sm:col-span-1" />
+      </MetricStrip>
 
       <DataTable
         caption={`Attendance for ${dayLabel}`}
@@ -107,7 +107,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
               const name = row.person ? formatPersonName(row.person) : "—";
               return (
                 <div className="flex items-center gap-2.5">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
                     {initials(name)}
                   </span>
                   <span className="flex min-w-0 flex-col">

@@ -233,7 +233,7 @@ export function MfaPanel({ enabled, enabledAt, recoveryCodesLeft }: { enabled: b
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className={`flex size-10 items-center justify-center rounded-lg ${enabled ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`} aria-hidden="true">
+        <span className={`flex size-10 items-center justify-center rounded-full ring-1 ${enabled ? "text-success ring-success/30" : "text-muted-foreground ring-border"}`} aria-hidden="true">
           {enabled ? <ShieldCheck className="size-5" /> : <Smartphone className="size-5" />}
         </span>
         <div className="flex min-w-0 flex-1 basis-64 flex-col">

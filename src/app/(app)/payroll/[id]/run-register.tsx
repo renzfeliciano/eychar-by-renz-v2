@@ -51,7 +51,7 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
 
   if (records.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-card px-6 py-12 text-center text-sm text-muted-foreground" role="status">
+      <div className="rounded-lg border border-dashed bg-card px-6 py-12 text-center text-sm text-muted-foreground" role="status">
         No one to pay in this run. Check that employees in scope have pay terms and an active employment status.
       </div>
     );
@@ -67,7 +67,7 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
         <p className="text-sm text-muted-foreground">{editable ? "Open a payslip to add overtime, holiday pay, loans and other adjustments." : "Open a payslip for the full breakdown."}</p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+      <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]">
         <DataTableFrame
           testId="payroll-register"
           tableClassName="min-w-[760px]"
@@ -243,7 +243,7 @@ function Payslip({
         </dl>
 
         <section className="flex flex-col">
-          <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Earnings</h3>
+          <h3 className="mb-1 text-xs font-medium text-muted-foreground">Earnings</h3>
           {row.earnings.map((line, index) => (
             <Line key={`${line.code}-${index}`} label={`${line.label}${line.taxable === false ? " (non-taxable)" : ""}`} amount={line.amount} />
           ))}
@@ -253,7 +253,7 @@ function Payslip({
         </section>
 
         <section className="flex flex-col">
-          <h3 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Deductions</h3>
+          <h3 className="mb-1 text-xs font-medium text-muted-foreground">Deductions</h3>
           {row.contributions.map((line) => (
             <Line key={line.code} label={line.name} amount={line.employee} />
           ))}
@@ -266,7 +266,7 @@ function Payslip({
           </div>
         </section>
 
-        <div className="flex items-baseline justify-between rounded-xl border bg-primary/5 px-4 py-3">
+        <div className="flex items-baseline justify-between rounded-lg border bg-primary/5 px-4 py-3">
           <span className="text-sm font-medium">Net pay</span>
           <span className={cn("text-2xl font-semibold tracking-tight tabular-nums", row.netPay < 0 ? "text-destructive" : "text-primary")}>{formatPeso(row.netPay)}</span>
         </div>

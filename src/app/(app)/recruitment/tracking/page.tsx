@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Briefcase, UserCheck, UserPlus, Users } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { RecruitmentStageService } from "@/domains/catalog/recruitment-stage-service";
@@ -8,7 +8,7 @@ import { LEGACY_HIRED_STAGE_CODES, isHiredStage } from "@/domains/recruitment/pi
 import { codesWithFlag } from "@/domains/catalog/catalog-flags";
 import { PositionService } from "@/domains/organization/position-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { ApplicantPipeline } from "./applicant-pipeline";
 import { ApplicantFormDialog } from "./applicant-form-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -80,21 +80,20 @@ export default async function ApplicationTrackingPage() {
         action={canCreate ? <ApplicantFormDialog organizationId={organizationId} positions={positionOptions} /> : undefined}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="In the pipeline" value={inPipeline.length} hint={stalled ? `${stalled} waiting over 30 days` : "Not yet hired or rejected"} icon={Users} emphasis />
-        <MetricCard label="New applicants" value={recent} hint="Applied in the last 30 days" icon={UserPlus} />
-        <MetricCard label="Positions hiring" value={hiringFor} hint="With applicants in progress" icon={Briefcase} />
+      <MetricStrip columns={4}>
+        <MetricCard label="In the pipeline" value={inPipeline.length} hint={stalled ? `${stalled} waiting over 30 days` : "Not yet hired or rejected"} emphasis />
+        <MetricCard label="New applicants" value={recent} hint="Applied in the last 30 days" />
+        <MetricCard label="Positions hiring" value={hiringFor} hint="With applicants in progress" />
         <MetricCard
           label="Hired"
           value={hired}
           hint={closed ? `${Math.round((hired / closed) * 100)}% of closed applications` : "No closed applications yet"}
-          icon={UserCheck}
           tone={hired ? "success" : "default"}
         />
-      </div>
+      </MetricStrip>
 
       {allStages.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 rounded-xl border border-dashed bg-card p-10 text-center">
+        <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed bg-card p-10 text-center">
           <p className="text-sm font-medium">No recruitment stages yet</p>
           <p className="text-sm text-muted-foreground">Add your hiring stages (e.g. Applied, Interview, Offer, Hired) under Settings › Catalogs.</p>
         </div>

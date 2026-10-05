@@ -55,9 +55,10 @@ describe("DeletionService", () => {
         { label: "Pay terms", count: 1 },
         { label: "Login accounts", count: 1 },
         { label: "Travel orders shared with others (removed from them)", count: 1 },
-        { label: "People reporting to them (manager cleared)", count: 1 },
       ]),
     );
+    // Reporting lines live on the org chart now (ADR-046): nothing to clear, the card just drops off.
+    expect(preview.summary.map((line) => line.label)).not.toContain("People reporting to them (manager cleared)");
   });
 
   it("moves an employee and their records to the recycle bin, and restores them exactly", async () => {

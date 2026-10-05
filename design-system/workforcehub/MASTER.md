@@ -1,5 +1,11 @@
 # Design System Master File
 
+> **Superseded in part by ADR-048 (October 2026): the navy ledger.** Brand color is the PCAS navy
+> (`oklch(0.335 0.095 260)`, about #173567) on warm paper (#faf8f4), one family (IBM Plex Sans),
+> hairline rules over shadows, radius 0.5rem, no glassmorphism, no gradients, no icon tiles or
+> uppercase micro-labels. The tokens in `src/app/globals.css` are the source of truth; the palette,
+> typography, card and glass rules below are historical.
+
 > **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.
 > If not, strictly follow the rules below.

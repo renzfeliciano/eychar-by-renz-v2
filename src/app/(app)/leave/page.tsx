@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CalendarCheck, CalendarClock, Hourglass, Palmtree } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { LeaveRequestService } from "@/domains/leave/leave-request-service";
@@ -9,7 +9,7 @@ import { formatPersonName as employeeName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusFilterTabs } from "@/components/shared/status-filter-tabs";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { parseTableQuery, buildTableHref } from "@/lib/table-query";
@@ -104,18 +104,17 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
     <div className="flex flex-col gap-6">
       <PageHeader title="Leave requests" description="Requests filed for employees, from request to approval, with balances checked on the way." action={createAction} />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <MetricStrip columns={4}>
         <MetricCard
           label="Awaiting approval"
           value={pending.count}
           hint={`${pending.days} days requested`}
-          icon={Hourglass}
           tone={pending.count ? "warning" : "default"}
         />
-        <MetricCard label="On leave today" value={onLeaveToday} hint="Approved leave covering today" icon={Palmtree} emphasis />
-        <MetricCard label="Starting soon" value={upcoming} hint="Approved, within 30 days" icon={CalendarClock} />
-        <MetricCard label="Approved this month" value={approvedDaysThisMonth} hint="Days of leave" icon={CalendarCheck} />
-      </div>
+        <MetricCard label="On leave today" value={onLeaveToday} hint="Approved leave covering today" emphasis />
+        <MetricCard label="Starting soon" value={upcoming} hint="Approved, within 30 days" />
+        <MetricCard label="Approved this month" value={approvedDaysThisMonth} hint="Days of leave" />
+      </MetricStrip>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -149,7 +148,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
                 const name = employeeName(employee?.person ?? null);
                 return (
                   <div className="flex items-center gap-2.5">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
                       {initials(name)}
                     </span>
                     <span className="flex min-w-0 flex-col">

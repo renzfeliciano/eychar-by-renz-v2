@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Building, MapPin, Navigation, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
@@ -10,7 +10,7 @@ import { loadHeadcount } from "@/domains/workforce/headcount";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { CreateLocationDialog } from "./create-location-dialog";
 import { EditLocationDialog } from "./edit-location-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -46,18 +46,17 @@ export default async function LocationsPage() {
         action={createAction}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active locations" value={active.length} hint={`${locations.length - active.length} retired`} icon={Building} />
-        <MetricCard label="Clock-in sites" value={sites.length} hint="With coordinates and a radius" icon={Navigation} emphasis />
+      <MetricStrip columns={4}>
+        <MetricCard label="Active locations" value={active.length} hint={`${locations.length - active.length} retired`} />
+        <MetricCard label="Clock-in sites" value={sites.length} hint="With coordinates and a radius" emphasis />
         <MetricCard
           label="Without coordinates"
           value={withoutCoordinates}
           hint={withoutCoordinates ? "Not usable for clock-in yet" : "All are clock-in ready"}
-          icon={MapPin}
           tone={withoutCoordinates ? "warning" : "success"}
         />
-        <MetricCard label="Staff placed" value={headcount.total - headcount.unassigned.location} hint={`of ${headcount.total} current employees`} icon={Users} />
-      </div>
+        <MetricCard label="Staff placed" value={headcount.total - headcount.unassigned.location} hint={`of ${headcount.total} current employees`} />
+      </MetricStrip>
 
       <DataTable
         caption="Locations"

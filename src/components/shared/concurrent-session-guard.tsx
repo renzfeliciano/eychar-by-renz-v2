@@ -70,8 +70,8 @@ function NoticeHeader({ notice }: { notice: Notice }) {
       <div className="flex items-start gap-3 pr-8">
         <span
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-xl",
-            notice.tone === "warning" ? "bg-warning/12 text-warning" : "bg-primary/10 text-primary",
+            "mt-0.5 shrink-0",
+            notice.tone === "warning" ? "text-warning" : "text-primary",
           )}
           aria-hidden="true"
         >

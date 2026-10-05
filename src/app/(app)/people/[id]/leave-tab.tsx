@@ -27,7 +27,7 @@ export function LeaveTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Leave balances</CardTitle>
+        <CardTitle>Leave balances</CardTitle>
         <CardDescription>Entitlements by year, with adjustments and what&apos;s left</CardDescription>
         {canCreateLeave && (
           <CardAction>

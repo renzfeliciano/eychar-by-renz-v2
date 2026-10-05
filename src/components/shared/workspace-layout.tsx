@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { NavLinks } from "./nav-links";
 import { ModuleTabs } from "./module-tabs";
 import { ThemeToggle } from "./theme-toggle";
+import { PendingNavigationRegion } from "./navigation-pending";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = `${BRAND.storagePrefix}:sidebar-collapsed`;
 
@@ -138,7 +139,7 @@ export function WorkspaceLayout({
               data-testid="topbar-organization-name"
             >
               <Building2 className="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.75} aria-hidden="true" />
-              <span className="max-w-[clamp(14rem,34vw,36rem)] truncate">{account.organizationName}</span>
+              <span className="truncate">{account.organizationName}</span>
             </span>
             <span className="hidden h-5 w-px shrink-0 bg-border lg:block" aria-hidden="true" />
             <div className="flex shrink-0 items-center gap-2">
@@ -151,7 +152,7 @@ export function WorkspaceLayout({
         <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-6xl">
             <ModuleTabs isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
-            {children}
+            <PendingNavigationRegion>{children}</PendingNavigationRegion>
           </div>
         </main>
       </div>

@@ -12,7 +12,7 @@ const deletionBatchSchema = new Schema(
     status: { type: String, enum: ["in_bin", "restored", "purged"], required: true, default: "in_bin" },
     summary: { type: [{ label: String, count: Number, _id: false }], default: [] },
     recordCount: { type: Number, required: true, default: 0 },
-    // Changes made to records that stayed (removed from a shared travel order, manager cleared), undone on restore.
+    // Changes made to records that stayed (e.g. removed from a shared travel order), undone on restore.
     patches: { type: [{ collectionName: String, documentId: Schema.Types.Mixed, op: String, field: String, value: Schema.Types.Mixed, _id: false }], default: [] },
     deletedBy: { type: Schema.Types.ObjectId, ref: "User" },
     deletedAt: { type: Date, required: true, default: () => new Date() },

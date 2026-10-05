@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Its visual direction (colors, type, cards) is superseded by ADR-048; the component structure stands.
 
 ## Context
 

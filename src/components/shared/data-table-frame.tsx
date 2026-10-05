@@ -95,7 +95,7 @@ function ClientPaginationFooter({
               aria-pressed={size === pageSize}
               className={cn(
                 "inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center rounded-md px-1.5 tabular-nums md:min-h-7 md:min-w-7",
-                size === pageSize ? "bg-primary/10 font-semibold text-primary" : "hover:text-foreground",
+                size === pageSize ? "bg-primary font-medium text-primary-foreground" : "hover:bg-muted hover:text-foreground",
               )}
             >
               {size}

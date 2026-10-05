@@ -58,7 +58,7 @@ export function EventsCalendar({
   return (
     <>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+        <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]">
           <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5 sm:px-4">
             <Link
               href="/events"
@@ -86,7 +86,7 @@ export function EventsCalendar({
 
           <div className="grid grid-cols-7 border-b bg-muted/40">
             {WEEKDAYS.map((weekday, index) => (
-              <div key={weekday} className={cn("px-2 py-2 text-center text-[11px] font-medium tracking-wide text-muted-foreground uppercase sm:text-left", (index === 0 || index === 6) && "text-muted-foreground/70")}>
+              <div key={weekday} className={cn("px-2 py-2 text-center text-[11px] font-medium text-muted-foreground sm:text-left", (index === 0 || index === 6) && "text-muted-foreground/70")}>
                 {weekday}
               </div>
             ))}
@@ -153,7 +153,7 @@ export function EventsCalendar({
         </div>
 
         <aside className="flex flex-col gap-4">
-          <section aria-label="Coming up" className="rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+          <section aria-label="Coming up" className="rounded-lg border bg-card shadow-[var(--shadow-soft)]">
             <div className="border-b px-4 py-3">
               <h2 className="text-sm font-semibold">Coming up</h2>
               <p className="text-xs text-muted-foreground">{monthLabel}, from today</p>
@@ -191,7 +191,7 @@ export function EventsCalendar({
           </section>
 
           {categories.length > 0 && (
-            <section className="rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]">
+            <section className="rounded-lg border bg-card p-4 shadow-[var(--shadow-soft)]">
               <h2 className="mb-2.5 text-sm font-semibold">Categories</h2>
               <ul aria-label="Categories" className="flex flex-col gap-1.5">
                 {categories.map((category) => (

@@ -176,7 +176,7 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
           </FormField>
 
           <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
-            <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Next cutoffs</p>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Next cutoffs</p>
             {upcoming.map((period) => (
               <p key={period.end} className="flex justify-between gap-3 tabular-nums">
                 <span>{formatDateRange(period.start, period.end)}</span>

@@ -35,7 +35,7 @@ export function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-full flex-col rounded-xl border bg-muted/40 transition-[background-color,border-color] duration-150 sm:w-72 sm:shrink-0",
+        "flex w-full flex-col rounded-lg border bg-muted/40 transition-[background-color,border-color] duration-150 sm:w-72 sm:shrink-0",
         tone === "closed" && "bg-muted/20",
         isOver && "border-primary/60 bg-primary/5",
       )}

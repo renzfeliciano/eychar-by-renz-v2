@@ -22,7 +22,7 @@ export default async function SecuritySettingsPage() {
       <PageHeader title="Security settings" description="Idle sign-out and two-step verification rules for everyone in the organization." />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Idle sign-out</CardTitle>
+          <CardTitle>Idle sign-out</CardTitle>
           <CardDescription>
             Currently {settings.idleTimeoutSeconds} seconds, with a warning {settings.idleWarningSeconds} seconds before.
           </CardDescription>
@@ -33,7 +33,7 @@ export default async function SecuritySettingsPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Two-step verification</CardTitle>
+          <CardTitle>Two-step verification</CardTitle>
           <CardDescription>
             {settings.requireTwoStepForStaff ? "Required for HR and admin accounts." : "Optional."}{" "}
             {staffWithoutTwoStep === 0 ? "Every HR and admin account has it on." : `${staffWithoutTwoStep} HR or admin account${staffWithoutTwoStep === 1 ? " doesn't" : "s don't"} have it on yet.`}

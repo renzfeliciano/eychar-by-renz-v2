@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Briefcase, BriefcaseBusiness, CircleDashed, Users } from "lucide-react";
+
 import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
@@ -10,7 +10,7 @@ import { loadHeadcount } from "@/domains/workforce/headcount";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { CreatePositionDialog } from "./create-position-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
@@ -35,12 +35,12 @@ export default async function PositionsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Positions" description="Job positions employees can be assigned to, and how many people hold each." action={createAction} />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active positions" value={active.length} hint={`${positions.length - active.length} retired`} icon={Briefcase} />
-        <MetricCard label="Filled" value={filled} hint="Held by at least one employee" icon={BriefcaseBusiness} emphasis />
-        <MetricCard label="Vacant" value={active.length - filled} hint="No one assigned yet" icon={CircleDashed} tone={active.length - filled ? "warning" : "default"} />
-        <MetricCard label="Without a position" value={headcount.unassigned.position} hint={`of ${headcount.total} current employees`} icon={Users} tone={headcount.unassigned.position ? "warning" : "success"} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="Active positions" value={active.length} hint={`${positions.length - active.length} retired`} />
+        <MetricCard label="Filled" value={filled} hint="Held by at least one employee" emphasis />
+        <MetricCard label="Vacant" value={active.length - filled} hint="No one assigned yet" tone={active.length - filled ? "warning" : "default"} />
+        <MetricCard label="Without a position" value={headcount.unassigned.position} hint={`of ${headcount.total} current employees`} tone={headcount.unassigned.position ? "warning" : "success"} />
+      </MetricStrip>
 
       <DataTable
         caption="Positions"

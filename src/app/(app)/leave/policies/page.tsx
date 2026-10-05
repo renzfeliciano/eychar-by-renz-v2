@@ -5,9 +5,9 @@ import { LeavePolicyService } from "@/domains/leave/leave-policy-service";
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { policyCoverage } from "@/server/policies/policy-coverage";
-import { Building2, FolderKanban, ListChecks } from "lucide-react";
+
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreateLeavePolicyDialog } from "./create-leave-policy-dialog";
@@ -53,17 +53,16 @@ export default async function LeavePoliciesPage() {
           />
         }
       />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MetricStrip columns={3}>
         <MetricCard
           label="Leave types covered"
           value={`${coveredTypes} of ${leaveTypes.length}`}
           hint={coveredTypes < leaveTypes.length ? "Types without a policy grant no days automatically" : "Every leave type has an entitlement"}
-          icon={ListChecks}
           tone={coveredTypes < leaveTypes.length ? "warning" : "success"}
         />
-        <MetricCard label="Organization-wide" value={coverage.orgWide} hint="Entitlements for everyone" icon={Building2} emphasis />
-        <MetricCard label="Project overrides" value={coverage.projectOverrides} hint={`${coverage.projectsWithOwn} of ${projects.length} projects have their own`} icon={FolderKanban} />
-      </div>
+        <MetricCard label="Organization-wide" value={coverage.orgWide} hint="Entitlements for everyone" emphasis />
+        <MetricCard label="Project overrides" value={coverage.projectOverrides} hint={`${coverage.projectsWithOwn} of ${projects.length} projects have their own`} />
+      </MetricStrip>
       <DataTable
         caption="Leave policies"
         columns={[

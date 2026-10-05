@@ -151,7 +151,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]">
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-4 shadow-[var(--shadow-soft)]">
         <RequiredFieldsHint />
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
           <FormField label="Name" htmlFor="rule-version-name" required>
@@ -167,7 +167,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
         {initial.basedOnLabel && <p className="text-xs text-muted-foreground">Starting from {initial.basedOnLabel}. That version stays exactly as it is.</p>}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]">
+      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-[var(--shadow-soft)]">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">Withholding tax</h2>
@@ -245,7 +245,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
         )}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]">
+      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-[var(--shadow-soft)]">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">Government contributions</h2>

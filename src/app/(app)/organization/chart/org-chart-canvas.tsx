@@ -30,7 +30,8 @@ import type { OrgChartView, ChartPerson } from "@/domains/workforce/org-chart-se
 
 type Color = (typeof ORG_CHART_COLORS)[number];
 const COLOR: Record<Color, { bar: string; soft: string; avatar: string; swatch: string }> = {
-  blue: { bar: "bg-blue-500", soft: "bg-blue-500/8", avatar: "bg-blue-500/15 text-blue-700 dark:text-blue-300", swatch: "bg-blue-500" },
+  // "blue" is the brand navy, so an uncolored chart reads as part of the app.
+  blue: { bar: "bg-primary", soft: "bg-primary/[0.04]", avatar: "bg-secondary text-secondary-foreground ring-1 ring-border", swatch: "bg-primary" },
   violet: { bar: "bg-violet-500", soft: "bg-violet-500/8", avatar: "bg-violet-500/15 text-violet-700 dark:text-violet-300", swatch: "bg-violet-500" },
   teal: { bar: "bg-teal-500", soft: "bg-teal-500/8", avatar: "bg-teal-500/15 text-teal-700 dark:text-teal-300", swatch: "bg-teal-500" },
   emerald: { bar: "bg-emerald-500", soft: "bg-emerald-500/8", avatar: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300", swatch: "bg-emerald-500" },
@@ -312,9 +313,9 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
   return (
     <div className="flex flex-col gap-3 lg:flex-row" data-testid="org-chart-canvas">
       {canEdit && (
-        <aside className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-[var(--shadow-soft)] lg:w-64 lg:shrink-0" aria-label="People to add">
+        <aside className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-[var(--shadow-soft)] lg:w-64 lg:shrink-0" aria-label="People to add">
           <p className="flex items-center gap-2 text-sm font-semibold">
-            <Users className="size-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+            <Users className="size-4 text-muted-foreground" aria-hidden="true" />
             People
             <span className="font-normal text-muted-foreground">({available.length} not on the chart)</span>
           </p>
@@ -332,7 +333,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                   className="group flex w-full cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-muted"
                   data-testid={`org-chart-add-${person.employeeId}`}
                 >
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-500/12 text-[11px] font-semibold text-blue-700 dark:text-blue-300">{initials(person.name)}</span>
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border">{initials(person.name)}</span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-sm font-medium">{person.name}</span>
                     <span className="truncate text-xs text-muted-foreground">{person.positionTitle ?? (person.current ? "No position" : "Not current staff")}</span>
@@ -379,7 +380,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
           </span>
         </div>
         {dirty && canEdit && (
-          <p className="rounded-md bg-amber-500/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-300" role="status">
+          <p className="rounded-md bg-warning/10 px-3 py-1.5 text-xs text-foreground" role="status">
             {initial.saved ? "You have unsaved changes." : "This first draft was built from the old “reports to” links. Arrange it the way you want, then save."}
           </p>
         )}
@@ -387,7 +388,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
         <div
           ref={frameRef}
           className={cn(
-            "relative h-[68vh] min-h-96 touch-none overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)] select-none",
+            "relative h-[68vh] min-h-96 touch-none overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)] select-none",
             "bg-[radial-gradient(circle,var(--color-border)_1px,transparent_1px)] [background-size:22px_22px]",
             drag?.kind === "pan" ? "cursor-grabbing" : "cursor-grab",
           )}
@@ -400,7 +401,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
         >
           {nodes.length === 0 && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-              <Network className="size-8 text-violet-500/60" aria-hidden="true" />
+              <Network className="size-8 text-muted-foreground/60" aria-hidden="true" />
               {canEdit ? "Add people from the list, or a group box, then link them." : "No chart has been drawn yet."}
             </div>
           )}
@@ -421,7 +422,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                 const active = selectedEdge === edge.to;
                 return (
                   <g key={`${edge.from}-${edge.to}`}>
-                    <path d={d} fill="none" strokeLinejoin="round" className={cn("transition-colors", active ? "stroke-rose-500" : "stroke-slate-400/80 dark:stroke-slate-500")} strokeWidth={active ? 2.5 : 1.5} />
+                    <path d={d} fill="none" strokeLinejoin="round" className={cn("transition-colors", active ? "stroke-primary" : "stroke-foreground/30")} strokeWidth={active ? 2.5 : 1.5} />
                     {canEdit && (
                       <path
                         d={d}
@@ -443,7 +444,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                 <path
                   d={`M ${linkFrom.x + CARD_WIDTH / 2} ${linkFrom.y} L ${drag.x} ${drag.y}`}
                   fill="none"
-                  className="stroke-blue-500"
+                  className="stroke-primary"
                   strokeWidth={2}
                   strokeDasharray="6 5"
                 />
@@ -455,7 +456,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                 type="button"
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => unlink(unlinkAt.child)}
-                className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-2 py-1 text-[11px] font-medium text-white shadow-md"
+                className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center gap-1 rounded-full bg-destructive px-2 py-1 text-[11px] font-medium text-white shadow-[var(--shadow-raised)]"
                 style={{ left: unlinkAt.x, top: unlinkAt.y }}
                 data-testid="org-chart-unlink"
               >
@@ -476,10 +477,10 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                   data-node-key={node.key}
                   onPointerDown={(event) => onCardPointerDown(event, node)}
                   className={cn(
-                    "group/card absolute flex flex-col rounded-xl border bg-card shadow-sm transition-[box-shadow,border-color]",
+                    "group/card absolute flex flex-col rounded-lg border bg-card shadow-sm transition-[box-shadow,border-color]",
                     canEdit ? "cursor-move" : "cursor-pointer",
                     isSelected && "border-primary ring-3 ring-primary/25",
-                    isTarget && "border-emerald-500 ring-3 ring-emerald-500/30",
+                    isTarget && "border-primary ring-3 ring-primary/25",
                   )}
                   style={{ left: node.x, top: node.y, width: CARD_WIDTH, height: CARD_HEIGHT }}
                   data-testid={`org-chart-card-${node.key}`}
@@ -503,7 +504,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                         <Boxes className="size-4" aria-hidden="true" />
                       </span>
                       <span className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-semibold uppercase tracking-wide" title={node.label}>
+                        <span className="truncate text-sm font-semibold" title={node.label}>
                           {node.label}
                         </span>
                         <span className="text-xs text-muted-foreground">{reports ? `${reports} under it` : "Group"}</span>
@@ -516,7 +517,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
                       aria-label={`Choose who ${labelOf(node)} reports to`}
                       title="Drag onto the person they report to"
                       onPointerDown={(event) => onHandlePointerDown(event, node)}
-                      className="absolute top-0 left-1/2 z-10 flex size-4 -translate-x-1/2 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full border-2 border-card bg-blue-500 opacity-60 shadow transition-[opacity,transform] group-hover/card:opacity-100 hover:scale-125"
+                      className="absolute top-0 left-1/2 z-10 flex size-4 -translate-x-1/2 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full border-2 border-card bg-primary opacity-60 shadow transition-[opacity,transform] group-hover/card:opacity-100 hover:scale-125"
                       data-testid={`org-chart-handle-${node.key}`}
                     />
                   )}
@@ -527,7 +528,7 @@ export function OrgChartCanvas({ organizationId, initial, canEdit }: { organizat
 
           {selectedNode && (
             <div
-              className="absolute top-3 right-3 z-30 flex w-64 flex-col gap-2 rounded-xl border bg-card p-3 text-sm shadow-lg"
+              className="absolute top-3 right-3 z-30 flex w-64 flex-col gap-2 rounded-lg border bg-card p-3 text-sm shadow-[var(--shadow-raised)]"
               onPointerDown={(event) => event.stopPropagation()}
               data-testid="org-chart-inspector"
             >

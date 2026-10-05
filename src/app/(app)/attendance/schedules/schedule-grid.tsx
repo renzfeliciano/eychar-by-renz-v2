@@ -132,7 +132,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
 
   if (view.rows.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground" data-testid="schedule-empty">
+      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground" data-testid="schedule-empty">
         No one is on the schedule yet. Add active employees, or put them on the schedule from Roster.
       </p>
     );
@@ -173,7 +173,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
       </div>
 
       {/* The grid scrolls sideways inside its own frame on narrow screens; the page itself never does. */}
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-[var(--shadow-soft)]" data-testid="schedule-grid">
+      <div className="overflow-x-auto rounded-lg border bg-card shadow-[var(--shadow-soft)]" data-testid="schedule-grid">
         <table className="w-max border-separate border-spacing-0 text-sm select-none">
           <caption className="sr-only">Shift schedule for {view.label}</caption>
           <thead>
@@ -357,7 +357,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
           <div
             role="toolbar"
             aria-label="Selected days"
-            className="pointer-events-auto flex max-w-full animate-in flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl border bg-popover px-3 py-2 text-popover-foreground shadow-[var(--shadow-modal)] duration-200 ease-out fade-in slide-in-from-bottom-3"
+            className="pointer-events-auto flex max-w-full animate-in flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border bg-popover px-3 py-2 text-popover-foreground shadow-[var(--shadow-modal)] duration-200 ease-out fade-in slide-in-from-bottom-3"
             data-testid="schedule-action-bar"
           >
             <p className="pl-1 text-sm font-medium tabular-nums" data-testid="schedule-selection-count">

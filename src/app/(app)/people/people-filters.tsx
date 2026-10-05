@@ -1,20 +1,19 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePendingNavigation } from "@/components/shared/navigation-pending";
 import { Loader2 } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 
 export function PeopleFilters({ employmentTypes }: { employmentTypes: SelectOption[] }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { isPending, push } = usePendingNavigation();
 
   function updateParam(key: string, value: string) {
     const next = new URLSearchParams(searchParams.toString());
     if (value) next.set(key, value);
     else next.delete(key);
-    startTransition(() => router.push(`/people?${next.toString()}`));
+    push(`/people?${next.toString()}`);
   }
 
   return (

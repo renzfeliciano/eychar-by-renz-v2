@@ -9,7 +9,9 @@ describe("org chart rules", () => {
   });
 
   it("rejects circles, two parents, self-links, missing cards and duplicate people", () => {
-    expect(chartProblems([card("a"), card("b")], [{ from: "a", to: "b" }, { from: "b", to: "a" }])).toContain("A card can only sit under one card");
+    expect(chartProblems([card("a"), card("b"), card("c")], [{ from: "a", to: "c" }, { from: "b", to: "c" }])).toContain("A card can only sit under one card");
+    // Two cards under each other is a circle (each still has only one parent).
+    expect(chartProblems([card("a"), card("b")], [{ from: "a", to: "b" }, { from: "b", to: "a" }])).toContain("The links go round in a circle");
     expect(chartProblems([card("a"), card("b"), card("c")], [{ from: "a", to: "b" }, { from: "b", to: "c" }, { from: "c", to: "a" }])).toContain("The links go round in a circle");
     expect(chartProblems([card("a")], [{ from: "a", to: "a" }])).toContain("A card can't be linked to itself");
     expect(chartProblems([card("a")], [{ from: "a", to: "zz" }])).toContain("A line points to a card that isn't on the chart");

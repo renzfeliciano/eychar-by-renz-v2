@@ -4,11 +4,11 @@ import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { hasPermission } from "@/app/_shared/has-permission";
-import { CircleCheck, ListChecks, ShieldQuestion, TriangleAlert } from "lucide-react";
+
 import { LeaveTypeService } from "@/domains/leave/leave-type-service";
 import { LeavePolicyService } from "@/domains/leave/leave-policy-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { DataTable } from "@/components/shared/data-table";
 import { ConvertibleToggle } from "./convertible-toggle";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -46,19 +46,18 @@ export default async function LeaveTypesPage() {
         description="The configurable catalog of leave an organization offers."
         action={<LeaveTypeFormDialog organizationId={organizationId} />}
       />
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active leave types" value={active.length} hint={`${leaveTypes.length - active.length} retired`} icon={ListChecks} emphasis />
-        <MetricCard label="Need approval" value={needApproval} hint="Go to an approver before they count" icon={ShieldQuestion} />
-        <MetricCard label="With an entitlement" value={active.length - withoutPolicy} hint="Days granted by a leave policy" icon={CircleCheck} tone="success" />
+      <MetricStrip columns={4}>
+        <MetricCard label="Active leave types" value={active.length} hint={`${leaveTypes.length - active.length} retired`} emphasis />
+        <MetricCard label="Need approval" value={needApproval} hint="Go to an approver before they count" />
+        <MetricCard label="With an entitlement" value={active.length - withoutPolicy} hint="Days granted by a leave policy" tone="success" />
         <MetricCard
           label="Without a policy"
           value={withoutPolicy}
           hint={withoutPolicy ? "Add one under Leave › Policies" : "Every type has an entitlement"}
-          icon={TriangleAlert}
           tone={withoutPolicy ? "warning" : "default"}
           href={withoutPolicy ? "/leave/policies" : undefined}
         />
-      </div>
+      </MetricStrip>
       <DataTable
         caption="Leave types"
         columns={[

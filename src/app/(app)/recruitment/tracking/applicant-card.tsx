@@ -39,7 +39,7 @@ export function initials(name: string): string {
 
 export function ApplicantAvatar({ name, className }: { name: string; className?: string }) {
   return (
-    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.7rem] font-semibold text-primary", className)} aria-hidden="true">
+    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.7rem] font-semibold text-secondary-foreground ring-1 ring-border", className)} aria-hidden="true">
       {initials(name)}
     </span>
   );

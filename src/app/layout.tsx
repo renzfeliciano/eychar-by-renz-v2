@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
-import { Geist } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/shared/providers";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,7 +9,10 @@ import { ServiceWorkerRegister } from "@/components/shared/service-worker-regist
 import { BRAND, BRAND_TITLE_TEMPLATE } from "@/lib/brand";
 import { SITE_KEYWORDS, SITE_SHARE_IMAGE, baseOpenGraph, siteDescription, siteUrl } from "@/lib/site";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+// One family for the whole product (ADR-048): IBM Plex Sans reads like a
+// well-set form, has true tabular figures for pay and hours, and isn't the
+// default every template ships with.
+const plexSans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-sans" });
 
 export function generateMetadata(): Metadata {
   const description = siteDescription();
@@ -36,8 +39,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f6fa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1115" },
+    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c1118" },
   ],
 };
 
@@ -52,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // attributes will always legitimately differ from the server-rendered
     // markup — suppressHydrationWarning is next-themes' own documented fix,
     // not a workaround for a real bug.
-    <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
+    <html lang="en" className={cn("font-sans", plexSans.variable)} suppressHydrationWarning>
       <body>
         <Providers nonce={nonce}>
           {children}

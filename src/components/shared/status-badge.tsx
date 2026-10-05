@@ -35,12 +35,14 @@ const TONE_BY_STATUS: Record<string, Tone> = {
   awol: "danger",
 };
 
+// Ledger style: no filled pill, just the colored dot and the word in ink.
+// Only a negative state also colors its word, so it can't be skimmed past.
 const TONE_CLASSES: Record<Tone, string> = {
-  success: "border-success/30 bg-success/10 text-success [--dot:var(--color-success)]",
-  warning: "border-warning/30 bg-warning/10 text-warning [--dot:var(--color-warning)]",
-  danger: "border-destructive/30 bg-destructive/10 text-destructive [--dot:var(--color-destructive)]",
-  info: "border-primary/30 bg-primary/10 text-primary [--dot:var(--color-primary)]",
-  neutral: "border-border bg-muted text-muted-foreground [--dot:var(--color-muted-foreground)]",
+  success: "text-foreground [--dot:var(--color-success)]",
+  warning: "text-foreground [--dot:var(--color-warning)]",
+  danger: "text-destructive [--dot:var(--color-destructive)]",
+  info: "text-foreground [--dot:var(--color-primary)]",
+  neutral: "text-muted-foreground [--dot:color-mix(in_oklch,var(--color-muted-foreground)_60%,transparent)]",
 };
 
 function labelFor(status: string): string {
@@ -54,12 +56,12 @@ export function StatusBadge({ status, label, tone, className }: { status?: strin
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1.5 text-[13px] font-medium whitespace-nowrap",
         TONE_CLASSES[tone ?? TONE_BY_STATUS[status] ?? "neutral"],
         className,
       )}
     >
-      <span className="size-1.5 shrink-0 rounded-full bg-(--dot)" aria-hidden="true" />
+      <span className="size-2 shrink-0 rounded-full bg-(--dot)" aria-hidden="true" />
       {label ?? labelFor(status)}
     </span>
   );

@@ -226,9 +226,9 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-[var(--shadow-soft)]" aria-label="Employee summary">
-        <div className="flex flex-wrap items-start gap-4">
-          <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-xl font-semibold text-primary" aria-hidden="true">
+      <section className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]" aria-label="Employee summary">
+        <div className="flex flex-wrap items-start gap-4 p-5">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-secondary text-lg font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
             {personName
               .split(" ")
               .filter(Boolean)
@@ -239,7 +239,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
           </span>
           <div className="min-w-0 flex-1 basis-60">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">{personName}</h1>
+              <h1 className="text-[1.625rem] leading-tight font-semibold tracking-[-0.018em]">{personName}</h1>
               {detail.currentEmployment && <StatusBadge status={detail.currentEmployment.status} />}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{[positionTitle, projectName, typeLabel].filter(Boolean).join(" · ") || "No current assignment"}</p>
@@ -271,16 +271,17 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
             )}
           </div>
         </div>
-        <dl className="grid gap-3 border-t pt-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* The record's key facts as one ruled line, like the header row of a file card. */}
+        <dl className="-mr-px -mb-px grid border-t bg-muted/30 sm:grid-cols-3 xl:grid-cols-5">
           {facts.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex min-w-0 items-start gap-2.5">
-              <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="truncate text-sm font-medium" title={value}>
-                  {value}
-                </dd>
-              </div>
+            <div key={label} className="flex min-w-0 flex-col gap-1 border-r border-b px-5 py-3">
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                {label}
+              </dt>
+              <dd className="truncate text-sm font-medium tabular-nums" title={value}>
+                {value}
+              </dd>
             </div>
           ))}
         </dl>
@@ -294,19 +295,22 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
 
       {on("overview") && (
         <div className="flex flex-col gap-4">
-          <Card data-testid="profile-attention" className={attention.length ? "border-t-4 border-t-amber-500" : "border-t-4 border-t-emerald-500"}>
+          <Card data-testid="profile-attention">
             <CardHeader>
-              <CardTitle className="text-base">Needs attention</CardTitle>
+              <CardTitle className="flex items-baseline gap-2">
+                Needs attention
+                {attention.length > 0 && <span className="text-sm font-normal text-muted-foreground tabular-nums">{attention.length}</span>}
+              </CardTitle>
               <CardDescription>{attention.length ? "About this person, most urgent first" : "Nothing outstanding for this person."}</CardDescription>
             </CardHeader>
             <CardContent>
               {attention.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <BadgeCheck className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <BadgeCheck className="size-4 text-success" aria-hidden="true" />
                   Records, contract and documents are in order.
                 </p>
               ) : (
-                <ul className="flex flex-col divide-y">
+                <ul className="flex flex-col divide-y divide-rule">
                   {attention.map((item) => (
                     <li key={item.key}>
                       <Link href={item.tab === "overview" ? "#government-ids" : hrefFor(item.tab)} className="group flex items-center gap-3 py-2.5 text-sm">
@@ -324,7 +328,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card id="government-ids">
               <CardHeader>
-                <CardTitle className="text-base">Government IDs</CardTitle>
+                <CardTitle>Government IDs</CardTitle>
                 <CardDescription>Needed for SSS, PhilHealth, Pag-IBIG and BIR remittance</CardDescription>
               </CardHeader>
               <CardContent>
@@ -353,7 +357,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Self-service access</CardTitle>
+                <CardTitle>Self-service access</CardTitle>
                 <CardDescription>Clocking in and out from their own phone</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">

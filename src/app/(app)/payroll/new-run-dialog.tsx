@@ -77,7 +77,7 @@ export function NewRunDialog({ organizationId, projects, suggestions }: { organi
         <div className="flex flex-col gap-4">
           {suggestions.length > 0 && (
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">From payroll schedules</span>
+              <span className="text-xs font-medium text-muted-foreground">From payroll schedules</span>
               <div className="flex flex-col gap-1.5">
                 {suggestions.map((suggestion) => {
                   const selected =

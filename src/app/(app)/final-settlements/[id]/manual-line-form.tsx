@@ -63,7 +63,7 @@ export function ManualLineForm({ organizationId, settlementId }: { organizationI
             role="radio"
             aria-checked={direction === value}
             onClick={() => setDirection(value)}
-            className={cn("rounded-md px-3 py-1.5 text-sm font-medium", direction === value ? "bg-background shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground")}
+            className={cn("rounded-md px-3 py-1.5 text-sm font-medium", direction === value ? "bg-card shadow-[0_1px_2px_oklch(0.235_0.028_262/10%)] ring-1 ring-border" : "text-muted-foreground hover:text-foreground")}
           >
             {value === "earning" ? "Earning" : "Deduction"}
           </button>

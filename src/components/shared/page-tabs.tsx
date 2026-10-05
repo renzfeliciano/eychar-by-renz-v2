@@ -11,8 +11,8 @@ export type PageTab = { value: string; label: string; href: string; count?: numb
  */
 export function PageTabs({ label, tabs, active }: { label: string; tabs: PageTab[]; active: string }) {
   return (
-    <nav aria-label={label} className="-mx-1 flex gap-1 overflow-x-auto border-b px-1">
-      {tabs.map(({ value, label: tabLabel, href, count, icon: Icon }) => {
+    <nav aria-label={label} className="-mx-1 flex gap-5 overflow-x-auto border-b px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {tabs.map(({ value, label: tabLabel, href, count }) => {
         const isActive = value === active;
         return (
           <Link
@@ -21,15 +21,12 @@ export function PageTabs({ label, tabs, active }: { label: string; tabs: PageTab
             scroll={false}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "relative -mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
-              isActive ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+              "relative -mb-px flex shrink-0 items-center gap-1.5 border-b-2 py-2.5 text-sm whitespace-nowrap transition-colors duration-150",
+              isActive ? "border-primary font-semibold text-foreground" : "border-transparent font-medium text-muted-foreground hover:border-input hover:text-foreground",
             )}
           >
-            {Icon && <Icon className="size-4" aria-hidden="true" />}
             {tabLabel}
-            {count !== undefined && (
-              <span className={cn("rounded-full px-1.5 text-xs tabular-nums", isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>{count}</span>
-            )}
+            {count !== undefined && <span className="text-xs font-normal text-muted-foreground tabular-nums">{count}</span>}
           </Link>
         );
       })}

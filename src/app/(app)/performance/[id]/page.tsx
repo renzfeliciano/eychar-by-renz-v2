@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarClock, CircleCheck, FilePen, UserRoundX, Users } from "lucide-react";
+import { CircleCheck, UserRoundX } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { ReviewCycleService } from "@/domains/performance/review-cycle-service";
@@ -13,7 +13,7 @@ import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { HorizontalBarChart } from "@/components/shared/horizontal-bar-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddReviewDialog } from "./add-review-dialog";
@@ -101,18 +101,17 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Coverage" value={`${summary.completion}%`} hint={`${summary.reviewed} of ${summary.staff} current staff have a review`} icon={Users} emphasis />
-        <MetricCard label="Submitted" value={summary.submitted} hint="Final, with a rating" icon={CircleCheck} tone={summary.submitted ? "success" : "default"} />
-        <MetricCard label="Drafts" value={summary.drafts} hint={summary.drafts ? "Started, not yet submitted" : "No drafts waiting"} icon={FilePen} tone={summary.drafts ? "warning" : "default"} />
+      <MetricStrip columns={4}>
+        <MetricCard label="Coverage" value={`${summary.completion}%`} hint={`${summary.reviewed} of ${summary.staff} current staff have a review`} emphasis />
+        <MetricCard label="Submitted" value={summary.submitted} hint="Final, with a rating" tone={summary.submitted ? "success" : "default"} />
+        <MetricCard label="Drafts" value={summary.drafts} hint={summary.drafts ? "Started, not yet submitted" : "No drafts waiting"} tone={summary.drafts ? "warning" : "default"} />
         <MetricCard
           label={cycle.status === "closed" ? "Period" : "Days left"}
           value={cycle.status === "closed" ? "Closed" : summary.daysLeft}
           hint={cycle.status === "closed" ? "No more reviews can be added" : `Period ends ${formatCalendarDate(cycle.periodEnd, SHORT)}`}
-          icon={CalendarClock}
           tone={cycle.status !== "closed" && summary.daysLeft <= 7 && summary.notReviewedIds.length ? "warning" : "default"}
         />
-      </div>
+      </MetricStrip>
 
       <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Review coverage" aria-valuenow={summary.completion} aria-valuemin={0} aria-valuemax={100}>
         <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${summary.completion}%` }} />
@@ -121,7 +120,7 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Rating distribution</CardTitle>
+            <CardTitle>Rating distribution</CardTitle>
             <CardDescription>Submitted reviews, best to lowest rating</CardDescription>
           </CardHeader>
           <CardContent>
@@ -136,9 +135,9 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2">
               Not reviewed yet
-              {summary.notReviewedIds.length > 0 && <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning tabular-nums">{summary.notReviewedIds.length}</span>}
+              {summary.notReviewedIds.length > 0 && <span className="text-sm font-normal text-warning tabular-nums">{summary.notReviewedIds.length}</span>}
             </CardTitle>
             <CardDescription>Current staff with no review in this cycle</CardDescription>
           </CardHeader>
@@ -177,7 +176,7 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
               const name = nameByEmployeeId.get(review.employeeId.toString()) ?? "—";
               return (
                 <Link href={`/people/${review.employeeId.toString()}`} className="flex items-center gap-2.5">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
                     {initials(name)}
                   </span>
                   <span className="font-medium hover:text-primary">{name}</span>

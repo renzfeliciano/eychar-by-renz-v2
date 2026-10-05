@@ -24,25 +24,6 @@ const stagger = (index: number) => ({
   style: { "--stagger-index": index } as CSSProperties,
 });
 
-/**
- * The card's texture: a fine grid of brand-blue dots, faded out by `mask` so
- * it only shows toward one edge or corner. Decoration only, behind content.
- */
-function DotTexture({ mask, className }: { mask: string; className?: string }) {
-  return (
-    <span
-      className={`pointer-events-none absolute inset-0 ${className ?? "text-primary/35 dark:text-primary/40"}`}
-      style={{
-        backgroundImage: "radial-gradient(currentColor 1px, transparent 1.2px)",
-        backgroundSize: "14px 14px",
-        maskImage: mask,
-        WebkitMaskImage: mask,
-      }}
-      aria-hidden="true"
-    />
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const loginRef = useRef<HTMLInputElement>(null);
@@ -71,21 +52,32 @@ export default function LoginPage() {
   }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // The button stays in its loading state from the click until the dashboard
+  // replaces this page. It only comes back when something stops the sign-in:
+  // a wrong password, a locked account, a server error or a dropped connection.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
 
-    const result = await signIn("credentials", step === "code" ? { login, password, otp, redirect: false } : { login, password, redirect: false });
-
-    setIsSubmitting(false);
+    let result: Awaited<ReturnType<typeof signIn>>;
+    try {
+      result = await signIn("credentials", step === "code" ? { login, password, otp, redirect: false } : { login, password, redirect: false });
+    } catch {
+      setIsSubmitting(false);
+      setError(signInMessage("network"));
+      return;
+    }
 
     if (result?.error === "mfa_required") {
+      setIsSubmitting(false);
       setStep("code");
       return;
     }
-    if (result?.error) {
-      setError(signInMessage(result.error));
+    if (!result || result.error || result.ok === false) {
+      setIsSubmitting(false);
+      setError(signInMessage(result?.error ?? "server"));
       return;
     }
 
@@ -122,25 +114,21 @@ export default function LoginPage() {
         <div className="relative z-10 flex min-h-0 flex-col lg:w-[31rem] lg:justify-center-safe lg:overflow-y-auto lg:px-10 lg:py-10 xl:w-[34rem] xl:px-12 xl:py-12 lg:short:py-6 xl:short:py-6 lg:shorter:py-4 xl:shorter:py-4">
           <section
             aria-labelledby="login-title"
-            className="flex min-h-0 animate-in flex-col overflow-hidden rounded-t-3xl bg-background lg:shrink-0 shadow-[var(--shadow-modal)] duration-500 ease-out fade-in slide-in-from-bottom-8 lg:max-h-none lg:rounded-2xl lg:ring-1 lg:ring-white/15 lg:slide-in-from-bottom-4"
+            className="flex min-h-0 animate-in flex-col overflow-hidden rounded-t-2xl bg-card lg:shrink-0 shadow-[var(--shadow-modal)] duration-500 ease-out fade-in slide-in-from-bottom-8 lg:max-h-none lg:rounded-xl lg:ring-1 lg:ring-white/15 lg:slide-in-from-bottom-4"
           >
-            {/* The card is framed top and bottom: a branded header band (blue top
-                edge, faint blue tint, dot texture fading left) and a matching
-                footer band. The form between stays on plain background, with
-                only a whisper of the texture in its far corner, so it reads
-                cleanly. */}
-            <div className="relative shrink-0 overflow-hidden border-b bg-primary/[0.035] px-6 pt-6 pb-6 sm:px-9 sm:pt-8 sm:pb-7 lg:short:pt-6 lg:short:pb-5 lg:shorter:pt-5 lg:shorter:pb-4 dark:bg-primary/[0.08]">
-              <span className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden="true" />
-              <DotTexture mask="linear-gradient(to left, black 10%, transparent 75%)" />
+            {/* The card is a plain sheet ruled into three: the header (brand and
+                title), the form, and a footer line. No texture or tint: the photo
+                beside it carries the atmosphere, the card carries the task. */}
+            <div className="relative shrink-0 overflow-hidden border-b px-6 pt-6 pb-6 sm:px-9 sm:pt-8 sm:pb-7 lg:short:pt-6 lg:short:pb-5 lg:shorter:pt-5 lg:shorter:pb-4">
               <div className="relative flex items-center gap-3">
-                <Logo className="size-10 rounded-xl p-1 shadow-[var(--shadow-soft)]" priority />
+                <Logo className="size-10 rounded-lg p-1" priority />
                 <BrandName tagline className="flex-1" />
                 <ThemeToggle />
               </div>
 
               <div className="relative">
                 <div {...stagger(1)}>
-                  <h1 id="login-title" className="mt-8 text-2xl font-semibold tracking-tight text-balance sm:text-[1.75rem] lg:short:mt-5 lg:shorter:mt-4">
+                  <h1 id="login-title" className="mt-8 text-2xl leading-tight font-semibold tracking-[-0.02em] text-balance sm:text-[1.75rem] lg:short:mt-5 lg:shorter:mt-4">
                     {step === "code" ? "Two-step verification" : "Sign in to your account"}
                   </h1>
                   <p className="mt-1.5 text-sm text-muted-foreground">
@@ -155,7 +143,6 @@ export default function LoginPage() {
             </div>
 
             <div className="relative flex flex-col px-6 pt-6 pb-7 sm:px-9 sm:pt-7 sm:pb-9 lg:short:pt-5 lg:short:pb-6 lg:shorter:pt-4 lg:shorter:pb-5">
-              <DotTexture mask="radial-gradient(circle at 100% 100%, black 0%, transparent 38%)" className="text-primary/20 dark:text-primary/25" />
               <form onSubmit={handleSubmit} noValidate className="relative flex flex-col gap-5 lg:short:gap-4" aria-label="Sign in">
                 {step === "password" ? (
                   <>
@@ -316,11 +303,8 @@ export default function LoginPage() {
               </form>
             </div>
 
-            <footer className="relative mt-auto flex shrink-0 items-center gap-3 overflow-hidden border-t bg-primary/[0.035] px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-9 lg:rounded-b-2xl lg:shorter:pt-3 dark:bg-primary/[0.08]">
-              <DotTexture mask="linear-gradient(to right, black 0%, transparent 45%)" />
-              <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15" aria-hidden="true">
-                <ShieldCheck className="size-4" />
-              </span>
+            <footer className="relative mt-auto flex shrink-0 items-center gap-2.5 overflow-hidden border-t bg-muted/40 px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-9 lg:rounded-b-xl lg:shorter:pt-3">
+              <ShieldCheck className="relative size-4 shrink-0 text-primary" aria-hidden="true" />
               <span className="relative">Authorized users only. Sign-in activity is monitored and recorded.</span>
             </footer>
           </section>

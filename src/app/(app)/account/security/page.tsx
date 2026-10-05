@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AlertTriangle, History, KeyRound, LogIn, ShieldCheck } from "lucide-react";
+import { AlertTriangle, History, ShieldCheck } from "lucide-react";
 import { connectMongoDB } from "@/server/db/connection";
 import { UserModel } from "@/server/db/models";
 import { AuditQueryService } from "@/server/audit/audit-query-service";
 import { SECURITY_EVENT_LABELS, WARNING_SECURITY_EVENTS } from "@/domains/identity/security-event-labels";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatRelativeDays } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
@@ -38,29 +38,27 @@ export default async function AccountSecurityPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Security" description={`Sign-in settings for ${user.username ?? user.email ?? "your account"}.`} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MetricStrip columns={3}>
         <MetricCard
           label="Two-step verification"
           value={mfaOn ? "On" : "Off"}
           hint={mfaOn ? `${recoveryLeft} recovery codes left` : "Recommended for every HR account"}
-          icon={ShieldCheck}
           tone={mfaOn ? "success" : "warning"}
         />
-        <MetricCard label="Password" value={passwordSetAt ? formatRelativeDays(passwordSetAt, now) : "—"} hint="Last changed" icon={KeyRound} />
+        <MetricCard label="Password" value={passwordSetAt ? formatRelativeDays(passwordSetAt, now) : "—"} hint="Last changed" />
         <MetricCard
           label="Last sign-in"
           value={user.lastSignInAt ? formatRelativeDays(user.lastSignInAt, now) : "—"}
           hint={recentFailures ? `${recentFailures} failed attempt${recentFailures === 1 ? "" : "s"} this week` : user.lastSignInIp ? `From ${user.lastSignInIp}` : "No sign-ins recorded yet"}
-          icon={LogIn}
           tone={recentFailures ? "danger" : "default"}
         />
-      </div>
+      </MetricStrip>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader className="border-b">
-              <CardTitle className="text-base">Two-step verification</CardTitle>
+              <CardTitle>Two-step verification</CardTitle>
               <CardDescription>A code from your phone at every sign-in, on top of your password.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -70,7 +68,7 @@ export default async function AccountSecurityPage() {
 
           <Card>
             <CardHeader className="border-b">
-              <CardTitle className="text-base">Password</CardTitle>
+              <CardTitle>Password</CardTitle>
               <CardDescription>Use at least 12 characters. A few unrelated words with a number works well.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -81,7 +79,7 @@ export default async function AccountSecurityPage() {
 
         <Card className="self-start">
           <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2">
               <History className="size-4 text-muted-foreground" aria-hidden="true" />
               Recent activity
             </CardTitle>

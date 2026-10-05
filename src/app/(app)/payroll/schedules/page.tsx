@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, CalendarCheck2, CalendarClock, FolderKanban, Repeat } from "lucide-react";
+import { AlertTriangle, CalendarClock } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollScheduleService } from "@/domains/payroll/payroll-schedule-service";
@@ -11,7 +11,7 @@ import { dateToDateKey, formatDateKey, formatDateRange, localDateKey } from "@/l
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { ScheduleDialog } from "./schedule-dialog";
 import { PrepareNowButton } from "./prepare-now-button";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -54,23 +54,21 @@ export default async function PayrollSchedulesPage() {
           </div>
         }
       />
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active schedules" value={active.length} hint={`${schedules.length - active.length} paused`} icon={Repeat} emphasis />
+      <MetricStrip columns={4}>
+        <MetricCard label="Active schedules" value={active.length} hint={`${schedules.length - active.length} paused`} emphasis />
         <MetricCard
           label="Projects covered"
           value={hasOrgWide ? "All" : `${projectsScheduled} of ${projects.length}`}
           hint={hasOrgWide ? "An organization-wide schedule covers the rest" : "Projects without one are prepared by hand"}
-          icon={FolderKanban}
         />
-        <MetricCard label="Next cutoff" value={nextCutoff ? formatDateKey(nextCutoff, { month: "short", day: "numeric" }) : "—"} hint="Its draft is prepared the day after" icon={CalendarCheck2} />
+        <MetricCard label="Next cutoff" value={nextCutoff ? formatDateKey(nextCutoff, { month: "short", day: "numeric" }) : "—"} hint="Its draft is prepared the day after" />
         <MetricCard
           label="Needs attention"
           value={failing}
           hint={failing ? "Last automatic preparation failed" : "Every schedule ran cleanly"}
-          icon={AlertTriangle}
           tone={failing ? "danger" : "success"}
         />
-      </div>
+      </MetricStrip>
 
       <DataTable
         caption="Payroll schedules"

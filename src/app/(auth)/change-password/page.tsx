@@ -23,18 +23,17 @@ export default async function ChangePasswordPage() {
   if (!user.mustChangePassword) redirect(user.employeeId ? "/clock" : "/dashboard");
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
-      <section aria-labelledby="change-password-title" className="w-full max-w-md overflow-hidden rounded-2xl border bg-background shadow-[var(--shadow-modal)]">
-        <div className="relative border-b bg-primary/[0.035] px-6 pt-6 pb-5 sm:px-8 dark:bg-primary/[0.08]">
-          <span className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden="true" />
+    <main className="flex min-h-dvh items-center justify-center bg-background p-4">
+      <section aria-labelledby="change-password-title" className="w-full max-w-md overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-raised)]">
+        <div className="relative border-b px-6 pt-6 pb-5 sm:px-8">
           <div className="flex items-center gap-3">
-            <Logo className="size-10 rounded-xl p-1" />
+            <Logo className="size-10 rounded-lg p-1" />
             <div className="flex flex-col leading-tight">
               <BrandName />
               <span className="text-xs text-muted-foreground">Signed in as {user.username ?? "your account"}</span>
             </div>
           </div>
-          <h1 id="change-password-title" className="mt-6 text-xl font-semibold tracking-tight">
+          <h1 id="change-password-title" className="mt-6 text-xl leading-tight font-semibold tracking-[-0.015em]">
             Choose your own password
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -44,7 +43,7 @@ export default async function ChangePasswordPage() {
         <div className="px-6 py-6 sm:px-8">
           <ForcedPasswordChange destination={user.employeeId ? "/clock" : "/dashboard"} />
         </div>
-        <footer className="flex items-center gap-2 border-t bg-primary/[0.035] px-6 py-3 text-xs text-muted-foreground sm:px-8 dark:bg-primary/[0.08]">
+        <footer className="flex items-center gap-2 border-t bg-muted/40 px-6 py-3 text-xs text-muted-foreground sm:px-8">
           <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
           HR never sees the password you choose.
         </footer>

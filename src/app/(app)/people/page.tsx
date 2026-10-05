@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarClock, IdCard, UserPlus, Users2 } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeRosterService } from "@/domains/workforce/employee-roster-service";
@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSearchInput } from "@/components/shared/table-search-input";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { calculateAge, formatLengthOfService } from "@/lib/employee-dates";
 import { formatPersonName } from "@/lib/person-name";
@@ -102,7 +102,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           }
         />
 
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricStrip columns={4}>
           <MetricCard
             label="Active headcount"
             value={summary.headcount}
@@ -116,21 +116,19 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                 ))}
               </span>
             }
-            icon={Users2}
             emphasis
           />
-          <MetricCard label="New hires" value={newHires} hint="In the last 90 days" icon={UserPlus} />
-          <MetricCard label="Contracts ending" value={endingSoon} hint="In the next 30 days" icon={CalendarClock} tone={endingSoon ? "warning" : "default"} />
+          <MetricCard label="New hires" value={newHires} hint="In the last 90 days" />
+          <MetricCard label="Contracts ending" value={endingSoon} hint="In the next 30 days" tone={endingSoon ? "warning" : "default"} />
           <MetricCard
             label="Incomplete gov't IDs"
             value={missingIds}
             hint={missingIds ? "Missing SSS, PhilHealth, Pag-IBIG or TIN" : "All IDs on file"}
-            icon={IdCard}
             tone={missingIds ? "warning" : "success"}
           />
-        </div>
+        </MetricStrip>
 
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-[var(--shadow-soft)] sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-[var(--shadow-soft)] sm:flex-row sm:items-end">
           <TableSearchInput placeholder="Search by name, employee #, or position…" />
           <span aria-hidden="true" className="hidden h-9 w-px bg-border sm:block" />
           <PeopleFilters employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))} />
@@ -166,7 +164,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
                 const name = row.person ? formatPersonName(row.person) : "—";
                 return (
                   <Link href={`/people/${row._id.toString()}`} className="group flex items-center gap-2.5">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
                       {name
                         .split(" ")
                         .filter(Boolean)

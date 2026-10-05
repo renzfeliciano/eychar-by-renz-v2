@@ -210,7 +210,7 @@ export function ClockPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <Fingerprint className="size-4" />
             Set up biometric verification
           </CardTitle>
@@ -235,7 +235,7 @@ export function ClockPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Attendance</CardTitle>
+        <CardTitle>Attendance</CardTitle>
         <div className="mt-1 flex items-start gap-2.5" data-testid="clock-status">
           <span
             className={cn(

@@ -25,7 +25,7 @@ export function Breadcrumbs() {
     // Pages reached from the account menu rather than the sidebar.
     if (!pathname.startsWith("/account/")) return null;
     return (
-      <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
+      <nav aria-label="Breadcrumb" className="hidden min-w-0 shrink-0 items-center gap-1.5 text-sm md:flex">
         <span className="truncate text-muted-foreground">Your account</span>
         <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60" aria-hidden="true" />
         <span className="truncate font-medium" aria-current="page">
@@ -40,7 +40,7 @@ export function Breadcrumbs() {
   const onItemPage = pathname === page.href;
 
   return (
-    <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
+    <nav aria-label="Breadcrumb" className="hidden min-w-0 shrink-0 items-center gap-1.5 text-sm md:flex">
       {parentLabel && (
         <>
           <span className="truncate text-muted-foreground">{parentLabel}</span>

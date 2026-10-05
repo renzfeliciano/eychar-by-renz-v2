@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlarmClock, Banknote, ClipboardCheck, Hourglass } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
 import { ClearanceService } from "@/domains/clearance/clearance-service";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import { PrepareSettlementButton } from "./prepare-settlement-button";
@@ -54,15 +54,15 @@ export default async function FinalSettlementsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Final settlement" description="Last pay for separated employees: computed from their records, reviewed by HR, approved by Finance, and paid by the deadline set on the payroll policy." />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="In progress" value={open.length} hint={`${waiting.length} clearance${waiting.length === 1 ? "" : "s"} not started yet`} icon={Hourglass} emphasis />
-        <MetricCard label="Past the deadline" value={overdue} hint={overdue ? "Past the payroll policy's final pay deadline" : "Everything is within its deadline"} icon={AlarmClock} tone={overdue ? "danger" : "success"} />
-        <MetricCard label="Approved, to pay" value={formatMoney(toPay.reduce((sum, { settlement }) => sum + Math.max(settlement.totals.net, 0), 0))} hint={`${toPay.length} settlement${toPay.length === 1 ? "" : "s"}`} icon={Banknote} tone={toPay.length ? "warning" : "default"} />
-        <MetricCard label="Paid this month" value={paidThisMonth.length} hint={formatMoney(paidThisMonth.reduce((sum, { settlement }) => sum + settlement.totals.net, 0))} icon={ClipboardCheck} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="In progress" value={open.length} hint={`${waiting.length} clearance${waiting.length === 1 ? "" : "s"} not started yet`} emphasis />
+        <MetricCard label="Past the deadline" value={overdue} hint={overdue ? "Past the payroll policy's final pay deadline" : "Everything is within its deadline"} tone={overdue ? "danger" : "success"} />
+        <MetricCard label="Approved, to pay" value={formatMoney(toPay.reduce((sum, { settlement }) => sum + Math.max(settlement.totals.net, 0), 0))} hint={`${toPay.length} settlement${toPay.length === 1 ? "" : "s"}`} tone={toPay.length ? "warning" : "default"} />
+        <MetricCard label="Paid this month" value={paidThisMonth.length} hint={formatMoney(paidThisMonth.reduce((sum, { settlement }) => sum + settlement.totals.net, 0))} />
+      </MetricStrip>
 
       {waiting.length > 0 && canPrepare && (
-        <section aria-label="Clearances without a settlement" className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+        <section aria-label="Clearances without a settlement" className="flex flex-col gap-2 rounded-lg border bg-card p-4">
           <h2 className="text-sm font-medium">Ready to prepare</h2>
           <ul className="divide-y">
             {waiting.map((clearance) => (

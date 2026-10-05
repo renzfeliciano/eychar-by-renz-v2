@@ -127,7 +127,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
                   onClick={() => setForm({ ...form, rateType })}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-150",
-                    form.rateType === rateType ? "bg-background text-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground",
+                    form.rateType === rateType ? "bg-card text-foreground shadow-[0_1px_2px_oklch(0.235_0.028_262/10%)] ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {rateType === "monthly" ? "Monthly salary" : "Daily rate"}
@@ -191,7 +191,7 @@ export function CompensationFormDialog({ organizationId, employeeId, employeeNam
                         role="radio"
                         aria-checked={allowance.basis === basis}
                         onClick={() => updateAllowance(index, { basis })}
-                        className={cn("rounded px-2 py-0.5 text-xs font-medium", allowance.basis === basis ? "bg-background shadow-[var(--shadow-soft)]" : "text-muted-foreground")}
+                        className={cn("rounded px-2 py-0.5 text-xs font-medium", allowance.basis === basis ? "bg-card shadow-[0_1px_2px_oklch(0.235_0.028_262/10%)] ring-1 ring-border" : "text-muted-foreground")}
                       >
                         {basis === "monthly" ? "Per month" : "Per day worked"}
                       </button>

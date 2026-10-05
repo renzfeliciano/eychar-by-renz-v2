@@ -153,7 +153,7 @@ export function RoleFormDialog({
                       onCheckedChange={() => toggleGroup(keys)}
                     />
                     {/* The checkbox carries the accessible name; the heading text is a larger click target. */}
-                    <span aria-hidden="true" onClick={() => toggleGroup(keys)} className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase select-none">
+                    <span aria-hidden="true" onClick={() => toggleGroup(keys)} className="cursor-pointer text-[13px] font-semibold text-foreground select-none">
                       {category}
                     </span>
                     <span className="ml-auto text-xs text-muted-foreground tabular-nums">

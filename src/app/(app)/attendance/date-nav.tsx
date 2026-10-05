@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePendingNavigation } from "@/components/shared/navigation-pending";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/shared/form-field";
 
 export function DateNav({ date }: { date: string }) {
-  const router = useRouter();
+  const { push } = usePendingNavigation();
   // Controlled, because this component stays mounted across navigations:
   // Base UI's input only reads a defaultValue once, so a changing one both
   // warns and goes stale. The local copy follows the URL (e.g. Back button).
@@ -25,7 +25,7 @@ export function DateNav({ date }: { date: string }) {
         value={value}
         onChange={(event) => {
           setValue(event.target.value);
-          if (event.target.value) router.push(`/attendance?date=${event.target.value}`);
+          if (event.target.value) push(`/attendance?date=${event.target.value}`);
         }}
         className="w-40"
       />

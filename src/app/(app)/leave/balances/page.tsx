@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarCheck, ChevronLeft, ChevronRight, Hourglass, UserX, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { LeaveBalanceService, type LeaveBalanceSummary } from "@/domains/leave/leave-balance-service";
@@ -15,7 +15,7 @@ import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-qu
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
 import { TableSearchInput } from "@/components/shared/table-search-input";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CreateLeaveBalanceDialog } from "./create-leave-balance-dialog";
@@ -210,12 +210,12 @@ export default async function LeaveBalancesPage({ searchParams }: { searchParams
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Employees covered" value={`${covered} / ${rows.length}`} hint={`With a ${year} balance`} icon={Users} />
-        <MetricCard label="Days used" value={formatDays(summary.reduce((sum, line) => sum + line.usedDays, 0))} hint={`Approved leave in ${year}`} icon={CalendarCheck} />
-        <MetricCard label="Days pending" value={formatDays(summary.reduce((sum, line) => sum + line.pendingDays, 0))} hint="Awaiting approval" icon={Hourglass} />
-        <MetricCard label="Without balances" value={missing} hint={missing ? "Grant them to allow requests" : "Everyone is set up"} icon={UserX} tone={missing ? "warning" : "success"} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="Employees covered" value={`${covered} / ${rows.length}`} hint={`With a ${year} balance`} />
+        <MetricCard label="Days used" value={formatDays(summary.reduce((sum, line) => sum + line.usedDays, 0))} hint={`Approved leave in ${year}`} />
+        <MetricCard label="Days pending" value={formatDays(summary.reduce((sum, line) => sum + line.pendingDays, 0))} hint="Awaiting approval" />
+        <MetricCard label="Without balances" value={missing} hint={missing ? "Grant them to allow requests" : "Everyone is set up"} tone={missing ? "warning" : "success"} />
+      </MetricStrip>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">

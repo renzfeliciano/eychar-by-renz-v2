@@ -36,14 +36,12 @@ export function accessRequestText(details: Pick<NoAccessDetails, "permission" | 
 
 function DetailRow({ icon: Icon, label, children }: { icon: typeof KeyRound; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
-        <Icon className="size-4" />
-      </span>
-      <div className="flex min-w-0 flex-col gap-1">
-        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</dt>
-        <dd className="min-w-0 text-sm break-words text-foreground">{children}</dd>
-      </div>
+    <div className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+        {label}
+      </dt>
+      <dd className="min-w-0 text-sm break-words text-foreground">{children}</dd>
     </div>
   );
 }
@@ -71,26 +69,20 @@ export function NoAccessCard({ message, permission, permissionLabel, superAdminO
 
   return (
     <div className="flex min-h-[calc(100dvh-12rem)] items-center justify-center py-6" data-testid="no-access-state">
-      <section aria-labelledby="no-access-title" className="w-full max-w-lg overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-soft)]">
-        <div className="relative flex flex-col items-center gap-4 overflow-hidden border-b bg-gradient-to-b from-primary/[0.07] to-transparent px-6 pt-10 pb-7 text-center sm:px-10">
-          {/* Soft concentric rings behind the lock: decorative only. */}
-          <div aria-hidden="true" className="pointer-events-none absolute top-6 left-1/2 size-40 -translate-x-1/2 rounded-full border border-primary/10" />
-          <div aria-hidden="true" className="pointer-events-none absolute top-0 left-1/2 size-56 -translate-x-1/2 rounded-full border border-primary/[0.06]" />
-          <span className="relative flex size-16 items-center justify-center rounded-2xl bg-card text-primary shadow-sm ring-1 ring-primary/15" aria-hidden="true">
-            <LockKeyhole className="size-7" />
-          </span>
-          <div className="relative flex flex-col gap-1.5">
-            <p className="text-xs font-semibold tracking-[0.12em] text-primary uppercase">Access restricted</p>
-            <h1 id="no-access-title" className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
+      <section aria-labelledby="no-access-title" className="w-full max-w-lg overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-raised)]">
+        <div className="flex items-start gap-4 border-b px-6 pt-7 pb-6 sm:px-8">
+          <LockKeyhole className="mt-1 size-5 shrink-0 text-primary" aria-hidden="true" />
+          <div className="flex flex-col gap-1.5">
+            <h1 id="no-access-title" className="text-xl leading-tight font-semibold tracking-[-0.015em] text-balance">
               You can&apos;t open this page yet
             </h1>
-            <p role="status" className="mx-auto max-w-sm text-sm text-pretty text-muted-foreground">
+            <p role="status" className="max-w-sm text-sm text-pretty text-muted-foreground">
               {message}
             </p>
           </div>
         </div>
 
-        <dl className="divide-y px-6 py-5 sm:px-10">
+        <dl className="divide-y divide-rule px-6 py-5 sm:px-8">
           <DetailRow icon={KeyRound} label="Access needed">
             {superAdminOnly ? (
               "Super Administrator"
@@ -106,7 +98,7 @@ export function NoAccessCard({ message, permission, permissionLabel, superAdminO
               {roleNames.length > 0 ? (
                 <span className="flex flex-wrap gap-1.5">
                   {roleNames.map((name) => (
-                    <span key={name} className="rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium">
+                    <span key={name} className="rounded-[5px] border bg-background px-2 py-0.5 text-xs font-medium">
                       {name}
                     </span>
                   ))}
@@ -123,7 +115,7 @@ export function NoAccessCard({ message, permission, permissionLabel, superAdminO
           )}
         </dl>
 
-        <div className="flex flex-col gap-4 border-t bg-muted/30 px-6 py-5 sm:px-10">
+        <div className="flex flex-col gap-4 border-t bg-muted/40 px-6 py-5 sm:px-8">
           <p className="text-sm text-muted-foreground">
             {superAdminOnly
               ? "Only the Super Administrator can open this page. If you need something here, ask them."

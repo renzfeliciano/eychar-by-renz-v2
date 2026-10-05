@@ -214,7 +214,7 @@ export function LivenessCamera({ onCaptured, onCancel }: { onCaptured: (capture:
 
   return (
     <div className="flex flex-col gap-3" data-testid="liveness-camera">
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-black sm:aspect-[4/3]">
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-black sm:aspect-[4/3]">
         <video ref={videoRef} muted playsInline className="size-full -scale-x-100 object-cover" aria-label="Live camera preview" />
         <div
           aria-hidden="true"

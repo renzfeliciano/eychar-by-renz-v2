@@ -70,14 +70,10 @@ export function ConfirmDialog({
       <DialogTrigger render={cloneElement(trigger, { "data-testid": testId } as object)} />
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="flex-row items-start gap-3 pr-10">
-          <div
-            className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-              variant === "destructive" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
-            }`}
-          >
-            <TriangleAlert className="size-5" />
+          <div className={`mt-0.5 shrink-0 ${variant === "destructive" ? "text-destructive" : "text-primary"}`}>
+            <TriangleAlert className="size-5" aria-hidden="true" />
           </div>
-          <div className="flex flex-col gap-1 pt-1.5">
+          <div className="flex flex-col gap-1.5">
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </div>

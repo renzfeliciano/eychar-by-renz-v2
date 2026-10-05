@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePendingNavigation } from "@/components/shared/navigation-pending";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,8 @@ function shiftMonth(month: string, delta: number): string {
 }
 
 export function MonthNav({ month, label }: { month: string; label: string }) {
-  const router = useRouter();
-  const go = (next: string) => router.push(`/attendance/schedules?month=${next}`);
+  const { push } = usePendingNavigation();
+  const go = (next: string) => push(`/attendance/schedules?month=${next}`);
 
   return (
     <div className="flex items-center gap-2">

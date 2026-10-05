@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { NavLinks, NAV_SECTIONS, NAV_PAGES, CATALOG_READ_PERMISSIONS, canSeeNavItem } from "@/components/shared/nav-links";
@@ -13,6 +13,10 @@ const LINKS = NAV_SECTIONS.flatMap((section) => section.items);
 const ITEMS = NAV_PAGES;
 
 describe("navigation by permission", () => {
+  // The sidebar remembers which sections were opened (localStorage). Start each test fresh,
+  // or one that opens More leaves it open for the next.
+  beforeEach(() => window.localStorage.clear());
+
   it("lists only what the viewer's permissions open, and drops sections left empty", () => {
     render(<NavLinks heldPermissions={["employees.read", "leave.read"]} />);
     expect(screen.getByTestId("nav-link-dashboard")).toBeInTheDocument();
@@ -28,12 +32,6 @@ describe("navigation by permission", () => {
     expect(screen.getByTestId("nav-section-toggle-organization")).toBeInTheDocument();
   });
 
-  it("opens a merged module on the first screen the viewer may use (Setup lives under More)", () => {
-    render(<NavLinks heldPermissions={["leave-policies.read"]} />);
-    fireEvent.click(screen.getByTestId("nav-section-toggle-more"));
-    expect(screen.getByTestId("nav-link-setup")).toHaveAttribute("href", "/leave/policies");
-  });
-
   it("starts with More collapsed", () => {
     render(<NavLinks isSuperAdmin heldPermissions={[]} />);
     expect(screen.getByTestId("nav-section-toggle-more")).toHaveAttribute("aria-expanded", "false");
@@ -47,6 +45,13 @@ describe("navigation by permission", () => {
     unmount();
     render(<NavLinks />);
     expect(screen.getAllByRole("link")).toHaveLength(LINKS.filter((item) => !item.superAdminOnly).length - more);
+  });
+
+  // Runs after the collapsed-by-default checks: opening More is remembered for the session.
+  it("opens a merged module on the first screen the viewer may use (Setup lives under More)", () => {
+    render(<NavLinks heldPermissions={["leave-policies.read"]} />);
+    fireEvent.click(screen.getByTestId("nav-section-toggle-more"));
+    expect(screen.getByTestId("nav-link-setup")).toHaveAttribute("href", "/leave/policies");
   });
 
   it("opens Catalogs to anyone who can read one catalog", () => {

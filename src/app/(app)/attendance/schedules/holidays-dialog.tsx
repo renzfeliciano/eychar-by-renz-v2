@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Loader2, Pencil, Plus, Trash2, TriangleAlert, ArrowLeft, Check, CheckCheck, Eraser, Save } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Pencil, Plus, Trash2, TriangleAlert, ArrowLeft, Check, CheckCheck, Eraser, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { FormError } from "@/components/shared/form-field";
+import { Bone } from "@/components/shared/skeletons";
 import { cn } from "@/lib/utils";
 import { formatDateKey } from "@/lib/date-key";
 import type { HolidayType, HolidayView } from "@/domains/holidays/holiday-types";
@@ -257,10 +258,18 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
               )}
               {loadError && <FormError message={loadError} />}
               {!holidays && !loadError && (
-                <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Loading holidays…
-                </p>
+                <div role="status" aria-busy="true" data-testid="holidays-loading">
+                  <span className="sr-only">Loading holidays…</span>
+                  <ul className="divide-y divide-rule rounded-lg border" aria-hidden="true">
+                    {[0, 1, 2, 3, 4].map((row) => (
+                      <li key={row} className="flex items-center gap-3 px-3 py-2.5">
+                        <Bone className="h-3.5 w-14" />
+                        <Bone className={row % 2 ? "h-3.5 w-40" : "h-3.5 w-52"} />
+                        <Bone className="ml-auto h-3 w-20" />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
               {holidays?.length === 0 && (
                 <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground" data-testid="holidays-empty">

@@ -25,7 +25,7 @@ export function TravelTimeline({ orders, todayKey }: { orders: TimelineOrder[]; 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Next two weeks</CardTitle>
+        <CardTitle>Next two weeks</CardTitle>
         <CardDescription>
           {formatDateKey(days[0], { month: "short", day: "numeric" })} – {formatDateKey(days[DAYS - 1], { month: "short", day: "numeric" })} ·{" "}
           {bars.length === 1 ? "1 trip" : `${bars.length} trips`}

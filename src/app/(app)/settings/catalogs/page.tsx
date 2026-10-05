@@ -68,7 +68,7 @@ export default async function CatalogsSettingsPage() {
       />
       {/* A sticky index of every list with its size, so a long settings page is one jump away from any catalog. */}
       <div className="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
-        <nav aria-label="Catalogs" className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-2 shadow-[var(--shadow-soft)] lg:sticky lg:top-0 lg:flex-col lg:overflow-visible">
+        <nav aria-label="Catalogs" className="flex gap-1 overflow-x-auto rounded-lg border bg-card p-2 shadow-[var(--shadow-soft)] lg:sticky lg:top-0 lg:flex-col lg:overflow-visible">
           {visibleSections.map((section) => (
             <a
               key={section.catalogType}

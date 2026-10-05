@@ -70,7 +70,7 @@ export default async function RuleVersionPage({ params }: { params: Promise<{ id
         <h2 className="text-base font-semibold">Withholding tax</h2>
         <div className="grid gap-4 lg:grid-cols-3">
           {taxTables.map((table) => (
-            <div key={table.payFrequency} className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]">
+            <div key={table.payFrequency} className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]">
               <p className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">{PAY_FREQUENCY_LABELS[table.payFrequency]}</p>
               <table className="w-full text-xs">
                 <thead className="text-muted-foreground">
@@ -101,7 +101,7 @@ export default async function RuleVersionPage({ params }: { params: Promise<{ id
         <h2 className="text-base font-semibold">Government contributions</h2>
         <p className="-mt-2 text-sm text-muted-foreground">Monthly amounts on monthly basic pay; the payroll policy decides whether they&apos;re split across cutoffs.</p>
         {contributions.map((rule) => (
-          <details key={rule.code} className="rounded-xl border bg-card shadow-[var(--shadow-soft)]" open={rule.rows.length <= 3}>
+          <details key={rule.code} className="rounded-lg border bg-card shadow-[var(--shadow-soft)]" open={rule.rows.length <= 3}>
             <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3">
               <span className="font-medium">{rule.name}</span>
               <span className="text-xs text-muted-foreground">

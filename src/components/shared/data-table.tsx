@@ -137,13 +137,11 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
   if (rows.length === 0) {
     return (
       <div
-        className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-card px-6 py-14 text-center shadow-[var(--shadow-soft)]"
+        className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-input bg-card/60 px-6 py-12 text-center"
         role="status"
         data-testid={testId}
       >
-        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Inbox className="size-6" aria-hidden="true" />
-        </div>
+        <Inbox className="size-5 text-muted-foreground/70" strokeWidth={1.5} aria-hidden="true" />
         <div className="flex max-w-md flex-col gap-1">
           <p className="text-sm font-medium text-foreground">{emptyMessage}</p>
           {emptyDescription && <p className="text-sm text-muted-foreground">{emptyDescription}</p>}
@@ -154,7 +152,7 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-soft)]" data-testid={testId}>
+    <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]" data-testid={testId}>
       {sort && <MobileSortBar columns={columns} sort={sort} />}
       <DataTableFrame
         tableClassName="max-md:block"
@@ -164,14 +162,14 @@ export function DataTable<T extends { _id?: unknown; id?: unknown }>({
           <>
             {caption && <TableCaption className="sr-only">{caption}</TableCaption>}
             {/* Pinned while the body scrolls; solid so rows don't show through. */}
-            <TableHeader className="max-md:hidden md:sticky md:top-0 md:z-20 [&_th]:bg-muted">
+            <TableHeader className="max-md:hidden md:sticky md:top-0 md:z-20 [&_th]:bg-[color-mix(in_oklch,var(--card),var(--muted)_70%)]">
               <TableRow className="hover:bg-transparent">
                 {columns.map((column, index) => {
                   const width = widthOf(column, index);
                   return (
                     <TableHead
                       key={column.key}
-                      className={cn("h-10 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase", COLUMN_WIDTH[width].head, column.className)}
+                      className={cn("h-9 px-3 text-[12.5px] font-medium text-muted-foreground", COLUMN_WIDTH[width].head, column.className)}
                     >
                       {column.sortKey && sort ? (
                         <Link
@@ -246,7 +244,7 @@ function PaginationFooter({ pagination }: { pagination: DataTablePagination }) {
               href={buildHref(1, size)}
               className={cn(
                 "inline-flex min-h-10 min-w-10 items-center justify-center rounded-md px-1.5 tabular-nums md:min-h-7 md:min-w-7",
-                size === pageSize ? "bg-primary/10 font-semibold text-primary" : "hover:text-foreground",
+                size === pageSize ? "bg-primary font-medium text-primary-foreground" : "hover:bg-muted hover:text-foreground",
               )}
               aria-current={size === pageSize ? "true" : undefined}
             >
@@ -289,7 +287,7 @@ function MobileSortBar<T>({ columns, sort }: { columns: DataTableColumn<T>[]; so
   if (sortable.length === 0) return null;
   return (
     <nav aria-label="Sort" className="flex items-center gap-1 overflow-x-auto border-b bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground md:hidden" data-testid="data-table-mobile-sort">
-      <span className="shrink-0 pr-1 font-medium tracking-wide uppercase">Sort</span>
+      <span className="shrink-0 pr-1 font-medium">Sort by</span>
       {sortable.map((column) => {
         const active = sort.sortBy === column.sortKey;
         return (
@@ -299,7 +297,7 @@ function MobileSortBar<T>({ columns, sort }: { columns: DataTableColumn<T>[]; so
             aria-current={active ? "true" : undefined}
             className={cn(
               "inline-flex min-h-10 shrink-0 items-center gap-1 rounded-md px-2.5 whitespace-nowrap",
-              active ? "bg-primary/10 font-semibold text-primary" : "hover:text-foreground",
+              active ? "bg-primary font-medium text-primary-foreground" : "hover:text-foreground",
             )}
           >
             {column.header}

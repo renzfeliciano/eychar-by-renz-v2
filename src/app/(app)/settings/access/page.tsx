@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { KeyRound, ShieldCheck, UserCog, Users } from "lucide-react";
+
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { RoleService } from "@/domains/authorization/role-service";
@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSearchInput } from "@/components/shared/table-search-input";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SuperAdminService, grantsAdminPower } from "@/domains/authorization/super-admin-service";
@@ -116,17 +116,17 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
         description="Create custom roles with exactly the permissions they need, and assign them to people."
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Active roles" value={activeRoles.length} hint={`${roles.length - activeRoles.length} retired`} icon={ShieldCheck} />
-        <MetricCard label="People with access" value={peopleWithAccess} hint={`${members.length} accounts in total`} icon={Users} emphasis />
-        <MetricCard label="Role assignments" value={assignments.length} hint="Currently in effect" icon={UserCog} />
-        <MetricCard label="Unused roles" value={unusedRoles} hint={unusedRoles ? "No one holds them" : "Every role is in use"} icon={KeyRound} />
-      </div>
+      <MetricStrip columns={4}>
+        <MetricCard label="Active roles" value={activeRoles.length} hint={`${roles.length - activeRoles.length} retired`} />
+        <MetricCard label="People with access" value={peopleWithAccess} hint={`${members.length} accounts in total`} emphasis />
+        <MetricCard label="Role assignments" value={assignments.length} hint="Currently in effect" />
+        <MetricCard label="Unused roles" value={unusedRoles} hint={unusedRoles ? "No one holds them" : "Every role is in use"} />
+      </MetricStrip>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">Roles</CardTitle>
+            <CardTitle>Roles</CardTitle>
             <CardDescription>What each kind of user can see and do.</CardDescription>
           </div>
           {canCreateRole && <RoleFormDialog organizationId={organizationId} availablePermissions={permissionOptions} />}
@@ -217,7 +217,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">Access</CardTitle>
+            <CardTitle>Access</CardTitle>
             <CardDescription>Who holds which role, where it applies, and since when.</CardDescription>
           </div>
           {canAssign && <AssignRoleDialog organizationId={organizationId} members={memberOptions} roles={roleOptions} projects={projectOptions} />}
@@ -253,7 +253,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
                   const name = member?.name ?? "—";
                   return (
                     <div className="flex items-center gap-2.5">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground ring-1 ring-border" aria-hidden="true">
                         {initials(name)}
                       </span>
                       <span className="flex min-w-0 flex-col">
@@ -310,7 +310,7 @@ export default async function AccessSettingsPage({ searchParams }: { searchParam
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">Staff accounts</CardTitle>
+            <CardTitle>Staff accounts</CardTitle>
             <CardDescription>Logins for HR and admin staff.</CardDescription>
           </div>
           {canCreateStaffAccount && <CreateStaffAccountDialog organizationId={organizationId} roles={roleOptions} />}

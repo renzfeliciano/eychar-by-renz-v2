@@ -4,7 +4,7 @@ import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
-import { AlarmClock, ArrowDownRight, ArrowUpRight, Info, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Info } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
@@ -13,7 +13,7 @@ import { PaymentMethodService } from "@/domains/catalog/payment-method-service";
 import { userDisplayNames } from "@/domains/identity/user-directory";
 import { NotFoundError } from "@/shared/errors";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ function LinesTable({ title, lines, total, tone, removable }: { title: string; l
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2">
           {tone === "earning" ? <ArrowUpRight className="size-4 text-success" aria-hidden="true" /> : <ArrowDownRight className="size-4 text-destructive" aria-hidden="true" />}
           {title}
         </CardTitle>
@@ -127,18 +127,17 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="Net pay" value={formatMoney(totals.net)} hint={totals.net < 0 ? "Balance due from the employee" : "To be paid to the employee"} icon={Wallet} emphasis tone={totals.net < 0 ? "danger" : "default"} />
-        <MetricCard label="Earnings" value={formatMoney(totals.earnings)} hint={`${lines.filter((line) => line.direction === "earning").length} lines`} icon={ArrowUpRight} />
-        <MetricCard label="Deductions" value={formatMoney(totals.deductions)} hint={`${lines.filter((line) => line.direction === "deduction").length} lines`} icon={ArrowDownRight} />
+      <MetricStrip columns={4}>
+        <MetricCard label="Net pay" value={formatMoney(totals.net)} hint={totals.net < 0 ? "Balance due from the employee" : "To be paid to the employee"} emphasis tone={totals.net < 0 ? "danger" : "default"} />
+        <MetricCard label="Earnings" value={formatMoney(totals.earnings)} hint={`${lines.filter((line) => line.direction === "earning").length} lines`} />
+        <MetricCard label="Deductions" value={formatMoney(totals.deductions)} hint={`${lines.filter((line) => line.direction === "deduction").length} lines`} />
         <MetricCard
           label="Pay by"
           value={settlement.status === "disbursed" ? "Paid" : daysLeft < 0 ? `${-daysLeft} days overdue` : `${daysLeft} days left`}
           hint={`${deadlineDays} days after separation, per the payroll policy`}
-          icon={AlarmClock}
           tone={settlement.status === "disbursed" ? "success" : daysLeft < 0 ? "danger" : daysLeft <= 7 ? "warning" : "default"}
         />
-      </div>
+      </MetricStrip>
 
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -183,7 +182,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Computed with</CardTitle>
+              <CardTitle>Computed with</CardTitle>
               <CardDescription>Frozen once approved</CardDescription>
             </CardHeader>
             <CardContent>
@@ -203,7 +202,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">History</CardTitle>
+              <CardTitle>History</CardTitle>
             </CardHeader>
             <CardContent>
               <ol className="flex flex-col gap-3">

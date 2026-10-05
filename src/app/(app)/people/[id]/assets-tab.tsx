@@ -22,7 +22,7 @@ export function AssetsTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Issued assets</CardTitle>
+        <CardTitle>Issued assets</CardTitle>
         <CardDescription>Equipment, uniforms and IDs handed over, and whether they came back</CardDescription>
         {canCreateAssets && (
           <CardAction>

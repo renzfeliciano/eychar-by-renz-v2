@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Banknote, ListChecks, CalendarRange, UsersRound, UserPlus, LogOut, History, AlarmClock, UserX, CalendarDays, CheckCircle2, FileClock, FileText, Flag, Plane, Palmtree, Cake, Clock, Scale, UserCheck, type LucideIcon } from "lucide-react";
+import { ArrowRight, Banknote, CalendarDays, CheckCircle2, FileClock, FileText, Flag, Palmtree, Cake, UserCheck, type LucideIcon } from "lucide-react";
 import { hourInAppZone } from "@/lib/app-time";
 import { OrganizationService } from "@/domains/organization/organization-service";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -31,7 +31,7 @@ import { collapseKind, rankActions, relativeDue, urgencyFor, type ActionItem, ty
 import { dateToDateKey, formatDateKey, localDateKey } from "@/lib/date-key";
 import { formatPersonName } from "@/lib/person-name";
 import { calculateAge } from "@/lib/employee-dates";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { NoAccessState } from "@/components/shared/no-access-state";
 import { getSession } from "@/server/auth/session";
@@ -388,125 +388,80 @@ export default async function DashboardPage() {
     .sort((a, b) => a.key.localeCompare(b.key));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-violet-500/5 to-teal-500/10 px-5 py-5 sm:px-6">
-        <div className="pointer-events-none absolute -top-16 -right-10 size-48 rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
-        <h1 className="relative text-2xl font-bold tracking-tight">{greeting}</h1>
-        <p className="relative mt-1 text-sm text-muted-foreground">
-          {todayLabel}
-        </p>
-      </div>
+    <div className="flex flex-col gap-7">
+      <PageHeader title={greeting} description={todayLabel} />
 
+      {/* Two columns on a wide screen: the work on the left (what to do, what's at risk), the day and the
+          month on the right. One column on a phone, in the same order of importance. */}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" data-testid="dashboard-cards">
+        <div className="flex min-w-0 flex-col gap-5">
+          <Panel
+            testId="dashboard-actions"
+            title="Needs your action"
+            count={ranked.length || undefined}
+            description={ranked.length ? "Most urgent first. Each row opens the place to do it." : undefined}
+          >
+            {ranked.length === 0 ? (
+              <AllClear>You&apos;re all caught up. Nothing is waiting on you.</AllClear>
+            ) : (
+              <ul className="flex flex-col divide-y divide-rule">
+                {ranked.map((action) => (
+                  <ActionRow key={action.id} action={action} todayKey={todayKey} />
+                ))}
+              </ul>
+            )}
+          </Panel>
 
-      {/* One list of cards, most important first, flowed into two balanced columns: both columns end at about the same height. */}
-      <div className="gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid" data-testid="dashboard-cards">
-          <Card data-testid="dashboard-actions" className={ACCENT.blue.card}>
-            <CardHead accent="blue" icon={ListChecks} title="Needs your action" description={ranked.length ? `${ranked.length} thing${ranked.length === 1 ? "" : "s"} to do, most urgent first.` : "Nothing waiting on you."} />
-            <CardContent>
-              {ranked.length === 0 ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
-                  You&apos;re all caught up.
-                </p>
+          <Panel testId="dashboard-risks" title="Legal & compliance" count={rankedRisks.length || undefined} description={`Deadlines with legal consequences in the next ${RISK_WINDOW_DAYS} days.`}>
+            {rankedRisks.length === 0 ? (
+              <AllClear>No deadlines at risk.</AllClear>
+            ) : (
+              <ul className="flex flex-col divide-y divide-rule">
+                {rankedRisks.map((risk) => (
+                  <ActionRow key={risk.id} action={risk} todayKey={todayKey} compact />
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {payrollRuns && (
+            <Panel testId="dashboard-payroll" title="Payroll in progress" description="By pay date, with who acts next." href="/payroll" linkLabel="All runs">
+              {runsInProgress.length === 0 ? (
+                <Quiet>No payroll in progress.</Quiet>
               ) : (
-                <ul className="flex flex-col divide-y">
-                  {ranked.map((action) => (
-                    <ActionRow key={action.id} action={action} todayKey={todayKey} />
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-          <Card data-testid="dashboard-risks" className={ACCENT.rose.card}>
-            <CardHead accent="rose" icon={Scale} title="Legal & compliance risk" description={`Deadlines with legal consequences, next ${RISK_WINDOW_DAYS} days.`} />
-            <CardContent>
-              {rankedRisks.length === 0 ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
-                  No risks found.
-                </p>
-              ) : (
-                <ul className="flex flex-col divide-y">
-                  {rankedRisks.map((risk) => (
-                    <ActionRow key={risk.id} action={risk} todayKey={todayKey} compact />
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-          <Card data-testid="dashboard-coming-up" className={ACCENT.violet.card}>
-            <CardHead accent="violet" icon={CalendarRange} title="Upcoming" description={`Next ${COMING_UP_DAYS} days: contracts, probation, pay dates, leave, holidays, events, birthdays.`} />
-            <CardContent>
-              {upcoming.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing in the next {COMING_UP_DAYS} days.</p>
-              ) : (
-                <ol className="flex flex-col gap-3">
-                  {upcoming.slice(0, UPCOMING_SHOWN).map((entry, index) => {
-                    const { icon: Icon, tone } = UPCOMING_STYLE[entry.kind];
+                <ul className="flex flex-col divide-y divide-rule">
+                  {runsInProgress.map((run) => {
+                    const payKey = dateToDateKey(new Date(run.payDate));
                     return (
-                      <li key={`${entry.key}-${entry.kind}-${index}`}>
-                        <Link href={entry.href} className="group flex items-start gap-3 rounded-md text-sm">
-                          <span className="w-12 shrink-0 pt-0.5 text-xs text-muted-foreground tabular-nums">{shortDate(entry.key)}</span>
-                          <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", tone)} aria-hidden="true">
-                            <Icon className="size-3.5" />
-                          </span>
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate font-medium group-hover:text-primary" title={entry.title}>
-                              {entry.title}
-                            </span>
+                      <li key={run._id.toString()}>
+                        <Link href={`/payroll/${run._id.toString()}`} className="group -mx-2 flex items-center gap-4 rounded-md px-2 py-3 text-sm transition-colors hover:bg-accent/40">
+                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="truncate font-medium group-hover:text-primary">{run.runNumber}</span>
                             <span className="truncate text-xs text-muted-foreground">
-                              {relativeDue(todayKey, entry.key)} · {entry.detail}
+                              Pays {shortDate(payKey)} ({relativeDue(todayKey, payKey)}) · {NEXT_STEP[run.status]}
                             </span>
                           </span>
+                          <RunStages status={run.status} />
                         </Link>
                       </li>
                     );
                   })}
-                </ol>
+                </ul>
               )}
-              {upcoming.length > UPCOMING_SHOWN && <p className="mt-3 text-xs text-muted-foreground">and {upcoming.length - UPCOMING_SHOWN} more later this month.</p>}
-            </CardContent>
-          </Card>
-          {payrollRuns && (
-            <Card data-testid="dashboard-payroll" className={ACCENT.emerald.card}>
-              <CardHead accent="emerald" icon={Banknote} title="Payroll" description="Runs in progress, by pay date, and who acts next." />
-              <CardContent>
-                {runsInProgress.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No payroll in progress.</p>
-                ) : (
-                  <ul className="flex flex-col divide-y">
-                    {runsInProgress.map((run) => {
-                      const payKey = dateToDateKey(new Date(run.payDate));
-                      return (
-                        <li key={run._id.toString()}>
-                          <Link href={`/payroll/${run._id.toString()}`} className="group flex items-center gap-3 py-2.5 text-sm">
-                            <span className="flex min-w-0 flex-1 flex-col">
-                              <span className="truncate font-medium group-hover:text-primary">{run.runNumber}</span>
-                              <span className="truncate text-xs text-muted-foreground">
-                                Pays {shortDate(payKey)} ({relativeDue(todayKey, payKey)}) · {NEXT_STEP[run.status]}
-                              </span>
-                            </span>
-                            <RunStages status={run.status} />
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+            </Panel>
           )}
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-5">
           {(leaveToday || travelOrders || noTimeIn) && (
-            <Card data-testid="dashboard-whos-out" className={ACCENT.teal.card}>
-              <CardHead accent="teal" icon={UsersRound} title="Who's out today" description={shortDate(todayKey)} />
-              <CardContent className="flex flex-col gap-4">
-                {leaveToday && <NameGroup icon={Palmtree} tone="emerald" label="On leave" ids={[...onLeaveIds]} nameOf={nameOf} moreHref="/leave" />}
-                {travelOrders && <NameGroup icon={Plane} tone="sky" label="Travelling" ids={[...travellingIds]} nameOf={nameOf} moreHref="/travel-orders" />}
+            <Panel testId="dashboard-whos-out" title="Who's out today" description={shortDate(todayKey)}>
+              <div className="flex flex-col divide-y divide-rule">
+                {leaveToday && <NameGroup label="On leave" ids={[...onLeaveIds]} nameOf={nameOf} moreHref="/leave" />}
+                {travelOrders && <NameGroup label="Travelling" ids={[...travellingIds]} nameOf={nameOf} moreHref="/travel-orders" />}
                 {attendanceToday && (
                   <NameGroup
-                    icon={AlarmClock}
-                    tone="orange"
                     label="Late"
+                    tone="warning"
                     ids={lateToday.map((record) => record.employeeId.toString())}
                     nameOf={(id) => {
                       const record = lateToday.find((item) => item.employeeId.toString() === id);
@@ -515,136 +470,167 @@ export default async function DashboardPage() {
                     moreHref="/attendance"
                   />
                 )}
-                {attendanceToday && <NameGroup icon={UserX} tone="red" label="Absent" ids={absentToday.map((record) => record.employeeId.toString())} nameOf={nameOf} moreHref="/attendance" />}
-                {noTimeIn && <NameGroup icon={Clock} tone="amber" label="No time-in yet" ids={noTimeIn.map((row) => row._id.toString())} nameOf={nameOf} moreHref="/attendance" />}
-              </CardContent>
-            </Card>
+                {attendanceToday && <NameGroup label="Absent" tone="danger" ids={absentToday.map((record) => record.employeeId.toString())} nameOf={nameOf} moreHref="/attendance" />}
+                {noTimeIn && <NameGroup label="No time-in yet" ids={noTimeIn.map((row) => row._id.toString())} nameOf={nameOf} moreHref="/attendance" />}
+              </div>
+            </Panel>
           )}
+
+          <Panel testId="dashboard-coming-up" title="Coming up" description={`The next ${COMING_UP_DAYS} days: contracts, probation, pay dates, leave, holidays, events and birthdays.`}>
+            {upcoming.length === 0 ? (
+              <Quiet>Nothing in the next {COMING_UP_DAYS} days.</Quiet>
+            ) : (
+              <UpcomingList entries={upcoming.slice(0, UPCOMING_SHOWN)} todayKey={todayKey} />
+            )}
+            {upcoming.length > UPCOMING_SHOWN && <p className="mt-3 text-xs text-muted-foreground">And {upcoming.length - UPCOMING_SHOWN} more later this month.</p>}
+          </Panel>
+
           {(roster || clearances) && (
-            <Card data-testid="dashboard-joining-leaving" className={ACCENT.indigo.card}>
-              <CardHead accent="indigo" icon={UsersRound} title="Joining & leaving" description="New hires in the last 2 weeks or starting soon, and last working days coming up." />
-              <CardContent className="flex flex-col gap-4">
-                <PeopleDates icon={UserPlus} tone="emerald" label="Joining" empty="No new hires around now." entries={joining.map((entry) => ({ key: entry.key, name: entry.name, href: `/people/${entry.id}`, note: entry.key <= todayKey ? `joined ${formatRelativeDays(new Date(`${entry.key}T00:00:00Z`), new Date(`${todayKey}T00:00:00Z`))}` : `starts ${relativeDue(todayKey, entry.key)}` }))} />
-                {clearances && <PeopleDates icon={LogOut} tone="red" label="Leaving" empty="No one is leaving soon." entries={leaving.map((entry) => ({ key: entry.key, name: entry.name, href: `/clearance/${entry.id}`, note: `${entry.reason} · last day ${relativeDue(todayKey, entry.key)}` }))} />}
-              </CardContent>
-            </Card>
+            <Panel testId="dashboard-joining-leaving" title="Joining & leaving" description="New hires from the last 2 weeks or starting soon, and last working days ahead.">
+              <div className="flex flex-col divide-y divide-rule">
+                <PeopleDates
+                  label="Joining"
+                  empty="No new hires around now."
+                  entries={joining.map((entry) => ({
+                    key: entry.key,
+                    name: entry.name,
+                    href: `/people/${entry.id}`,
+                    note: entry.key <= todayKey ? `joined ${formatRelativeDays(new Date(`${entry.key}T00:00:00Z`), new Date(`${todayKey}T00:00:00Z`))}` : `starts ${relativeDue(todayKey, entry.key)}`,
+                  }))}
+                />
+                {clearances && (
+                  <PeopleDates
+                    label="Leaving"
+                    empty="No one is leaving soon."
+                    entries={leaving.map((entry) => ({ key: entry.key, name: entry.name, href: `/clearance/${entry.id}`, note: `${entry.reason} · last day ${relativeDue(todayKey, entry.key)}` }))}
+                  />
+                )}
+              </div>
+            </Panel>
           )}
 
           {activity && (
-            <Card data-testid="dashboard-activity" className={ACCENT.slate.card}>
-              <CardHead accent="slate" icon={History} title="Recent activity" description="The latest changes across the organization." />
-              <CardContent>
-                {activity.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nothing recorded yet.</p>
-                ) : (
-                  <ul className="flex flex-col gap-2.5">
-                    {activity.map((entry) => (
-                      <li key={entry.id} className="flex items-start gap-2.5 text-sm">
-                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden="true" />
-                        <span className="min-w-0 flex-1">
-                          <span className="font-medium">{entry.actorName}</span> <span className="text-muted-foreground">{describeAuditAction(entry.action).toLowerCase()}</span>
-                          <span className="block text-xs text-muted-foreground">{formatRelativeDays(entry.timestamp, now)} · {formatTime(entry.timestamp)}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <Link href="/settings/audit" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  Audit log
-                  <ArrowRight className="size-3.5" aria-hidden="true" />
-                </Link>
-              </CardContent>
-            </Card>
+            <Panel testId="dashboard-activity" title="Recent activity" href="/settings/audit" linkLabel="Audit log">
+              {activity.length === 0 ? (
+                <Quiet>Nothing recorded yet.</Quiet>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {activity.map((entry) => (
+                    <li key={entry.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 text-sm">
+                      <span className="pt-px text-xs text-muted-foreground tabular-nums">{formatTime(entry.timestamp)}</span>
+                      <span className="min-w-0">
+                        <span className="font-medium">{entry.actorName}</span> <span className="text-muted-foreground">{describeAuditAction(entry.action).toLowerCase()}</span>
+                        <span className="block text-xs text-muted-foreground">{formatRelativeDays(entry.timestamp, now)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
           )}
+        </div>
       </div>
     </div>
   );
 }
 
-type Accent = "blue" | "rose" | "violet" | "teal" | "emerald" | "indigo" | "slate";
-// Each card's own color: a top edge and a tinted icon tile, light and dark.
-const ACCENT: Record<Accent, { card: string; tile: string }> = {
-  blue: { card: "border-t-4 border-t-blue-500", tile: "bg-blue-500/12 text-blue-600 dark:text-blue-400" },
-  rose: { card: "border-t-4 border-t-rose-500", tile: "bg-rose-500/12 text-rose-600 dark:text-rose-400" },
-  violet: { card: "border-t-4 border-t-violet-500", tile: "bg-violet-500/12 text-violet-600 dark:text-violet-400" },
-  teal: { card: "border-t-4 border-t-teal-500", tile: "bg-teal-500/12 text-teal-600 dark:text-teal-400" },
-  emerald: { card: "border-t-4 border-t-emerald-500", tile: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400" },
-  indigo: { card: "border-t-4 border-t-indigo-500", tile: "bg-indigo-500/12 text-indigo-600 dark:text-indigo-400" },
-  slate: { card: "border-t-4 border-t-slate-400", tile: "bg-slate-500/12 text-slate-600 dark:text-slate-300" },
-};
-const CHIP = {
-  emerald: { tile: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400", chip: "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300" },
-  sky: { tile: "bg-sky-500/12 text-sky-600 dark:text-sky-400", chip: "bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 dark:text-sky-300" },
-  amber: { tile: "bg-amber-500/12 text-amber-600 dark:text-amber-400", chip: "bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-300" },
-  orange: { tile: "bg-orange-500/12 text-orange-600 dark:text-orange-400", chip: "bg-orange-500/10 text-orange-800 hover:bg-orange-500/20 dark:text-orange-300" },
-  red: { tile: "bg-red-500/12 text-red-600 dark:text-red-400", chip: "bg-red-500/10 text-red-700 hover:bg-red-500/20 dark:text-red-300" },
-} as const;
-
-function CardHead({ accent, icon: Icon, title, description }: { accent: Accent; icon: LucideIcon; title: string; description: React.ReactNode }) {
+/**
+ * One dashboard section: a ruled sheet with its title, an optional count and
+ * a short line on what it holds. Every section looks the same; what differs
+ * is the content, not the color.
+ */
+function Panel({
+  title,
+  count,
+  description,
+  href,
+  linkLabel,
+  testId,
+  children,
+}: {
+  title: string;
+  count?: number;
+  description?: React.ReactNode;
+  href?: string;
+  linkLabel?: string;
+  testId?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <CardHeader>
-      <div className="flex items-start gap-3">
-        <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", ACCENT[accent].tile)} aria-hidden="true">
-          <Icon className="size-4.5" />
-        </span>
-        <div className="flex min-w-0 flex-col gap-1">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+    <section data-testid={testId} aria-label={title} className="rounded-lg border bg-card shadow-[var(--shadow-soft)]">
+      <header className="flex items-start justify-between gap-4 border-b px-5 pt-4 pb-3.5">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="flex items-baseline gap-2 text-[15px] font-semibold tracking-[-0.005em]">
+            {title}
+            {count !== undefined && <span className="text-sm font-normal text-muted-foreground tabular-nums">{count}</span>}
+          </h2>
+          {description && <p className="text-[13px] text-muted-foreground">{description}</p>}
         </div>
-      </div>
-    </CardHeader>
+        {href && (
+          <Link href={href} className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-xs font-medium text-primary hover:underline">
+            {linkLabel}
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        )}
+      </header>
+      <div className="px-5 py-4">{children}</div>
+    </section>
   );
+}
+
+function AllClear({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
+      {children}
+    </p>
+  );
+}
+
+function Quiet({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
 const RUN_STAGES = ["draft", "submitted", "approved", "released"] as const;
 
-/** Draft → Submitted → Approved → Released, with the run's stage lit. */
+/** Draft → Submitted → Approved → Released: four ticks, the ones done in navy. */
 function RunStages({ status }: { status: string }) {
   const current = RUN_STAGES.indexOf(status as (typeof RUN_STAGES)[number]);
   return (
-    <span className="flex shrink-0 items-center gap-1" aria-label={`Stage: ${status}`}>
+    <span className="flex shrink-0 items-center gap-1" aria-label={`Stage ${current + 1} of ${RUN_STAGES.length}: ${status}`}>
       {RUN_STAGES.map((stage, index) => (
-        <span
-          key={stage}
-          title={stage}
-          className={cn("h-1.5 w-5 rounded-full", index < current ? "bg-emerald-500" : index === current ? "bg-emerald-500 ring-2 ring-emerald-500/30" : "bg-muted")}
-        />
+        <span key={stage} title={stage} className={cn("h-1.5 w-4 rounded-[2px]", index <= current ? "bg-primary" : "bg-muted ring-1 ring-border ring-inset")} />
       ))}
     </span>
   );
 }
 
-function PeopleDates({
-  icon: Icon,
-  tone,
-  label,
-  empty,
-  entries,
-}: {
-  icon: LucideIcon;
-  tone: keyof typeof CHIP;
-  label: string;
-  empty: string;
-  entries: { key: string; name: string; href: string; note: string }[];
-}) {
+/** A small heading for a group inside a panel: the label and how many. */
+function GroupLabel({ label, count, tone }: { label: string; count?: number; tone?: "warning" | "danger" }) {
   return (
-    <div className="flex flex-col gap-2">
-      <p className="flex items-center gap-2 text-sm font-medium">
-        <span className={cn("flex size-6 items-center justify-center rounded-md", CHIP[tone].tile)} aria-hidden="true">
-          <Icon className="size-3.5" />
-        </span>
-        {label}
-      </p>
+    <p className="flex items-center gap-2 text-[13px] font-medium">
+      {tone && <span className={cn("size-2 rounded-full", tone === "danger" ? "bg-destructive" : "bg-warning")} aria-hidden="true" />}
+      {label}
+      {count !== undefined && <span className="font-normal text-muted-foreground tabular-nums">{count}</span>}
+    </p>
+  );
+}
+
+function PeopleDates({ label, empty, entries }: { label: string; empty: string; entries: { key: string; name: string; href: string; note: string }[] }) {
+  return (
+    <div className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+      <GroupLabel label={label} count={entries.length} />
       {entries.length === 0 ? (
-        <p className="pl-8 text-xs text-muted-foreground">{empty}</p>
+        <p className="text-xs text-muted-foreground">{empty}</p>
       ) : (
-        <ul className="flex flex-col gap-1.5 pl-8">
+        <ul className="flex flex-col gap-1.5">
           {entries.slice(0, 6).map((entry) => (
             <li key={entry.href}>
-              <Link href={entry.href} className="group flex items-baseline gap-2 text-sm">
-                <span className="w-12 shrink-0 text-xs text-muted-foreground tabular-nums">{formatDateKey(entry.key, { month: "short", day: "numeric" })}</span>
-                <span className="min-w-0 truncate font-medium group-hover:text-primary">{entry.name}</span>
-                <span className="min-w-0 truncate text-xs text-muted-foreground">{entry.note}</span>
+              <Link href={entry.href} className="group grid grid-cols-[3.25rem_minmax(0,1fr)] items-baseline gap-3 text-sm">
+                <span className="text-xs text-muted-foreground tabular-nums">{formatDateKey(entry.key, { month: "short", day: "numeric" })}</span>
+                <span className="min-w-0 truncate">
+                  <span className="font-medium group-hover:text-primary">{entry.name}</span> <span className="text-xs text-muted-foreground">{entry.note}</span>
+                </span>
               </Link>
             </li>
           ))}
@@ -658,16 +644,57 @@ type UpcomingKind = "contract" | "probation" | "payday" | "leave" | "holiday" | 
 type UpcomingEntry = { key: string; kind: UpcomingKind; title: string; detail: string; href: string };
 /** Same-day order: obligations first, then people's plans, then the calendar. */
 const UPCOMING_ORDER: UpcomingKind[] = ["contract", "probation", "payday", "document", "leave", "holiday", "event", "birthday"];
-const UPCOMING_STYLE: Record<UpcomingKind, { icon: LucideIcon; tone: string }> = {
-  contract: { icon: FileClock, tone: "bg-amber-500/12 text-amber-600 dark:text-amber-400" },
-  probation: { icon: UserCheck, tone: "bg-orange-500/12 text-orange-600 dark:text-orange-400" },
-  payday: { icon: Banknote, tone: "bg-blue-500/12 text-blue-600 dark:text-blue-400" },
-  document: { icon: FileText, tone: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
-  leave: { icon: Palmtree, tone: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400" },
-  holiday: { icon: Flag, tone: "bg-rose-500/12 text-rose-600 dark:text-rose-400" },
-  event: { icon: CalendarDays, tone: "bg-violet-500/12 text-violet-600 dark:text-violet-400" },
-  birthday: { icon: Cake, tone: "bg-pink-500/12 text-pink-600 dark:text-pink-400" },
+/** Each kind gets one quiet glyph in ink; the words carry the meaning. */
+const UPCOMING_ICON: Record<UpcomingKind, LucideIcon> = {
+  contract: FileClock,
+  probation: UserCheck,
+  payday: Banknote,
+  document: FileText,
+  leave: Palmtree,
+  holiday: Flag,
+  event: CalendarDays,
+  birthday: Cake,
 };
+
+/** The month as a ledger: one ruled row per date, that day's entries beside it. */
+function UpcomingList({ entries, todayKey }: { entries: UpcomingEntry[]; todayKey: string }) {
+  const days: { key: string; entries: UpcomingEntry[] }[] = [];
+  for (const entry of entries) {
+    const last = days[days.length - 1];
+    if (last?.key === entry.key) last.entries.push(entry);
+    else days.push({ key: entry.key, entries: [entry] });
+  }
+  return (
+    <ol className="flex flex-col divide-y divide-rule">
+      {days.map((day) => (
+        <li key={day.key} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-3 py-2.5 first:pt-0 last:pb-0">
+          <span className="flex flex-col pt-0.5 leading-tight">
+            <span className="text-[13px] font-semibold tabular-nums">{formatDateKey(day.key, { month: "short", day: "numeric" })}</span>
+            <span className="text-[11px] text-muted-foreground">{day.key === todayKey ? "Today" : formatDateKey(day.key, { weekday: "short" })}</span>
+          </span>
+          <ul className="flex min-w-0 flex-col gap-1.5">
+            {day.entries.map((entry, index) => {
+              const Icon = UPCOMING_ICON[entry.kind];
+              return (
+                <li key={`${entry.kind}-${index}`}>
+                  <Link href={entry.href} className="group flex items-start gap-2 text-sm">
+                    <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate font-medium group-hover:text-primary" title={entry.title}>
+                        {entry.title}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">{entry.detail}</span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 // A dot, not a word: "LATER" next to a legal deadline read like "ignore this".
 const URGENCY_DOT: Record<ActionUrgency, { dot: string; label: string }> = {
@@ -682,7 +709,7 @@ function ActionRow({ action, todayKey, compact = false }: { action: ActionItem; 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 first:pt-0 last:pb-0" data-testid="dashboard-action" data-urgency={action.urgency}>
       <span className={cn("size-2 shrink-0 rounded-full", dot)} aria-hidden="true" />
-      <span className="flex min-w-0 flex-1 basis-56 flex-col">
+      <span className="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
         <span className="truncate text-sm font-medium" title={action.title}>
           <span className="sr-only">{label}: </span>
           {action.title}
@@ -694,52 +721,34 @@ function ActionRow({ action, todayKey, compact = false }: { action: ActionItem; 
           {action.detail}
         </span>
       </span>
-      <Link href={action.href} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted">
+      <Link href={action.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
         {action.actionLabel}
-        <ArrowRight className="size-3.5" aria-hidden="true" />
+        <ArrowRight aria-hidden="true" data-icon="inline-end" />
       </Link>
     </li>
   );
 }
 
-function NameGroup({
-  icon: Icon,
-  tone,
-  label,
-  ids,
-  nameOf,
-  moreHref,
-}: {
-  icon: typeof Palmtree;
-  tone: keyof typeof CHIP;
-  label: string;
-  ids: string[];
-  nameOf: (id: string) => string;
-  moreHref: string;
-}) {
+function NameGroup({ label, ids, nameOf, moreHref, tone }: { label: string; ids: string[]; nameOf: (id: string) => string; moreHref: string; tone?: "warning" | "danger" }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <p className="flex items-center gap-2 text-sm font-medium">
-        <span className={cn("flex size-6 items-center justify-center rounded-md", CHIP[tone].tile)} aria-hidden="true">
-          <Icon className="size-3.5" />
-        </span>
-        {label}
-        <span className="text-muted-foreground">({ids.length})</span>
-      </p>
-      {ids.length === 0 ? (
-        <p className="pl-8 text-xs text-muted-foreground">No one.</p>
-      ) : (
-        <ul className="flex flex-wrap gap-1.5 pl-8">
+    <div className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+      <GroupLabel label={label} count={ids.length} tone={ids.length ? tone : undefined} />
+      {ids.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
           {ids.slice(0, NAMES_SHOWN).map((id) => (
             <li key={id}>
-              <Link href={`/people/${id}`} className={cn("inline-block max-w-40 truncate rounded-md px-2 py-0.5 text-xs font-medium transition-colors", CHIP[tone].chip)} title={nameOf(id)}>
+              <Link
+                href={`/people/${id}`}
+                className="inline-block max-w-44 truncate rounded-[5px] border bg-background px-2 py-0.5 text-xs font-medium transition-colors hover:border-primary/40 hover:text-primary"
+                title={nameOf(id)}
+              >
                 {nameOf(id)}
               </Link>
             </li>
           ))}
           {ids.length > NAMES_SHOWN && (
             <li>
-              <Link href={moreHref} className="inline-block rounded-md px-2 py-0.5 text-xs font-medium text-primary hover:underline">
+              <Link href={moreHref} className="inline-block px-1 py-0.5 text-xs font-medium text-primary hover:underline">
                 +{ids.length - NAMES_SHOWN} more
               </Link>
             </li>

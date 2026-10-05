@@ -71,7 +71,7 @@ export function AccountMenu({ displayName, username, email, organizationName, ro
           {roleNames.length > 0 && (
             <div className="flex flex-wrap gap-1" aria-label="Your roles">
               {roleNames.map((role) => (
-                <span key={role} className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <span key={role} className="rounded-[5px] border bg-card px-1.5 py-0.5 text-[11px] font-medium text-foreground">
                   {role}
                 </span>
               ))}

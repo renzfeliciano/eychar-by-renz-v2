@@ -20,7 +20,7 @@ function JsonBlock({ title, value }: { title: string; value: unknown }) {
   if (value === null || value === undefined) return null;
   return (
     <section className="flex flex-col gap-1.5">
-      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{title}</h3>
+      <h3 className="text-[13px] font-semibold text-foreground">{title}</h3>
       {/* Rendered as text, never as HTML: whatever was stored is shown literally. */}
       <pre className="max-h-72 overflow-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
     </section>

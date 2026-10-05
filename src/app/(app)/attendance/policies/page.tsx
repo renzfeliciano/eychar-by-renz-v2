@@ -4,9 +4,9 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { AttendancePolicyService } from "@/domains/attendance/attendance-policy-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { PageHeader } from "@/components/shared/page-header";
-import { MetricCard } from "@/components/shared/metric-card";
+import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { policyCoverage } from "@/server/policies/policy-coverage";
-import { Building2, Clock, FolderKanban } from "lucide-react";
+
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreatePolicyDialog } from "./create-policy-dialog";
@@ -45,17 +45,16 @@ export default async function AttendancePoliciesPage() {
         description="Working hours and the grace period that decide on-time vs. late. A project policy overrides the organization's for that site."
         action={createAction}
       />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <MetricCard label="Policies in force" value={coverage.inForce} hint={coverage.retired ? `${coverage.retired} retired, kept for history` : "None retired"} icon={Clock} emphasis />
+      <MetricStrip columns={3}>
+        <MetricCard label="Policies in force" value={coverage.inForce} hint={coverage.retired ? `${coverage.retired} retired, kept for history` : "None retired"} emphasis />
         <MetricCard
           label="Organization-wide"
           value={coverage.orgWide}
           hint={coverage.orgWide ? "Applies where a project has none" : "None yet: every clock-in counts as on time"}
-          icon={Building2}
           tone={coverage.orgWide ? "default" : "warning"}
         />
-        <MetricCard label="Project overrides" value={coverage.projectOverrides} hint={`${coverage.projectsWithOwn} of ${projects.length} projects have their own hours`} icon={FolderKanban} />
-      </div>
+        <MetricCard label="Project overrides" value={coverage.projectOverrides} hint={`${coverage.projectsWithOwn} of ${projects.length} projects have their own hours`} />
+      </MetricStrip>
       <DataTable
         caption="Attendance policies"
         columns={[
