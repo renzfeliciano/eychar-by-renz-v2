@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Building2, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useState } from "react";
+import {
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  //Building2
+} from "lucide-react";
 import { Logo } from "./logo";
 import { BrandName } from "./brand-name";
 import { BRAND } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { AccountMenu } from "./account-menu";
 import { Breadcrumbs, MobileHeaderTitle } from "./breadcrumbs";
 import { cn } from "@/lib/utils";
@@ -30,24 +40,23 @@ export function WorkspaceLayout({
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
 
-  // Per-viewer convenience only (rail collapsed or expanded) — never read
-  // back by the server, safe to lose in private mode/cleared storage.
-  useEffect(() => {
+  const [collapsed, setCollapsed] = useState(() => {
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a per-viewer preference on mount, not a derived/external sync
-      if (window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1") setCollapsed(true);
+      return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
     } catch {
-      // localStorage unavailable — rail just defaults to expanded.
+      return false;
     }
-  }, []);
+  });
 
   function toggleCollapsed() {
     setCollapsed((previous) => {
       const next = !previous;
       try {
-        window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+        window.localStorage.setItem(
+          SIDEBAR_COLLAPSED_STORAGE_KEY,
+          next ? "1" : "0",
+        );
       } catch {
         // ignore — nothing to persist to
       }
@@ -64,12 +73,21 @@ export function WorkspaceLayout({
         )}
         data-testid="app-sidebar"
       >
-        <div className={cn("flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border", collapsed ? "justify-center px-0" : "px-4")}>
+        <div
+          className={cn(
+            "flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border",
+            collapsed ? "justify-center px-0" : "px-4",
+          )}
+        >
           <Logo priority className="size-8 rounded-md" />
           {!collapsed && <BrandName className="text-sm" />}
         </div>
         <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-3">
-          <NavLinks collapsed={collapsed} isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
+          <NavLinks
+            collapsed={collapsed}
+            isSuperAdmin={isSuperAdmin}
+            heldPermissions={heldPermissions}
+          />
         </div>
         <div className="shrink-0 border-t border-sidebar-border px-2.5 py-2">
           <button
@@ -84,16 +102,27 @@ export function WorkspaceLayout({
             data-testid="sidebar-collapse-toggle"
           >
             {collapsed ? (
-              <PanelLeftOpen className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              <PanelLeftOpen
+                className="size-4 shrink-0"
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
             ) : (
               <>
-                <PanelLeftClose className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                <PanelLeftClose
+                  className="size-4 shrink-0"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
                 Collapse
               </>
             )}
           </button>
           {!collapsed && (
-            <p className="truncate px-2.5 pt-1.5 text-[11px] text-muted-foreground/80" data-testid="app-footer">
+            <p
+              className="truncate px-2.5 pt-1.5 text-[11px] text-muted-foreground/80"
+              data-testid="app-footer"
+            >
               © {new Date().getFullYear()} {BRAND.fullName}
             </p>
           )}
@@ -121,8 +150,15 @@ export function WorkspaceLayout({
                 </SheetTitle>
               </SheetHeader>
               {/* Its own scroll area: the sheet is full-height, so without this the lower modules sit off-screen with no way to reach them. */}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6" data-testid="mobile-nav-scroll">
-                <NavLinks onNavigate={() => setMobileNavOpen(false)} isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
+              <div
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6"
+                data-testid="mobile-nav-scroll"
+              >
+                <NavLinks
+                  onNavigate={() => setMobileNavOpen(false)}
+                  isSuperAdmin={isSuperAdmin}
+                  heldPermissions={heldPermissions}
+                />
               </div>
             </SheetContent>
           </Sheet>
@@ -133,15 +169,18 @@ export function WorkspaceLayout({
           {/* The org name gets the room the bar has left (up to a generous cap)
               and truncates only past that, with the full name on hover. */}
           <div className="ml-auto flex min-w-0 items-center gap-3 pl-2">
-            <span
+            {/* <span
               className="hidden min-w-0 items-center gap-2 text-sm text-muted-foreground lg:flex"
               title={account.organizationName}
               data-testid="topbar-organization-name"
             >
               <Building2 className="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.75} aria-hidden="true" />
               <span className="truncate">{account.organizationName}</span>
-            </span>
-            <span className="hidden h-5 w-px shrink-0 bg-border lg:block" aria-hidden="true" />
+            </span> */}
+            {/* <span
+              className="hidden h-5 w-px shrink-0 bg-border lg:block"
+              aria-hidden="true"
+            /> */}
             <div className="flex shrink-0 items-center gap-2">
               <ThemeToggle />
               <AccountMenu {...account} />
@@ -151,7 +190,10 @@ export function WorkspaceLayout({
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-6xl">
-            <ModuleTabs isSuperAdmin={isSuperAdmin} heldPermissions={heldPermissions} />
+            <ModuleTabs
+              isSuperAdmin={isSuperAdmin}
+              heldPermissions={heldPermissions}
+            />
             <PendingNavigationRegion>{children}</PendingNavigationRegion>
           </div>
         </main>

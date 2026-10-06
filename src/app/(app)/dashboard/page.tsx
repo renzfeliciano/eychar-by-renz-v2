@@ -245,8 +245,17 @@ export default async function DashboardPage() {
 
   const ranked = rankActions(actions);
 
-  // ── Legal & compliance risk ─────────────────────────────────────────
-  const risks: ActionItem[] = [];
+  // ── Legal: open cases ───────────────────────────────────────────────
+  const legalRisks: ActionItem[] = [];
+  if (cases) {
+    const open = cases[0].filter((item) => isOpenCase(item.status, closedCaseCodes(cases[1])));
+    const rows: ActionItem[] = open.map((item) => ({ id: `case-${item._id.toString()}`, kind: "case", title: `Follow up ${item.caseNumber}`, detail: item.caseName, href: "/cases", actionLabel: "Open", urgency: "later" }));
+    legalRisks.push(...collapseKind(rows, 3, (count) => ({ id: "case-many", kind: "case", title: `Follow up ${count} open cases`, detail: "Not yet closed or dismissed", href: "/cases", actionLabel: "Open cases", urgency: "later" })));
+  }
+  const rankedLegal = rankActions(legalRisks);
+
+  // ── Compliance: probation, final pay, documents and government IDs ──
+  const complianceRisks: ActionItem[] = [];
   if (roster && employmentTypes) {
     const months = new Map(employmentTypes.flatMap((type) => {
       const value = catalogNumber(type, "regularizeAfterMonths", LEGACY_REGULARIZATION_MONTHS);
@@ -257,7 +266,7 @@ export default async function DashboardPage() {
       months,
       todayKey,
     );
-    risks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "regularize-many", kind: "regularization", title: `Evaluate ${count} probationary employees`, detail: "Each becomes regular by law at the end of probation unless evaluated", href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
+    complianceRisks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "regularize-many", kind: "regularization", title: `Evaluate ${count} probationary employees`, detail: "Each becomes regular by law at the end of probation unless evaluated", href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
   }
   if (clearances) {
     const settlementByClearance = new Map((settlements ?? []).map((settlement) => [settlement.clearanceCaseId.toString(), settlement]));
@@ -278,28 +287,21 @@ export default async function DashboardPage() {
       finalPayDays,
       todayKey,
     );
-    risks.push(...rows);
+    complianceRisks.push(...rows);
   }
   if (expiringDocuments) {
     const rows = documentRisks(
       expiringDocuments.map((document) => ({ id: document._id.toString(), employeeId: document.employeeId.toString(), employeeName: nameOf(document.employeeId), title: document.title, expiresKey: dateToDateKey(new Date(document.expiresAt!)) })),
       todayKey,
     );
-    risks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "documents-many", kind: "document", title: `${count} employee documents expired or expiring`, detail: `Within the next ${RISK_WINDOW_DAYS} days or already past`, href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
+    complianceRisks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "documents-many", kind: "document", title: `${count} employee documents expired or expiring`, detail: `Within the next ${RISK_WINDOW_DAYS} days or already past`, href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
   }
   if (roster) {
     const missingIds = staff.filter((row) => !row.person?.sssNumber || !row.person?.philHealthNumber || !row.person?.pagIbigNumber || !row.person?.tinNumber);
     const rows: ActionItem[] = missingIds.map((row) => ({ id: `ids-${row._id.toString()}`, kind: "ids", title: `Complete ${nameOf(row._id)}'s government IDs`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: `/people/${row._id.toString()}`, actionLabel: "Open profile", urgency: "later" }));
-    risks.push(...collapseKind(rows, 3, (count) => ({ id: "ids-many", kind: "ids", title: `Complete government IDs for ${count} employees`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: "/people", actionLabel: "Open people", urgency: "later" })));
+    complianceRisks.push(...collapseKind(rows, 3, (count) => ({ id: "ids-many", kind: "ids", title: `Complete government IDs for ${count} employees`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: "/people", actionLabel: "Open people", urgency: "later" })));
   }
-
-  if (cases) {
-    const open = cases[0].filter((item) => isOpenCase(item.status, closedCaseCodes(cases[1])));
-    const rows: ActionItem[] = open.map((item) => ({ id: `case-${item._id.toString()}`, kind: "case", title: `Follow up ${item.caseNumber}`, detail: item.caseName, href: "/cases", actionLabel: "Open", urgency: "later" }));
-    risks.push(...collapseKind(rows, 3, (count) => ({ id: "case-many", kind: "case", title: `Follow up ${count} open cases`, detail: "Not yet closed or dismissed", href: "/cases", actionLabel: "Open cases", urgency: "later" })));
-  }
-
-  const rankedRisks = rankActions(risks);
+  const rankedCompliance = rankActions(complianceRisks);
 
   // ── Who's out today ─────────────────────────────────────────────────
   const onLeaveIds = new Set((leaveToday ?? []).map((request) => request.employeeId.toString()));
@@ -353,7 +355,7 @@ export default async function DashboardPage() {
   }
   // Probation ends and document expiries already sit in the risk list with their deadlines; the
   // timeline repeats only their dates so the month reads in one place.
-  for (const risk of risks) {
+  for (const risk of complianceRisks) {
     if (!risk.dueKey || !within(risk.dueKey)) continue;
     if (risk.kind === "regularization") upcoming.push({ key: risk.dueKey, kind: "probation", title: risk.title.replace(/^Evaluate (.+) before regularization$/, "$1's probation ends"), detail: "Becomes regular unless evaluated", href: risk.href });
     if (risk.kind === "document") upcoming.push({ key: risk.dueKey, kind: "document", title: risk.title.replace(/^Renew /, "").replace(/'s (.+)$/, "'s $1 expires"), detail: "Document expiry", href: risk.href });
@@ -412,12 +414,24 @@ export default async function DashboardPage() {
             )}
           </Panel>
 
-          <Panel testId="dashboard-risks" title="Legal & compliance" count={rankedRisks.length || undefined} description={`Deadlines with legal consequences in the next ${RISK_WINDOW_DAYS} days.`}>
-            {rankedRisks.length === 0 ? (
-              <AllClear>No deadlines at risk.</AllClear>
+          <Panel testId="dashboard-legal" title="Legal" count={rankedLegal.length || undefined} description="Cases not yet closed or dismissed.">
+            {rankedLegal.length === 0 ? (
+              <AllClear>No open cases.</AllClear>
             ) : (
               <ul className="flex flex-col divide-y divide-rule">
-                {rankedRisks.map((risk) => (
+                {rankedLegal.map((risk) => (
+                  <ActionRow key={risk.id} action={risk} todayKey={todayKey} compact />
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel testId="dashboard-compliance" title="Compliance" count={rankedCompliance.length || undefined} description={`Probation, final pay and document deadlines in the next ${RISK_WINDOW_DAYS} days, and missing government IDs.`}>
+            {rankedCompliance.length === 0 ? (
+              <AllClear>No compliance deadlines at risk.</AllClear>
+            ) : (
+              <ul className="flex flex-col divide-y divide-rule">
+                {rankedCompliance.map((risk) => (
                   <ActionRow key={risk.id} action={risk} todayKey={todayKey} compact />
                 ))}
               </ul>

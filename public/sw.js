@@ -1,5 +1,5 @@
 /*
- * EychAr by Renz service worker (ADR-036).
+ * EychAr service worker (ADR-036).
  *
  * Deliberately conservative for an HR system: it never caches API
  * responses or rendered pages (they hold personal and payroll data and
@@ -27,13 +27,23 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("eychar-") && key !== STATIC_CACHE).map((key) => caches.delete(key))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith("eychar-") && key !== STATIC_CACHE)
+            .map((key) => caches.delete(key)),
+        ),
+      )
       .then(() => self.clients.claim()),
   );
 });
 
 function isStaticAsset(url) {
-  return url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/assets/");
+  return (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/assets/")
+  );
 }
 
 self.addEventListener("fetch", (event) => {
@@ -58,7 +68,9 @@ self.addEventListener("fetch", (event) => {
           fetch(request).then((response) => {
             if (response.ok && response.type === "basic") {
               const copy = response.clone();
-              caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+              caches
+                .open(STATIC_CACHE)
+                .then((cache) => cache.put(request, copy));
             }
             return response;
           }),

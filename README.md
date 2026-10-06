@@ -1,4 +1,4 @@
-# EychAr by Renz
+# EychAr
 
 **EychAr** /eɪtʃ ɑːr/ · people, time and payroll
 
@@ -12,7 +12,7 @@ See [AGENTS.md](./AGENTS.md) for the full engineering instructions and
 [docs/architecture/adr](./docs/architecture/adr)).
 
 > The repository is `eychar-by-renz-v2` (formerly `hris-workforcehub`); the product was renamed from
-> WorkforceHub to EychAr by Renz (ADR-036). Brand strings live in one place:
+> WorkforceHub to EychAr (ADR-036). Brand strings live in one place:
 > [`src/lib/brand.ts`](./src/lib/brand.ts).
 
 ## Getting started

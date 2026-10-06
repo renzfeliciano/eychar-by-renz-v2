@@ -1,6 +1,6 @@
 # Architecture
 
-EychAr by Renz (EychAr /eɪtʃ ɑːr/, formerly WorkforceHub — ADR-036) is a configurable,
+EychAr (EychAr /eɪtʃ ɑːr/, formerly WorkforceHub — ADR-036) is a configurable,
 multi-tenant-capable HRIS platform. The database describes
 the business (organizations, people, roles, permissions); the application code provides reusable
 capabilities on top of that data. See [AGENTS.md](./AGENTS.md) for the full engineering
@@ -351,10 +351,10 @@ edited in place at the byte level; `update()`'s schema omits every file field en
 ## Holiday calendar & day notes (ADR-035)
 
 - **`Holiday`** (`organizationId`, `date` as UTC midnight of the day, `name`, `type:
-  regular|special_non_working|special_working`, optional `scope`/`source`, `presetKey` when loaded
+regular|special_non_working|special_working`, optional `scope`/`source`, `presetKey` when loaded
   from a preset, `status`). The organization's own data, the `HolidayCalendar` AGENTS.md §25 asks
   for. Removing one cancels it (`status`), never deletes. Index `{ organizationId, date }`.
-- **Country presets** (`src/domains/holidays/presets/`) only *propose* a year's holidays. The
+- **Country presets** (`src/domains/holidays/presets/`) only _propose_ a year's holidays. The
   Philippine preset has 2026 checked against Proclamation No. 1006, s. 2025 and No. 1264, s. 2026
   (Eid'l Adha), and builds other years from the standard dates by law (Holy Week from Easter,
   National Heroes Day as the last Monday of August), flagged unverified. HR previews, picks and
@@ -374,9 +374,9 @@ edited in place at the byte level; `update()`'s schema omits every file field en
 
 ## Brand & installable app (ADR-036)
 
-- The product is **EychAr by Renz** (formerly WorkforceHub). Every product string comes from
+- The product is **EychAr ** (formerly WorkforceHub). Every product string comes from
   `src/lib/brand.ts`; organization names and logos stay data. Page titles use the root layout's
-  template (`"Schedules · EychAr by Renz"`), with a `metadata.title` on each page.
+  template (`"Schedules · EychAr "`), with a `metadata.title` on each page.
 - **PWA**: `src/app/manifest.ts` (standalone, shortcuts to Clock, Schedules, People), icons in
   `public/icons` plus `src/app/icon.png`/`apple-icon.png`, and `public/sw.js` registered by
   `ServiceWorkerRegister` in production only. The worker caches only fingerprinted static assets
@@ -429,7 +429,7 @@ Server-side only, resolved from data on every check — never cached role-name s
 - `authorize({ userId, organizationId, permission })` — throws unless the user has an active
   (`effectiveFrom <= now <= effectiveTo|null`) `RoleAssignment` in that organization whose `Role`
   carries the permission key.
-- `hasActiveRoleAssignment({ userId, organizationId })` — organization *membership* only; kept as
+- `hasActiveRoleAssignment({ userId, organizationId })` — organization _membership_ only; kept as
   a documented primitive (AGENTS.md §22) though no route currently calls it (see ADR-007).
 - `requireAuthenticatedUser()`, `requireOrganizationAccess(organizationId)`,
   `requirePermission(permission, organizationId)` — the primitives route handlers call.
@@ -529,6 +529,7 @@ entry.
   4. the second step when two-step verification is on.
 
   NextAuth's `authorize` only calls it. Every outcome is audited.
+
 - **Two-step verification:**
   - TOTP per RFC 6238 (`src/server/auth/totp.ts`), tested against the RFC's vectors;
   - replay-protected;
@@ -538,6 +539,7 @@ entry.
 
   People manage it on their Security page (`/account/security`, from the account menu).
   Administrators can reset it.
+
 - **Passwords:**
   - NIST 800-63B rules (`password-policy.ts`): at least 12 characters, a common-password list, and
     not built from the username;
@@ -563,7 +565,7 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 ## UI standards (mobile-first, AGENTS.md §23/§41)
 
 - **Tables:** `DataTable` columns take `mobile: "title" | "subtitle" | "badge" | "meta" | "actions" |
-  "hidden"`; below `md` each row becomes a stacked card from the same markup.
+"hidden"`; below `md` each row becomes a stacked card from the same markup.
 - **Touch targets:** buttons and inputs keep their desktop size and get a 40px minimum height on
   phones (`max-md:min-h-10`); override with a className, not extra `md:` heights.
 - **Viewport:** `h-dvh` / `min-h-dvh` plus `env(safe-area-inset-bottom)` padding, never `h-screen`.

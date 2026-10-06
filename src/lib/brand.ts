@@ -6,12 +6,13 @@
 export const BRAND = {
   /** The wordmark. Say it "aitch-ar", like H·R. */
   name: "EychAr",
-  byline: "by Renz",
-  fullName: "EychAr by Renz",
+  byline: "",
+  fullName: "EychAr",
   /** IPA, shown beside the name wherever there's room for a tagline. */
   pronunciation: "/eɪtʃ ɑːr/",
   tagline: "people, time and payroll",
-  description: "EychAr by Renz: people, time and payroll in one configurable, mobile-first HRIS.",
+  description:
+    "EychAr: people, time and payroll in one configurable, mobile-first HRIS.",
   /** Short name for home-screen icons and authenticator apps (no spaces to wrap). */
   shortName: "EychAr",
   /** Prefix for this app's per-viewer browser storage keys. */
@@ -21,5 +22,5 @@ export const BRAND = {
 /** "EychAr /eɪtʃ ɑːr/ · people, time and payroll" */
 export const BRAND_PRONUNCIATION_TAGLINE = `${BRAND.name} ${BRAND.pronunciation} · ${BRAND.tagline}`;
 
-/** "Schedules · EychAr by Renz", for document titles. */
+/** "Schedules · EychAr", for document titles. */
 export const BRAND_TITLE_TEMPLATE = `%s · ${BRAND.fullName}`;

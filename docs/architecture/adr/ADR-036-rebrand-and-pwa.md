@@ -1,4 +1,4 @@
-# ADR-036: Rebrand to "EychAr by Renz" and installable app (PWA)
+# ADR-036: Rebrand to "EychAr " and installable app (PWA)
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The product was renamed from WorkforceHub to **EychAr by Renz**, with the tagline
+The product was renamed from WorkforceHub to **EychAr **, with the tagline
 "EychAr /eɪtʃ ɑːr/ · people, time and payroll", across the app name, page titles, the footer and
 the sign-in screen. The app should also be installable on phones and desktops.
 
@@ -22,7 +22,7 @@ the sign-in screen. The app should also be installable on phones and desktops.
   verification before the rename keep the old label in their authenticator app until they set it
   up again; their codes still work. Per-viewer browser keys moved to the `eychar:` prefix, so
   sidebar preferences reset once. The repository folder keeps its name.
-- **Page titles**: the root layout sets `title.template` (`"%s · EychAr by Renz"`); each page
+- **Page titles**: the root layout sets `title.template` (`"%s · EychAr "`); each page
   exports its own `metadata.title`.
 - **PWA**: `src/app/manifest.ts`, icons, and a hand-written `public/sw.js` (no new dependency).
   The worker caches only fingerprinted static assets and icons and serves `public/offline.html`

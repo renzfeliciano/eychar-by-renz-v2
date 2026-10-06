@@ -6,9 +6,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ---
 
-# EychAr by Renz (HRIS) — Claude Code Engineering Instructions
+# EychAr (HRIS) — Claude Code Engineering Instructions
 
-> Product name: **EychAr by Renz** (formerly WorkforceHub; ADR-036). Brand strings live in
+> Product name: **EychAr ** (formerly WorkforceHub; ADR-036). Brand strings live in
 > `src/lib/brand.ts` and are the platform's own brand, never a customer's. The repository
 > is `eychar-by-renz-v2` (formerly `hris-workforcehub`).
 
@@ -16,14 +16,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Project skills live in `.claude/skills/`. Load the matching ones **before** writing code, and follow them; where a skill and this file disagree, this file wins.
 
-| Work | Load first |
-|---|---|
-| Any new feature, entity, or data-backed screen | `new-module` |
-| Any new or changed API route (`src/app/api/**`) | `new-api-route` |
-| Any screen, form, dialog, table or toast | `ui-standards`, `frontend-a11y` (design taste: `impeccable`, `emil-design-eng`) |
-| Next.js specifics (RSC boundaries, metadata, route handlers) | `next-best-practices` |
-| Critical user flows, browser/E2E tests | `e2e-testing` |
-| Before calling any change done, and for anything touching auth, permissions, accounts, payroll, files or exports | `security-checklist` |
+| Work                                                                                                             | Load first                                                                      |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Any new feature, entity, or data-backed screen                                                                   | `new-module`                                                                    |
+| Any new or changed API route (`src/app/api/**`)                                                                  | `new-api-route`                                                                 |
+| Any screen, form, dialog, table or toast                                                                         | `ui-standards`, `frontend-a11y` (design taste: `impeccable`, `emil-design-eng`) |
+| Next.js specifics (RSC boundaries, metadata, route handlers)                                                     | `next-best-practices`                                                           |
+| Critical user flows, browser/E2E tests                                                                           | `e2e-testing`                                                                   |
+| Before calling any change done, and for anything touching auth, permissions, accounts, payroll, files or exports | `security-checklist`                                                            |
 
 "Done" always means: typecheck, lint, tests and build pass, docs updated, and `security-checklist` run over the change.
 

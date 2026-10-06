@@ -9,7 +9,9 @@ export function siteUrl(): URL {
   const raw =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXTAUTH_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "") ||
     "http://localhost:4100";
   try {
     return new URL(raw);
@@ -35,7 +37,6 @@ export function siteDescription(): string {
 
 export const SITE_KEYWORDS = [
   "EychAr",
-  "EychAr by Renz",
   "HRIS",
   "HR system",
   "human resources",
@@ -47,7 +48,12 @@ export const SITE_KEYWORDS = [
 ];
 
 /** The share-preview image (public/og/eychar-share.png), 1200×630. */
-export const SITE_SHARE_IMAGE = { url: "/og/eychar-share.png", width: 1200, height: 630, alt: `${BRAND.fullName}: people, time and payroll` };
+export const SITE_SHARE_IMAGE = {
+  url: "/og/eychar-share.png",
+  width: 1200,
+  height: 630,
+  alt: `${BRAND.fullName}: people, time and payroll`,
+};
 
 /**
  * Open Graph fields every page shares. A page that sets its own openGraph
@@ -55,5 +61,11 @@ export const SITE_SHARE_IMAGE = { url: "/og/eychar-share.png", width: 1200, heig
  * pages spread this in rather than repeating it.
  */
 export function baseOpenGraph(description: string) {
-  return { type: "website" as const, siteName: BRAND.fullName, locale: "en_PH", description, images: [SITE_SHARE_IMAGE] };
+  return {
+    type: "website" as const,
+    siteName: BRAND.fullName,
+    locale: "en_PH",
+    description,
+    images: [SITE_SHARE_IMAGE],
+  };
 }
