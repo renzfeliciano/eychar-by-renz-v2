@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { BadgeCheck, ChevronLeft, ChevronRight, Download, Flag, Info, Pencil, Plus, Trash2, TriangleAlert, ArrowLeft, Check, CheckCheck, Eraser, Save } from "lucide-react";
@@ -298,8 +299,20 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-sm">{holiday.name}</span>
                         {holiday.scope && <span className="truncate text-xs text-muted-foreground">{holiday.scope}</span>}
+                        {holiday.eventId && <span className="truncate text-xs text-muted-foreground">From the company calendar</span>}
                       </span>
                       <HolidayBadge type={holiday.type} className="hidden sm:inline-flex" />
+                      {holiday.eventId ? (
+                        // Changed with its event, so it can't drift from what the company calendar says.
+                        <Link
+                          href={`/events?month=${holiday.date.slice(0, 7)}`}
+                          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0")}
+                          data-testid={`holiday-open-event-${holiday.id}`}
+                        >
+                          Edit event
+                        </Link>
+                      ) : (
+                      <>
                       <Button size="icon-sm" variant="ghost" aria-label={`Edit ${holiday.name}`} title="Edit" onClick={() => setEditingId(holiday.id)} data-testid={`holiday-edit-${holiday.id}`}>
                         <Pencil className="size-3.5" />
                       </Button>
@@ -315,6 +328,8 @@ export function HolidaysDialog({ organizationId, initialYear }: { organizationId
                         confirmLoadingLabel="Removing…"
                         onConfirm={() => removeHoliday(holiday)}
                       />
+                      </>
+                      )}
                     </li>
                     ),
                   )}

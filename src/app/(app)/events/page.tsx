@@ -5,9 +5,11 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { EventService } from "@/domains/events/event-service";
 import { EventCategoryService } from "@/domains/catalog/event-category-service";
 import { shiftMonth } from "@/domains/events/calendar";
+import { holidayCategoryCodes } from "@/domains/events/holiday-category";
 import { PageHeader } from "@/components/shared/page-header";
 import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { addDays, formatDateKey, localDateKey } from "@/lib/date-key";
+import { HOLIDAY_CALENDAR_PERMISSION, type HolidayType } from "@/domains/holidays/holiday-types";
 import { EventsCalendar } from "./events-calendar";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
@@ -34,7 +36,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
   const requested = firstValue(params.month);
   const month = requested && /^\d{4}-(0[1-9]|1[0-2])$/.test(requested) ? requested : thisMonth;
 
-  const canManage = await hasPermission("events.create", organizationId);
+  const [canManage, canManageHolidays] = await Promise.all([hasPermission("events.create", organizationId), hasPermission(HOLIDAY_CALENDAR_PERMISSION, organizationId)]);
   // The viewed month for the grid, plus this month and next for "what's next"
   // (which shouldn't change as someone browses other months).
   const [events, currentEvents, nextEvents, categories] = await Promise.all([
@@ -46,6 +48,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
 
   const categoryOptions = categories.map((category) => ({ id: category.code, label: category.name }));
   const categoryNameByCode = new Map(categories.map((category) => [category.code, category.name]));
+  const holidayCategories = [...holidayCategoryCodes(categories)];
 
   const toItem = (event: (typeof events)[number]) => ({
     id: event._id.toString(),
@@ -54,6 +57,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
     time: event.time,
     category: event.category,
     description: event.description,
+    holidayType: (event.holidayType ?? null) as HolidayType | null,
   });
   const eventsForCalendar = events.map(toItem);
 
@@ -91,6 +95,8 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
         events={eventsForCalendar}
         categories={categoryOptions}
         categoryNameByCode={categoryNameByCode}
+        holidayCategories={holidayCategories}
+        canManageHolidays={canManageHolidays}
         canManage={canManage}
       />
     </div>

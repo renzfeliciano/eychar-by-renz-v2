@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
+import { HOLIDAY_TYPES, HOLIDAY_TYPE_LABELS, type HolidayType } from "@/domains/holidays/holiday-types";
 
 export type EventItem = {
   id: string;
@@ -24,7 +25,11 @@ export type EventItem = {
   time?: string | null;
   category: string;
   description?: string | null;
+  /** Set on an event in a holiday category; the day is on the holiday calendar too. */
+  holidayType?: HolidayType | null;
 };
+
+const HOLIDAY_TYPE_OPTIONS: SelectOption[] = HOLIDAY_TYPES.map((type) => ({ id: type, label: HOLIDAY_TYPE_LABELS[type] }));
 
 function formatDayTitle(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -38,6 +43,8 @@ export function EventDayDialog({
   events,
   categories,
   categoryNameByCode,
+  holidayCategories = [],
+  canManageHolidays = false,
   canManage,
   onClose,
   initialMode = "list",
@@ -47,6 +54,10 @@ export function EventDayDialog({
   events: EventItem[];
   categories: SelectOption[];
   categoryNameByCode: Map<string, string>;
+  /** Category codes that also put the day on the holiday calendar. */
+  holidayCategories?: string[];
+  /** Holiday events also change the holiday calendar, which needs its own permission (ADR-049). */
+  canManageHolidays?: boolean;
   canManage: boolean;
   onClose: () => void;
   /** "create" opens straight into the new-event form (the calendar's New event button). */
@@ -56,6 +67,9 @@ export function EventDayDialog({
   const [view, setView] = useState<View>({ mode: initialMode });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  // The server refuses holiday events to anyone without the holiday-calendar permission; don't offer them.
+  const canChange = (event: EventItem) => canManage && (canManageHolidays || (!event.holidayType && !holidayCategories.includes(event.category)));
+  const formCategories = canManageHolidays ? categories : categories.filter((category) => !holidayCategories.includes(category.id));
 
   async function handleCancelEvent(event: EventItem) {
     setDeletingId(event.id);
@@ -94,10 +108,11 @@ export function EventDayDialog({
                     <p className="text-xs text-muted-foreground">
                       {event.time ? `${event.time} · ` : ""}
                       {categoryNameByCode.get(event.category) ?? event.category}
+                      {event.holidayType ? ` (${HOLIDAY_TYPE_LABELS[event.holidayType]})` : ""}
                       {event.description ? ` · ${event.description}` : ""}
                     </p>
                   </div>
-                  {canManage && (
+                  {canChange(event) && (
                     <div className="flex items-center gap-1">
                       <Button type="button" variant="ghost" size="sm" onClick={() => setView({ mode: "edit", event })} aria-label={`Edit ${event.title}`}>
                         <Pencil className="size-3.5" />
@@ -139,7 +154,8 @@ export function EventDayDialog({
     <EventForm
       organizationId={organizationId}
       date={date}
-      categories={categories}
+      categories={formCategories}
+      holidayCategories={holidayCategories}
       initialValue={view.mode === "edit" ? view.event : undefined}
       onBack={() => setView({ mode: "list" })}
       onClose={onClose}
@@ -151,6 +167,7 @@ function EventForm({
   organizationId,
   date,
   categories,
+  holidayCategories,
   initialValue,
   onBack,
   onClose,
@@ -158,6 +175,7 @@ function EventForm({
   organizationId: string;
   date: string;
   categories: SelectOption[];
+  holidayCategories: string[];
   initialValue?: EventItem;
   onBack: () => void;
   onClose: () => void;
@@ -169,6 +187,8 @@ function EventForm({
   const [time, setTime] = useState(initialValue?.time ?? "");
   const [category, setCategory] = useState(initialValue?.category ?? "");
   const [description, setDescription] = useState(initialValue?.description ?? "");
+  const [holidayType, setHolidayType] = useState<string>(initialValue?.holidayType ?? "");
+  const isHoliday = holidayCategories.includes(category);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -184,12 +204,16 @@ function EventForm({
       setError("Select a category.");
       return;
     }
+    if (isHoliday && !holidayType) {
+      setError("Choose what kind of holiday this is.");
+      return;
+    }
     setIsSubmitting(true);
 
     const response = await fetch(isEdit ? `/api/events/${initialValue!.id}` : "/api/events", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organizationId, title, date: eventDate, time: time || undefined, category, description: description || undefined }),
+      body: JSON.stringify({ organizationId, title, date: eventDate, time: time || undefined, category, description: description || undefined, holidayType: isHoliday ? holidayType : undefined }),
     });
 
     setIsSubmitting(false);
@@ -226,6 +250,18 @@ function EventForm({
             </FormField>
           </div>
           <OptionSelect label="Category" value={category} onChange={setCategory} options={categories} placeholder="Select a category" required />
+          {isHoliday && (
+            <OptionSelect
+              label="Holiday type"
+              value={holidayType}
+              onChange={setHolidayType}
+              options={HOLIDAY_TYPE_OPTIONS}
+              placeholder="Select a holiday type"
+              description="The day also goes on the holiday calendar in Attendance › Schedules."
+              testId="event-holiday-type"
+              required
+            />
+          )}
           <FormField label="Description" htmlFor="event-description">
             <Textarea id="event-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Bring your own laptop for the workshop" />
           </FormField>

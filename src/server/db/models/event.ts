@@ -15,6 +15,10 @@ const eventSchema = new Schema(
     time: { type: String, trim: true },
     category: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
+    // Only for an event in a holiday category: how the day is observed. The
+    // event keeps a matching Holiday on the calendar (ADR-049). Same list as
+    // HOLIDAY_TYPES (src/domains/holidays/holiday-types.ts).
+    holidayType: { type: String, enum: ["regular", "special_non_working", "special_working"] },
     status: { type: String, required: true, trim: true, default: "active" },
   },
   { timestamps: true },

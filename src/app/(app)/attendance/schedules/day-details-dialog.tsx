@@ -144,9 +144,21 @@ export function DayDetailsDialog({ organizationId, date, onOpenChange, info, hea
                         <HolidayBadge type={holiday.type} />
                         <span>{holiday.scope ?? "Nationwide"}</span>
                         {holiday.source && <span className="basis-full">{holiday.source}</span>}
+                        {holiday.eventId && (
+                          <span className="basis-full" data-testid={`day-details-from-event-${holiday.id}`}>
+                            {canReadEvents ? (
+                              <Link href={`/events?month=${holiday.date.slice(0, 7)}`} className="font-medium text-primary underline-offset-4 hover:underline">
+                                From the company calendar
+                              </Link>
+                            ) : (
+                              "From the company calendar"
+                            )}
+                          </span>
+                        )}
                       </span>
                     </div>
-                    {canUpdate && (
+                    {/* A holiday from a company-calendar event is changed with the event, not here. */}
+                    {canUpdate && !holiday.eventId && (
                       <span className="flex shrink-0 items-center">
                       <Button size="icon-sm" variant="ghost" aria-label={`Edit ${holiday.name}`} title="Edit" onClick={() => setEditingId(holiday.id)} data-testid={`day-details-edit-${holiday.id}`}>
                         <Pencil className="size-3.5" />

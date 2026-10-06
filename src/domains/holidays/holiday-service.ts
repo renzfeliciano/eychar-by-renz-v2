@@ -10,7 +10,10 @@ import { holidayPreset, type PresetHoliday, type PresetYear } from "./presets";
 
 export type PresetPreview = Omit<PresetYear, "entries"> & { country: string; entries: (PresetHoliday & { alreadyAdded: boolean })[] };
 
-type HolidayDoc = { _id: Types.ObjectId; date: Date; name: string; type: string; scope?: string | null; source?: string | null; presetKey?: string | null };
+type HolidayDoc = { _id: Types.ObjectId; date: Date; name: string; type: string; scope?: string | null; source?: string | null; presetKey?: string | null; eventId?: Types.ObjectId | null };
+
+/** What a company-calendar event puts on the holiday calendar; `null` when it no longer should. */
+export type EventHoliday = { date: string; name: string; type: HolidayType } | null;
 
 export function toHolidayView(doc: HolidayDoc): HolidayView {
   return {
@@ -21,10 +24,16 @@ export function toHolidayView(doc: HolidayDoc): HolidayView {
     scope: doc.scope || null,
     source: doc.source || null,
     presetKey: doc.presetKey || null,
+    eventId: doc.eventId ? doc.eventId.toString() : null,
   };
 }
 
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** A holiday an event put on the calendar follows that event, so it's changed from the company calendar. */
+function assertNotFromEvent(holiday: { name: string; eventId?: Types.ObjectId | null }) {
+  if (holiday.eventId) throw new BusinessRuleError(`${holiday.name} comes from the company calendar. Change or cancel the event there.`);
+}
 
 async function assertNotDuplicate(organizationId: Types.ObjectId, date: Date, name: string, exceptId?: Types.ObjectId) {
   const sameDay = await HolidayModel.find({ organizationId, date, status: "active", ...(exceptId ? { _id: { $ne: exceptId } } : {}) })
@@ -78,6 +87,7 @@ export const HolidayService = {
     const orgObjectId = new Types.ObjectId(organizationId);
     const holiday = await HolidayModel.findOne({ _id: new Types.ObjectId(id), organizationId: orgObjectId, status: "active" });
     if (!holiday) throw new NotFoundError("Holiday not found in this organization");
+    assertNotFromEvent(holiday);
 
     const date = dateKeyToDate(patch.date);
     await assertNotDuplicate(orgObjectId, date, patch.name, holiday._id);
@@ -107,6 +117,7 @@ export const HolidayService = {
     const holiday = await HolidayModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
     if (!holiday) throw new NotFoundError("Holiday not found in this organization");
     if (holiday.status === "cancelled") throw new BusinessRuleError("This holiday is already removed");
+    assertNotFromEvent(holiday);
     holiday.status = "cancelled";
     await holiday.save();
 
@@ -118,6 +129,72 @@ export const HolidayService = {
       resourceId: id,
       before: { status: "active", date: dateToDateKey(holiday.date), name: holiday.name },
       after: { status: "cancelled" },
+    });
+    return toHolidayView(holiday);
+  },
+
+  /**
+   * Keeps the holiday a company-calendar event owns in step with it
+   * (ADR-049): adds it, moves or renames it, or takes it off when the event
+   * stops being a holiday or is cancelled. A day already on the calendar
+   * under the same name (say, loaded from the Philippine list) isn't added
+   * twice; the event's own copy is taken off instead.
+   */
+  async syncFromEvent(organizationId: string, eventId: string, wanted: EventHoliday, actor: { userId?: string }): Promise<HolidayView | null> {
+    await connectMongoDB();
+    const orgObjectId = new Types.ObjectId(organizationId);
+    const linked = await HolidayModel.findOne({ organizationId: orgObjectId, eventId: new Types.ObjectId(eventId), status: "active" });
+
+    const takeOff = async () => {
+      if (!linked) return null;
+      linked.status = "cancelled";
+      await linked.save();
+      await AuditService.record({
+        organizationId,
+        actorUserId: actor.userId,
+        action: "holiday.cancelled",
+        resourceType: "Holiday",
+        resourceId: linked._id.toString(),
+        before: { status: "active", date: dateToDateKey(linked.date), name: linked.name },
+        after: { status: "cancelled", eventId },
+      });
+      return null;
+    };
+
+    if (!wanted) return takeOff();
+    const date = dateKeyToDate(wanted.date);
+    const sameDay = await HolidayModel.find({ organizationId: orgObjectId, date, status: "active", ...(linked ? { _id: { $ne: linked._id } } : {}) })
+      .select("name")
+      .lean<{ name: string }[]>();
+    if (sameDay.some((holiday) => sameName(holiday.name, wanted.name))) return takeOff();
+
+    if (linked) {
+      const before = { date: dateToDateKey(linked.date), name: linked.name, type: linked.type };
+      if (before.date === wanted.date && before.name === wanted.name && before.type === wanted.type) return toHolidayView(linked);
+      linked.date = date;
+      linked.name = wanted.name;
+      linked.type = wanted.type;
+      await linked.save();
+      await AuditService.record({
+        organizationId,
+        actorUserId: actor.userId,
+        action: "holiday.updated",
+        resourceType: "Holiday",
+        resourceId: linked._id.toString(),
+        before,
+        after: { date: wanted.date, name: wanted.name, type: wanted.type, eventId },
+      });
+      return toHolidayView(linked);
+    }
+
+    const holiday = await HolidayModel.create({ organizationId: orgObjectId, date, name: wanted.name, type: wanted.type, eventId: new Types.ObjectId(eventId) });
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "holiday.created",
+      resourceType: "Holiday",
+      resourceId: holiday._id.toString(),
+      after: { date: wanted.date, name: holiday.name, type: holiday.type, eventId },
     });
     return toHolidayView(holiday);
   },

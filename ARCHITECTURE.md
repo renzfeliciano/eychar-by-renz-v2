@@ -332,6 +332,11 @@ prev/next click, so a month's events are already in the initial server render.
 `EventService.listForMonth()` only ever returns `status: "active"` rows — no hard delete
 (AGENTS.md §53), a cancelled event just stops appearing on the calendar. Clicking a day opens
 `EventDayDialog`, the same list-then-form dialog shape as Travel Orders/Asset Issuance.
+An event in a category flagged `metadata.isHoliday` (the seeded "Holiday") carries a
+`holidayType` and keeps a linked `Holiday` on the holiday calendar in step with it (ADR-049).
+Creating, changing or cancelling such an event also needs `attendance.update` (the holiday
+calendar's permission). `scripts/backfill-holiday-events.ts` brings older holiday events onto the
+calendar.
 
 ## Documents (Phase 8, ADR-025)
 
@@ -352,7 +357,7 @@ edited in place at the byte level; `update()`'s schema omits every file field en
 
 - **`Holiday`** (`organizationId`, `date` as UTC midnight of the day, `name`, `type:
 regular|special_non_working|special_working`, optional `scope`/`source`, `presetKey` when loaded
-  from a preset, `status`). The organization's own data, the `HolidayCalendar` AGENTS.md §25 asks
+  from a preset, `eventId` when a holiday event owns it (ADR-049), `status`). The organization's own data, the `HolidayCalendar` AGENTS.md §25 asks
   for. Removing one cancels it (`status`), never deletes. Index `{ organizationId, date }`.
 - **Country presets** (`src/domains/holidays/presets/`) only _propose_ a year's holidays. The
   Philippine preset has 2026 checked against Proclamation No. 1006, s. 2025 and No. 1264, s. 2026
@@ -366,7 +371,8 @@ regular|special_non_working|special_working`, optional `scope`/`source`, `preset
   edit (date, name, type, scope, legal basis) or remove a holiday there, and still "Select everyone
   on this day". Edits keep `presetKey`, so a moved proclaimed holiday stays traceable. Date headers carry a holiday dot (rose for
   regular, amber for special non-working) and a note/event dot. A "Holidays" dialog on the page
-  manages the year.
+  manages the year. A holiday from a company-calendar event shows "From the company calendar" and
+  is changed with its event, not here (`HolidayService.syncFromEvent`, ADR-049).
 - **API**: `GET/POST /api/holidays`, `PATCH/DELETE /api/holidays/[id]`,
   `GET/POST /api/holidays/presets` (preview / import), `PUT /api/attendance/day-notes`. They use
   `attendance.read` / `attendance.update` for now (see Known gaps). Every change is audited

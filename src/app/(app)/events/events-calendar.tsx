@@ -25,6 +25,8 @@ export function EventsCalendar({
   events,
   categories,
   categoryNameByCode,
+  holidayCategories = [],
+  canManageHolidays = false,
   canManage,
 }: {
   organizationId: string;
@@ -34,6 +36,10 @@ export function EventsCalendar({
   events: EventWithDate[];
   categories: SelectOption[];
   categoryNameByCode: Map<string, string>;
+  /** Category codes that also put the day on the holiday calendar. */
+  holidayCategories?: string[];
+  /** Holiday events also change the holiday calendar, which needs its own permission (ADR-049). */
+  canManageHolidays?: boolean;
   canManage: boolean;
 }) {
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -216,6 +222,8 @@ export function EventsCalendar({
           events={eventsByDate.get(dialog.date) ?? []}
           categories={categories}
           categoryNameByCode={categoryNameByCode}
+          holidayCategories={holidayCategories}
+          canManageHolidays={canManageHolidays}
           canManage={canManage}
           onClose={() => setDialog(null)}
         />

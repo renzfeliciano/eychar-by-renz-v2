@@ -53,7 +53,7 @@ describe("HolidaysDialog preset preview", () => {
   });
 
   it("edits a saved holiday's details", async () => {
-    const holiday = { id: "h1", date: "2026-08-21", name: "Ninoy Aquino Day", type: "special_non_working", scope: null, source: "Proclamation No. 1006, s. 2025", presetKey: "PH" };
+    const holiday = { id: "h1", date: "2026-08-21", name: "Ninoy Aquino Day", type: "special_non_working", scope: null, source: "Proclamation No. 1006, s. 2025", presetKey: "PH", eventId: null };
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === "PATCH") return new Response(JSON.stringify({ holiday }));
       return new Response(JSON.stringify({ holidays: [holiday] }));
@@ -81,5 +81,18 @@ describe("HolidaysDialog preset preview", () => {
       scope: "Nationwide",
       source: "Proclamation No. 1006, s. 2025",
     });
+  });
+
+  it("sends a holiday from a company-calendar event back to the event instead of editing it here", async () => {
+    const holiday = { id: "h2", date: "2026-09-10", name: "Founding anniversary", type: "special_non_working", scope: null, source: null, presetKey: null, eventId: "e3" };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ holidays: [holiday] }))));
+    const user = userEvent.setup();
+    render(<HolidaysDialog organizationId="org1" initialYear={2026} />);
+    await user.click(screen.getByTestId("schedule-holidays-button"));
+
+    expect(await screen.findByTestId("holiday-open-event-h2")).toHaveAttribute("href", "/events?month=2026-09");
+    expect(screen.getByText("From the company calendar")).toBeInTheDocument();
+    expect(screen.queryByTestId("holiday-edit-h2")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove Founding anniversary" })).not.toBeInTheDocument();
   });
 });

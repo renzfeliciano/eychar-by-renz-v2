@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { objectId } from "@/shared/validation/object-id";
+import { HOLIDAY_TYPES } from "@/domains/holidays/holiday-types";
 
 // Same shape for create and update, mirroring the legacy v1 app's single reused form.
 export const eventSchema = z.object({
@@ -12,6 +13,8 @@ export const eventSchema = z.object({
     .optional(),
   category: z.string().max(200).trim().min(1),
   description: z.string().trim().max(500).optional(),
+  /** Required when the category is a holiday one; ignored otherwise. */
+  holidayType: z.enum(HOLIDAY_TYPES).optional(),
 });
 
 export const createEventSchema = eventSchema;

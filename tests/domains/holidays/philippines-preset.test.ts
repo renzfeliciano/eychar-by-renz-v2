@@ -36,7 +36,7 @@ describe("Philippine holiday preset", () => {
 describe("buildDayInfo", () => {
   it("groups holidays, events (timed first) and notes by day", () => {
     const info = buildDayInfo(
-      [{ id: "h1", date: "2026-12-25", name: "Christmas Day", type: "regular", scope: null, source: null, presetKey: "PH" }],
+      [{ id: "h1", date: "2026-12-25", name: "Christmas Day", type: "regular", scope: null, source: null, presetKey: "PH", eventId: null }],
       [
         { id: "e2", date: "2026-12-25", title: "Party", time: null, category: "social" },
         { id: "e1", date: "2026-12-25", title: "Mass", time: "08:00", category: "social" },

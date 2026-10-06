@@ -20,12 +20,16 @@ const holidaySchema = new Schema(
     source: { type: String, trim: true },
     // Set when loaded from a country preset ("PH"); absent for manual entries.
     presetKey: { type: String, trim: true },
+    // Set when the holiday mirrors a company-calendar event in a holiday
+    // category (ADR-049); the event owns it, so it's changed from there.
+    eventId: { type: Schema.Types.ObjectId, ref: "Event" },
     status: { type: String, required: true, trim: true, default: "active" },
   },
   { timestamps: true },
 );
 
 holidaySchema.index({ organizationId: 1, date: 1 });
+holidaySchema.index({ organizationId: 1, eventId: 1 }, { partialFilterExpression: { eventId: { $exists: true } } });
 
 // Test data the Super Administrator hid is left out of reads for everyone else (ADR-034).
 holidaySchema.plugin(hiddenPlugin);

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "./table-constants";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, TABLE_FRAME_HEIGHT } from "./table-constants";
 
 /**
  * The scrolling frame every DataTable sits in: at most about 10 rows tall on
@@ -39,7 +39,7 @@ export function DataTableFrame({
 
   return (
     <>
-      <Table className={tableClassName} containerClassName="md:max-h-[31rem] md:overflow-y-auto" data-testid={testId}>
+      <Table className={tableClassName} containerClassName={cn(TABLE_FRAME_HEIGHT, "md:overflow-y-auto")} data-testid={testId}>
         {head}
         <TableBody className={bodyClassName}>{visible}</TableBody>
       </Table>
@@ -60,7 +60,8 @@ export function DataTableFrame({
   );
 }
 
-function ClientPaginationFooter({
+/** The browser-side pager under a client-paged table (also used by tables that render their own frame, like the schedule grid). */
+export function ClientPaginationFooter({
   page,
   pageSize,
   total,

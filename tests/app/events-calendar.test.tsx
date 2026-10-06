@@ -14,10 +14,10 @@ const CATEGORIES = [
 const EVENTS = [
   { id: "e1", title: "Town hall", date: "2026-09-29", time: "15:00", category: "meeting", description: null },
   { id: "e2", title: "Safety briefing", date: "2026-09-29", time: "08:00", category: "meeting", description: null },
-  { id: "e3", title: "Founding anniversary", date: "2026-09-10", time: null, category: "holiday", description: null },
+  { id: "e3", title: "Founding anniversary", date: "2026-09-10", time: null, category: "holiday", description: null, holidayType: "special_non_working" as const },
 ];
 
-function renderCalendar(canManage = true) {
+function renderCalendar(canManage = true, canManageHolidays = true) {
   return render(
     <EventsCalendar
       organizationId="org1"
@@ -26,6 +26,8 @@ function renderCalendar(canManage = true) {
       events={EVENTS}
       categories={CATEGORIES}
       categoryNameByCode={new Map(CATEGORIES.map((category) => [category.id, category.label]))}
+      holidayCategories={["holiday"]}
+      canManageHolidays={canManageHolidays}
       canManage={canManage}
     />,
   );
@@ -64,5 +66,37 @@ describe("EventsCalendar", () => {
     cleanup();
     renderCalendar(false);
     expect(screen.queryByRole("button", { name: "New event" })).not.toBeInTheDocument();
+  });
+
+  it("asks for the holiday type only on an event in a holiday category", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+    await user.click(screen.getByRole("button", { name: /Thursday, September 10, 2026/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Holiday \(Special non-working day\)/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Edit Founding anniversary" }));
+    expect(await screen.findByTestId("event-holiday-type")).toHaveTextContent("Special non-working day");
+
+    cleanup();
+    renderCalendar();
+    await user.click(screen.getByRole("button", { name: /Tuesday, September 29, 2026/ }));
+    await user.click(await screen.findByRole("button", { name: "Edit Town hall" }));
+    expect(screen.getByLabelText(/Title/)).toHaveValue("Town hall");
+    expect(screen.queryByTestId("event-holiday-type")).not.toBeInTheDocument();
+  });
+
+  it("doesn't offer to change a holiday event to someone who can't manage the holiday calendar", async () => {
+    const user = userEvent.setup();
+    renderCalendar(true, false);
+    await user.click(screen.getByRole("button", { name: /Thursday, September 10, 2026/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Founding anniversary")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Edit Founding anniversary" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Cancel Founding anniversary" })).not.toBeInTheDocument();
+
+    cleanup();
+    renderCalendar(true, false);
+    await user.click(screen.getByRole("button", { name: /Tuesday, September 29, 2026/ }));
+    expect(await screen.findByRole("button", { name: "Edit Town hall" })).toBeInTheDocument();
   });
 });

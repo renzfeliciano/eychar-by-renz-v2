@@ -490,7 +490,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
 
   await seedCatalogDefaults(EventCategoryModel, [
     { code: "meeting", name: "Meeting", sortOrder: 0 },
-    { code: "holiday", name: "Holiday", sortOrder: 1 },
+    { code: "holiday", name: "Holiday", sortOrder: 1, metadata: { isHoliday: true } },
     { code: "deadline", name: "Deadline", sortOrder: 2 },
     { code: "reminder", name: "Reminder", sortOrder: 3 },
     { code: "other", name: "Other", sortOrder: 4 },

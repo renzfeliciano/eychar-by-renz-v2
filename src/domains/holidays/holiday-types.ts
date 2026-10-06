@@ -17,6 +17,12 @@ export function isDayOff(type: HolidayType): boolean {
   return type !== "special_working";
 }
 
+/**
+ * The permission that changes the holiday calendar: on Schedules (ADR-035)
+ * and, for a holiday event, on the company calendar too (ADR-049).
+ */
+export const HOLIDAY_CALENDAR_PERMISSION = "attendance.update";
+
 /** A holiday as the UI reads it. */
 export type HolidayView = {
   id: string;
@@ -26,4 +32,6 @@ export type HolidayView = {
   scope: string | null;
   source: string | null;
   presetKey: string | null;
+  /** The company-calendar event this holiday mirrors; it's edited from there. */
+  eventId: string | null;
 };

@@ -322,7 +322,10 @@ export default async function DashboardPage() {
   const horizonKey = addDays(todayKey, COMING_UP_DAYS);
   const within = (key: string) => key >= todayKey && key <= horizonKey;
   const upcoming: UpcomingEntry[] = [];
+  // A holiday event already shows as its holiday, so it isn't listed twice.
+  const holidayEventIds = new Set((holidays ?? []).map((holiday) => holiday.eventId).filter(Boolean));
   for (const event of monthEvents ? upcomingEvents(monthEvents, todayKey, 50) : []) {
+    if (holidayEventIds.has(event._id.toString())) continue;
     const key = dateToDateKey(new Date(event.date));
     if (within(key)) upcoming.push({ key, kind: "event", title: event.title, detail: event.time ?? "Company event", href: "/events" });
   }

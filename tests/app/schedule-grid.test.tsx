@@ -225,7 +225,7 @@ describe("ScheduleGrid", () => {
   describe("day details", () => {
     const DAY_INFO = {
       "2026-10-05": {
-        holidays: [{ id: "h1", date: "2026-10-05", name: "Founders Day", type: "special_non_working" as const, scope: "Cebu City", source: "City Ordinance 123", presetKey: null }],
+        holidays: [{ id: "h1", date: "2026-10-05", name: "Founders Day", type: "special_non_working" as const, scope: "Cebu City", source: "City Ordinance 123", presetKey: null, eventId: null }],
         events: [{ id: "ev1", title: "Town hall", time: "09:00", category: "meeting" }],
         note: "Skeleton crew only",
       },
@@ -287,6 +287,62 @@ describe("ScheduleGrid", () => {
       expect(within(dialog).queryByTestId("day-details-select-day")).not.toBeInTheDocument();
       expect(within(dialog).queryByTestId("day-details-add-holiday")).not.toBeInTheDocument();
       expect(within(dialog).queryByTestId("day-details-events")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("paging", () => {
+    const MANY: ScheduleMonthView = {
+      ...VIEW,
+      rows: Array.from({ length: 23 }, (_, index) => ({
+        employeeId: `m${index + 1}`,
+        employeeNumber: `EMP-${String(index + 1).padStart(3, "0")}`,
+        name: `Employee ${index + 1}`,
+        cells: {},
+      })),
+    };
+    const shownRows = () => screen.getAllByTestId(/^schedule-row-/).length;
+
+    it("shows 10 employees a page, with the standard pager, and pages through the rest", async () => {
+      const user = userEvent.setup();
+      renderGrid({ view: MANY });
+
+      expect(shownRows()).toBe(10);
+      const pager = screen.getByTestId("data-table-pagination");
+      expect(pager).toHaveTextContent("Showing 1–10 of 23");
+
+      await user.click(within(pager).getByRole("button", { name: "Next page" }));
+      expect(screen.getByTestId("schedule-row-m11")).toBeInTheDocument();
+      expect(screen.queryByTestId("schedule-row-m1")).not.toBeInTheDocument();
+
+      await user.click(within(pager).getByRole("button", { name: "25" }));
+      expect(shownRows()).toBe(23);
+    });
+
+    it("goes back to the first page when the search changes", async () => {
+      const user = userEvent.setup();
+      renderGrid({ view: MANY });
+      await user.click(screen.getByRole("button", { name: "Next page" }));
+      await user.click(screen.getByRole("button", { name: "Next page" }));
+
+      await user.type(screen.getByTestId("schedule-search-input"), "Employee 1");
+      // "Employee 1" and "Employee 10"–"Employee 19": 11 matches, so the pager stays, back on page 1.
+      expect(screen.getByTestId("data-table-pagination")).toHaveTextContent("Showing 1–10 of 11");
+      expect(screen.getByTestId("schedule-row-m1")).toBeInTheDocument();
+    });
+
+    it("selects a date's column on the page on screen, and keeps days selected while paging", async () => {
+      const user = userEvent.setup();
+      renderGrid({ view: MANY });
+      await selectWholeDay(user, "2026-10-05");
+      expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("10 days selected");
+
+      await user.click(screen.getByRole("button", { name: "Next page" }));
+      expect(screen.getByTestId("schedule-selection-count")).toHaveTextContent("10 days selected");
+    });
+
+    it("has no pager when everyone fits on one page", () => {
+      renderGrid();
+      expect(screen.queryByTestId("data-table-pagination")).not.toBeInTheDocument();
     });
   });
 });

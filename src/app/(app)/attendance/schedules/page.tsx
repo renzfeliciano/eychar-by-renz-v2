@@ -51,9 +51,11 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
   ]);
   // Company events only for people who may see the calendar.
   const events = canReadEvents ? await EventService.listForMonth(organizationId, month) : [];
+  // A holiday event already shows as its holiday, so it isn't listed twice.
+  const holidayEventIds = new Set(holidays.map((holiday) => holiday.eventId).filter(Boolean));
   const dayInfo = buildDayInfo(
     holidays,
-    events.map((event) => ({ id: event._id.toString(), date: dateToDateKey(new Date(event.date)), title: event.title, time: event.time ?? null, category: event.category })),
+    events.filter((event) => !holidayEventIds.has(event._id.toString())).map((event) => ({ id: event._id.toString(), date: dateToDateKey(new Date(event.date)), title: event.title, time: event.time ?? null, category: event.category })),
     notes,
   );
 

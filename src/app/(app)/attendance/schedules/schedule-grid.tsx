@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { FormError } from "@/components/shared/form-field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ClientPaginationFooter } from "@/components/shared/data-table-frame";
+import { DEFAULT_PAGE_SIZE, TABLE_FRAME_HEIGHT } from "@/components/shared/table-constants";
 import { cn } from "@/lib/utils";
 import type { ScheduleMonthView } from "@/domains/attendance/schedule-service";
 import { shiftColor } from "@/domains/attendance/shift-colors";
@@ -53,6 +55,8 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   const [isSaving, setIsSaving] = useState(false);
   const [quickSavingId, setQuickSavingId] = useState<string | null>(null);
   const [openDay, setOpenDay] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const activeShifts = shifts.filter((shift) => shift.status === "active");
   const chosenShift = activeShifts.find((shift) => shift.id === shiftId);
@@ -63,7 +67,12 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
   const visibleRows = normalizedQuery
     ? view.rows.filter((row) => row.name.toLowerCase().includes(normalizedQuery) || row.employeeNumber.toLowerCase().includes(normalizedQuery))
     : view.rows;
-  const { selected, setAnchor, clearSelection, handleCellClick, handlePointerDown, handlePointerEnter, toggleGroup, selectedPositions } = useGridSelection({ visibleRows, days: view.days });
+  // Paged like every other table. Selecting (ranges, drags, a date's column) works on the page
+  // on screen; days already selected stay selected while paging, so one save can span pages.
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const { selected, setAnchor, clearSelection, handleCellClick, handlePointerDown, handlePointerEnter, toggleGroup, selectedPositions } = useGridSelection({ visibleRows: pageRows, days: view.days });
 
   async function save(entries: EntryPayload[], cleared: boolean) {
     const response = await fetch("/api/attendance/schedules", {
@@ -153,6 +162,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
+              setPage(1);
               setAnchor(null);
             }}
             className="pl-8"
@@ -172,149 +182,169 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
         )}
       </div>
 
-      {/* The grid scrolls sideways inside its own frame on narrow screens; the page itself never does. */}
-      <div className="overflow-x-auto rounded-lg border bg-card shadow-[var(--shadow-soft)]" data-testid="schedule-grid">
-        <table className="w-max border-separate border-spacing-0 text-sm select-none">
-          <caption className="sr-only">Shift schedule for {view.label}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="sticky left-0 z-20 min-w-32 border-b border-r bg-card px-3 py-2 text-left text-xs font-medium text-muted-foreground sm:min-w-52">
-                Employee
-              </th>
-              {view.days.map((day) => {
-                const isToday = day.date === todayKey;
-                const info = dayInfo[day.date];
-                const holidayType = strongestHolidayType(info?.holidays.map((holiday) => holiday.type) ?? []);
-                const hasNotes = Boolean(info?.note || info?.events.length);
-                const holidayNames = info?.holidays.map((holiday) => `${holiday.name} (${HOLIDAY_TYPE_LABELS[holiday.type]})`).join(", ");
-                const label = `${WEEKDAY_NAMES[day.weekday]} ${day.day}${isToday ? ", today" : ""}${holidayNames ? `, ${holidayNames}` : ""}${info?.events.length ? `, ${info.events.length === 1 ? "1 event" : `${info.events.length} events`}` : ""}${info?.note ? ", has a note" : ""}`;
-                return (
-                  <th
-                    key={day.date}
-                    scope="col"
-                    className={cn(
-                      "h-11 w-11 min-w-11 border-b p-0 text-center font-normal",
-                      day.isWeekend && "bg-muted/60",
-                      holidayType === "regular" && "bg-rose-50 dark:bg-rose-500/10",
-                      holidayType === "special_non_working" && "bg-amber-50 dark:bg-amber-500/10",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="relative size-full rounded-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                      onClick={() => setOpenDay(day.date)}
-                      aria-label={`${label}. Show day details`}
-                      title={holidayNames ? `${holidayNames} · details` : `Details for ${day.date}`}
-                      data-testid={`schedule-day-${day.date}`}
-                    >
-                      <span
-                        className={cn(
-                          "mx-auto flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
-                          isToday ? "bg-primary font-semibold text-primary-foreground" : "font-medium",
-                          holidayType === "regular" && !isToday && "text-rose-700 dark:text-rose-300",
-                        )}
-                      >
-                        {day.day}
-                      </span>
-                      <span className="block text-[10px] text-muted-foreground">{WEEKDAY_INITIALS[day.weekday]}</span>
-                      {(holidayType || hasNotes) && (
-                        <span className="absolute top-1 right-1 flex gap-0.5" aria-hidden="true">
-                          {holidayType && <span className={cn("size-1.5 rounded-full", HOLIDAY_DOT[holidayType])} data-testid="schedule-holiday-marker" />}
-                          {hasNotes && <span className="size-1.5 rounded-full bg-primary" data-testid="schedule-note-marker" />}
-                        </span>
-                      )}
-                    </button>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.length === 0 && (
+      {/* The table standard: about 10 rows tall with the dates pinned on top, paged below. The grid
+          scrolls inside its own frame (sideways on narrow screens); the page itself never does. */}
+      <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]">
+        <div className={cn("overflow-auto", TABLE_FRAME_HEIGHT)} data-testid="schedule-grid">
+          <table className="w-max border-separate border-spacing-0 text-sm select-none">
+            <caption className="sr-only">Shift schedule for {view.label}</caption>
+            <thead>
               <tr>
-                <td colSpan={view.days.length + 1} className="px-3 py-8 text-left text-sm text-muted-foreground sm:text-center">
-                  No one matches &ldquo;{query.trim()}&rdquo;.
-                </td>
-              </tr>
-            )}
-            {visibleRows.map((row) => {
-              const workDays = Object.values(row.cells).filter((cell) => cell.kind === "work").length;
-              const nameContent = (
-                <>
-                  <span className="block max-w-28 truncate text-sm font-medium sm:max-w-48">{row.name}</span>
-                  <span className="block max-w-28 truncate text-xs text-muted-foreground tabular-nums sm:max-w-48">
-                    {row.employeeNumber}
-                    <span className="hidden sm:inline"> · {workDays === 1 ? "1 work day" : `${workDays} work days`}</span>
-                  </span>
-                </>
-              );
-              return (
-                <tr key={row.employeeId} data-testid={`schedule-row-${row.employeeId}`}>
-                  <th scope="row" className="sticky left-0 z-10 border-r border-b bg-card p-0 text-left font-normal">
-                    {canUpdate ? (
+                <th scope="col" className="sticky top-0 left-0 z-30 min-w-32 border-b border-r bg-card px-3 py-2 text-left text-xs font-medium text-muted-foreground sm:min-w-52">
+                  Employee
+                </th>
+                {view.days.map((day) => {
+                  const isToday = day.date === todayKey;
+                  const info = dayInfo[day.date];
+                  const holidayType = strongestHolidayType(info?.holidays.map((holiday) => holiday.type) ?? []);
+                  const hasNotes = Boolean(info?.note || info?.events.length);
+                  const holidayNames = info?.holidays.map((holiday) => `${holiday.name} (${HOLIDAY_TYPE_LABELS[holiday.type]})`).join(", ");
+                  const label = `${WEEKDAY_NAMES[day.weekday]} ${day.day}${isToday ? ", today" : ""}${holidayNames ? `, ${holidayNames}` : ""}${info?.events.length ? `, ${info.events.length === 1 ? "1 event" : `${info.events.length} events`}` : ""}${info?.note ? ", has a note" : ""}`;
+                  return (
+                    <th
+                      key={day.date}
+                      scope="col"
+                      // Opaque so rows scrolling under the pinned header don't show through; the tint sits on the button.
+                      className="sticky top-0 z-20 h-11 w-11 min-w-11 border-b bg-card p-0 text-center font-normal"
+                    >
                       <button
                         type="button"
-                        className="flex size-full flex-col items-start px-3 py-1.5 text-left transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                        onClick={() => toggleGroup(view.days.map((day) => cellKey(row.employeeId, day.date)))}
-                        title={`Select all of ${row.name}'s days`}
+                        className={cn(
+                          "relative size-full rounded-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+                          day.isWeekend && "bg-muted/60",
+                          holidayType === "regular" && "bg-rose-50 dark:bg-rose-500/10",
+                          holidayType === "special_non_working" && "bg-amber-50 dark:bg-amber-500/10",
+                        )}
+                        onClick={() => setOpenDay(day.date)}
+                        aria-label={`${label}. Show day details`}
+                        title={holidayNames ? `${holidayNames} · details` : `Details for ${day.date}`}
+                        data-testid={`schedule-day-${day.date}`}
                       >
-                        {nameContent}
+                        <span
+                          className={cn(
+                            "mx-auto flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
+                            isToday ? "bg-primary font-semibold text-primary-foreground" : "font-medium",
+                            holidayType === "regular" && !isToday && "text-rose-700 dark:text-rose-300",
+                          )}
+                        >
+                          {day.day}
+                        </span>
+                        <span className="block text-[10px] text-muted-foreground">{WEEKDAY_INITIALS[day.weekday]}</span>
+                        {(holidayType || hasNotes) && (
+                          <span className="absolute top-1 right-1 flex gap-0.5" aria-hidden="true">
+                            {holidayType && <span className={cn("size-1.5 rounded-full", HOLIDAY_DOT[holidayType])} data-testid="schedule-holiday-marker" />}
+                            {hasNotes && <span className="size-1.5 rounded-full bg-primary" data-testid="schedule-note-marker" />}
+                          </span>
+                        )}
                       </button>
-                    ) : (
-                      <div className="px-3 py-1.5">{nameContent}</div>
-                    )}
-                  </th>
-                  {view.days.map((day, dayIndex) => {
-                    const cell = row.cells[day.date];
-                    const position = { employeeId: row.employeeId, dayIndex };
-                    const isSelected = selected.has(cellKey(row.employeeId, day.date));
-                    const label = cell
-                      ? `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: ${cell.name}${cell.kind === "work" ? ` ${formatHours(cell)}` : ""}${cell.customTimes ? " (custom hours)" : ""}${cell.projectName ? ` at ${cell.projectName}` : ""}`
-                      : `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: not scheduled`;
-                    const content = cell ? (
-                      <>
-                        {cell.customTimes && (
-                          <span className="absolute top-1 right-1 size-1.5 rounded-full bg-current opacity-70" aria-hidden="true" data-testid="schedule-custom-marker" />
-                        )}
-                        <span className="block font-mono text-xs font-semibold">{cell.code}</span>
-                        {cell.projectName && <span className="block max-w-10 truncate text-[9px] leading-tight opacity-75">{cell.projectName}</span>}
-                      </>
-                    ) : null;
-                    // Each shift wears its own tint (the code is always printed too, so color is never the only cue).
-                    const cellClass = cn(
-                      "relative h-11 w-11 min-w-11 border-b border-background p-0 text-center align-middle",
-                      !cell && "border-border",
-                      day.isWeekend && !cell && "bg-muted/40",
-                      cell && shiftColor(cell.color).cellClassName,
-                    );
-                    return (
-                      <td key={day.date} className={cellClass} title={label}>
-                        {canUpdate ? (
-                          <button
-                            type="button"
-                            aria-label={label}
-                            aria-pressed={isSelected}
-                            onPointerDown={(event) => handlePointerDown(event, position)}
-                            onPointerEnter={() => handlePointerEnter(position)}
-                            onClick={(event) => handleCellClick(position, event.shiftKey)}
-                            className={cn(
-                              "relative flex size-full flex-col items-center justify-center transition-[background-color,box-shadow] duration-100 hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-white/5",
-                              isSelected && "bg-primary/12 ring-2 ring-primary ring-inset hover:bg-primary/15",
-                            )}
-                          >
-                            {content}
-                          </button>
-                        ) : (
-                          <div className="relative flex size-full flex-col items-center justify-center">{content}</div>
-                        )}
-                      </td>
-                    );
-                  })}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.length === 0 && (
+                <tr>
+                  <td colSpan={view.days.length + 1} className="px-3 py-8 text-left text-sm text-muted-foreground sm:text-center">
+                    No one matches &ldquo;{query.trim()}&rdquo;.
+                  </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              )}
+              {pageRows.map((row) => {
+                const workDays = Object.values(row.cells).filter((cell) => cell.kind === "work").length;
+                const nameContent = (
+                  <>
+                    <span className="block max-w-28 truncate text-sm font-medium sm:max-w-48">{row.name}</span>
+                    <span className="block max-w-28 truncate text-xs text-muted-foreground tabular-nums sm:max-w-48">
+                      {row.employeeNumber}
+                      <span className="hidden sm:inline"> · {workDays === 1 ? "1 work day" : `${workDays} work days`}</span>
+                    </span>
+                  </>
+                );
+                return (
+                  <tr key={row.employeeId} data-testid={`schedule-row-${row.employeeId}`}>
+                    <th scope="row" className="sticky left-0 z-10 border-r border-b bg-card p-0 text-left font-normal">
+                      {canUpdate ? (
+                        <button
+                          type="button"
+                          className="flex size-full flex-col items-start px-3 py-1 text-left transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                          onClick={() => toggleGroup(view.days.map((day) => cellKey(row.employeeId, day.date)))}
+                          title={`Select all of ${row.name}'s days`}
+                        >
+                          {nameContent}
+                        </button>
+                      ) : (
+                        <div className="px-3 py-1">{nameContent}</div>
+                      )}
+                    </th>
+                    {view.days.map((day, dayIndex) => {
+                      const cell = row.cells[day.date];
+                      const position = { employeeId: row.employeeId, dayIndex };
+                      const isSelected = selected.has(cellKey(row.employeeId, day.date));
+                      const label = cell
+                        ? `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: ${cell.name}${cell.kind === "work" ? ` ${formatHours(cell)}` : ""}${cell.customTimes ? " (custom hours)" : ""}${cell.projectName ? ` at ${cell.projectName}` : ""}`
+                        : `${row.name}, ${WEEKDAY_NAMES[day.weekday]} ${day.day}: not scheduled`;
+                      const content = cell ? (
+                        <>
+                          {cell.customTimes && (
+                            <span className="absolute top-1 right-1 size-1.5 rounded-full bg-current opacity-70" aria-hidden="true" data-testid="schedule-custom-marker" />
+                          )}
+                          <span className="block font-mono text-xs font-semibold">{cell.code}</span>
+                          {cell.projectName && <span className="block max-w-10 truncate text-[9px] leading-tight opacity-75">{cell.projectName}</span>}
+                        </>
+                      ) : null;
+                      // Each shift wears its own tint (the code is always printed too, so color is never the only cue).
+                      const cellClass = cn(
+                        "relative h-11 w-11 min-w-11 border-b border-background p-0 text-center align-middle",
+                        !cell && "border-border",
+                        day.isWeekend && !cell && "bg-muted/40",
+                        cell && shiftColor(cell.color).cellClassName,
+                      );
+                      return (
+                        <td key={day.date} className={cellClass} title={label}>
+                          {canUpdate ? (
+                            <button
+                              type="button"
+                              aria-label={label}
+                              aria-pressed={isSelected}
+                              onPointerDown={(event) => handlePointerDown(event, position)}
+                              onPointerEnter={() => handlePointerEnter(position)}
+                              onClick={(event) => handleCellClick(position, event.shiftKey)}
+                              className={cn(
+                                "relative flex size-full flex-col items-center justify-center transition-[background-color,box-shadow] duration-100 hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-white/5",
+                                isSelected && "bg-primary/12 ring-2 ring-primary ring-inset hover:bg-primary/15",
+                              )}
+                            >
+                              {content}
+                            </button>
+                          ) : (
+                            <div className="relative flex size-full flex-col items-center justify-center">{content}</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {visibleRows.length > DEFAULT_PAGE_SIZE && (
+          <ClientPaginationFooter
+            page={currentPage}
+            pageSize={pageSize}
+            total={visibleRows.length}
+            onPage={(next) => {
+              setPage(next);
+              setAnchor(null);
+            }}
+            onPageSize={(size) => {
+              setPageSize(size);
+              setPage(1);
+              setAnchor(null);
+            }}
+          />
+        )}
       </div>
 
       {(activeShifts.length > 0 || Object.keys(dayInfo).length > 0) && (
@@ -436,7 +466,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
         isWeekend={Boolean(openDay && view.days.find((day) => day.date === openDay)?.isWeekend)}
         canUpdate={canUpdate}
         canReadEvents={canReadEvents}
-        onSelectDay={() => openDay && toggleGroup(visibleRows.map((row) => cellKey(row.employeeId, openDay)))}
+        onSelectDay={() => openDay && toggleGroup(pageRows.map((row) => cellKey(row.employeeId, openDay)))}
       />
 
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
