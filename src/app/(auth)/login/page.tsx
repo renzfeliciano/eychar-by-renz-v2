@@ -81,6 +81,9 @@ export default function LoginPage() {
       return;
     }
 
+    // The client router may still hold an earlier "signed out, go to /login" answer for the
+    // dashboard; refreshing drops every cached route so it is fetched again with the new session.
+    router.refresh();
     router.push("/dashboard");
   }
 

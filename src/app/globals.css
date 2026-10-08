@@ -446,6 +446,31 @@
   .page-loader-bar { animation: none; width: 100%; opacity: 0.6; }
 }
 
+/* Animated EychAr loader (components/shared/brand-loader.tsx). One image shows at a time:
+   the animation for the theme, or a still of the finished frame under reduced motion.
+   the stage choreography below hands over to the skeleton. */
+.brand-loader img { display: none; }
+.brand-loader .bl-light-anim { display: block; }
+.dark .brand-loader .bl-light-anim { display: none; }
+.dark .brand-loader .bl-dark-anim { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader .bl-light-anim,
+  .dark .brand-loader .bl-dark-anim { display: none; }
+  .brand-loader .bl-light-still { display: block; }
+  .dark .brand-loader .bl-light-still { display: none; }
+  .dark .brand-loader .bl-dark-still { display: block; }
+}
+/* Skeleton at once, loader on top (PageLoader). The loader card drops in from just above its
+   spot with a short fade and stays until the page replaces it; the skeleton fades in with no delay.
+   Reduced motion keeps the fades but drops the movement. */
+@keyframes brand-stage-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes page-skeleton-fade { from { opacity: 0; } to { opacity: 1; } }
+.brand-loader-stage { animation: brand-stage-in 120ms ease-out both; }
+.page-loader-skeleton-in { animation: page-skeleton-fade 120ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-stage { animation-name: page-skeleton-fade; }
+}
+
 /* ── Toasts (house style "clean card", components/ui/sonner.tsx) ──────────
    A plain popover card: a small icon in the type's color, bold title, optional
    detail line, an optional outlined action (Undo), a quiet close button and a

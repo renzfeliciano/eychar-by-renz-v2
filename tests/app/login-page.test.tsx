@@ -5,8 +5,9 @@ import userEvent from "@testing-library/user-event";
 import LoginPage from "@/app/(auth)/login/page";
 
 const push = vi.fn();
+const refresh = vi.fn();
 const signIn = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock("next-auth/react", () => ({ signIn: (...args: unknown[]) => signIn(...args) }));
 vi.mock("next/image", () => ({
   // eslint-disable-next-line @next/next/no-img-element
@@ -20,6 +21,7 @@ function mockPointer(fine: boolean) {
 beforeEach(() => {
   mockPointer(true);
   push.mockReset();
+  refresh.mockReset();
   signIn.mockReset();
 });
 
