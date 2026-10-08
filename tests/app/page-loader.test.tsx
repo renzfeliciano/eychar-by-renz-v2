@@ -14,6 +14,17 @@ describe("PageLoader", () => {
     expect(screen.getByTestId("page-loader-skeleton")).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("centres the brand loader in the main panel over the skeleton (click-through), announcing once", () => {
+    render(<PageLoader />);
+
+    const brand = screen.getByTestId("page-loader-brand");
+    expect(brand).toHaveAttribute("aria-hidden", "true");
+    expect(brand).toHaveClass("pointer-events-none", "sticky");
+    expect(brand.querySelector(".brand-loader-stage")).not.toBeNull();
+    expect(screen.getByTestId("page-loader-skeleton")).toHaveClass("page-loader-skeleton-in");
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+
   it("renders a compact variant for the self-service portal", () => {
     render(<PageLoader variant="compact" label="Loading your clock…" />);
 
