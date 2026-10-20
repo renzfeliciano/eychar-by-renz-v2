@@ -21,6 +21,8 @@ import {
   CaseClassificationModel,
   CaseStatusModel,
   PerformanceRatingModel,
+  EvaluationTypeModel,
+  EvaluatorRuleModel,
   DocumentTypeModel,
   ClearanceDepartmentModel,
   SeparationTypeModel,
@@ -151,6 +153,16 @@ const BASELINE_PERMISSIONS = [
   { key: "performance-reviews.create", description: "Add a performance review within a cycle", category: "performance" },
   { key: "performance-reviews.read", description: "View performance reviews", category: "performance" },
   { key: "performance-reviews.update", description: "Submit a performance review", category: "performance" },
+
+  // Performance evaluation form (ADR-051). read/create/update/acknowledge are the evaluator's; manage is HR / Operations oversight.
+  { key: "performance-evaluations.read", description: "View the performance evaluations you are the evaluator of", category: "performance" },
+  { key: "performance-evaluations.create", description: "Start a performance evaluation as its evaluator", category: "performance" },
+  { key: "performance-evaluations.update", description: "Fill in and submit a performance evaluation as its evaluator", category: "performance" },
+  { key: "performance-evaluations.acknowledge", description: "Record the employee's acknowledgment of a submitted evaluation", category: "performance" },
+  { key: "performance-evaluations.manage", description: "Oversee every performance evaluation: view all, start and submit on behalf, name an evaluator by hand", category: "performance" },
+  { key: "evaluation-types.create", description: "Add evaluation type catalog items", category: "settings" },
+  { key: "evaluation-types.read", description: "View evaluation type catalog items", category: "settings" },
+  { key: "evaluation-types.update", description: "Retire evaluation type catalog items", category: "settings" },
 
   { key: "cases.create", description: "Add a case", category: "cases" },
   { key: "cases.read", description: "View cases", category: "cases" },
@@ -518,6 +530,12 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     { code: "outstanding", name: "Outstanding", sortOrder: 3 },
   ]);
 
+  await seedCatalogDefaults(EvaluationTypeModel, [
+    { code: "contractual", name: "Contractual Employment", sortOrder: 0, metadata: { defaultPeriodMonths: 3 } },
+    { code: "probationary", name: "Probationary Employment", sortOrder: 1, metadata: { defaultPeriodMonths: 3 } },
+    { code: "regularization", name: "Regularization", sortOrder: 2 },
+  ]);
+
   await seedCatalogDefaults(DocumentTypeModel, [
     { code: "government-id", name: "Government ID", sortOrder: 0 },
     { code: "contract", name: "Employment Contract", sortOrder: 1 },
@@ -628,6 +646,28 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
       { $setOnInsert: { organizationId: organization._id, code: project.code, name: project.name, status: "active" } },
       { upsert: true },
     );
+  }
+
+  // Who evaluates whom (ADR-051), checked top to bottom, first match wins. Written by position/project
+  // code, so they only seed when those exist; HR can change them later. Existing rules are left alone.
+  const positionByCode = new Map((await PositionModel.find({ organizationId: organization._id }).lean()).map((position) => [position.code, position._id]));
+  const headOffice = await ProjectModel.findOne({ organizationId: organization._id, code: "PCAS-HO" }).lean();
+  const ids = (...codes: string[]) => codes.flatMap((code) => positionByCode.get(code) ?? []);
+  const EVALUATOR_RULE_DEFAULTS = [
+    // The President is not evaluated through this form: no evaluator matches, HR oversight names one if needed.
+    { name: "President is not evaluated by rule", order: 5, subjectPositionIds: ids("PRESIDENT"), subjectProjectIds: [], evaluatorPositionIds: [], evaluatorScope: "organization", subjectIsPosition: true, needsEvaluators: false },
+    { name: "Operations Manager is evaluated by the President", order: 10, subjectPositionIds: ids("OPS-MANAGER"), subjectProjectIds: [], evaluatorPositionIds: ids("PRESIDENT"), evaluatorScope: "organization", subjectIsPosition: true, needsEvaluators: true },
+    { name: "Building Administrators are evaluated by the Operations Manager", order: 20, subjectPositionIds: ids("BLDG-ADMIN"), subjectProjectIds: [], evaluatorPositionIds: ids("OPS-MANAGER"), evaluatorScope: "organization", subjectIsPosition: true, needsEvaluators: true },
+    { name: "Head Office staff are evaluated by the Operations Manager", order: 30, subjectPositionIds: [], subjectProjectIds: headOffice ? [headOffice._id] : [], evaluatorPositionIds: ids("OPS-MANAGER"), evaluatorScope: "organization", subjectIsProject: true, needsEvaluators: true },
+    { name: "Project staff are evaluated by their Building Administrator", order: 40, subjectPositionIds: [], subjectProjectIds: [], evaluatorPositionIds: ids("BLDG-ADMIN"), evaluatorScope: "same-project", needsEvaluators: true },
+  ];
+  for (const { subjectIsPosition, subjectIsProject, needsEvaluators, ...rule } of EVALUATOR_RULE_DEFAULTS) {
+    // An empty subject means "everyone", so a rule whose position or project is missing would match the wrong
+    // people (and shadow the rules below it). Skip it instead.
+    if (subjectIsPosition && rule.subjectPositionIds.length === 0) continue;
+    if (subjectIsProject && rule.subjectProjectIds.length === 0) continue;
+    if (needsEvaluators && rule.evaluatorPositionIds.length === 0) continue;
+    await EvaluatorRuleModel.findOneAndUpdate({ organizationId: organization._id, name: rule.name }, { $setOnInsert: { organizationId: organization._id, ...rule } }, { upsert: true });
   }
 
   // The one Super Administrator: the seed's HR account. Refuses if someone else already holds it.

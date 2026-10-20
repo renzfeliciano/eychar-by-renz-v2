@@ -73,6 +73,7 @@ export const CATALOG_READ_PERMISSIONS = [
   "case-classifications.read",
   "case-statuses.read",
   "performance-ratings.read",
+  "evaluation-types.read",
   "document-types.read",
   "clearance-departments.read",
   "separation-types.read",
@@ -141,7 +142,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/travel-orders", label: "Travel orders", icon: Plane, permission: "travel-orders.read" },
       { href: "/recruitment/tracking", label: "Recruitment", icon: KanbanSquare, permission: "applicants.read" },
-      { href: "/performance", label: "Performance", icon: Star, permission: "review-cycles.read" },
+      { href: "/performance", label: "Performance", icon: Star, anyPermission: ["performance-evaluations.read", "review-cycles.read"] },
       { href: "/cases", label: "Cases", icon: Gavel, permission: "cases.read" },
       { href: "/events", label: "Events", icon: CalendarDays, permission: "events.read" },
       {

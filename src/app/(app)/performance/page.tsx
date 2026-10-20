@@ -1,20 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { History } from "lucide-react";
 
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
-import { ReviewCycleService } from "@/domains/performance/review-cycle-service";
+import { requireAuthenticatedUser } from "@/server/authorization";
+import { resolveEvaluationActor } from "@/domains/performance/evaluation-actor";
+import { PerformanceEvaluationService } from "@/domains/performance/performance-evaluation-service";
+import { EvaluationTypeService } from "@/domains/catalog/evaluation-type-service";
+import { EmployeeService } from "@/domains/workforce/employee-service";
+import { formatPersonName } from "@/lib/person-name";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
-import { CreateReviewCycleDialog } from "./create-review-cycle-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
+import { buttonVariants } from "@/components/ui/button";
 import { formatCalendarDate } from "@/lib/date-key";
+import { cn } from "@/lib/utils";
+import { NewEvaluationDialog } from "./new-evaluation-dialog";
 
-export const metadata: Metadata = { title: "Review cycles" };
+export const metadata: Metadata = { title: "Performance" };
 
-// Review periods are calendar days (UTC midnight).
+// Evaluation periods are calendar days (UTC midnight).
 const SHORT = { month: "short", day: "numeric", year: "numeric" } as const;
 
 export default async function PerformancePage() {
@@ -22,60 +30,83 @@ export default async function PerformancePage() {
   if (!organization) return <NoAccessState needed="A role in an organization" message="Your account isn't part of an organization yet." />;
 
   const organizationId = organization._id.toString();
-  if (!(await hasPermission("review-cycles.read", organizationId))) {
-    return <NoAccessState permission="review-cycles.read" message="You don't have access to view review cycles." />;
+  const [canRead, canCreate, canSeeCycles] = await Promise.all([
+    hasPermission("performance-evaluations.read", organizationId),
+    hasPermission("performance-evaluations.create", organizationId),
+    hasPermission("review-cycles.read", organizationId),
+  ]);
+  if (!canRead) {
+    return <NoAccessState permission="performance-evaluations.read" message="You don't have access to performance evaluations." />;
   }
 
-  const canCreate = await hasPermission("review-cycles.create", organizationId);
-  const cycles = await ReviewCycleService.listCurrent(organizationId);
-  const count = (status: string) => cycles.filter((cycle) => cycle.status === status).length;
-  const now = new Date().getTime();
-  const current = cycles.find((cycle) => cycle.status === "open" && new Date(cycle.periodStart).getTime() <= now && new Date(cycle.periodEnd).getTime() >= now);
-  const createAction = canCreate ? <CreateReviewCycleDialog organizationId={organizationId} /> : undefined;
+  const { userId } = await requireAuthenticatedUser();
+  const actor = await resolveEvaluationActor(userId, organizationId);
+  const [evaluations, types, roster] = await Promise.all([
+    PerformanceEvaluationService.list(organizationId, actor),
+    EvaluationTypeService.listCurrent(organizationId),
+    canCreate ? EmployeeService.listWithCurrentStatus(organizationId) : Promise.resolve([]),
+  ]);
+
+  const count = (status: string) => evaluations.filter((evaluation) => evaluation.status === status).length;
+  const employeeOptions = roster.filter((row) => row.person).map((row) => ({ id: row._id.toString(), label: formatPersonName(row.person) }));
+  const typeOptions = types
+    .filter((type) => type.status === "active")
+    .map((type) => ({ id: type.code, label: type.name, defaultPeriodMonths: typeof type.metadata?.defaultPeriodMonths === "number" ? type.metadata.defaultPeriodMonths : undefined }));
+
+  const createAction = canCreate ? (
+    <NewEvaluationDialog organizationId={organizationId} employees={employeeOptions} types={typeOptions} selfEmployeeId={actor.employeeId} canManage={actor.canManage} />
+  ) : undefined;
+  const legacyLink = canSeeCycles ? (
+    <Link href="/performance/cycles" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+      <History className="size-3.5" />
+      Earlier reviews
+    </Link>
+  ) : undefined;
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Review cycles" description="Performance review periods, and the reviews recorded within each." action={createAction} />
+      <PageHeader
+        title="Performance"
+        description={actor.canManage ? "Every employee performance evaluation." : "The evaluations you are the evaluator of."}
+        action={
+          <>
+            {legacyLink}
+            {createAction}
+          </>
+        }
+      />
 
-      <MetricStrip columns={4}>
-        <MetricCard label="Open" value={count("open")} hint={current ? `Current: ${current.name}` : "Accepting reviews"} emphasis />
-        <MetricCard label="Drafts" value={count("draft")} hint="Not open for reviews yet" />
-        <MetricCard label="Closed" value={count("closed")} hint="Completed cycles" />
-        <MetricCard label="All cycles" value={cycles.length} hint="On record" />
+      <MetricStrip columns={3}>
+        <MetricCard label="Drafts" value={count("draft")} hint="Not submitted yet" />
+        <MetricCard label="Awaiting acknowledgment" value={count("submitted")} hint="Submitted, employee not yet acknowledged" emphasis />
+        <MetricCard label="Acknowledged" value={count("acknowledged")} hint="Completed" />
       </MetricStrip>
 
       <DataTable
-        caption="Review cycles"
+        caption="Performance evaluations"
         columns={[
           {
-            key: "name",
-            header: "Cycle",
-            render: (cycle) => (
-              <Link href={`/performance/${cycle._id.toString()}`} className="font-medium text-primary hover:underline">
-                {cycle.name}
+            key: "employee",
+            header: "Employee",
+            render: (evaluation) => (
+              <Link href={`/performance/evaluations/${evaluation._id.toString()}`} className="font-medium text-primary hover:underline">
+                {evaluation.employeeName}
               </Link>
             ),
           },
+          { key: "for", header: "Evaluation for", render: (evaluation) => evaluation.evaluationForName },
           {
             key: "period",
-            header: "Review period",
-            render: (cycle) => (
-              <div className="flex flex-col">
-                <span>
-                  {formatCalendarDate(cycle.periodStart, SHORT)} – {formatCalendarDate(cycle.periodEnd, SHORT)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {Math.max(1, Math.round((new Date(cycle.periodEnd).getTime() - new Date(cycle.periodStart).getTime()) / (30.44 * 86_400_000)))} months
-                </span>
-              </div>
-            ),
+            header: "Period",
+            render: (evaluation) => `${formatCalendarDate(evaluation.periodStart, SHORT)} – ${formatCalendarDate(evaluation.periodEnd, SHORT)}`,
           },
-          { key: "status", header: "Status", render: (cycle) => <StatusBadge status={cycle.status} /> },
+          { key: "evaluator", header: "Evaluator", render: (evaluation) => evaluation.evaluatorName },
+          { key: "status", header: "Status", render: (evaluation) => <StatusBadge status={evaluation.status} /> },
         ]}
-        rows={cycles}
-        getRowKey={(cycle) => cycle._id.toString()}
-        emptyMessage="No review cycles yet."
-        emptyDescription="Create a cycle for a review period (e.g. H2 2026), open it, then record each employee's review in it."
+        rows={evaluations}
+        getRowKey={(evaluation) => evaluation._id.toString()}
+        emptyMessage="No evaluations yet."
+        emptyDescription="Start an evaluation for an employee, fill in the form, and submit it for their acknowledgment."
         emptyAction={createAction}
       />
     </div>

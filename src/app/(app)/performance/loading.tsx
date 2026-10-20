@@ -4,10 +4,10 @@ import { HeaderSkeleton, StripSkeleton, TableSkeleton } from "@/components/share
 // Shaped like the page it stands in for, so nothing jumps when the data arrives.
 export default function Loading() {
   return (
-    <PageLoader label="Loading review cycles…">
-      <HeaderSkeleton actions={1} />
-      <StripSkeleton columns={4} />
-      <TableSkeleton rows={8} columns={4} />
+    <PageLoader label="Loading evaluations…">
+      <HeaderSkeleton actions={2} />
+      <StripSkeleton columns={3} />
+      <TableSkeleton rows={8} columns={5} />
     </PageLoader>
   );
 }

@@ -10,4 +10,5 @@ export * from "./payroll";
 export * from "./catalog";
 export * from "./recruitment";
 export * from "./performance";
+export * from "./performance-evaluation";
 export * from "./cases";

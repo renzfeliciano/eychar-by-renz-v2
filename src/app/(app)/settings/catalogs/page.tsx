@@ -17,6 +17,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "case-classifications", title: "Case classifications", description: "Types of cases the organization tracks." },
   { catalogType: "case-statuses", title: "Case statuses", description: "Where a case currently stands." },
   { catalogType: "performance-ratings", title: "Performance ratings", description: "The rating scale used on performance reviews." },
+  { catalogType: "evaluation-types", title: "Evaluation types", description: "What a performance evaluation is for: contractual, probationary, regularization. Default period in months is read from the item's metadata." },
   { catalogType: "clearance-departments", title: "Clearance departments", description: "Departments that sign off a separating employee's clearance." },
   { catalogType: "separation-types", title: "Separation types", description: "Why an employee leaves: resignation, end of contract, and so on." },
   { catalogType: "payment-methods", title: "Payment methods", description: "How final settlements are paid out." },
