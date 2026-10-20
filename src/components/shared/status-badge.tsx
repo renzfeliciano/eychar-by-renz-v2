@@ -16,6 +16,7 @@ const TONE_BY_STATUS: Record<string, Tone> = {
   on_leave: "warning",
   pending: "warning",
   submitted: "warning",
+  acknowledged: "success",
   ongoing: "warning",
   mediation: "warning",
   late: "warning",

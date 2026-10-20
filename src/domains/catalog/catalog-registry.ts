@@ -6,6 +6,7 @@ import { EventCategoryService } from "./event-category-service";
 import { CaseClassificationService } from "./case-classification-service";
 import { CaseStatusService } from "./case-status-service";
 import { PerformanceRatingService } from "./performance-rating-service";
+import { EvaluationTypeService } from "./evaluation-type-service";
 import { DocumentTypeService } from "./document-type-service";
 import { ClearanceDepartmentService } from "./clearance-department-service";
 import { SeparationTypeService } from "./separation-type-service";
@@ -28,6 +29,7 @@ export const CATALOG_REGISTRY = {
   "case-classifications": { service: CaseClassificationService, permissionPrefix: "case-classifications" },
   "case-statuses": { service: CaseStatusService, permissionPrefix: "case-statuses" },
   "performance-ratings": { service: PerformanceRatingService, permissionPrefix: "performance-ratings" },
+  "evaluation-types": { service: EvaluationTypeService, permissionPrefix: "evaluation-types" },
   "document-types": { service: DocumentTypeService, permissionPrefix: "document-types" },
   "clearance-departments": { service: ClearanceDepartmentService, permissionPrefix: "clearance-departments" },
   "separation-types": { service: SeparationTypeService, permissionPrefix: "separation-types" },
