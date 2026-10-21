@@ -3,6 +3,8 @@ import Link from "next/link";
 import { CircleCheck, UserRoundX } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { ReviewCycleService } from "@/domains/performance/review-cycle-service";
 import { PerformanceReviewService } from "@/domains/performance/performance-review-service";
 import { summarizeReviewCycle } from "@/domains/performance/review-cycle-summary";
@@ -50,6 +52,7 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
     return <NoAccessState permission="review-cycles.read" message="You don't have access to view review cycles." />;
   }
 
+  const superAdmin = await isSuperAdmin(organizationId);
   const [canReadReviews, canUpdateCycle, canCreateReview, canUpdateReview] = await Promise.all([
     hasPermission("performance-reviews.read", organizationId),
     hasPermission("review-cycles.update", organizationId),
@@ -206,6 +209,12 @@ export default async function ReviewCycleDetailPage({ params }: { params: Promis
             header: "",
             render: (review) =>
               canUpdateReview && review.status === "draft" ? <SubmitReviewDialog organizationId={organizationId} reviewId={review._id.toString()} ratings={ratingOptions} /> : null,
+          },
+          {
+            key: "delete",
+            header: "",
+            className: "w-10",
+            render: (review) => (superAdmin ? <DeleteRecordButton organizationId={organizationId} type="performance-review" id={review._id.toString()} iconOnly /> : null),
           },
         ]}
         rows={reviews}

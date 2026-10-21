@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
+import { SearchableOptionSelect } from "@/components/shared/searchable-option-select";
 import { cn } from "@/lib/utils";
 
 type Candidate = { employeeId: string; name: string; positionTitle?: string };
@@ -139,18 +140,30 @@ export function NewEvaluationDialog({
         </DialogHeader>
         <form id="new-evaluation-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />
-          <OptionSelect label="Employee" value={employeeId} onChange={chooseEmployee} options={employees} placeholder="Select an employee" required />
+          <SearchableOptionSelect label="Employee" value={employeeId} onChange={chooseEmployee} options={employees} placeholder="Search by name…" emptyMessage="No employee matches that name." required testId="new-evaluation-employee" />
           {employeeId && (
             <>
-              <OptionSelect
-                label="Evaluator"
-                value={evaluatorId}
-                onChange={setEvaluatorId}
-                options={evaluatorOptions}
-                placeholder={isLoadingEvaluators ? "Finding the evaluator…" : "Select the evaluator"}
-                description={canManage && candidates?.length === 0 ? "No one matches the evaluator rules for this employee; choose one by hand." : undefined}
-                required
-              />
+              {evaluatorOptions.length > 8 ? (
+                <SearchableOptionSelect
+                  label="Evaluator"
+                  value={evaluatorId}
+                  onChange={setEvaluatorId}
+                  options={evaluatorOptions}
+                  placeholder="Search by name…"
+                  description={canManage && candidates?.length === 0 ? "No one matches the evaluator rules for this employee; choose one by hand." : undefined}
+                  required
+                />
+              ) : (
+                <OptionSelect
+                  label="Evaluator"
+                  value={evaluatorId}
+                  onChange={setEvaluatorId}
+                  options={evaluatorOptions}
+                  placeholder={isLoadingEvaluators ? "Finding the evaluator…" : "Select the evaluator"}
+                  description={canManage && candidates?.length === 0 ? "No one matches the evaluator rules for this employee; choose one by hand." : undefined}
+                  required
+                />
+              )}
               {noEvaluator && <p className="text-sm text-destructive">You are not an authorized evaluator for this employee. Ask HR.</p>}
               {canManage && candidates && candidates.length > 0 && (
                 <label className="flex items-center gap-2 text-sm">

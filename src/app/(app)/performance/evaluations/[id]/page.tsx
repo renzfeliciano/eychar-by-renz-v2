@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { requireAuthenticatedUser } from "@/server/authorization";
 import { resolveEvaluationActor } from "@/domains/performance/evaluation-actor";
 import { PerformanceEvaluationService } from "@/domains/performance/performance-evaluation-service";
@@ -46,7 +48,11 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
   }
 
   const { evaluation, header } = detail;
-  const [types, canAcknowledge] = await Promise.all([EvaluationTypeService.listCurrent(organizationId), hasPermission("performance-evaluations.acknowledge", organizationId)]);
+  const [types, canAcknowledge, superAdmin] = await Promise.all([
+    EvaluationTypeService.listCurrent(organizationId),
+    hasPermission("performance-evaluations.acknowledge", organizationId),
+    isSuperAdmin(organizationId),
+  ]);
   const ratings = Object.fromEntries(evaluation.ratings.map((entry: { criterionKey: string; rating: string }) => [entry.criterionKey, entry.rating]));
   const isDraft = evaluation.status === "draft";
 
@@ -59,6 +65,7 @@ export default async function EvaluationPage({ params }: { params: Promise<{ id:
           <div className="flex items-center gap-2 print:hidden">
             <StatusBadge status={evaluation.status} />
             {!isDraft && <PrintButton />}
+            {superAdmin && <DeleteRecordButton organizationId={organizationId} type="performance-evaluation" id={id} afterDeleteHref="/performance" />}
             <Link href="/performance" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
               <ArrowLeft className="size-3.5" />
               All evaluations
