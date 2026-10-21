@@ -4,6 +4,8 @@ import { History } from "lucide-react";
 
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
+import { isSuperAdmin } from "@/app/_shared/is-super-admin";
+import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { requireAuthenticatedUser } from "@/server/authorization";
 import { resolveEvaluationActor } from "@/domains/performance/evaluation-actor";
 import { PerformanceEvaluationService } from "@/domains/performance/performance-evaluation-service";
@@ -39,6 +41,7 @@ export default async function PerformancePage() {
     return <NoAccessState permission="performance-evaluations.read" message="You don't have access to performance evaluations." />;
   }
 
+  const superAdmin = await isSuperAdmin(organizationId);
   const { userId } = await requireAuthenticatedUser();
   const actor = await resolveEvaluationActor(userId, organizationId);
   const [evaluations, types, roster] = await Promise.all([
@@ -102,6 +105,12 @@ export default async function PerformancePage() {
           },
           { key: "evaluator", header: "Evaluator", render: (evaluation) => evaluation.evaluatorName },
           { key: "status", header: "Status", render: (evaluation) => <StatusBadge status={evaluation.status} /> },
+          {
+            key: "delete",
+            header: "",
+            className: "w-10",
+            render: (evaluation) => (superAdmin ? <DeleteRecordButton organizationId={organizationId} type="performance-evaluation" id={evaluation._id.toString()} iconOnly /> : null),
+          },
         ]}
         rows={evaluations}
         getRowKey={(evaluation) => evaluation._id.toString()}

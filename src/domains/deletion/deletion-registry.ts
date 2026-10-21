@@ -65,6 +65,22 @@ function leaf(model: Model<any>, recordLabel: string, labelOf: (doc: Record<stri
   return whileUnused(model, recordLabel, labelOf, []);
 }
 
+/**
+ * A performance evaluation (or an earlier single-rating review) is named after
+ * the employee it is about, so the Super Administrator types that person's
+ * name to confirm. Nothing else depends on it, so nothing blocks deletion; it
+ * goes to the recycle bin and can be restored like any other record.
+ */
+function planAboutEmployee(model: Model<any>, recordLabel: string): Planner { // eslint-disable-line @typescript-eslint/no-explicit-any
+  return async (organizationId, id) => {
+    const doc = await model.findOne({ _id: id, organizationId }).lean<{ employeeId?: Types.ObjectId }>();
+    if (!doc) return null;
+    const employee = doc.employeeId ? await models.EmployeeModel.findById(doc.employeeId).lean() : null;
+    const person = employee ? await models.PersonModel.findById(employee.personId).lean() : null;
+    return { label: person ? formatPersonName(person) : recordLabel, deletes: [{ model, filter: { _id: id }, label: recordLabel }], patches: [], blockers: [] };
+  };
+}
+
 async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId): Promise<DeletionPlan | null> {
   const employee = await models.EmployeeModel.findOne({ _id: id, organizationId }).lean();
   if (!employee) return null;
@@ -100,6 +116,7 @@ async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId):
       byEmployee(models.AssetIssuanceModel, "Issued assets"),
       byEmployee(models.EmployeeDocumentModel, "Documents"),
       byEmployee(models.PerformanceReviewModel, "Performance reviews"),
+      byEmployee(models.PerformanceEvaluationModel, "Performance evaluations"),
       byEmployee(models.ClearanceCaseModel, "Clearances"),
       byEmployee(models.FinalSettlementModel, "Final settlements"),
       { model: models.PayrollRecordModel, filter: { employeeId: id, payrollRunId: { $nin: finishedRuns } }, label: "Draft payroll lines" },
@@ -174,6 +191,8 @@ export const DELETABLE_TYPES = {
   "staff-account": { noun: "staff account", plan: planStaffAccount },
   clearance: { noun: "clearance", plan: planClearance },
   "final-settlement": { noun: "final settlement", plan: planSettlement },
+  "performance-evaluation": { noun: "performance evaluation", plan: planAboutEmployee(models.PerformanceEvaluationModel, "Performance evaluation") },
+  "performance-review": { noun: "performance review", plan: planAboutEmployee(models.PerformanceReviewModel, "Performance review") },
   position: {
     noun: "position",
     plan: whileUnused(models.PositionModel, "Position", text("title"), [
