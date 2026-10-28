@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { documentRisks, finalPayRisks, regularizationRisks } from "@/domains/dashboard/compliance-risks";
+import { documentRisks, finalPayRisks, regularizationFollowUpKey, regularizationRisks } from "@/domains/dashboard/compliance-risks";
 
 const TODAY = "2026-10-03";
 
@@ -22,6 +22,24 @@ describe("regularizationRisks", () => {
       ["regularize-b", "now", "2026-09-01"],
     ]);
     expect(risks[1].title).toBe("Ben may already be regular");
+  });
+
+  it("leaves out a probation whose evaluation was recorded as sent or done, or submitted since hire (ADR-053)", () => {
+    const staff = [
+      { id: "a", name: "Ana", employmentType: "probationary", hiredKey: "2026-04-10" }, // regular on Oct 10, marked sent
+      { id: "b", name: "Ben", employmentType: "probationary", hiredKey: "2026-04-12" }, // evaluated in Performance on Oct 1
+      { id: "c", name: "Cara", employmentType: "probationary", hiredKey: "2026-04-15" }, // only an evaluation from before this hire
+      { id: "d", name: "Dan", employmentType: "probationary", hiredKey: "2026-04-20" }, // marked sent for another probation
+    ];
+    const risks = regularizationRisks(staff, months, TODAY, {
+      followUps: new Set([regularizationFollowUpKey("a", "2026-10-10"), regularizationFollowUpKey("d", "2025-10-20")]),
+      evaluatedOn: new Map([
+        ["b", "2026-10-01"],
+        ["c", "2025-12-01"],
+      ]),
+    });
+    expect(risks.map((risk) => risk.id)).toEqual(["regularize-c", "regularize-d"]);
+    expect(risks[0].subjectId).toBe("c");
   });
 
   it("handles month ends (Aug 31 + 6 months is Feb 28)", () => {

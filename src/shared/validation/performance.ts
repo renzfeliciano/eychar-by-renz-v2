@@ -30,3 +30,20 @@ export type CreateReviewCycleInput = z.infer<typeof createReviewCycleSchema>;
 export type UpdateReviewCycleStatusInput = z.infer<typeof updateReviewCycleStatusSchema>;
 export type CreatePerformanceReviewInput = z.infer<typeof createPerformanceReviewSchema>;
 export type SubmitPerformanceReviewInput = z.infer<typeof submitPerformanceReviewSchema>;
+
+const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-01");
+
+/** POST /api/evaluation-follow-ups: a probation evaluation sent or completed outside EychAr (ADR-053). */
+export const recordEvaluationFollowUpSchema = z.object({
+  organizationId: objectId(),
+  employeeId: objectId(),
+  dueKey: dateKey,
+  outcome: z.enum(["sent", "completed"]),
+  actionDate: dateKey,
+  sentTo: z.string().max(200).trim().optional(),
+  remarks: z.string().max(1000).trim().optional(),
+});
+
+export const withdrawEvaluationFollowUpSchema = z.object({ organizationId: objectId() });
+
+export type RecordEvaluationFollowUpInput = z.infer<typeof recordEvaluationFollowUpSchema>;

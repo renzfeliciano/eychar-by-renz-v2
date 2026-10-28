@@ -51,6 +51,7 @@ import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { PerformanceReviewService } from "@/domains/performance/performance-review-service";
 import { EmployeeRecords } from "@/domains/people/employee-records";
+import { EvaluationFollowUpService } from "@/domains/performance/evaluation-follow-up-service";
 import { NotFoundError } from "@/shared/errors";
 import { formatPersonName } from "@/lib/person-name";
 import { cn } from "@/lib/utils";
@@ -194,7 +195,11 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const typeLabel = employmentType ? nameOfType(employmentType) : null;
   type TermsChange = { employmentType: string; endOfContract?: Date | null; effectiveFrom: Date; previousEmploymentType: string; note?: string | null; changedBy?: { toString(): string } | null };
   const termsHistory = ((detail.currentEmployment?.termsHistory ?? []) as TermsChange[]).slice();
-  const changedByNames = on("job") && termsHistory.length ? await userDisplayNames(termsHistory.flatMap((change) => (change.changedBy ? [change.changedBy.toString()] : []))) : new Map<string, string>();
+  const evaluationFollowUps = on("job") ? await EvaluationFollowUpService.listForEmployee(employeeId, organizationId) : [];
+  const recordedByNames =
+    on("job") && (termsHistory.length || evaluationFollowUps.length)
+      ? await userDisplayNames([...termsHistory.map((change) => change.changedBy?.toString()), ...evaluationFollowUps.map((followUp) => followUp.recordedBy?.toString())])
+      : new Map<string, string>();
   const openClearance = offboarding.find((item) => item.status === "in_clearance") ?? null;
 
   const attention = on("overview")
@@ -426,7 +431,14 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                     previousType: nameOfType(change.previousEmploymentType),
                     endOfContract: change.endOfContract ?? null,
                     note: change.note ?? null,
-                    changedBy: change.changedBy ? (changedByNames.get(change.changedBy.toString()) ?? null) : null,
+                    changedBy: change.changedBy ? (recordedByNames.get(change.changedBy.toString()) ?? null) : null,
+                  })),
+                  evaluations: evaluationFollowUps.map((followUp) => ({
+                    outcome: followUp.outcome,
+                    actionDate: followUp.actionDate,
+                    sentTo: followUp.sentTo ?? null,
+                    remarks: followUp.remarks ?? null,
+                    recordedBy: followUp.recordedBy ? (recordedByNames.get(followUp.recordedBy.toString()) ?? null) : null,
                   })),
                 }
               : null

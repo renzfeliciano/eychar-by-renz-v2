@@ -19,7 +19,11 @@ import { CaseStatusService } from "@/domains/catalog/case-status-service";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { greetingFor, upcomingEvents } from "@/domains/dashboard/dashboard-summary";
-import { documentRisks, finalPayRisks, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
+import { documentRisks, finalPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
+import { EvaluationFollowUpService } from "@/domains/performance/evaluation-follow-up-service";
+import { EvaluationTypeService } from "@/domains/catalog/evaluation-type-service";
+import { regularizationEvaluationCodes } from "@/domains/performance/evaluation-purpose";
+import { EvaluationFollowUpDialog } from "./evaluation-follow-up-dialog";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { catalogNumber } from "@/domains/catalog/catalog-flags";
 import { contractEndOf } from "@/domains/workforce/contract-terms";
@@ -107,6 +111,7 @@ export default async function DashboardPage() {
   const can = async (permission: string) => hasPermission(permission, organizationId);
   const [
     canReadEmployees,
+    canUpdateEmployees,
     canReadLeave,
     canDecideLeave,
     canReadAttendance,
@@ -125,6 +130,7 @@ export default async function DashboardPage() {
   ] = await Promise.all(
     [
       "employees.read",
+      "employees.update",
       "leave.read",
       "leave.approve",
       "attendance.read",
@@ -143,7 +149,14 @@ export default async function DashboardPage() {
     ].map(can),
   );
 
-  const [roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity] = await Promise.all([
+  const [probationEvaluations, roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity] = await Promise.all([
+    // What already settles a probation's evaluation: recorded as sent or done, or submitted in Performance (ADR-053).
+    canReadEmployees
+      ? Promise.all([
+          EvaluationFollowUpService.listActive(organizationId),
+          EvaluationTypeService.listCurrent(organizationId).then((types) => EvaluationFollowUpService.latestSubmittedByEmployee(organizationId, regularizationEvaluationCodes(types))),
+        ])
+      : null,
     canReadEmployees ? EmployeeService.listWithCurrentStatus(organizationId) : null,
     canReadEmployees ? EmploymentStatusService.listCurrent(organizationId) : null,
     canReadLeave && canDecideLeave ? LeaveRequestService.listForOrganization(organizationId, { status: "pending" }) : null,
@@ -265,10 +278,15 @@ export default async function DashboardPage() {
       const value = catalogNumber(type, "regularizeAfterMonths", LEGACY_REGULARIZATION_MONTHS);
       return value ? [[type.code, value] as const] : [];
     }));
+    const [followUps, evaluatedAt] = probationEvaluations ?? [[], new Map<string, Date>()];
     const rows = regularizationRisks(
       staff.map((row) => ({ id: row._id.toString(), name: nameOf(row._id), employmentType: row.currentEmployment?.employmentType, hiredKey: row.currentEmployment?.effectiveFrom ? dateToDateKey(new Date(row.currentEmployment.effectiveFrom)) : null })),
       months,
       todayKey,
+      {
+        followUps: new Set(followUps.map((followUp) => regularizationFollowUpKey(followUp.employeeId.toString(), followUp.dueKey))),
+        evaluatedOn: new Map([...evaluatedAt].map(([employeeId, submittedAt]) => [employeeId, dateToDateKey(new Date(submittedAt))])),
+      },
     );
     complianceRisks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "regularize-many", kind: "regularization", title: `Evaluate ${count} probationary employees`, detail: "Each becomes regular by law at the end of probation unless evaluated", href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
   }
@@ -440,7 +458,17 @@ export default async function DashboardPage() {
             ) : (
               <ul className="flex flex-col divide-y divide-rule">
                 {rankedCompliance.map((risk) => (
-                  <ActionRow key={risk.id} action={risk} todayKey={todayKey} compact />
+                  <ActionRow
+                    key={risk.id}
+                    action={risk}
+                    todayKey={todayKey}
+                    compact
+                    extra={
+                      risk.kind === "regularization" && risk.subjectId && risk.dueKey && canUpdateEmployees ? (
+                        <EvaluationFollowUpDialog organizationId={organizationId} employeeId={risk.subjectId} employeeName={nameOf(risk.subjectId)} dueKey={risk.dueKey} todayKey={todayKey} />
+                      ) : undefined
+                    }
+                  />
                 ))}
               </ul>
             )}
@@ -725,28 +753,32 @@ const URGENCY_DOT: Record<ActionUrgency, { dot: string; label: string }> = {
   later: { dot: "bg-muted-foreground/40", label: "When you can" },
 };
 
-function ActionRow({ action, todayKey, compact = false }: { action: ActionItem; todayKey: string; compact?: boolean }) {
+function ActionRow({ action, todayKey, compact = false, extra }: { action: ActionItem; todayKey: string; compact?: boolean; extra?: React.ReactNode }) {
   const { dot, label } = URGENCY_DOT[action.urgency];
   const when = action.dueKey ? (action.dueKey < todayKey ? `overdue, ${relativeDue(todayKey, action.dueKey)}` : `due ${relativeDue(todayKey, action.dueKey)}`) : null;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 first:pt-0 last:pb-0" data-testid="dashboard-action" data-urgency={action.urgency}>
       <span className={cn("size-2 shrink-0 rounded-full", dot)} aria-hidden="true" />
       <span className="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium" title={action.title}>
+        {/* A row with its own extra button has less room: let the words wrap to two lines rather than cut off. */}
+        <span className={cn("text-sm font-medium", extra ? "line-clamp-2" : "truncate")} title={action.title}>
           <span className="sr-only">{label}: </span>
           {action.title}
         </span>
-        <span className="truncate text-xs text-muted-foreground" title={action.detail}>
+        <span className={cn("text-xs text-muted-foreground", extra ? "line-clamp-2" : "truncate")} title={action.detail}>
           {when && !compact && action.kind !== "contract" && (
             <span className={cn("font-medium", action.urgency === "now" ? "text-destructive" : action.urgency === "soon" ? "text-warning" : "")}>{when} · </span>
           )}
           {action.detail}
         </span>
       </span>
-      <Link href={action.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-        {action.actionLabel}
-        <ArrowRight aria-hidden="true" data-icon="inline-end" />
-      </Link>
+      <span className="flex shrink-0 items-center gap-1.5">
+        {extra}
+        <Link href={action.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          {action.actionLabel}
+          <ArrowRight aria-hidden="true" data-icon="inline-end" />
+        </Link>
+      </span>
     </li>
   );
 }

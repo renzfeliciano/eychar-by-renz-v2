@@ -20,6 +20,8 @@ export type ActionItem = {
   urgency: ActionUrgency;
   /** The date it's due by ("YYYY-MM-DD"), when there is one. */
   dueKey?: string;
+  /** The employee the row is about, when an action on the row itself needs it (e.g. marking an evaluation sent). */
+  subjectId?: string;
 };
 
 const URGENCY_ORDER: Record<ActionUrgency, number> = { now: 0, soon: 1, later: 2 };

@@ -290,6 +290,11 @@ stint in place" precedent. There's no separate `.approve` permission (unlike Lea
 submitting is a single-actor action, and no employee-facing acknowledgment step, since this
 codebase has no employee self-service portal yet to acknowledge from.
 
+Probation evaluations sent or completed outside EychAr (email, paper) are recorded as
+`EvaluationFollowUp` ("Mark sent" on the dashboard's probation rows); that, or a submitted
+evaluation of a type flagged `isRegularization`, takes the probation off the Compliance list
+(ADR-053).
+
 ## Case monitoring (Phase 8c, ADR-018)
 
 Rebuilt to mirror the legacy v1 app's real Case Monitoring module. `Case` (`projectId` required

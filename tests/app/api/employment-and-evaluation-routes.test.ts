@@ -4,10 +4,12 @@ import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
 import { EmployeeModel, EmploymentModel, EmploymentTypeModel, OrganizationModel, PersonModel, RoleAssignmentModel, RoleModel, UserModel } from "@/server/db/models";
 
-// PATCH /api/employees/[id]/employment/terms end to end, with only the session faked.
+// PATCH /api/employees/[id]/employment/terms and /api/evaluation-follow-ups end to end, with only the session faked.
 const session = vi.fn();
 vi.mock("next-auth", () => ({ getServerSession: () => session() }));
 const terms = await import("@/app/api/employees/[id]/employment/terms/route");
+const followUps = await import("@/app/api/evaluation-follow-ups/route");
+const followUp = await import("@/app/api/evaluation-follow-ups/[id]/route");
 
 const unique = () => `${Date.now()}.${Math.random()}`;
 const context = (id: string) => ({ params: Promise.resolve({ id }) }) as never;
@@ -55,5 +57,41 @@ describe("PATCH /api/employees/[id]/employment/terms", () => {
     await signInWith(organizationId, ["employees.update"]);
     expect((await patch("not-an-id", { organizationId: organizationId.toString(), employmentType: "regular", effectiveFrom: "2026-10-28" })).status).toBe(400);
     expect((await patch(employeeId, { organizationId: organizationId.toString(), employmentType: "regular" })).status).toBe(400);
+  });
+});
+
+describe("/api/evaluation-follow-ups", () => {
+  let organizationId: Types.ObjectId;
+  let employeeId: string;
+  const post = (body: unknown) => followUps.POST(new NextRequest(new URL("/api/evaluation-follow-ups", "http://localhost:4100"), { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }));
+  const remove = (id: string, body: unknown) =>
+    followUp.DELETE(new NextRequest(new URL(`/api/evaluation-follow-ups/${id}`, "http://localhost:4100"), { method: "DELETE", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }), context(id));
+
+  beforeEach(async () => {
+    await connectMongoDB();
+    session.mockReset();
+    organizationId = (await OrganizationModel.create({ name: "Follow-up Routes", slug: `follow-up-routes-${unique()}` }))._id;
+    const person = await PersonModel.create({ organizationId, firstName: "John Mark", lastName: "Caido" });
+    employeeId = (await EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: `FR-${unique()}` }))._id.toString();
+  });
+
+  const body = () => ({ organizationId: organizationId.toString(), employeeId, dueKey: "2026-11-12", outcome: "sent", actionDate: "2026-10-01", sentTo: "Engr. Santos" });
+
+  it("records and undoes for a user who may update employees", async () => {
+    await signInWith(organizationId, ["employees.update"]);
+    const created = await post(body());
+    expect(created.status).toBe(201);
+    const { followUp: saved } = await created.json();
+    expect((await remove(saved.id, { organizationId: organizationId.toString() })).status).toBe(200);
+  });
+
+  it("refuses a reader, and answers 400 for a bad date or outcome", async () => {
+    await signInWith(organizationId, ["employees.read"]);
+    expect((await post(body())).status).toBe(403);
+
+    await signInWith(organizationId, ["employees.update"]);
+    expect((await post({ ...body(), actionDate: "October 1" })).status).toBe(400);
+    expect((await post({ ...body(), outcome: "lost" })).status).toBe(400);
+    expect((await remove("nope", { organizationId: organizationId.toString() })).status).toBe(400);
   });
 });

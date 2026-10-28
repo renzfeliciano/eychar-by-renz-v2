@@ -39,6 +39,7 @@ export { PerformanceReviewModel } from "./performance-review";
 export { EvaluationTypeModel } from "./evaluation-type";
 export { EvaluatorRuleModel } from "./evaluator-rule";
 export { PerformanceEvaluationModel } from "./performance-evaluation";
+export { EvaluationFollowUpModel } from "./evaluation-follow-up";
 export { CaseModel } from "./case";
 export { WebAuthnCredentialModel } from "./webauthn-credential";
 export { TravelOrderModel } from "./travel-order";

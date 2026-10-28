@@ -533,7 +533,8 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   await seedCatalogDefaults(EvaluationTypeModel, [
     { code: "contractual", name: "Contractual Employment", sortOrder: 0, metadata: { defaultPeriodMonths: 3 } },
     { code: "probationary", name: "Probationary Employment", sortOrder: 1, metadata: { defaultPeriodMonths: 3 } },
-    { code: "regularization", name: "Regularization", sortOrder: 2 },
+    // isRegularization: a submitted evaluation of this type settles the dashboard's probation item (ADR-053).
+    { code: "regularization", name: "Regularization", sortOrder: 2, metadata: { isRegularization: true } },
   ]);
 
   await seedCatalogDefaults(DocumentTypeModel, [
