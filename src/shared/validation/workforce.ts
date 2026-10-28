@@ -70,11 +70,21 @@ export const terminateEmploymentSchema = z.object({
   status: z.string().max(200).trim().optional(),
 });
 
+/** PATCH /api/employees/[id]/employment/terms: regularize, renew a contract, or change type (ADR-052). */
+export const changeEmploymentTermsSchema = z.object({
+  organizationId: objectId(),
+  employmentType: z.string().max(200).trim().min(1),
+  effectiveFrom: z.coerce.date(),
+  endOfContract: z.coerce.date().optional(),
+  note: z.string().max(500).trim().optional(),
+});
+
 export type HireEmployeeInput = z.infer<typeof hireEmployeeSchema>;
 export type UpdateEmployeeProfileInput = z.infer<typeof updateEmployeeProfileSchema>;
 export type TransferAssignmentInput = z.infer<typeof transferAssignmentSchema>;
 export type CreateEmploymentInput = z.infer<typeof createEmploymentSchema>;
 export type TerminateEmploymentInput = z.infer<typeof terminateEmploymentSchema>;
+export type ChangeEmploymentTermsSchemaInput = z.infer<typeof changeEmploymentTermsSchema>;
 
 /** GET /api/employees/export: the roster export and print, optionally one employment type. */
 export const employeeExportQuerySchema = z.object({

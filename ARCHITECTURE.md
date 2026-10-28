@@ -93,6 +93,11 @@ PhilHealth/Pag-IBIG/TIN, format-validated), and `Employment` carries an optional
 (required only when the selected `EmploymentType`'s `metadata.requiresEndOfContract` is set) —
 added per ADR-019 to match the legacy v1 app's Employee Roster fields on top of this codebase's
 existing Person/Employment/EmployeeAssignment split, rather than flattening back to one document.
+Regularizing someone or renewing a contract changes the current employment in place
+(`EmploymentService.changeTerms`, "Change employment" on the profile), keeping the hire date and
+appending the change to `Employment.termsHistory` (ADR-052). Whether an end date counts is the type's
+`requiresEndOfContract` flag (`src/domains/workforce/contract-terms.ts`), so a Regular employee's
+leftover date never shows as a contract ending.
 `/people` computes Age and Length of Service at read time from `birthDate`/`effectiveFrom`
 (`src/lib/employee-dates.ts`) and offers CSV export + a print report, both covering every row
 matching the current Employment-type filter, not just what's visible.

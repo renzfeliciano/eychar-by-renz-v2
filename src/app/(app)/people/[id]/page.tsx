@@ -28,10 +28,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { formatLengthOfService } from "@/lib/employee-dates";
+import { localDateKey } from "@/lib/date-key";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { EmploymentService } from "@/domains/workforce/employment-service";
+import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
+import { contractEndOf, requiresEndOfContract } from "@/domains/workforce/contract-terms";
+import { userDisplayNames } from "@/domains/identity/user-directory";
 import { missingGovernmentIds, profileAttention, type AttentionTone } from "@/domains/workforce/profile-summary";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
@@ -54,6 +58,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { PageTabs } from "@/components/shared/page-tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TerminateButton } from "./terminate-button";
+import { ChangeEmploymentDialog } from "./change-employment-dialog";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
 import { ResetBiometricButton } from "./reset-biometric-button";
@@ -147,7 +152,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const load = <T,>(when: boolean, query: () => Promise<T>, empty: T): Promise<T> => (when ? query() : Promise.resolve(empty));
 
   const now = new Date();
-  const [positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
+  const [employmentTypes, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
+    EmploymentTypeService.listCurrent(organizationId),
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeAccountService.getForEmployee(id, organizationId),
@@ -179,10 +185,16 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const positionTitle = assignment?.positionId ? positionTitleById.get(assignment.positionId.toString()) : undefined;
   const projectName = assignment?.projectId ? projectNameById.get(assignment.projectId.toString()) : undefined;
   const hiredOn = detail.currentEmployment?.effectiveFrom ? new Date(detail.currentEmployment.effectiveFrom) : null;
-  const contractEnd = detail.currentEmployment?.endOfContract ? new Date(detail.currentEmployment.endOfContract) : null;
+  // A type without an end of contract (Regular) shows none, whatever date the record still carries.
+  const contractEnd = contractEndOf(detail.currentEmployment, employmentTypes);
   const missingIds = missingGovernmentIds(detail.person);
   const employmentType = detail.currentEmployment?.employmentType;
-  const typeLabel = employmentType ? `${employmentType.charAt(0).toUpperCase()}${employmentType.slice(1)}` : null;
+  const typeName = new Map(employmentTypes.map((type) => [type.code, type.name]));
+  const nameOfType = (code: string) => typeName.get(code) ?? `${code.charAt(0).toUpperCase()}${code.slice(1)}`;
+  const typeLabel = employmentType ? nameOfType(employmentType) : null;
+  type TermsChange = { employmentType: string; endOfContract?: Date | null; effectiveFrom: Date; previousEmploymentType: string; note?: string | null; changedBy?: { toString(): string } | null };
+  const termsHistory = ((detail.currentEmployment?.termsHistory ?? []) as TermsChange[]).slice();
+  const changedByNames = on("job") && termsHistory.length ? await userDisplayNames(termsHistory.flatMap((change) => (change.changedBy ? [change.changedBy.toString()] : []))) : new Map<string, string>();
   const openClearance = offboarding.find((item) => item.status === "in_clearance") ?? null;
 
   const attention = on("overview")
@@ -247,6 +259,17 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {superAdmin && <HideToggle organizationId={organizationId} type="employee" id={employeeId} label={personName} hidden={Boolean(detail.employee.hiddenFromOthers)} />}
             {superAdmin && <DeleteRecordButton organizationId={organizationId} type="employee" id={employeeId} afterDeleteHref="/people" />}
+            {canUpdate && isCurrentlyActive && detail.currentEmployment && !detail.currentEmployment.effectiveTo && employmentTypes.length > 0 && (
+              <ChangeEmploymentDialog
+                organizationId={organizationId}
+                employeeId={employeeId}
+                employeeName={personName}
+                currentType={detail.currentEmployment.employmentType}
+                currentEndKey={contractEnd ? contractEnd.toISOString().slice(0, 10) : null}
+                types={employmentTypes.map((type) => ({ code: type.code, name: type.name, requiresEndOfContract: requiresEndOfContract(type) }))}
+                todayKey={localDateKey(now)}
+              />
+            )}
             {canUpdate && isCurrentlyActive && <TerminateButton employeeId={employeeId} organizationId={organizationId} />}
             {canUpdate && detail.person && (
               <EditEmployeeDialog
@@ -392,6 +415,22 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
           organizationId={organizationId}
           employeeId={employeeId}
           assignmentHistory={detail.assignmentHistory}
+          employment={
+            detail.currentEmployment
+              ? {
+                  hiredOn: detail.currentEmployment.effectiveFrom,
+                  firstType: nameOfType(termsHistory[0]?.previousEmploymentType ?? detail.currentEmployment.employmentType),
+                  changes: termsHistory.map((change) => ({
+                    effectiveFrom: change.effectiveFrom,
+                    type: nameOfType(change.employmentType),
+                    previousType: nameOfType(change.previousEmploymentType),
+                    endOfContract: change.endOfContract ?? null,
+                    note: change.note ?? null,
+                    changedBy: change.changedBy ? (changedByNames.get(change.changedBy.toString()) ?? null) : null,
+                  })),
+                }
+              : null
+          }
           positionTitleById={positionTitleById}
           projectNameById={projectNameById}
           canUpdate={canUpdate}

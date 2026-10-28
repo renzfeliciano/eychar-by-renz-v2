@@ -5,6 +5,7 @@ import { AuditService } from "@/server/audit/audit-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { requiresEndOfContract } from "./contract-terms";
 
 export type CreateEmploymentInput = {
   organizationId: string;
@@ -14,9 +15,15 @@ export type CreateEmploymentInput = {
   endOfContract?: Date;
 };
 
-function requiresEndOfContract(item: { metadata?: unknown } | null | undefined): boolean {
-  return Boolean(item && item.metadata && typeof item.metadata === "object" && (item.metadata as Record<string, unknown>).requiresEndOfContract);
-}
+export type ChangeEmploymentTermsInput = {
+  employmentType: string;
+  /** The day the new terms apply (e.g. the regularization date). */
+  effectiveFrom: Date;
+  endOfContract?: Date;
+  note?: string;
+};
+
+const dayKey = (date: Date) => date.toISOString().slice(0, 10);
 
 const OPEN_EMPLOYMENT_FILTER = {
   $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }],
@@ -103,6 +110,68 @@ export const EmploymentService = {
       resourceId: employment._id.toString(),
       before,
       after: { status: employment.status, effectiveTo: employment.effectiveTo },
+    });
+
+    return employment;
+  },
+
+  /**
+   * Changes the terms of an employee's current employment: a probationary
+   * employee made regular, a contract renewed to a new end date, a move
+   * between types. The same employment continues (hire date and length of
+   * service are kept); the change is appended to `termsHistory` and audited
+   * (ADR-052). Types without an end date clear any end date left over.
+   */
+  async changeTerms(employeeId: string, organizationId: string, input: ChangeEmploymentTermsInput, actor: { userId?: string }) {
+    await connectMongoDB();
+
+    const employment = await EmploymentModel.findOne({
+      employeeId: new Types.ObjectId(employeeId),
+      organizationId: new Types.ObjectId(organizationId),
+      ...OPEN_EMPLOYMENT_FILTER,
+    }).sort({ effectiveFrom: -1 });
+    if (!employment) throw new NotFoundError("This employee has no current employment to change");
+    if (!(await EmploymentService.isActiveStatus(organizationId, employment.status))) {
+      throw new BusinessRuleError("This employment has already ended");
+    }
+
+    await EmploymentTypeService.assertValidCode(organizationId, input.employmentType);
+    const typeItem = await EmploymentTypeService.getByCode(organizationId, input.employmentType);
+    const needsEnd = requiresEndOfContract(typeItem);
+    if (needsEnd && !input.endOfContract) throw new BusinessRuleError(`Enter when the contract ends: "${typeItem?.name ?? input.employmentType}" needs an end of contract`);
+
+    const effectiveKey = dayKey(input.effectiveFrom);
+    if (effectiveKey < dayKey(employment.effectiveFrom)) throw new BusinessRuleError("The change can't take effect before the employee was hired");
+    const endOfContract = needsEnd ? input.endOfContract : undefined;
+    if (endOfContract && dayKey(endOfContract) < effectiveKey) throw new BusinessRuleError("The contract can't end before the change takes effect");
+
+    const before = { employmentType: employment.employmentType, endOfContract: employment.endOfContract ?? null };
+    const sameEnd = (before.endOfContract ? dayKey(before.endOfContract) : null) === (endOfContract ? dayKey(endOfContract) : null);
+    if (before.employmentType === input.employmentType && sameEnd) throw new BusinessRuleError("Nothing changed: pick a different type or end date");
+
+    const note = input.note?.trim() || undefined;
+    employment.termsHistory.push({
+      employmentType: input.employmentType,
+      endOfContract,
+      effectiveFrom: input.effectiveFrom,
+      previousEmploymentType: before.employmentType,
+      previousEndOfContract: before.endOfContract ?? undefined,
+      note,
+      changedBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined,
+      changedAt: new Date(),
+    });
+    employment.employmentType = input.employmentType;
+    employment.endOfContract = endOfContract;
+    await employment.save();
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "employment.terms_changed",
+      resourceType: "Employment",
+      resourceId: employment._id.toString(),
+      before,
+      after: { employmentType: employment.employmentType, endOfContract: employment.endOfContract ?? null, effectiveFrom: input.effectiveFrom, note },
     });
 
     return employment;

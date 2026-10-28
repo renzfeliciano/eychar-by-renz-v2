@@ -22,6 +22,7 @@ import { greetingFor, upcomingEvents } from "@/domains/dashboard/dashboard-summa
 import { documentRisks, finalPayRisks, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { catalogNumber } from "@/domains/catalog/catalog-flags";
+import { contractEndOf } from "@/domains/workforce/contract-terms";
 import { ClearanceService } from "@/domains/clearance/clearance-service";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
 import { EmployeeDocumentService } from "@/domains/documents/employee-document-service";
@@ -216,9 +217,12 @@ export default async function DashboardPage() {
     })),
   );
 
+  // Only types that end (the catalog's requiresEndOfContract): a Regular employee's leftover end date isn't a contract ending.
+  const contractEnd = (row: (typeof staff)[number]) => contractEndOf(row.currentEmployment, employmentTypes ?? []);
   const contractRows: ActionItem[] = staff.flatMap((row) => {
-    if (!row.currentEmployment?.endOfContract) return [];
-    const endKey = dateToDateKey(new Date(row.currentEmployment.endOfContract));
+    const end = contractEnd(row);
+    if (!end) return [];
+    const endKey = dateToDateKey(end);
     const days = Math.round((Date.parse(`${endKey}T00:00:00Z`) - Date.parse(`${todayKey}T00:00:00Z`)) / 86_400_000);
     if (days < -1 || days > CONTRACT_WINDOW_DAYS) return [];
     return [
@@ -234,7 +238,7 @@ export default async function DashboardPage() {
       },
     ];
   });
-  actions.push(...collapseKind(contractRows, ROWS_PER_KIND, (count) => ({ id: "contract-many", kind: "contract", title: `Review ${count} contracts ending soon`, detail: `Within the next ${CONTRACT_WINDOW_DAYS} days`, href: "/people", actionLabel: "Open people", urgency: rankActions(contractRows)[0].urgency, dueKey: rankActions(contractRows)[0].dueKey })));
+  actions.push(...collapseKind(contractRows, ROWS_PER_KIND, (count) => ({ id: "contract-many", kind: "contract", title: `Review ${count} contracts ending soon`, detail: `Within the next ${CONTRACT_WINDOW_DAYS} days`, href: "/people?contracts=ending", actionLabel: "Open people", urgency: rankActions(contractRows)[0].urgency, dueKey: rankActions(contractRows)[0].dueKey })));
 
   if (compensation && roster) {
     const withPay = new Set(compensation.filter((entry) => entry.current).map((entry) => entry.employeeId));
@@ -344,8 +348,9 @@ export default async function DashboardPage() {
   }
   for (const row of staff) {
     const id = row._id.toString();
-    if (row.currentEmployment?.endOfContract) {
-      const key = dateToDateKey(new Date(row.currentEmployment.endOfContract));
+    const end = contractEnd(row);
+    if (end && row.currentEmployment) {
+      const key = dateToDateKey(end);
       if (within(key)) upcoming.push({ key, kind: "contract", title: `${nameOf(row._id)}'s contract ends`, detail: row.currentEmployment.employmentType ? `${row.currentEmployment.employmentType.charAt(0).toUpperCase()}${row.currentEmployment.employmentType.slice(1)} contract` : "End of contract", href: `/people/${id}` });
     }
     if (row.person?.birthDate) {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
+import { UserPlus, X } from "lucide-react";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeRosterService } from "@/domains/workforce/employee-roster-service";
@@ -17,6 +17,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { calculateAge, formatLengthOfService } from "@/lib/employee-dates";
 import { formatPersonName } from "@/lib/person-name";
 import { parseTableQuery, buildTableHref } from "@/lib/table-query";
+import { formatDateKey, dateToDateKey } from "@/lib/date-key";
+import { typesWithoutContractEnd } from "@/domains/workforce/contract-terms";
 import { PeopleFilters } from "./people-filters";
 import { PeopleExportActions } from "./people-export-actions";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -60,6 +62,11 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   const statusNameByCode = new Map(employmentStatuses.map((item) => [item.code, item.name]));
 
   const employmentTypeFilter = firstValue(params.employmentType);
+  // "Contracts ending" (from the metric or the dashboard): current staff whose contract ends within 30 days.
+  const contractsEnding = firstValue(params.contracts) === "ending";
+  const typesWithoutEnd = typesWithoutContractEnd(employmentTypes);
+  const now = new Date();
+  const nowMs = now.getTime();
   const tableQuery = parseTableQuery(params, "name");
   const needle = tableQuery.q?.toLowerCase();
   // Only one page of people is read; the database searches, sorts and counts.
@@ -67,14 +74,18 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   // employment-type filter — a summary that shifted with the table would
   // misreport "how many people work here" the moment someone filters it.
   const activeCodes = new Set(employmentStatuses.filter((status) => status.metadata?.isActiveHeadcount).map((status) => status.code));
+  const contractWindow = contractsEnding
+    ? { from: new Date(nowMs - 86_400_000), to: new Date(nowMs + 30 * 86_400_000), activeStatuses: [...activeCodes], typesWithoutEnd }
+    : undefined;
   const [{ rows: pageRows, total: matchingTotal }, summary, filteredTotal] = await Promise.all([
     EmployeeRosterService.page(organizationId, {
       ...tableQuery,
       employmentType: employmentTypeFilter,
+      contractsEnding: contractWindow,
       positionIdsMatchingQ: needle ? positions.filter((position) => position.title.toLowerCase().includes(needle)).map((position) => position._id.toString()) : undefined,
       statusNames: statusNameByCode,
     }),
-    EmployeeRosterService.summary(organizationId, activeCodes),
+    EmployeeRosterService.summary(organizationId, activeCodes, now, typesWithoutEnd),
     // How many rows an export would hold (it ignores the search box, as before).
     tableQuery.q ? EmployeeRosterService.page(organizationId, { ...tableQuery, q: undefined, page: 1, pageSize: 1, employmentType: employmentTypeFilter }).then((result) => result.total) : null,
   ]);
@@ -119,7 +130,14 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             emphasis
           />
           <MetricCard label="New hires" value={newHires} hint="In the last 90 days" />
-          <MetricCard label="Contracts ending" value={endingSoon} hint="In the next 30 days" tone={endingSoon ? "warning" : "default"} />
+          <MetricCard
+            label="Contracts ending"
+            value={endingSoon}
+            hint={contractsEnding ? "Showing them below" : "In the next 30 days"}
+            tone={endingSoon ? "warning" : "default"}
+            href={endingSoon && !contractsEnding ? buildTableHref("/people", params, { contracts: "ending", page: undefined }) : undefined}
+            testId="people-contracts-ending"
+          />
           <MetricCard
             label="Incomplete gov't IDs"
             value={missingIds}
@@ -132,6 +150,17 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           <TableSearchInput placeholder="Search by name, employee #, or position…" />
           <span aria-hidden="true" className="hidden h-9 w-px bg-border sm:block" />
           <PeopleFilters employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))} />
+          {contractsEnding && (
+            <Link
+              href={buildTableHref("/people", params, { contracts: undefined, page: undefined })}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 self-start rounded-md border px-3 text-sm hover:bg-accent sm:self-end"
+              aria-label="Show everyone, not only contracts ending in the next 30 days"
+              data-testid="people-contracts-filter"
+            >
+              Contracts ending in 30 days
+              <X className="size-3.5 text-muted-foreground" aria-hidden="true" />
+            </Link>
+          )}
         </div>
 
         <DataTable
@@ -195,6 +224,15 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               render: (row) =>
                 row.currentAssignment?.projectId ? projectNameById.get(row.currentAssignment.projectId.toString()) ?? "—" : "—",
             },
+            ...(contractsEnding
+              ? [
+                  {
+                    key: "contractEnds",
+                    header: "Contract ends",
+                    render: (row: (typeof pageRows)[number]) => (row.currentEmployment?.endOfContract ? formatDateKey(dateToDateKey(new Date(row.currentEmployment.endOfContract))) : "—"),
+                  },
+                ]
+              : []),
             {
               key: "age",
               header: "Age", mobile: "hidden",
@@ -210,7 +248,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           ]}
           rows={pageRows}
           getRowKey={(row) => row._id.toString()}
-          emptyMessage={tableQuery.q || employmentTypeFilter ? "No employees match this search." : "No employees yet."}
+          emptyMessage={contractsEnding ? "No contracts end in the next 30 days." : tableQuery.q || employmentTypeFilter ? "No employees match this search." : "No employees yet."}
         />
       </div>
     </>

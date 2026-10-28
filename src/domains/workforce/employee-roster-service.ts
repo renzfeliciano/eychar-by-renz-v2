@@ -18,6 +18,12 @@ export type RosterPageQuery = {
   positionIdsMatchingQ?: string[];
   /** Status code → display name, so "status" sorts by what people see. */
   statusNames?: Map<string, string>;
+  /**
+   * Only current staff whose contract ends in this window: `activeStatuses`
+   * are the headcount statuses (empty = everyone), `typesWithoutEnd` the
+   * employment types whose leftover end dates don't count (contract-terms.ts).
+   */
+  contractsEnding?: { from: Date; to: Date; activeStatuses: string[]; typesWithoutEnd: string[] };
 };
 
 type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date };
@@ -25,7 +31,7 @@ export type RosterRow = {
   _id: Types.ObjectId;
   employeeNumber?: string;
   person: RosterPerson | null;
-  currentEmployment: { status: string; employmentType: string; effectiveFrom?: Date } | null;
+  currentEmployment: { status: string; employmentType: string; effectiveFrom?: Date; endOfContract?: Date } | null;
   currentAssignment: { positionId?: Types.ObjectId; projectId?: Types.ObjectId } | null;
 };
 
@@ -98,6 +104,12 @@ export const EmployeeRosterService = {
     await connectMongoDB();
     const match: Record<string, unknown>[] = [];
     if (query.employmentType) match.push({ "currentEmployment.employmentType": query.employmentType });
+    if (query.contractsEnding) {
+      const { from, to, activeStatuses, typesWithoutEnd } = query.contractsEnding;
+      match.push({ "currentEmployment.endOfContract": { $gte: from, $lte: to } });
+      if (typesWithoutEnd.length) match.push({ "currentEmployment.employmentType": { $nin: typesWithoutEnd } });
+      if (activeStatuses.length) match.push({ "currentEmployment.status": { $in: activeStatuses } });
+    }
     if (query.q) {
       const needle = new RegExp(escapeRegex(query.q.trim()), "i");
       const or: Record<string, unknown>[] = [
@@ -148,15 +160,16 @@ export const EmployeeRosterService = {
    * IDs leave the database): headcount by status, recent hires, contracts
    * ending soon, and current staff missing a statutory ID.
    */
-  async summary(organizationId: string, activeCodes: Set<string>, now: Date = new Date()) {
+  async summary(organizationId: string, activeCodes: Set<string>, now: Date = new Date(), typesWithoutEnd: string[] = []) {
     await connectMongoDB();
-    const rows = await EmployeeModel.aggregate<{ status?: string; hiredAt?: Date; endOfContract?: Date; idsComplete: boolean }>([
+    const rows = await EmployeeModel.aggregate<{ status?: string; employmentType?: string; hiredAt?: Date; endOfContract?: Date; idsComplete: boolean }>([
       { $match: { organizationId: new Types.ObjectId(organizationId) } },
       ...joinCurrent(),
       {
         $project: {
           _id: 0,
           status: "$currentEmployment.status",
+          employmentType: "$currentEmployment.employmentType",
           hiredAt: "$currentEmployment.effectiveFrom",
           endOfContract: "$currentEmployment.endOfContract",
           idsComplete: {
@@ -180,8 +193,9 @@ export const EmployeeRosterService = {
       statusCounts,
       headcount: currentStaff.length,
       newHires: currentStaff.filter((row) => row.hiredAt && nowMs - new Date(row.hiredAt).getTime() <= 90 * DAY_MS).length,
+      // A type without an end date (Regular) never counts, whatever date its record still carries.
       endingSoon: currentStaff.filter((row) => {
-        const end = row.endOfContract ? new Date(row.endOfContract).getTime() : null;
+        const end = row.endOfContract && !typesWithoutEnd.includes(row.employmentType ?? "") ? new Date(row.endOfContract).getTime() : null;
         return end !== null && end >= nowMs - DAY_MS && end - nowMs <= 30 * DAY_MS;
       }).length,
       missingIds: currentStaff.filter((row) => !row.idsComplete).length,
