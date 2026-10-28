@@ -8,7 +8,7 @@ const unique = () => `${Date.now()}-${Math.random()}`;
 
 async function seedEmployee(
   organizationId: Types.ObjectId,
-  input: { first: string; last: string; number: string; type?: string; status?: string; hired?: string; positionId?: Types.ObjectId; ids?: boolean },
+  input: { first: string; last: string; number: string; type?: string; status?: string; hired?: string; positionId?: Types.ObjectId; ids?: boolean; endOfContract?: string },
 ) {
   const person = await PersonModel.create({
     organizationId,
@@ -25,6 +25,7 @@ async function seedEmployee(
     employmentType: input.type ?? "regular",
     status: input.status ?? "active",
     effectiveFrom: new Date(input.hired ?? "2024-01-01"),
+    ...(input.endOfContract ? { endOfContract: new Date(input.endOfContract) } : {}),
   });
   if (input.positionId) await EmployeeAssignmentModel.create({ organizationId, employeeId: employee._id, positionId: input.positionId, effectiveFrom: new Date("2024-01-01") });
   return employee;
@@ -100,5 +101,22 @@ describe("EmployeeRosterService", () => {
 
     const probationary = await EmployeeRosterService.exportRows(organizationId.toString(), lookups, "probationary");
     expect(probationary.map((row) => row.name)).toEqual(["Ben Reyes"]);
+  });
+
+  it("counts and lists contracts ending soon only for types that end, never a Regular employee's leftover date", async () => {
+    await seedEmployee(organizationId, { first: "Dina", last: "Lopez", number: "E-010", type: "contractual", endOfContract: "2024-02-25" });
+    await seedEmployee(organizationId, { first: "Ed", last: "Ramos", number: "E-011", type: "regular", endOfContract: "2024-02-20" });
+    await seedEmployee(organizationId, { first: "Fe", last: "Tan", number: "E-012", type: "contractual", endOfContract: "2024-06-30" });
+    const now = new Date("2024-02-15");
+
+    expect((await EmployeeRosterService.summary(organizationId.toString(), new Set(["active"]), now)).endingSoon).toBe(2);
+    expect((await EmployeeRosterService.summary(organizationId.toString(), new Set(["active"]), now, ["regular"])).endingSoon).toBe(1);
+
+    const ending = await EmployeeRosterService.page(organizationId.toString(), {
+      ...base,
+      contractsEnding: { from: new Date("2024-02-14"), to: new Date("2024-03-16"), activeStatuses: ["active"], typesWithoutEnd: ["regular"] },
+    });
+    expect(ending.rows.map((row) => row.person?.firstName)).toEqual(["Dina"]);
+    expect(ending.rows[0].currentEmployment?.endOfContract?.toISOString().slice(0, 10)).toBe("2024-02-25");
   });
 });

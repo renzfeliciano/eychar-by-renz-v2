@@ -93,6 +93,11 @@ PhilHealth/Pag-IBIG/TIN, format-validated), and `Employment` carries an optional
 (required only when the selected `EmploymentType`'s `metadata.requiresEndOfContract` is set) —
 added per ADR-019 to match the legacy v1 app's Employee Roster fields on top of this codebase's
 existing Person/Employment/EmployeeAssignment split, rather than flattening back to one document.
+Regularizing someone or renewing a contract changes the current employment in place
+(`EmploymentService.changeTerms`, "Change employment" on the profile), keeping the hire date and
+appending the change to `Employment.termsHistory` (ADR-052). Whether an end date counts is the type's
+`requiresEndOfContract` flag (`src/domains/workforce/contract-terms.ts`), so a Regular employee's
+leftover date never shows as a contract ending.
 `/people` computes Age and Length of Service at read time from `birthDate`/`effectiveFrom`
 (`src/lib/employee-dates.ts`) and offers CSV export + a print report, both covering every row
 matching the current Employment-type filter, not just what's visible.
@@ -271,6 +276,11 @@ machine, matching v1's plain "Move to" dropdown. `/recruitment/tracking` is a Ka
 is draggable via a grip handle), with the "Move to" select as a non-drag fallback — both call the
 same `ApplicantService.moveStage()`. Moving a card to a "Hired"-named stage is just a label; it
 does not create an `Employee` record, matching v1's actual (deliberately narrower) scope.
+The seeded stages (`src/domains/recruitment/default-stages.ts`) include three closing outcomes
+that are not hires: Withdrawn before start date, Withdrawn after start date, and Cancelled / did not
+proceed (`isTerminal`, `isHired: false`). An applicant who accepted, or even started, and then backed
+out moves out of Hired into one of them and keeps their record. If they were already added under
+People, their employment is ended there separately (Offboarding).
 
 ## Performance (Phase 8b, ADR-017)
 
@@ -284,6 +294,11 @@ un-submit; a correction is a new cycle's review, matching this codebase's "never
 stint in place" precedent. There's no separate `.approve` permission (unlike Leave/Payroll) since
 submitting is a single-actor action, and no employee-facing acknowledgment step, since this
 codebase has no employee self-service portal yet to acknowledge from.
+
+Probation evaluations sent or completed outside EychAr (email, paper) are recorded as
+`EvaluationFollowUp` ("Mark sent" on the dashboard's probation rows); that, or a submitted
+evaluation of a type flagged `isRegularization`, takes the probation off the Compliance list
+(ADR-053).
 
 ## Case monitoring (Phase 8c, ADR-018)
 
@@ -587,6 +602,16 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
   stays in the dialog.
 - **Display rules** (ADR-045): instants via `formatDateTime` (Manila time), calendar dates via
   `formatCalendarDate`, money via `formatMoney`.
+
+## Dashboard
+
+A to-do list, not a report (`src/app/(app)/dashboard/page.tsx`, rules in `src/domains/dashboard/`):
+what needs the viewer's action, legal and compliance deadlines, who's out, and what's coming up. Each
+section is read only with its module's permission. **Red flags** (`red-flags.ts`) sit on top when
+any exist: every clearance item flagged as an issue (ADR-031), with its note, amount, department,
+who flagged it and where its resolution stands (no settlement yet, to be deducted in the draft
+settlement, approved but not released). A flag leaves once the item is cleared or waived, or the
+final settlement is disbursed (ADR-032); settlement details show only with `final-settlements.read`.
 
 ## Known gaps (tracked, not silently ignored)
 

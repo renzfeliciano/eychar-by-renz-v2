@@ -35,6 +35,7 @@ import { AuditService } from "@/server/audit/audit-service";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
+import { DEFAULT_RECRUITMENT_STAGES } from "@/domains/recruitment/default-stages";
 import type { Model } from "mongoose";
 
 // Baseline permission catalog. This is seeded *data*, not hardcoded
@@ -429,7 +430,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   async function seedCatalogDefaults(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     CatalogModel: Model<any>,
-    items: Array<{ code: string; name: string; sortOrder: number; metadata?: Record<string, unknown> }>,
+    items: Array<{ code: string; name: string; description?: string; sortOrder: number; metadata?: Record<string, unknown> }>,
   ) {
     for (const item of items) {
       await CatalogModel.findOneAndUpdate(
@@ -439,6 +440,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
             organizationId: organization._id,
             code: item.code,
             name: item.name,
+            ...(item.description ? { description: item.description } : {}),
             sortOrder: item.sortOrder,
             metadata: item.metadata ?? {},
             status: "active",
@@ -491,14 +493,8 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     { code: "tardy_late", name: "Tardy/Late", sortOrder: 10 },
   ]);
 
-  await seedCatalogDefaults(RecruitmentStageModel, [
-    { code: "applied", name: "Applied", sortOrder: 0 },
-    { code: "screening", name: "Screening", sortOrder: 1 },
-    { code: "interview", name: "Interview", sortOrder: 2 },
-    { code: "offer", name: "Offer", sortOrder: 3 },
-    { code: "hired", name: "Hired", sortOrder: 4, metadata: { isTerminal: true } },
-    { code: "rejected", name: "Rejected", sortOrder: 5, metadata: { isTerminal: true } },
-  ]);
+  // Includes the withdrawal outcomes (withdrawn before/after start, did not proceed): closed, not hires.
+  await seedCatalogDefaults(RecruitmentStageModel, DEFAULT_RECRUITMENT_STAGES);
 
   await seedCatalogDefaults(EventCategoryModel, [
     { code: "meeting", name: "Meeting", sortOrder: 0 },
@@ -533,7 +529,8 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   await seedCatalogDefaults(EvaluationTypeModel, [
     { code: "contractual", name: "Contractual Employment", sortOrder: 0, metadata: { defaultPeriodMonths: 3 } },
     { code: "probationary", name: "Probationary Employment", sortOrder: 1, metadata: { defaultPeriodMonths: 3 } },
-    { code: "regularization", name: "Regularization", sortOrder: 2 },
+    // isRegularization: a submitted evaluation of this type settles the dashboard's probation item (ADR-053).
+    { code: "regularization", name: "Regularization", sortOrder: 2, metadata: { isRegularization: true } },
   ]);
 
   await seedCatalogDefaults(DocumentTypeModel, [

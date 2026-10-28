@@ -26,14 +26,27 @@ function addDays(key: string, days: number): string {
 }
 
 /**
+ * What already settles a probation's evaluation (ADR-053): HR recorded it as
+ * sent or completed outside EychAr (`followUps`, keyed by
+ * `regularizationFollowUpKey`), or an evaluation of a regularization type
+ * was submitted in Performance since the employee was hired
+ * (`evaluatedOn`: employee id → latest submission, "YYYY-MM-DD").
+ */
+export type ProbationEvaluations = { followUps: ReadonlySet<string>; evaluatedOn: ReadonlyMap<string, string> };
+
+export const regularizationFollowUpKey = (employeeId: string, regularKey: string) => `${employeeId}|${regularKey}`;
+
+/**
  * Probationary staff nearing (or past) the date they become regular by law
  * unless evaluated. `regularizeAfterMonths` per employment type code; types
- * without it are not watched.
+ * without it are not watched. Probations whose evaluation is already sent,
+ * done or submitted (`handled`) are left out.
  */
 export function regularizationRisks(
   staff: { id: string; name: string; employmentType?: string | null; hiredKey?: string | null }[],
   regularizeAfterMonths: ReadonlyMap<string, number>,
   todayKey: string,
+  handled: ProbationEvaluations = { followUps: new Set(), evaluatedOn: new Map() },
 ): ActionItem[] {
   return staff.flatMap((employee) => {
     const months = employee.employmentType ? regularizeAfterMonths.get(employee.employmentType) : undefined;
@@ -41,6 +54,9 @@ export function regularizationRisks(
     const regularKey = addMonths(employee.hiredKey, months);
     const days = daysBetween(todayKey, regularKey);
     if (days > RISK_WINDOW_DAYS) return [];
+    if (handled.followUps.has(regularizationFollowUpKey(employee.id, regularKey))) return [];
+    const evaluatedOn = handled.evaluatedOn.get(employee.id);
+    if (evaluatedOn && evaluatedOn >= employee.hiredKey) return [];
     return [
       {
         id: `regularize-${employee.id}`,
@@ -51,6 +67,7 @@ export function regularizationRisks(
         actionLabel: "Open profile",
         urgency: urgencyFor(todayKey, regularKey, 7, RISK_WINDOW_DAYS),
         dueKey: regularKey,
+        subjectId: employee.id,
       },
     ];
   });

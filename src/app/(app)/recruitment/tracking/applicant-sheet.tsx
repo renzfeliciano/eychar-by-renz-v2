@@ -56,8 +56,9 @@ export function ApplicantSheet({
                 </div>
               </div>
               {current && (
-                <div className="pt-1">
+                <div className="flex flex-col gap-1 pt-1">
                   <StatusBadge status={current.code} label={current.name} tone={BADGE_TONE[stageTone(current)]} />
+                  {current.description && <p className="text-xs text-muted-foreground">{current.description}</p>}
                 </div>
               )}
             </SheetHeader>
@@ -111,6 +112,7 @@ export function ApplicantSheet({
                         disabled={!canUpdate || isCurrent}
                         onClick={() => onMove(applicant, stage.code)}
                         aria-current={isCurrent ? "step" : undefined}
+                        title={stage.description}
                         className={cn(
                           "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors enabled:cursor-pointer",
                           tone === "success" ? "enabled:hover:border-success/40 enabled:hover:bg-success/10" : "enabled:hover:bg-muted",

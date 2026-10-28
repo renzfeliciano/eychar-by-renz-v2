@@ -19,9 +19,14 @@ import { CaseStatusService } from "@/domains/catalog/case-status-service";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { greetingFor, upcomingEvents } from "@/domains/dashboard/dashboard-summary";
-import { documentRisks, finalPayRisks, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
+import { documentRisks, finalPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
+import { EvaluationFollowUpService } from "@/domains/performance/evaluation-follow-up-service";
+import { EvaluationTypeService } from "@/domains/catalog/evaluation-type-service";
+import { regularizationEvaluationCodes } from "@/domains/performance/evaluation-purpose";
+import { EvaluationFollowUpDialog } from "./evaluation-follow-up-dialog";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { catalogNumber } from "@/domains/catalog/catalog-flags";
+import { contractEndOf } from "@/domains/workforce/contract-terms";
 import { ClearanceService } from "@/domains/clearance/clearance-service";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
 import { EmployeeDocumentService } from "@/domains/documents/employee-document-service";
@@ -40,6 +45,8 @@ import { describeAuditAction } from "@/domains/identity/security-event-labels";
 import { formatTime } from "@/lib/app-time";
 import { formatRelativeDays } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
+import { clearanceRedFlags, redFlagTotal, type RedFlag } from "@/domains/dashboard/red-flags";
+import { formatMoney } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -49,6 +56,8 @@ const UPCOMING_SHOWN = 15;
 const CONTRACT_WINDOW_DAYS = 30;
 /** Past this many rows of one kind, they collapse into one summary row. */
 const ROWS_PER_KIND = 5;
+/** Red flags listed before "and N more". */
+const RED_FLAGS_SHOWN = 6;
 const NAMES_SHOWN = 8;
 /** Final pay deadline when the organization hasn't set its own (DOLE Labor Advisory No. 06-2020). */
 const DEFAULT_FINAL_PAY_DAYS = 30;
@@ -106,6 +115,7 @@ export default async function DashboardPage() {
   const can = async (permission: string) => hasPermission(permission, organizationId);
   const [
     canReadEmployees,
+    canUpdateEmployees,
     canReadLeave,
     canDecideLeave,
     canReadAttendance,
@@ -124,6 +134,7 @@ export default async function DashboardPage() {
   ] = await Promise.all(
     [
       "employees.read",
+      "employees.update",
       "leave.read",
       "leave.approve",
       "attendance.read",
@@ -142,7 +153,14 @@ export default async function DashboardPage() {
     ].map(can),
   );
 
-  const [roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity] = await Promise.all([
+  const [probationEvaluations, roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity] = await Promise.all([
+    // What already settles a probation's evaluation: recorded as sent or done, or submitted in Performance (ADR-053).
+    canReadEmployees
+      ? Promise.all([
+          EvaluationFollowUpService.listActive(organizationId),
+          EvaluationTypeService.listCurrent(organizationId).then((types) => EvaluationFollowUpService.latestSubmittedByEmployee(organizationId, regularizationEvaluationCodes(types))),
+        ])
+      : null,
     canReadEmployees ? EmployeeService.listWithCurrentStatus(organizationId) : null,
     canReadEmployees ? EmploymentStatusService.listCurrent(organizationId) : null,
     canReadLeave && canDecideLeave ? LeaveRequestService.listForOrganization(organizationId, { status: "pending" }) : null,
@@ -216,9 +234,12 @@ export default async function DashboardPage() {
     })),
   );
 
+  // Only types that end (the catalog's requiresEndOfContract): a Regular employee's leftover end date isn't a contract ending.
+  const contractEnd = (row: (typeof staff)[number]) => contractEndOf(row.currentEmployment, employmentTypes ?? []);
   const contractRows: ActionItem[] = staff.flatMap((row) => {
-    if (!row.currentEmployment?.endOfContract) return [];
-    const endKey = dateToDateKey(new Date(row.currentEmployment.endOfContract));
+    const end = contractEnd(row);
+    if (!end) return [];
+    const endKey = dateToDateKey(end);
     const days = Math.round((Date.parse(`${endKey}T00:00:00Z`) - Date.parse(`${todayKey}T00:00:00Z`)) / 86_400_000);
     if (days < -1 || days > CONTRACT_WINDOW_DAYS) return [];
     return [
@@ -234,7 +255,7 @@ export default async function DashboardPage() {
       },
     ];
   });
-  actions.push(...collapseKind(contractRows, ROWS_PER_KIND, (count) => ({ id: "contract-many", kind: "contract", title: `Review ${count} contracts ending soon`, detail: `Within the next ${CONTRACT_WINDOW_DAYS} days`, href: "/people", actionLabel: "Open people", urgency: rankActions(contractRows)[0].urgency, dueKey: rankActions(contractRows)[0].dueKey })));
+  actions.push(...collapseKind(contractRows, ROWS_PER_KIND, (count) => ({ id: "contract-many", kind: "contract", title: `Review ${count} contracts ending soon`, detail: `Within the next ${CONTRACT_WINDOW_DAYS} days`, href: "/people?contracts=ending", actionLabel: "Open people", urgency: rankActions(contractRows)[0].urgency, dueKey: rankActions(contractRows)[0].dueKey })));
 
   if (compensation && roster) {
     const withPay = new Set(compensation.filter((entry) => entry.current).map((entry) => entry.employeeId));
@@ -261,10 +282,15 @@ export default async function DashboardPage() {
       const value = catalogNumber(type, "regularizeAfterMonths", LEGACY_REGULARIZATION_MONTHS);
       return value ? [[type.code, value] as const] : [];
     }));
+    const [followUps, evaluatedAt] = probationEvaluations ?? [[], new Map<string, Date>()];
     const rows = regularizationRisks(
       staff.map((row) => ({ id: row._id.toString(), name: nameOf(row._id), employmentType: row.currentEmployment?.employmentType, hiredKey: row.currentEmployment?.effectiveFrom ? dateToDateKey(new Date(row.currentEmployment.effectiveFrom)) : null })),
       months,
       todayKey,
+      {
+        followUps: new Set(followUps.map((followUp) => regularizationFollowUpKey(followUp.employeeId.toString(), followUp.dueKey))),
+        evaluatedOn: new Map([...evaluatedAt].map(([employeeId, submittedAt]) => [employeeId, dateToDateKey(new Date(submittedAt))])),
+      },
     );
     complianceRisks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "regularize-many", kind: "regularization", title: `Evaluate ${count} probationary employees`, detail: "Each becomes regular by law at the end of probation unless evaluated", href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
   }
@@ -302,6 +328,18 @@ export default async function DashboardPage() {
     complianceRisks.push(...collapseKind(rows, 3, (count) => ({ id: "ids-many", kind: "ids", title: `Complete government IDs for ${count} employees`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: "/people", actionLabel: "Open people", urgency: "later" })));
   }
   const rankedCompliance = rankActions(complianceRisks);
+
+  // ── Red flags: unresolved clearance issues, before final pay goes out ─
+  const flaggedItems = (clearances ?? []).flatMap((clearance) => clearance.items.filter((item) => item.status === "flagged"));
+  const flaggedByNames = flaggedItems.length ? await userDisplayNames(flaggedItems.map((item) => item.actedBy?.toString())) : new Map<string, string>();
+  const redFlags: RedFlag[] = clearances
+    ? clearanceRedFlags(
+        clearances,
+        canReadSettlements ? new Map((settlements ?? []).map((settlement) => [settlement.clearanceCaseId.toString(), settlement])) : null,
+        (userId) => flaggedByNames.get(userId),
+      )
+    : [];
+  const redFlagAmount = redFlagTotal(redFlags);
 
   // ── Who's out today ─────────────────────────────────────────────────
   const onLeaveIds = new Set((leaveToday ?? []).map((request) => request.employeeId.toString()));
@@ -344,8 +382,9 @@ export default async function DashboardPage() {
   }
   for (const row of staff) {
     const id = row._id.toString();
-    if (row.currentEmployment?.endOfContract) {
-      const key = dateToDateKey(new Date(row.currentEmployment.endOfContract));
+    const end = contractEnd(row);
+    if (end && row.currentEmployment) {
+      const key = dateToDateKey(end);
       if (within(key)) upcoming.push({ key, kind: "contract", title: `${nameOf(row._id)}'s contract ends`, detail: row.currentEmployment.employmentType ? `${row.currentEmployment.employmentType.charAt(0).toUpperCase()}${row.currentEmployment.employmentType.slice(1)} contract` : "End of contract", href: `/people/${id}` });
     }
     if (row.person?.birthDate) {
@@ -400,6 +439,31 @@ export default async function DashboardPage() {
           month on the right. One column on a phone, in the same order of importance. */}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" data-testid="dashboard-cards">
         <div className="flex min-w-0 flex-col gap-5">
+          {redFlags.length > 0 && (
+            <Panel
+              testId="dashboard-red-flags"
+              title="Red flags"
+              count={redFlags.length}
+              description={`Unresolved clearance issues${redFlagAmount ? `, ${formatMoney(redFlagAmount)} in all` : ""}. Settle them before final pay is released.`}
+              href="/clearance"
+              linkLabel="Offboarding"
+            >
+              <ul className="flex flex-col divide-y divide-rule">
+                {redFlags.slice(0, RED_FLAGS_SHOWN).map((flag) => (
+                  <RedFlagRow key={flag.id} flag={flag} />
+                ))}
+              </ul>
+              {redFlags.length > RED_FLAGS_SHOWN && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  And {redFlags.length - RED_FLAGS_SHOWN} more.{" "}
+                  <Link href="/clearance" className="font-medium text-primary hover:underline">
+                    See all in Offboarding
+                  </Link>
+                </p>
+              )}
+            </Panel>
+          )}
+
           <Panel
             testId="dashboard-actions"
             title="Needs your action"
@@ -435,7 +499,17 @@ export default async function DashboardPage() {
             ) : (
               <ul className="flex flex-col divide-y divide-rule">
                 {rankedCompliance.map((risk) => (
-                  <ActionRow key={risk.id} action={risk} todayKey={todayKey} compact />
+                  <ActionRow
+                    key={risk.id}
+                    action={risk}
+                    todayKey={todayKey}
+                    compact
+                    extra={
+                      risk.kind === "regularization" && risk.subjectId && risk.dueKey && canUpdateEmployees ? (
+                        <EvaluationFollowUpDialog organizationId={organizationId} employeeId={risk.subjectId} employeeName={nameOf(risk.subjectId)} dueKey={risk.dueKey} todayKey={todayKey} />
+                      ) : undefined
+                    }
+                  />
                 ))}
               </ul>
             )}
@@ -720,28 +794,58 @@ const URGENCY_DOT: Record<ActionUrgency, { dot: string; label: string }> = {
   later: { dot: "bg-muted-foreground/40", label: "When you can" },
 };
 
-function ActionRow({ action, todayKey, compact = false }: { action: ActionItem; todayKey: string; compact?: boolean }) {
+function ActionRow({ action, todayKey, compact = false, extra }: { action: ActionItem; todayKey: string; compact?: boolean; extra?: React.ReactNode }) {
   const { dot, label } = URGENCY_DOT[action.urgency];
   const when = action.dueKey ? (action.dueKey < todayKey ? `overdue, ${relativeDue(todayKey, action.dueKey)}` : `due ${relativeDue(todayKey, action.dueKey)}`) : null;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 first:pt-0 last:pb-0" data-testid="dashboard-action" data-urgency={action.urgency}>
       <span className={cn("size-2 shrink-0 rounded-full", dot)} aria-hidden="true" />
       <span className="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium" title={action.title}>
+        {/* A row with its own extra button has less room: let the words wrap to two lines rather than cut off. */}
+        <span className={cn("text-sm font-medium", extra ? "line-clamp-2" : "truncate")} title={action.title}>
           <span className="sr-only">{label}: </span>
           {action.title}
         </span>
-        <span className="truncate text-xs text-muted-foreground" title={action.detail}>
+        <span className={cn("text-xs text-muted-foreground", extra ? "line-clamp-2" : "truncate")} title={action.detail}>
           {when && !compact && action.kind !== "contract" && (
             <span className={cn("font-medium", action.urgency === "now" ? "text-destructive" : action.urgency === "soon" ? "text-warning" : "")}>{when} · </span>
           )}
           {action.detail}
         </span>
       </span>
-      <Link href={action.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-        {action.actionLabel}
-        <ArrowRight aria-hidden="true" data-icon="inline-end" />
-      </Link>
+      <span className="flex shrink-0 items-center gap-1.5">
+        {extra}
+        <Link href={action.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          {action.actionLabel}
+          <ArrowRight aria-hidden="true" data-icon="inline-end" />
+        </Link>
+      </span>
+    </li>
+  );
+}
+
+/** One unresolved clearance issue: who, what, how much, which department flagged it, and where it stands. */
+function RedFlagRow({ flag }: { flag: RedFlag }) {
+  const flagged = [flag.department, flag.flaggedBy ? `flagged by ${flag.flaggedBy}` : "flagged", flag.flaggedOn ? `on ${shortDate(localDateKey(flag.flaggedOn))}` : null].filter(Boolean).join(" ");
+  return (
+    <li className="flex flex-wrap items-start gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0" data-testid="dashboard-red-flag" data-stage={flag.stage}>
+      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-destructive" aria-hidden="true" />
+      <span className="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
+        <span className="text-sm font-medium">
+          <span className="sr-only">Red flag: </span>
+          {flag.employeeName} · {flag.item}
+        </span>
+        {flag.issue && <span className="text-sm text-foreground/90">{flag.issue}</span>}
+        <span className="text-xs text-muted-foreground">{flagged}</span>
+        <span className={cn("text-xs font-medium", flag.stage === "in-settlement" || flag.stage === "approved" ? "text-warning" : "text-destructive")}>{flag.resolution}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-3">
+        {flag.amount !== null && <span className="text-sm font-semibold text-destructive tabular-nums">{formatMoney(flag.amount)}</span>}
+        <Link href={flag.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Open clearance
+          <ArrowRight aria-hidden="true" data-icon="inline-end" />
+        </Link>
+      </span>
     </li>
   );
 }
