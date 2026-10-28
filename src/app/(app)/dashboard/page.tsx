@@ -45,6 +45,8 @@ import { describeAuditAction } from "@/domains/identity/security-event-labels";
 import { formatTime } from "@/lib/app-time";
 import { formatRelativeDays } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
+import { clearanceRedFlags, redFlagTotal, type RedFlag } from "@/domains/dashboard/red-flags";
+import { formatMoney } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -54,6 +56,8 @@ const UPCOMING_SHOWN = 15;
 const CONTRACT_WINDOW_DAYS = 30;
 /** Past this many rows of one kind, they collapse into one summary row. */
 const ROWS_PER_KIND = 5;
+/** Red flags listed before "and N more". */
+const RED_FLAGS_SHOWN = 6;
 const NAMES_SHOWN = 8;
 /** Final pay deadline when the organization hasn't set its own (DOLE Labor Advisory No. 06-2020). */
 const DEFAULT_FINAL_PAY_DAYS = 30;
@@ -325,6 +329,18 @@ export default async function DashboardPage() {
   }
   const rankedCompliance = rankActions(complianceRisks);
 
+  // ── Red flags: unresolved clearance issues, before final pay goes out ─
+  const flaggedItems = (clearances ?? []).flatMap((clearance) => clearance.items.filter((item) => item.status === "flagged"));
+  const flaggedByNames = flaggedItems.length ? await userDisplayNames(flaggedItems.map((item) => item.actedBy?.toString())) : new Map<string, string>();
+  const redFlags: RedFlag[] = clearances
+    ? clearanceRedFlags(
+        clearances,
+        canReadSettlements ? new Map((settlements ?? []).map((settlement) => [settlement.clearanceCaseId.toString(), settlement])) : null,
+        (userId) => flaggedByNames.get(userId),
+      )
+    : [];
+  const redFlagAmount = redFlagTotal(redFlags);
+
   // ── Who's out today ─────────────────────────────────────────────────
   const onLeaveIds = new Set((leaveToday ?? []).map((request) => request.employeeId.toString()));
   const travellingIds = new Set(
@@ -423,6 +439,31 @@ export default async function DashboardPage() {
           month on the right. One column on a phone, in the same order of importance. */}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" data-testid="dashboard-cards">
         <div className="flex min-w-0 flex-col gap-5">
+          {redFlags.length > 0 && (
+            <Panel
+              testId="dashboard-red-flags"
+              title="Red flags"
+              count={redFlags.length}
+              description={`Unresolved clearance issues${redFlagAmount ? `, ${formatMoney(redFlagAmount)} in all` : ""}. Settle them before final pay is released.`}
+              href="/clearance"
+              linkLabel="Offboarding"
+            >
+              <ul className="flex flex-col divide-y divide-rule">
+                {redFlags.slice(0, RED_FLAGS_SHOWN).map((flag) => (
+                  <RedFlagRow key={flag.id} flag={flag} />
+                ))}
+              </ul>
+              {redFlags.length > RED_FLAGS_SHOWN && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  And {redFlags.length - RED_FLAGS_SHOWN} more.{" "}
+                  <Link href="/clearance" className="font-medium text-primary hover:underline">
+                    See all in Offboarding
+                  </Link>
+                </p>
+              )}
+            </Panel>
+          )}
+
           <Panel
             testId="dashboard-actions"
             title="Needs your action"
@@ -776,6 +817,32 @@ function ActionRow({ action, todayKey, compact = false, extra }: { action: Actio
         {extra}
         <Link href={action.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
           {action.actionLabel}
+          <ArrowRight aria-hidden="true" data-icon="inline-end" />
+        </Link>
+      </span>
+    </li>
+  );
+}
+
+/** One unresolved clearance issue: who, what, how much, which department flagged it, and where it stands. */
+function RedFlagRow({ flag }: { flag: RedFlag }) {
+  const flagged = [flag.department, flag.flaggedBy ? `flagged by ${flag.flaggedBy}` : "flagged", flag.flaggedOn ? `on ${shortDate(localDateKey(flag.flaggedOn))}` : null].filter(Boolean).join(" ");
+  return (
+    <li className="flex flex-wrap items-start gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0" data-testid="dashboard-red-flag" data-stage={flag.stage}>
+      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-destructive" aria-hidden="true" />
+      <span className="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
+        <span className="text-sm font-medium">
+          <span className="sr-only">Red flag: </span>
+          {flag.employeeName} · {flag.item}
+        </span>
+        {flag.issue && <span className="text-sm text-foreground/90">{flag.issue}</span>}
+        <span className="text-xs text-muted-foreground">{flagged}</span>
+        <span className={cn("text-xs font-medium", flag.stage === "in-settlement" || flag.stage === "approved" ? "text-warning" : "text-destructive")}>{flag.resolution}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-3">
+        {flag.amount !== null && <span className="text-sm font-semibold text-destructive tabular-nums">{formatMoney(flag.amount)}</span>}
+        <Link href={flag.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Open clearance
           <ArrowRight aria-hidden="true" data-icon="inline-end" />
         </Link>
       </span>

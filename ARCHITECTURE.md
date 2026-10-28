@@ -603,6 +603,16 @@ Single-active-session and idle-timeout enforcement (`src/server/auth/session-pol
 - **Display rules** (ADR-045): instants via `formatDateTime` (Manila time), calendar dates via
   `formatCalendarDate`, money via `formatMoney`.
 
+## Dashboard
+
+A to-do list, not a report (`src/app/(app)/dashboard/page.tsx`, rules in `src/domains/dashboard/`):
+what needs the viewer's action, legal and compliance deadlines, who's out, and what's coming up. Each
+section is read only with its module's permission. **Red flags** (`red-flags.ts`) sit on top when
+any exist: every clearance item flagged as an issue (ADR-031), with its note, amount, department,
+who flagged it and where its resolution stands (no settlement yet, to be deducted in the draft
+settlement, approved but not released). A flag leaves once the item is cleared or waived, or the
+final settlement is disbursed (ADR-032); settlement details show only with `final-settlements.read`.
+
 ## Known gaps (tracked, not silently ignored)
 
 - **Biometric devices:** any signed-in self-service session may register another device for
