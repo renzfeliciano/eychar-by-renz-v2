@@ -276,6 +276,11 @@ machine, matching v1's plain "Move to" dropdown. `/recruitment/tracking` is a Ka
 is draggable via a grip handle), with the "Move to" select as a non-drag fallback — both call the
 same `ApplicantService.moveStage()`. Moving a card to a "Hired"-named stage is just a label; it
 does not create an `Employee` record, matching v1's actual (deliberately narrower) scope.
+The seeded stages (`src/domains/recruitment/default-stages.ts`) include three closing outcomes
+that are not hires: Withdrawn before start date, Withdrawn after start date, and Cancelled / did not
+proceed (`isTerminal`, `isHired: false`). An applicant who accepted, or even started, and then backed
+out moves out of Hired into one of them and keeps their record. If they were already added under
+People, their employment is ended there separately (Offboarding).
 
 ## Performance (Phase 8b, ADR-017)
 

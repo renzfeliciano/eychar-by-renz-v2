@@ -83,4 +83,26 @@ describe("ApplicantPipeline", () => {
     );
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
+
+  it("moves a hire who backed out after starting to a withdrawal stage, and says what that stage means", async () => {
+    const user = userEvent.setup();
+    const stages = [
+      ...STAGES,
+      { code: "withdrawn_after_start", name: "Withdrawn after start date", isTerminal: true, isHired: false, description: "Started working, then backed out. Not counted as a hire." },
+    ];
+    const hired = [{ ...APPLICANTS[0], _id: "a3", applicantName: "Justin Bustamante", stage: "hired" }];
+    const { rerender } = render(<ApplicantPipeline organizationId="org1" stages={stages} applicants={hired} positions={POSITIONS} canUpdate />);
+
+    await user.click(screen.getByRole("button", { name: "Open Justin Bustamante" }));
+    const panel = await screen.findByRole("dialog");
+    await user.click(within(panel).getByRole("button", { name: "Withdrawn after start date" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/applicants/a3/stage", expect.objectContaining({ body: JSON.stringify({ organizationId: "org1", stage: "withdrawn_after_start" }) })),
+    );
+
+    rerender(<ApplicantPipeline organizationId="org1" stages={stages} applicants={[{ ...hired[0], stage: "withdrawn_after_start" }]} positions={POSITIONS} canUpdate />);
+    expect(await screen.findByText("Started working, then backed out. Not counted as a hire.")).toBeInTheDocument();
+    // The board behind the open sheet: no longer in the Hired column.
+    expect(screen.getByRole("group", { name: /Hired, 0 applicants/, hidden: true })).toBeInTheDocument();
+  });
 });

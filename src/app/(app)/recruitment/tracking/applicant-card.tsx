@@ -14,7 +14,7 @@ import {
 import { daysSince, describeApplied } from "@/domains/recruitment/pipeline";
 import { cn } from "@/lib/utils";
 
-export type StageInfo = { code: string; name: string; isTerminal?: boolean; isHired?: boolean };
+export type StageInfo = { code: string; name: string; isTerminal?: boolean; isHired?: boolean; description?: string };
 export type ApplicantCardData = {
   _id: string;
   positionId: string;

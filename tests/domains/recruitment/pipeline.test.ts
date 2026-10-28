@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { filterApplicants, daysSince, describeApplied, stageTone } from "@/domains/recruitment/pipeline";
+import { filterApplicants, daysSince, describeApplied, isHiredStage, stageTone, LEGACY_HIRED_STAGE_CODES } from "@/domains/recruitment/pipeline";
+import { DEFAULT_RECRUITMENT_STAGES } from "@/domains/recruitment/default-stages";
+import { codesWithFlag } from "@/domains/catalog/catalog-flags";
 
 const applicant = (applicantName: string, positionId: string, positionTitle: string, email?: string) => ({
   applicantName,
@@ -56,5 +58,23 @@ describe("stageTone", () => {
     expect(stageTone({ code: "hired", isTerminal: true })).toBe("success");
     expect(stageTone({ code: "rejected", isTerminal: true })).toBe("closed");
     expect(stageTone({ code: "interview" })).toBe("open");
+  });
+});
+
+describe("default recruitment stages", () => {
+  it("close a withdrawn or cancelled application without counting it as a hire", () => {
+    const byCode = new Map(DEFAULT_RECRUITMENT_STAGES.map((stage) => [stage.code, stage]));
+    for (const code of ["withdrawn_before_start", "withdrawn_after_start", "did_not_proceed"]) {
+      const stage = byCode.get(code)!;
+      expect(stage.metadata?.isTerminal).toBe(true);
+      expect(isHiredStage(stage)).toBe(false);
+      expect(stageTone({ code, isTerminal: true, isHired: isHiredStage(stage) })).toBe("closed");
+    }
+    expect([...codesWithFlag(DEFAULT_RECRUITMENT_STAGES, "isHired", LEGACY_HIRED_STAGE_CODES)]).toEqual(["hired"]);
+  });
+
+  it("keep codes unique and in order", () => {
+    expect(new Set(DEFAULT_RECRUITMENT_STAGES.map((stage) => stage.code)).size).toBe(DEFAULT_RECRUITMENT_STAGES.length);
+    expect(DEFAULT_RECRUITMENT_STAGES.map((stage) => stage.sortOrder)).toEqual([...DEFAULT_RECRUITMENT_STAGES.keys()]);
   });
 });

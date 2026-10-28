@@ -38,7 +38,7 @@ export default async function ApplicationTrackingPage() {
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const positionOptions = positions.map((position) => ({ id: position._id.toString(), label: position.title }));
 
-  const stageRows = stages.map((stage) => ({ code: stage.code, name: stage.name, isTerminal: Boolean(stage.metadata?.isTerminal), isHired: isHiredStage(stage) }));
+  const stageRows = stages.map((stage) => ({ code: stage.code, name: stage.name, isTerminal: Boolean(stage.metadata?.isTerminal), isHired: isHiredStage(stage), ...(stage.description ? { description: stage.description } : {}) }));
 
   const applicantRows = applicants.map((applicant) => ({
     _id: applicant._id.toString(),
