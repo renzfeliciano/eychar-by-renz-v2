@@ -19,7 +19,7 @@ You need a MongoDB **replica set** you can throw away (Atlas free tier is one; s
 ```bash
 npx playwright install chromium     # once
 
-export E2E_MONGODB_URI=mongodb://127.0.0.1:27017/eychar_e2e
+export E2E_MONGODB_URI=mongodb://127.0.0.1:27017/pcas_hris_e2e
 export E2E_USERNAME=hr.e2e E2E_PASSWORD='choose-a-long-passphrase-1'
 export E2E_APPROVER_USERNAME=approver.e2e E2E_APPROVER_PASSWORD='another-long-passphrase-2'
 

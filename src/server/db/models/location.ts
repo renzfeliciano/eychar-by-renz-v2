@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
-// No effective dating — not in AGENTS.md's example schemas, and locations
+// No effective dating — not in ENGINEERING.md's example schemas, and locations
 // don't have the "reconstruct historical org state" requirement that
 // OrganizationUnit/Position do.
 const locationSchema = new Schema(

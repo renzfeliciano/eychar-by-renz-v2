@@ -42,7 +42,7 @@ const warningSchema = new Schema(
 
 // One employee's payslip in one run: every figure computed once and stored,
 // with the inputs (rate, attendance) that produced it, so it can be
-// explained and reproduced later (AGENTS.md §28). Name and number are
+// explained and reproduced later (ENGINEERING.md §28). Name and number are
 // snapshotted too: the payslip reads the same after a later rename.
 const payrollRecordSchema = new Schema(
   {

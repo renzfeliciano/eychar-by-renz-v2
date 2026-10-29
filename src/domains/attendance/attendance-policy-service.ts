@@ -76,7 +76,7 @@ export const AttendancePolicyService = {
   },
 
   /**
-   * Organization → Project override resolution (AGENTS.md §26) via the
+   * Organization → Project override resolution (ENGINEERING.md §26) via the
    * shared resolver (src/server/policies/resolve-org-project-policy.ts) —
    * extracted once Leave needed the identical shape (see ADR-011).
    */

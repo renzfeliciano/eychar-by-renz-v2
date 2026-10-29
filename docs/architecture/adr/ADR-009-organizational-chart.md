@@ -6,7 +6,7 @@ Superseded by ADR-046 (October 2026): the chart is now drawn by HR, and `reports
 
 ## Context
 
-AGENTS.md §18 is explicit that the org chart is **not a source of truth** — it's a projection of
+ENGINEERING.md §18 is explicit that the org chart is **not a source of truth** — it's a projection of
 `OrganizationUnit`, `Position`, `EmployeeAssignment`, `Project`, and `Employee`, which must
 support search, unit/position/project filtering, vacant positions, and historical date
 selection.
@@ -52,7 +52,7 @@ doesn't exist.
 **UI shape**: an indented hierarchical list, not a canvas/SVG diagram with boxes and connecting
 lines. A graphical chart (pan/zoom, collapsible nodes, layout algorithm) is real front-end
 investment that isn't justified before there's a concrete need for it at real data volumes
-(AGENTS.md §56), and an indented list is inherently mobile-first (§41) without any extra library.
+(ENGINEERING.md §56), and an indented list is inherently mobile-first (§41) without any extra library.
 
 ## Consequences
 

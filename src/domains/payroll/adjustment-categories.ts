@@ -2,7 +2,7 @@
  * Suggested adjustment categories with their usual direction and tax
  * treatment in the Philippines. Suggestions only: HR can change the label or
  * the taxable flag on each line, and any other category code is accepted
- * (AGENTS.md §10). 13th month pay and other benefits are exempt up to
+ * (ENGINEERING.md §10). 13th month pay and other benefits are exempt up to
  * ₱90,000 a year; past that, mark the excess taxable.
  */
 export const ADJUSTMENT_CATEGORIES = [

@@ -6,7 +6,7 @@ import { getSession } from "@/server/auth/session";
 /**
  * Phase 2 UI only supports acting within the caller's first accessible
  * organization — multi-organization switching is a later-phase concern
- * (AGENTS.md §24), not built prematurely here. Resolved once per server render.
+ * (ENGINEERING.md §24), not built prematurely here. Resolved once per server render.
  */
 export const getCurrentOrganization = cache(async () => {
   const session = await getSession();

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Applies AGENTS.md §2 ("model the business") to rules that had slipped into code.
+Accepted. Applies ENGINEERING.md §2 ("model the business") to rules that had slipped into code.
 
 ## Context
 

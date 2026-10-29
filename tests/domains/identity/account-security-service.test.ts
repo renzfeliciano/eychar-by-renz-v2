@@ -128,7 +128,7 @@ describe("renaming accounts", () => {
   async function setup() {
     const { user: hrUser, organizationId } = await makeStaff();
     const owner = await StaffAccountService.create(
-      { organizationId, firstName: "Renzy", lastName: "Tester", username: `owner.${Date.now()}`.slice(0, 30), password: PASSWORD },
+      { organizationId, firstName: "Ana", lastName: "Reyes", username: `owner.${Date.now()}`.slice(0, 30), password: PASSWORD },
       {},
     );
     await SuperAdminService.ensure(organizationId, owner._id.toString());
@@ -149,7 +149,7 @@ describe("renaming accounts", () => {
   it("lets the Super Administrator rename their own account, but not anyone else touch it", async () => {
     const s = await setup();
 
-    await AccountSecurityService.rename(s.owner, s.organizationId, { firstName: "Renzo", lastName: "Payod" }, { userId: s.owner });
+    await AccountSecurityService.rename(s.owner, s.organizationId, { firstName: "Maria", lastName: "Santos" }, { userId: s.owner });
     await expect(AccountSecurityService.rename(s.owner, s.organizationId, { firstName: "X", lastName: "Y" }, { userId: s.hr })).rejects.toThrow(AuthorizationError);
     await expect(AccountSecurityService.assertCanAdminister(s.owner, s.organizationId, { userId: s.hr })).rejects.toThrow(AuthorizationError);
     await expect(AccountSecurityService.assertCanAdminister(s.staff, s.organizationId, { userId: s.hr })).resolves.toBeUndefined();

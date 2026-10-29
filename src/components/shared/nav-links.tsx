@@ -82,7 +82,7 @@ export const CATALOG_READ_PERMISSIONS = [
 
 /**
  * Every item carries the permission its page checks, so the menu only lists
- * what the viewer can open. This is a usability filter (AGENTS.md §23): each
+ * what the viewer can open. This is a usability filter (ENGINEERING.md §23): each
  * page still checks the permission server-side and shows NoAccessState.
  */
 export const NAV_SECTIONS: NavSection[] = [

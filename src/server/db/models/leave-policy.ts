@@ -2,7 +2,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 
 // Same org-wide-with-project-override shape as AttendancePolicy — resolved
 // explicitly by LeavePolicyService.resolve() via the shared
-// resolveOrgProjectPolicy() (AGENTS.md §26).
+// resolveOrgProjectPolicy() (ENGINEERING.md §26).
 const leavePolicySchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },

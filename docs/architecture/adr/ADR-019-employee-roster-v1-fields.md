@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The user asked that the People page ("Employees Roster" in the legacy v1 app) gain the fields
+The product owner asked that the People page ("Employees Roster" in the legacy v1 app) gain the fields
 and behavior v1's real Employee record has: gender, birth date, address, contact number, and four
 statutory ID numbers (SSS/PhilHealth/Pag-IBIG/TIN), each with the exact zod format v1 validates
 (`src/schemas/employee.ts`/`src/schemas/shared.ts`); a conditionally-required "end of contract"

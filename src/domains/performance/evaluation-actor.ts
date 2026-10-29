@@ -10,7 +10,7 @@ export const EVALUATION_MANAGE_PERMISSION = "performance-evaluations.manage";
  * Who is acting on an evaluation: their own employee record (a staff account
  * is linked to one through its person, a self-service account directly), and
  * whether they hold the HR / Operations oversight permission. The evaluator of
- * record is data on the evaluation, never a role-name check (AGENTS.md §20).
+ * record is data on the evaluation, never a role-name check (ENGINEERING.md §20).
  */
 export type EvaluationActor = { userId: string; employeeId: string | null; canManage: boolean };
 

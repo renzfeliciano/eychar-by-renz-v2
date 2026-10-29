@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-AGENTS.md §3/§13 requires `User` (login identity), `Person` (human identity), `Employee`
+ENGINEERING.md §3/§13 requires `User` (login identity), `Person` (human identity), `Employee`
 (workforce identity), `Employment` (lifecycle), and `EmployeeAssignment` (work assignment) to
 stay distinct models, supporting: an employee without login, a user who is not an employee, a
 former/rehired employee, a contractor, and multiple assignments — without a schema change.
@@ -26,5 +26,5 @@ an employee).
 
 - `personId` on `User` is optional, so a login-only account with no HR profile remains valid.
 - When Phase 3 adds `Employee`, it will reference `Person` (not `User`), so an employee without
-  login access is representable — resolving the required scenario in AGENTS.md §13 without a
+  login access is representable — resolving the required scenario in ENGINEERING.md §13 without a
   later migration of the `User`/`Person` split itself.

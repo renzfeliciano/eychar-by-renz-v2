@@ -63,7 +63,7 @@
   --glass-bg: oklch(0.982 0.004 85 / 82%);
   --glass-border: oklch(0.905 0.009 85 / 70%);
 
-  /* Dashboard chart colors — the dataviz skill's validated reference palette
+  /* Dashboard chart colors — a validated, colour-blind-safe reference palette
      (own gate: worst adjacent CVD deltaE 9.1 light, normal-vision 19.6 light),
      NOT the shadcn --chart-1..5 defaults above, which fail validate_palette.js
      (chart4/chart5 sub-8 CVD delta, chart3 below the chroma floor). Kept
@@ -194,7 +194,7 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Motion (emil-design-eng): the built-in CSS curves are too soft to feel
+  /* Motion: the built-in CSS curves are too soft to feel
      intentional. These replace Tailwind's `ease-out`/`ease-in-out` and are
      the default for every `transition-*` utility, so the whole app moves
      with one voice. `ease-in` is deliberately left unused — it delays the
@@ -292,7 +292,7 @@
     background-color: var(--muted-foreground);
   }
 
-  /* Browser-drawn surfaces carry the palette too (impeccable craft floor):
+  /* Browser-drawn surfaces carry the palette too (a basic craft floor):
      the default blue selection and black caret belong to no design system. */
   ::selection {
     background-color: color-mix(in oklch, var(--primary) 24%, transparent);
@@ -304,7 +304,7 @@
   }
 }
 
-/* Reduced motion means gentler, not none (emil-design-eng): keep the fades
+/* Reduced motion means gentler, not none: keep the fades
    that help comprehension, drop the movement. tw-animate-css drives every
    enter/exit (dialogs, dropdowns, toasts, the login card) through these
    variables, so zeroing them removes slide/zoom app-wide while opacity
@@ -326,7 +326,7 @@
 
 @layer utilities {
   /*
-   * Glass only where it does a job (impeccable: never as decoration): the
+   * Glass only where it does a job (never as decoration): the
    * sticky top bars, where page content scrolls underneath and the blur
    * keeps the bar legible while showing there's more above. Not dialogs,
    * not cards, never data tables. backdrop-filter degrades gracefully to a
@@ -358,7 +358,7 @@
 
 /* Short and tight (≤250ms, 40ms steps): this is a product surface people
    land on every day, so the cascade must read as "settled", never as a
-   sequence to wait through (impeccable Operate mode; emil stagger rule). */
+   sequence to wait through (work screens stay fast; short staggers only). */
 @media (prefers-reduced-motion: no-preference) {
   .stagger-in {
     animation: stagger-in 250ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
@@ -446,7 +446,7 @@
   .page-loader-bar { animation: none; width: 100%; opacity: 0.6; }
 }
 
-/* Animated EychAr loader (components/shared/brand-loader.tsx). One image shows at a time:
+/* Animated brand loader (components/shared/brand-loader.tsx). One image shows at a time:
    the animation for the theme, or a still of the finished frame under reduced motion.
    the stage choreography below hands over to the skeleton. */
 .brand-loader img { display: none; }

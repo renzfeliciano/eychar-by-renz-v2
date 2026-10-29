@@ -32,7 +32,7 @@ const OPEN_ASSIGNMENT_FILTER = {
 
 /**
  * Every referenced position/unit/project/location must belong to the same
- * organization (never trust a client-supplied id, AGENTS.md §36) — same
+ * organization (never trust a client-supplied id, ENGINEERING.md §36) — same
  * pattern as Phase 2's FK checks. Who sits under whom lives on the org
  * chart (ADR-046), not on assignments.
  */
@@ -109,7 +109,7 @@ export const EmployeeAssignmentService = {
   },
 
   /**
-   * The transfer mechanic (AGENTS.md §15/§16/§59): the employee's current
+   * The transfer mechanic (ENGINEERING.md §15/§16/§59): the employee's current
    * assignment is closed (effectiveTo set), never edited in place, and a
    * new assignment row is created — both remain queryable afterwards.
    */
@@ -124,7 +124,7 @@ export const EmployeeAssignmentService = {
 
     // Anything the caller didn't specify carries over from the assignment
     // being closed out — a transfer changes what it says it changes; it
-    // must never silently blank out everything else (AGENTS.md §15/§16).
+    // must never silently blank out everything else (ENGINEERING.md §15/§16).
     const merged: AssignmentFields = {
       positionId: fields.positionId ?? current?.positionId?.toString(),
       organizationUnitId: fields.organizationUnitId ?? current?.organizationUnitId?.toString(),

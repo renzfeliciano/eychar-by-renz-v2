@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
-// A Position is a data record only (AGENTS.md §11/§12) — it is never used
+// A Position is a data record only (ENGINEERING.md §11/§12) — it is never used
 // for authorization or to derive reporting relationships anywhere in this
 // codebase.
 const positionSchema = new Schema(

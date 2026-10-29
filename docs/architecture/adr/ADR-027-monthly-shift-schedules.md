@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 HR asked for a submodule under Attendance to map each employee's monthly schedule, with an easy
-export. Asked directly, the user chose:
+export. Asked directly, the product owner chose:
 
 - **Shift templates**: HR defines reusable shifts once and picks one per day (not free-typed times).
 - **Reference only**: the schedule is a plan. Late/present keeps following `AttendancePolicy`

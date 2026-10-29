@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
 // A rehire is just a new Employment row with effectiveFrom after the prior
-// row's effectiveTo — no special "rehire" flag (AGENTS.md §14). No
+// row's effectiveTo — no special "rehire" flag (ENGINEERING.md §14). No
 // compensation fields here: that's Payroll's PayrollPolicy/PayrollRecord
 // territory (Phase 7), not Employment's.
 const employmentSchema = new Schema(
@@ -12,7 +12,7 @@ const employmentSchema = new Schema(
     // against the org's EmploymentType/EmploymentStatus collections
     // (EmploymentTypeService/EmploymentStatusService.assertValidCode)
     // instead of a hardcoded Mongoose enum — employment types genuinely
-    // vary by organization/country (AGENTS.md §14/§55), and an org can add
+    // vary by organization/country (ENGINEERING.md §14/§55), and an org can add
     // "Resigned"/"AWOL" etc. via Settings without a schema change.
     employmentType: { type: String, required: true, trim: true },
     status: { type: String, required: true, trim: true, default: "active" },

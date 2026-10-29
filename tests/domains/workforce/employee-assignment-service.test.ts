@@ -42,7 +42,7 @@ async function seedScenario() {
   return { organization, orgId, employee, managerB, managerC, supervisorPosition, opsManagerPosition, projectA, projectB };
 }
 
-describe("EmployeeAssignmentService — required historical test (AGENTS.md §59)", () => {
+describe("EmployeeAssignmentService — required historical test (ENGINEERING.md §59)", () => {
   beforeEach(async () => {
     await connectMongoDB();
   });

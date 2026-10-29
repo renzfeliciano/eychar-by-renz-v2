@@ -7,7 +7,7 @@ import { PayrollPolicyModel } from "@/server/db/models";
 import { createPayrollPolicySchema } from "@/shared/validation/payroll";
 import { computeSettlement, type SettlementInputs } from "@/domains/final-settlement/settlement-calculator";
 
-// Premiums are payroll policy data (AGENTS.md §2, §28): defaults equal the
+// Premiums are payroll policy data (ENGINEERING.md §2, §28): defaults equal the
 // values that used to be hardcoded, and a policy's own values change results.
 
 function restDayInput(policy: Partial<PayInput["policy"]> = {}): PayInput {

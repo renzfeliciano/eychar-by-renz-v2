@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted. Extends ADR-019 (end of contract) and AGENTS.md §14 (Employment).
+Accepted. Extends ADR-019 (end of contract) and ENGINEERING.md §14 (Employment).
 
 ## Context
 
 HR reported (concerns deck, 27 Oct 2026) that the dashboard's "Review 7 contracts ending soon"
 listed people who are already regular. The records said otherwise: all seven were still
-Probationary or Contractual in EychAr, with their old end dates, because nothing in the app could
+Probationary or Contractual in PCAS HRIS, with their old end dates, because nothing in the app could
 change an employee's type. Regularizing someone, or renewing a contract, had no screen; the only
 ways to touch an employment were hire and terminate.
 

@@ -3,7 +3,7 @@ import { hiddenPlugin } from "../hidden-plugin";
 
 // Employee is pure identity — no status field of its own. "Is this employee
 // currently active" is answered by their latest Employment record, not a
-// second flag here that could drift out of sync with it (AGENTS.md §13/§14).
+// second flag here that could drift out of sync with it (ENGINEERING.md §13/§14).
 const employeeSchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },

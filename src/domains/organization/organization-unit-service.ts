@@ -81,7 +81,7 @@ export const OrganizationUnitService = {
     return unit;
   },
 
-  /** Only currently-effective units (AGENTS.md §16/§27) — a historical-date view is Phase 4. */
+  /** Only currently-effective units (ENGINEERING.md §16/§27) — a historical-date view is Phase 4. */
   async listCurrent(organizationId: string) {
     await connectMongoDB();
 

@@ -6,7 +6,7 @@ import { OrganizationModel, PayrollRunModel, ProjectModel, RoleAssignmentModel, 
 import { accessibleProjectIds, authorize, heldPermissions, missingGrants } from "@/server/authorization/authorize";
 import { AuthorizationError, NotFoundError } from "@/shared/errors";
 
-// Project-scoped role assignments (AGENTS.md §21/§22, ADR-007): the §60
+// Project-scoped role assignments (ENGINEERING.md §21/§22, ADR-007): the §60
 // matrix against the real authorize()/requireProjectAccess, DB-backed.
 const session = vi.fn();
 vi.mock("next-auth", () => ({ getServerSession: () => session() }));

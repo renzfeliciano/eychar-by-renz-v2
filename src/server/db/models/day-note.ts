@@ -4,7 +4,7 @@ import { hiddenPlugin } from "../hidden-plugin";
 // HR's free-form note on one calendar day of the organization ("Typhoon
 // signal #2: skeleton crew"), shown on the Schedules day panel (ADR-035).
 // One per organization per day (unique index); clearing it sets `status`
-// to "cleared" rather than deleting (AGENTS.md §53), keeping the audit trail
+// to "cleared" rather than deleting (ENGINEERING.md §53), keeping the audit trail
 // readable.
 const dayNoteSchema = new Schema(
   {

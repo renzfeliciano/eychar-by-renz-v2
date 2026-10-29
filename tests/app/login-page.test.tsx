@@ -31,11 +31,11 @@ describe("LoginPage", () => {
     signIn.mockResolvedValue({ error: null });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "secret");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 
-    expect(signIn).toHaveBeenCalledWith("credentials", { login: "renzy_admin", password: "secret", redirect: false });
+    expect(signIn).toHaveBeenCalledWith("credentials", { login: "hr_admin", password: "secret", redirect: false });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
   });
 
@@ -44,7 +44,7 @@ describe("LoginPage", () => {
     signIn.mockResolvedValue({ error: null, ok: true });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "secret");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 
@@ -59,7 +59,7 @@ describe("LoginPage", () => {
     signIn.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "secret");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 
@@ -75,7 +75,7 @@ describe("LoginPage", () => {
     signIn.mockResolvedValueOnce({ error: null, ok: false, status: 500 });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "secret");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 
@@ -88,7 +88,7 @@ describe("LoginPage", () => {
     signIn.mockResolvedValue({ error: "CredentialsSignin" });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "wrong");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 
@@ -101,7 +101,7 @@ describe("LoginPage", () => {
     signIn.mockResolvedValueOnce({ error: "locked" }).mockResolvedValueOnce({ error: "rate_limited" });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "wrong");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
     expect(await screen.findByText(/This account is locked for 15 minutes/)).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("LoginPage", () => {
     signIn.mockResolvedValueOnce({ error: "mfa_required" }).mockResolvedValueOnce({ error: "invalid_otp" }).mockResolvedValueOnce({ error: null });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "harbor-lantern-73-mango");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 
@@ -128,7 +128,7 @@ describe("LoginPage", () => {
     await user.clear(code);
     await user.type(code, "287082");
     await user.click(screen.getByRole("button", { name: /Verify/ }));
-    expect(signIn).toHaveBeenLastCalledWith("credentials", { login: "renzy_admin", password: "harbor-lantern-73-mango", otp: "287082", redirect: false });
+    expect(signIn).toHaveBeenLastCalledWith("credentials", { login: "hr_admin", password: "harbor-lantern-73-mango", otp: "287082", redirect: false });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
   });
 
@@ -137,7 +137,7 @@ describe("LoginPage", () => {
     signIn.mockResolvedValueOnce({ error: "mfa_required" });
     render(<LoginPage />);
 
-    await user.type(screen.getByLabelText("Username or email"), "renzy_admin");
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
     await user.type(screen.getByLabelText("Password"), "harbor-lantern-73-mango");
     await user.click(screen.getByRole("button", { name: /Sign in/ }));
 

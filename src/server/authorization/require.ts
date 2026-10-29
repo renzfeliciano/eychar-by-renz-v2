@@ -27,7 +27,7 @@ export type RequireAuthenticatedUserOptions = {
 /**
  * Resolves the authenticated user from the server-side session only.
  * Authentication (who is this?) is intentionally kept separate from
- * authorization (what can they do?) — see AGENTS.md §19. An account that
+ * authorization (what can they do?) — see ENGINEERING.md §19. An account that
  * must replace a temporary password (new, or reset by an administrator) is
  * refused everywhere else until it has, not just redirected by the pages.
  */
@@ -61,7 +61,7 @@ export async function requirePermission(
 }
 
 /**
- * A permission on one project (AGENTS.md §22 `requireProjectAccess`): passes
+ * A permission on one project (ENGINEERING.md §22 `requireProjectAccess`): passes
  * for an organization-wide grant, or a project-scoped grant naming this
  * project. The project must belong to the organization (a malformed id or
  * another organization's project reads as not found). Never trust a

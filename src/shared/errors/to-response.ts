@@ -100,7 +100,7 @@ export function describeErrorForLog(error: unknown): Record<string, unknown> {
 /**
  * Route handlers convert any thrown error to an HTTP response through this
  * single chokepoint, so an unexpected/database error never leaks internal
- * messages or stack details to the client (per AGENTS.md §48).
+ * messages or stack details to the client (per ENGINEERING.md §48).
  */
 function isCastError(error: unknown): boolean {
   const name = error instanceof Error ? error.name : undefined;

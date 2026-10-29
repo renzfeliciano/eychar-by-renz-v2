@@ -4,7 +4,7 @@
  * when a policy saved before these fields existed is read without Mongoose
  * defaults (`.lean()`), so older policies and past runs read exactly as
  * before. Configuration, not formulas: each policy can set its own
- * (AGENTS.md §2, §28).
+ * (ENGINEERING.md §2, §28).
  */
 export const PAY_PREMIUM_DEFAULTS = {
   /** Overtime pay as a multiple of the hourly rate (1.25 = 125%). */

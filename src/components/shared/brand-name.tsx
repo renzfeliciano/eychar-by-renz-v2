@@ -2,9 +2,8 @@ import { cn } from "@/lib/utils";
 import { BRAND } from "@/lib/brand";
 
 /**
- * The product wordmark: "EychAr", and optionally
- * the pronunciation tagline underneath ("/eɪtʃ ɑːr/ · people, time and
- * payroll"). Purely presentational; the org's own name never goes here.
+ * The product wordmark: "PCAS HRIS", and optionally the tagline underneath
+ * ("people, time and payroll"). Purely presentational.
  */
 export function BrandName({
   tagline = false,
@@ -20,18 +19,10 @@ export function BrandName({
       <span
         className={cn("truncate font-semibold tracking-tight", nameClassName)}
       >
-        {BRAND.name}{" "}
-        <span className="font-normal text-muted-foreground">
-          {BRAND.byline}
-        </span>
+        {BRAND.name}
       </span>
       {tagline && (
-        <span
-          className="truncate text-xs text-muted-foreground"
-          title={`${BRAND.name} ${BRAND.pronunciation} · ${BRAND.tagline}`}
-        >
-          <span className="sr-only">Pronounced aitch-ar. </span>
-          <span aria-hidden="true">{BRAND.pronunciation}</span> ·{" "}
+        <span className="truncate text-xs text-muted-foreground" title={`${BRAND.name} · ${BRAND.tagline}`}>
           {BRAND.tagline}
         </span>
       )}

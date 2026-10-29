@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-AGENTS.md §57 names `leaveRequests` with an approval workflow as a distinct Phase 6 deliverable,
+ENGINEERING.md §57 names `leaveRequests` with an approval workflow as a distinct Phase 6 deliverable,
 and §20's own example permission set lists `leave.approve` as its own key. Attendance (Phase 5,
 ADR-011) deliberately deferred building a real request/approve state machine, using its
 adjustment audit trail as a stand-in approval record instead — Leave is the first domain that
@@ -26,7 +26,7 @@ who requested what and who decided it can never be silently overwritten.
 "reject" }`); `cancel()` is gated by `leave.update` (`{ action: "cancel" }`). The person who can
 withdraw their own pending request is not necessarily the person who can approve someone else's
 — folding both into one permission key would force every organization's role design to grant one
-capability whenever they need the other, which AGENTS.md §20's own granular example set (naming
+capability whenever they need the other, which ENGINEERING.md §20's own granular example set (naming
 `leave.approve` specifically) already rejects.
 
 **Balance consumption is derived at read time, not stored as a running counter.**
@@ -62,7 +62,7 @@ boundary because every caller supplies its concrete type as the generic paramete
 - `tests/domains/leave/leave-request-service.test.ts` covers all four transition edges (approve
   from pending, reject from pending with a reason, cancel from pending, and rejecting a second
   decide/cancel attempt on an already-decided request) plus both `create()` guards
-  (balance-exceeded, overlap) — this is the test suite that most directly proves AGENTS.md §57's
+  (balance-exceeded, overlap) — this is the test suite that most directly proves ENGINEERING.md §57's
   approval-workflow requirement, the same way ADR-005's test proves the transfer mechanic.
 - `tests/domains/leave/leave-balance-service.test.ts` proves the derived-balance decision
   directly: an approved request reduces `getAvailable()`, a pending or rejected one does not.

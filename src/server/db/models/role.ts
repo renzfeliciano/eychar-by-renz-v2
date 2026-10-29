@@ -4,7 +4,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 // itself, so it's embedded as permissionKeys rather than a separate
 // role-permission join collection (see ARCHITECTURE.md, embedding vs
 // references). Roles are org-scoped seeded data, never hardcoded role
-// names in authorization logic (AGENTS.md §20/§55).
+// names in authorization logic (ENGINEERING.md §20/§55).
 const roleSchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },

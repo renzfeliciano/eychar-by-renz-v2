@@ -2,7 +2,7 @@
  * Boolean flags on catalog items live in `metadata` (e.g. an employment
  * status's `isActiveHeadcount`, a case status's `isClosed`, a recruitment
  * stage's `isHired`): what a code *means* is data on the item, never a code
- * list in application logic (AGENTS.md §2).
+ * list in application logic (ENGINEERING.md §2).
  *
  * Items saved before a flag existed don't carry it. For those, and only
  * for the codes the platform itself seeded with that meaning, `legacyCodes`

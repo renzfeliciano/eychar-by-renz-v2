@@ -33,7 +33,7 @@ export type SubmitPerformanceReviewInput = z.infer<typeof submitPerformanceRevie
 
 const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-01");
 
-/** POST /api/evaluation-follow-ups: a probation evaluation sent or completed outside EychAr (ADR-053). */
+/** POST /api/evaluation-follow-ups: a probation evaluation sent or completed outside PCAS HRIS (ADR-053). */
 export const recordEvaluationFollowUpSchema = z.object({
   organizationId: objectId(),
   employeeId: objectId(),

@@ -6,11 +6,11 @@ Accepted
 
 ## Context
 
-`Documents` was the last unimplemented Phase 8 sub-phase (AGENTS.md §57), but unlike every other
+`Documents` was the last unimplemented Phase 8 sub-phase (ENGINEERING.md §57), but unlike every other
 module added this phase, the legacy v1 app has no Documents feature at all to mirror — it's only
-ever mentioned as a bare domain name in AGENTS.md's own list. With no source of truth to read
+ever mentioned as a bare domain name in ENGINEERING.md's own list. With no source of truth to read
 from and two real architectural forks (what a "document" even is here, and how the file itself
-is stored), the user was asked directly rather than guessed at:
+is stored), the product owner was asked directly rather than guessed at:
 
 - **Scope**: employee 201-file documents (government IDs, contracts, certifications, resumes) —
   not a separate company-wide document library.
@@ -26,7 +26,7 @@ is stored), the user was asked directly rather than guessed at:
   catalog** (`DocumentType`, added to `CATALOG_REGISTRY` alongside the existing eight, seeded with
   Government ID/Employment Contract/Certification/Resume/Other) — consistent with every other
   categorization field in this app, not a hardcoded enum.
-- **No hard delete** (AGENTS.md §53), and specifically **no delete at all** here, not even a
+- **No hard delete** (ENGINEERING.md §53), and specifically **no delete at all** here, not even a
   status-based soft one like Travel Orders/Events — a wrong upload is superseded by uploading a
   corrected document; there's no "cancelled" state that make sense for a stored file the way there
   is for a scheduled trip or calendar event.

@@ -6,7 +6,7 @@ Accepted. Extends ADR-007 (scoped RBAC) and ADR-023 (custom roles).
 
 ## Context
 
-Every role assignment applied to the whole organization. AGENTS.md §21–22 and the required
+Every role assignment applied to the whole organization. ENGINEERING.md §21–22 and the required
 authorization test (§60) need a Project Manager who can act on Project A and not on Project B,
 checked on the server. `RoleAssignment.scope` was already a discriminated shape
 (`{ type: "organization" }`) so a new kind could be added without a migration.

@@ -1,12 +1,12 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
-// The organization's holiday calendar (AGENTS.md §"HolidayCalendar",
+// The organization's holiday calendar (ENGINEERING.md §"HolidayCalendar",
 // ADR-035): data HR owns, not dates baked into code. A country preset (the
 // Philippines today) only *proposes* entries; HR reviews and saves them
 // here, and adds local or late-proclaimed holidays by hand. `date` is UTC
 // midnight of the calendar day, like ScheduleEntry/AttendanceRecord. No
-// hard delete (AGENTS.md §53): a wrong entry is cancelled via `status`.
+// hard delete (ENGINEERING.md §53): a wrong entry is cancelled via `status`.
 const holidaySchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },

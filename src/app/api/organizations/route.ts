@@ -3,7 +3,7 @@ import { requireAuthenticatedUser } from "@/server/authorization";
 import { OrganizationService } from "@/domains/organization/organization-service";
 import { toErrorResponse } from "@/shared/errors/to-response";
 
-// Authenticate → Resolve Context → Execute → Return (AGENTS.md §36). Scoped
+// Authenticate → Resolve Context → Execute → Return (ENGINEERING.md §36). Scoped
 // strictly to organizations the caller has an active RoleAssignment in —
 // never returns every organization in the database.
 export async function GET() {

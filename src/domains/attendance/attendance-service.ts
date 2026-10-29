@@ -42,7 +42,7 @@ export function toCalendarDateUtc(date: Date): Date {
 
 /**
  * Computed and stored at record time, using whichever policy resolves for
- * this record's own date (AGENTS.md §27) — never recomputed later against
+ * this record's own date (ENGINEERING.md §27) — never recomputed later against
  * today's policy. Without a resolvable policy there's nothing to compare
  * a check-in time against, so a bare check-in defaults to "present".
  */
@@ -127,7 +127,7 @@ export const AttendanceService = {
   },
 
   /**
-   * The "Adjustments/Approval" step AGENTS.md §57 names: only a caller
+   * The "Adjustments/Approval" step ENGINEERING.md §57 names: only a caller
    * with attendance.update reaches this (enforced by the route), and the
    * audit trail this writes — before/after, actor, timestamp — *is* the
    * approval record for this phase, rather than a separate request/approve

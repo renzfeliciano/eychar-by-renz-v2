@@ -1,5 +1,5 @@
 # Runs on every push to main and every pull request: the same checks the
-# definition of "done" in AGENTS.md asks for (lint, typecheck, tests, build).
+# definition of "done" in ENGINEERING.md asks for (lint, typecheck, tests, build).
 name: CI
 
 on:
@@ -22,7 +22,7 @@ jobs:
       # Build-time placeholders only; nothing here is a real secret.
       NEXTAUTH_SECRET: ci-placeholder-secret-not-used-in-production
       NEXTAUTH_URL: http://localhost:4100
-      MONGODB_URI: mongodb://127.0.0.1:27017/eychar_ci
+      MONGODB_URI: mongodb://127.0.0.1:27017/pcas_hris_ci
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

@@ -1,4 +1,4 @@
-# ADR-050: Animated EychAr brand loader on slow route loads
+# ADR-050: Animated brand loader on slow route loads
 
 ## Status
 
@@ -7,7 +7,7 @@ Accepted. Extends ADR-048 (loading states).
 ## Context
 
 Every route already streams a skeleton shaped like its page plus a top progress bar (ADR-048). The
-product owner wanted a branded loader on top: a fast-paced (about 2 s loop) construction scene (a crane hoisting floors into a rising tower) that ends with the PCAS sign on the building and the EychAr wordmark below it.
+product owner wanted a branded loader on top: a fast-paced (about 2 s loop) construction scene (a crane hoisting floors into a rising tower) that ends with the PCAS sign on the building and the HRIS wordmark below it.
 
 ## Decision
 

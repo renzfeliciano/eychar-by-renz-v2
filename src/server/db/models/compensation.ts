@@ -13,7 +13,7 @@ const allowanceSchema = new Schema(
   { _id: false },
 );
 
-// Effective-dated pay terms, separate from Employment (AGENTS.md §13/§27).
+// Effective-dated pay terms, separate from Employment (ENGINEERING.md §13/§27).
 // `rate` is a monthly salary for monthly-rated staff and a daily rate for
 // daily-rated staff. Dates are calendar days (UTC midnight): the row applies
 // from effectiveFrom through effectiveTo, both included; a change closes

@@ -8,7 +8,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
  * checked in `order`: the first match wins, so put specific rules (a position)
  * before general ones (anyone on a project).
  *
- * This is a narrow, deliberate use of positions (see ADR-004/AGENTS.md §12):
+ * This is a narrow, deliberate use of positions (see ADR-004/ENGINEERING.md §12):
  * it only picks the evaluator of one evaluation. It grants no permission and
  * defines no reporting line; access still comes from role permissions.
  */

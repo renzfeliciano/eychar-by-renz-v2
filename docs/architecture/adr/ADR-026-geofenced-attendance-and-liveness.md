@@ -12,7 +12,7 @@ and silently skipped on failure. In practice they were *always* skipped: the app
 `Permissions-Policy: camera=(), geolocation=()` header disabled both APIs for every origin including
 this one, so `getUserMedia`/`getCurrentPosition` failed on every clock-in.
 
-The user asked for attendance to be judged by *where* it happens: an employee picks the project
+The product owner asked for attendance to be judged by *where* it happens: an employee picks the project
 they're working at, the project has a site, and a clock-in is only valid within that site's vicinity.
 They also asked that the photo be demonstrably live. Presented with the tradeoffs, they chose,
 explicitly:
@@ -30,7 +30,7 @@ explicitly:
   is a clock-in site when it's active and linked to an active location that has coordinates.
   `ClockSiteService` derives sites on read (never stored), so HR moving a project or changing a
   radius takes effect on the next clock-in. Coordinates live on Location, not Project, because
-  projects already reference a Location (AGENTS.md §17) and several projects can share one site.
+  projects already reference a Location (ENGINEERING.md §17) and several projects can share one site.
 - **HR tooling.** Locations and Projects gain edit dialogs (`LocationService.update`,
   `ProjectService.update`, "" clears a field via the existing `clearable()` convention). The location
   form fills coordinates from the device's GPS or from a pasted Google Maps "lat, lng" pair.

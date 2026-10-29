@@ -20,7 +20,7 @@ describe("readHeader", () => {
   it("reads Node-style and Fetch-style headers", () => {
     expect(readHeader({ host: "localhost:4100" }, "host")).toBe("localhost:4100");
     expect(readHeader({ host: ["a", "b"] }, "host")).toBe("a");
-    expect(readHeader(new Headers({ host: "eychar.example" }), "host")).toBe("eychar.example");
+    expect(readHeader(new Headers({ host: "pcas-hris.example" }), "host")).toBe("pcas-hris.example");
     expect(readHeader(undefined, "host")).toBeUndefined();
   });
 });

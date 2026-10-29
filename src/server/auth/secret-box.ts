@@ -26,7 +26,7 @@ function encryptionKey(): Buffer {
   }
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) throw new Error("Set MFA_ENCRYPTION_KEY or NEXTAUTH_SECRET to store two-factor secrets");
-  return Buffer.from(hkdfSync("sha256", secret, "workforcehub", "mfa-secret-box-v1", 32));
+  return Buffer.from(hkdfSync("sha256", secret, "pcas-hris", "mfa-secret-box-v1", 32));
 }
 
 export function sealSecret(plaintext: string): string {

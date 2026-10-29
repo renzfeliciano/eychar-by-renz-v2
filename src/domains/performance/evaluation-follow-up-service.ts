@@ -7,7 +7,7 @@ import { NotFoundError } from "@/shared/errors";
 import type { RecordEvaluationFollowUpInput } from "@/shared/validation/performance";
 
 /**
- * Probation evaluations handled outside EychAr (ADR-053): HR records that
+ * Probation evaluations handled outside PCAS HRIS (ADR-053): HR records that
  * the form was sent to the evaluator (by email or on paper), or that the
  * evaluation is complete. That takes the probation's "Evaluate … before
  * regularization" row off the dashboard; the record stays on the

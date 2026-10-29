@@ -22,8 +22,8 @@ export function generateMetadata(): Metadata {
     description,
     applicationName: BRAND.fullName,
     keywords: SITE_KEYWORDS,
-    authors: [{ name: "Renz" }],
-    creator: "Renz",
+    authors: [{ name: "Project Concepts and Administrative Services, Inc." }],
+    creator: "Project Concepts and Administrative Services, Inc.",
     category: "business",
     // Share previews (Messenger, Viber, Slack, LinkedIn, X).
     openGraph: { ...baseOpenGraph(description), title: BRAND.fullName, url: "/" },

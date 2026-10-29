@@ -12,7 +12,7 @@ Recruitment was first built with its own shape: a `JobOpening` entity (with `hea
 existing `HireService.hire()` to create a real `Employee` record when an applicant reached the
 final pre-terminal stage.
 
-The user asked that this module be rebuilt to match the legacy v1 app's actual, already-shipped
+The product owner asked that this module be rebuilt to match the legacy v1 app's actual, already-shipped
 Application Tracking feature instead. Inspecting v1 (`src/features/recruitment/**`) showed a
 materially simpler design: applicants reference a `Position` directly (no job-opening/headcount
 layer at all), a card can move to **any** stage in **either** direction via a plain "Move to"

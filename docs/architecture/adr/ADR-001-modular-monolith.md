@@ -8,7 +8,7 @@ Accepted
 
 The platform must eventually support Identity, Organization, People, Workforce, Attendance,
 Leave, Payroll, Recruitment, Performance, Cases, Assets, Documents, Events, Configuration, and
-Audit domains, deployed on Vercel Hobby + MongoDB Atlas Free Tier (AGENTS.md §45).
+Audit domains, deployed on Vercel Hobby + MongoDB Atlas Free Tier (ENGINEERING.md §45).
 
 ## Decision
 

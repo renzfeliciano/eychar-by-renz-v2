@@ -27,7 +27,7 @@ function toEntry(input: AuditRecordInput) {
 }
 
 /**
- * Append-only audit trail (AGENTS.md §35). Intentionally exposes only
+ * Append-only audit trail (ENGINEERING.md §35). Intentionally exposes only
  * appends (`record`, `recordMany`) — no update/delete, so an entry can never
  * be edited through normal application code once written.
  */

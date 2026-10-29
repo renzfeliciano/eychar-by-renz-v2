@@ -17,7 +17,7 @@ export const PayrollRuleVersionService = {
    * Never edits an existing version: a correction is a new version with the
    * next versionNumber (usually "based on" the one it corrects), so a run's
    * snapshotted ruleVersionId keeps pointing at exactly what was used
-   * (AGENTS.md §28).
+   * (ENGINEERING.md §28).
    */
   async create(input: CreatePayrollRuleVersionInput, actor: { userId?: string }) {
     await connectMongoDB();
@@ -96,7 +96,7 @@ export const PayrollRuleVersionService = {
     return version;
   },
 
-  /** Organization → Project override resolution (AGENTS.md §26) via the shared resolver. */
+  /** Organization → Project override resolution (ENGINEERING.md §26) via the shared resolver. */
   async resolve(params: { organizationId: string; projectId?: string; effectiveDate: Date }) {
     await connectMongoDB();
     return resolveOrgProjectPolicy<PayrollRuleVersionDoc>(PayrollRuleVersionModel, params);

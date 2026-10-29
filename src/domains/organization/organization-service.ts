@@ -36,7 +36,7 @@ export const OrganizationService = {
   /**
    * Organizations this user currently has an active RoleAssignment in —
    * the server-side scoping for "my organizations" (never trust a
-   * client-supplied organizationId list, per AGENTS.md §36).
+   * client-supplied organizationId list, per ENGINEERING.md §36).
    */
   async listAccessibleTo(userId: string) {
     await connectMongoDB();

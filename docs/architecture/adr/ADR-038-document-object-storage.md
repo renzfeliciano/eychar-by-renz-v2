@@ -13,7 +13,7 @@ query touching the collection carries the files. Uploads were also sent as base6
 which inflates them by a third; anything over about 3.3MB went past Vercel's 4.5MB request body
 limit and failed, even though the form said 5MB.
 
-AGENTS.md §43 already asks for "Document Metadata → Storage Provider → Object Storage" with a
+ENGINEERING.md §43 already asks for "Document Metadata → Storage Provider → Object Storage" with a
 replaceable provider.
 
 ## Decision
@@ -29,7 +29,7 @@ replaceable provider.
 - **Model:** `EmployeeDocument.storage { provider: "vercel-blob" | "inline", key? }`; `fileData` is now
   optional. Documents uploaded before this change have `fileData` and no `storage`, and are read
   the same way. No migration is required; moving old files into Blob can be a later, explicit
-  backfill (AGENTS.md §53).
+  backfill (ENGINEERING.md §53).
 - **Upload:** `POST /api/employees/[id]/documents` takes `multipart/form-data` (metadata fields plus
   `file`). The cap is 4MB (`MAX_DOCUMENT_BYTES`), under Vercel's 4.5MB body limit; the route refuses
   a larger `Content-Length` before reading the body. Type, content and size are still checked

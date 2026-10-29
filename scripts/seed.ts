@@ -40,12 +40,12 @@ import { DEFAULT_RECRUITMENT_STAGES } from "@/domains/recruitment/default-stages
 import type { Model } from "mongoose";
 
 // Baseline permission catalog. This is seeded *data*, not hardcoded
-// authorization logic (AGENTS.md §54) — new permission keys are added here
+// authorization logic (ENGINEERING.md §54) — new permission keys are added here
 // as later phases introduce the domains that need them. Granular
-// create/read/update per resource (AGENTS.md §20's own example is
+// create/read/update per resource (ENGINEERING.md §20's own example is
 // "employees.read"/"employees.create", not one coarse "employees.manage")
 // rather than a single "manage" key — no "delete" key exists anywhere yet
-// because nothing in this codebase hard-deletes (AGENTS.md §53); removal
+// because nothing in this codebase hard-deletes (ENGINEERING.md §53); removal
 // is always a status transition, covered by "update".
 const BASELINE_PERMISSIONS = [
   { key: "users.create", description: "Create user accounts", category: "identity" },
@@ -226,7 +226,7 @@ const BASELINE_PERMISSIONS = [
 // Superseded by the granular create/read/update keys above (this seed used
 // to grant a single coarse "<resource>.manage" per resource). Explicitly
 // retired rather than left as orphaned catalog entries and stale grants on
-// already-seeded roles (AGENTS.md §53 — explicit, idempotent cleanup, not
+// already-seeded roles (ENGINEERING.md §53 — explicit, idempotent cleanup, not
 // a silent migration).
 const RETIRED_PERMISSION_KEYS = [
   "organization.manage",
@@ -291,7 +291,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
 
   // Organization is a plain data record, editable later (name/slug are not
   // hardcoded anywhere in application logic) — this seed just establishes
-  // the initial value per AGENTS.md §8/§54.
+  // the initial value per ENGINEERING.md §8/§54.
   let organization = await OrganizationModel.findOne({ slug: organizationSlug });
   const isNewOrganization = !organization;
   organization ??= await OrganizationModel.create({
@@ -302,7 +302,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   // $addToSet (not $setOnInsert) for permissionKeys: re-running seed after
   // adding new baseline permissions must bring an *already-seeded* HR
   // Administrator role up to date too, not just a freshly-created one
-  // (AGENTS.md §53 — explicit, idempotent backfill).
+  // (ENGINEERING.md §53 — explicit, idempotent backfill).
   const hrRole = await RoleModel.findOneAndUpdate(
     { organizationId: organization._id, name: "HR Administrator" },
     {
@@ -325,7 +325,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   );
 
   // Backfills `status` onto every role seeded before that field existed
-  // (AGENTS.md §53) — authorize() already treats a missing status as
+  // (ENGINEERING.md §53) — authorize() already treats a missing status as
   // active, so this is cleanup, not a correctness fix.
   await RoleModel.updateMany({ status: { $exists: false } }, { $set: { status: "active" } });
 
@@ -375,7 +375,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   }
 
   // Payroll starters (ADR-029), as editable DATA, never formulas in code
-  // (AGENTS.md §28): the Philippine 2025 statutory tables as a rule version,
+  // (ENGINEERING.md §28): the Philippine 2025 statutory tables as a rule version,
   // and a semi-monthly policy. Each is created only when the organization
   // has none of its own. Older rule versions without withholding tables
   // (the pre-ADR-029 example) are retired so they can't resolve for a run.
@@ -424,7 +424,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   // Default catalog items, sourced from the v1 (legacy) app's real
   // "Workspace administration" lookup lists as a starter set (per explicit
   // instruction: seed these as data, not as hardcoded application logic —
-  // AGENTS.md §30). Each item is upserted by {organizationId, code} so
+  // ENGINEERING.md §30). Each item is upserted by {organizationId, code} so
   // re-running db:seed never duplicates or trips the unique index, while
   // still leaving room for the org to add further items of its own through
   // the Settings > Catalogs UI.

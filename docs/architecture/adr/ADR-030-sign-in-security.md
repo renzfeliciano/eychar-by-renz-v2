@@ -6,7 +6,7 @@ Accepted (2026-09-28).
 
 ## Context
 
-The user asked whether security was "enterprise-grade and client-ready". A review found good
+The product owner asked whether security was "enterprise-grade and client-ready". A review found good
 basics:
 
 - argon2 password hashes;

@@ -16,7 +16,7 @@ export type EmploymentTermsView = {
     note: string | null;
     changedBy: string | null;
   }[];
-  /** Probation evaluations recorded as sent or completed outside EychAr (ADR-053). */
+  /** Probation evaluations recorded as sent or completed outside PCAS HRIS (ADR-053). */
   evaluations: { outcome: "sent" | "completed"; actionDate: Date; sentTo: string | null; remarks: string | null; recordedBy: string | null }[];
 };
 

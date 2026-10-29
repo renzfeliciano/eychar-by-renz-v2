@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 const ASSETS = "/assets/images";
 
 /**
- * The animated EychAr loader, on a transparent background (no card, no ground
+ * The animated brand loader, on a transparent background (no card, no ground
  * line). A tower crane hoists floor slabs into place in quick succession (the whole loop runs about 2 s), the
  * tower rises with a PCAS sign panel on its facade, then the windows light and
- * the EychAr wordmark lands letter by letter. Beside it trees sway, clouds and a
+ * the HRIS wordmark lands letter by letter. Beside it trees sway, clouds and a
  * bird drift by, and employees walk in through the door. Decorative only (the
  * surrounding status carries the announcement), so it is hidden from assistive tech.
  *
@@ -21,10 +21,10 @@ export function BrandLoader({ size = 112, className }: { size?: number; classNam
   const common = { width: 256, height: 256, unoptimized: true } as const;
   return (
     <span aria-hidden="true" data-testid="brand-loader" className={cn("brand-loader relative inline-block shrink-0", className)} style={{ width: size, height: size }}>
-      <Image {...common} alt="" src={`${ASSETS}/eychar-loader-light.webp`} className="bl-light-anim size-full" />
-      <Image {...common} alt="" src={`${ASSETS}/eychar-loader-dark.webp`} className="bl-dark-anim size-full" />
-      <Image {...common} alt="" src={`${ASSETS}/eychar-loader-light-still.png`} className="bl-light-still size-full" />
-      <Image {...common} alt="" src={`${ASSETS}/eychar-loader-dark-still.png`} className="bl-dark-still size-full" />
+      <Image {...common} alt="" src={`${ASSETS}/hris-loader-light.webp`} className="bl-light-anim size-full" />
+      <Image {...common} alt="" src={`${ASSETS}/hris-loader-dark.webp`} className="bl-dark-anim size-full" />
+      <Image {...common} alt="" src={`${ASSETS}/hris-loader-light-still.png`} className="bl-light-still size-full" />
+      <Image {...common} alt="" src={`${ASSETS}/hris-loader-dark-still.png`} className="bl-dark-still size-full" />
     </span>
   );
 }

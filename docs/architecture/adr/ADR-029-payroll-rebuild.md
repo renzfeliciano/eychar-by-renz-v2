@@ -20,7 +20,7 @@ A review of the Phase 7 payroll found problems that would produce wrong pay:
 The process was also a single step (generate, then approve), with no draft, no return, cancel or
 release, no pay date, no payslips and no register.
 
-There was no payroll data yet, so the models were rebuilt instead of migrated. The user chose each
+There was no payroll data yet, so the models were rebuilt instead of migrated. The product owner chose each
 option:
 
 - **Pay basis:** both monthly- and daily-rated employees.

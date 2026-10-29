@@ -13,7 +13,7 @@ const permissionLabel = cache(async (key: string): Promise<string | undefined> =
 
 /**
  * What a page renders when the viewer lacks the permission it checks
- * server-side (AGENTS.md §23: the nav hides most of these pages, so this is
+ * server-side (ENGINEERING.md §23: the nav hides most of these pages, so this is
  * reached by a shared link or a role that changed mid-session). Names the
  * missing access and the viewer's current roles so they can ask for exactly
  * what they need. Never says more than the viewer's own account and the

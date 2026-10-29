@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-AGENTS.md §19 requires authentication ("who is this?") to stay strictly separate from
+ENGINEERING.md §19 requires authentication ("who is this?") to stay strictly separate from
 authorization ("what can they do?"). A JWT session is convenient but risks becoming a place to
 cache role/permission data that then goes stale until the token expires or is refreshed.
 

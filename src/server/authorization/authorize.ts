@@ -30,7 +30,7 @@ export type HeldGrants = { superAdmin: boolean; keys: Set<string>; projectKeys: 
 export type AccessibleProjects = "all" | Types.ObjectId[];
 
 /**
- * The single server-side authorization chokepoint (AGENTS.md §20/§22):
+ * The single server-side authorization chokepoint (ENGINEERING.md §20/§22):
  * grants access only if the user has an active RoleAssignment in this exact
  * organization whose role carries the requested permission key, and whose
  * scope covers the request (organization-wide, or the named project).

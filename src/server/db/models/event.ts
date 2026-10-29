@@ -5,7 +5,7 @@ import { hiddenPlugin } from "../hidden-plugin";
 // plain trimmed String validated at the service layer against the
 // EventCategory catalog (EventCategoryService.assertValidCode), same
 // pattern as every other catalog-driven field in this app. No hard delete
-// (AGENTS.md §53) — a mistaken or called-off event is cancelled via
+// (ENGINEERING.md §53) — a mistaken or called-off event is cancelled via
 // `status`, not removed, so the calendar simply stops showing it.
 const eventSchema = new Schema(
   {

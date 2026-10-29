@@ -5,7 +5,7 @@ export type TaxBracket = { minIncome: number; maxIncome?: number | null; rate: n
  * [minIncome, maxIncome) covers the income, then baseDeduction + rate *
  * (income - minIncome). The formula is generic — it works for any
  * country's bracket table, since the brackets themselves are data
- * (AGENTS.md §28: never hardcode salary * 0.05 in code).
+ * (ENGINEERING.md §28: never hardcode salary * 0.05 in code).
  */
 export function computeProgressiveBracketTax(taxableIncome: number, brackets: TaxBracket[]): number {
   if (taxableIncome <= 0 || brackets.length === 0) return 0;

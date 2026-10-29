@@ -58,7 +58,7 @@ export const LeaveBalanceService = {
     return balance;
   },
 
-  /** Manual HR grant/correction — audited before/after (AGENTS.md §57 Approval). */
+  /** Manual HR grant/correction — audited before/after (ENGINEERING.md §57 Approval). */
   async adjust(id: string, organizationId: string, patch: { adjustmentDays: number }, actor: { userId?: string }) {
     await connectMongoDB();
 

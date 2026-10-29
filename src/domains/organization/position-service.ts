@@ -72,7 +72,7 @@ export const PositionService = {
     return position;
   },
 
-  /** Only currently-effective positions (AGENTS.md §16/§27) — a historical-date view is Phase 4. */
+  /** Only currently-effective positions (ENGINEERING.md §16/§27) — a historical-date view is Phase 4. */
   async listCurrent(organizationId: string) {
     await connectMongoDB();
 

@@ -88,7 +88,7 @@ export const PayrollPolicyService = {
     return PayrollPolicyModel.find({ organizationId: new Types.ObjectId(organizationId) }).sort({ effectiveFrom: -1 }).lean();
   },
 
-  /** Organization → Project override resolution (AGENTS.md §26) via the shared resolver. */
+  /** Organization → Project override resolution (ENGINEERING.md §26) via the shared resolver. */
   async resolve(params: { organizationId: string; projectId?: string; effectiveDate: Date }) {
     await connectMongoDB();
     return resolveOrgProjectPolicy<PayrollPolicyDoc>(PayrollPolicyModel, params);

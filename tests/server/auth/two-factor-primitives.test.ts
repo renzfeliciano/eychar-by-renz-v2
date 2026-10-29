@@ -41,8 +41,8 @@ describe("TOTP", () => {
   it("makes 160-bit secrets and an otpauth link authenticator apps understand", () => {
     const secret = generateTotpSecret();
     expect(base32Decode(secret)).toHaveLength(20);
-    const uri = otpauthUri(secret, "renzy_admin", "EychAr");
-    expect(uri).toBe(`otpauth://totp/EychAr:renzy_admin?secret=${secret}&issuer=EychAr&algorithm=SHA1&digits=6&period=30`);
+    const uri = otpauthUri(secret, "hr_admin", "PCAS HRIS");
+    expect(uri).toBe(`otpauth://totp/PCAS%20HRIS:hr_admin?secret=${secret}&issuer=PCAS%20HRIS&algorithm=SHA1&digits=6&period=30`);
   });
 });
 

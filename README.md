@@ -1,19 +1,18 @@
-# EychAr
+# PCAS HRIS
 
-**EychAr** /eɪtʃ ɑːr/ · people, time and payroll
+**PCAS HRIS** · people, time and payroll
 
-Say it "aitch-ar", like H·R. EychAr is a configurable, mobile-first HRIS: people records,
+The human resource information system of Project Concepts and Administrative Services, Inc.
+(PCAS). It is a configurable, mobile-first HRIS: people records,
 attendance and the self-service clock, monthly schedules with a holiday calendar, leave, payroll,
 clearance and final settlement, recruitment, performance, cases, travel orders, assets, documents
 and events. It installs as an app on phones and desktops (PWA).
 
-See [AGENTS.md](./AGENTS.md) for the full engineering instructions and
+See [docs/ENGINEERING.md](./docs/ENGINEERING.md) for the engineering guidelines and
 [ARCHITECTURE.md](./ARCHITECTURE.md) for what's built and why (decisions are in
 [docs/architecture/adr](./docs/architecture/adr)).
 
-> The repository is `eychar-by-renz-v2` (formerly `hris-workforcehub`); the product was renamed from
-> WorkforceHub to EychAr (ADR-036). Brand strings live in one place:
-> [`src/lib/brand.ts`](./src/lib/brand.ts).
+> Product strings (name, tagline) live in one place: [`src/lib/brand.ts`](./src/lib/brand.ts).
 
 ## Getting started
 
@@ -79,7 +78,7 @@ Only the sign-in page is meant to appear in search; everything else is behind si
 personal data. `src/app/robots.ts` allows `/login` and blocks the rest, `src/app/sitemap.ts` lists
 `/login`, the signed-in layouts send `noindex`, and `/api` responses carry `X-Robots-Tag: noindex`.
 The sign-in page has a full description, canonical link, JSON-LD (`WebApplication`) and a share
-image (`public/og/eychar-share.png`), so links pasted into Messenger, Viber, Slack or LinkedIn show
+image (`public/og/pcas-hris-share.png`), so links pasted into Messenger, Viber, Slack or LinkedIn show
 a proper card. Set `NEXT_PUBLIC_SITE_URL` (your real domain) and, optionally,
 `SITE_ORGANIZATION_NAME` in Vercel; then submit `https://<your-domain>/sitemap.xml` in Google
 Search Console.

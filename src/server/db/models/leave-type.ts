@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
-// Configurable catalog data (AGENTS.md §54) — leave type names/codes are
+// Configurable catalog data (ENGINEERING.md §54) — leave type names/codes are
 // never hardcoded; an organization defines its own (Vacation, Sick, ...).
 const leaveTypeSchema = new Schema(
   {

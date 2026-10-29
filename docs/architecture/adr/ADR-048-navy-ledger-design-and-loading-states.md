@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (October 2026). Supersedes the visual parts of ADR-013 and `design-system/workforcehub/MASTER.md`'s
+Accepted (October 2026). Supersedes the visual parts of ADR-013, including its original
 glassmorphism brief.
 
 ## Context

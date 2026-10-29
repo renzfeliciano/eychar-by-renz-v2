@@ -6,13 +6,13 @@ Accepted
 
 ## Context
 
-The v1 (legacy PCAS-WorkforceHub) app's "Workspace administration" screen exposes Employment
+The v1 (legacy) app's "Workspace administration" screen exposes Employment
 statuses, Attendance statuses, Recruitment stages, Event categories, Case classifications, and
 Case statuses as org-managed, addable/deactivatable lookup lists — alongside Positions and
 Projects, which this codebase already models correctly as their own dedicated Mongoose
 collections (`Position`, `Project`, Phase 2). Employment status and Attendance status, however,
 had shipped in Phases 3/5 as hardcoded Mongoose `enum` arrays, and the first draft of
-Recruitment stage repeated the same mistake — a real gap against AGENTS.md §30's own listing of
+Recruitment stage repeated the same mistake — a real gap against ENGINEERING.md §30's own listing of
 these as org-configurable catalogs.
 
 The first implementation of this fix used a single generic `CatalogItem` collection with a
@@ -39,7 +39,7 @@ exactly. What's shared is not data, but *code*:
   one-line service files (`employment-type-service.ts`, etc.) binds it to its own model, so
   `EmploymentTypeService` and `AttendanceStatusService` are still distinct, independently
   testable service objects — the factory just avoids retyping the same create/list/updateStatus/
-  getByCode/assertValidCode logic seven times (AGENTS.md §56 restraint).
+  getByCode/assertValidCode logic seven times (ENGINEERING.md §56 restraint).
 - `CATALOG_REGISTRY` (`src/domains/catalog/catalog-registry.ts`) maps seven URL-safe slugs to
   `{service, permissionPrefix}`, consumed by exactly two dynamic API route files
   (`/api/catalogs/[type]`, `/api/catalogs/[type]/[id]`) instead of fourteen near-duplicate ones —

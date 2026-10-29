@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 Phase 8's Performance domain needs a rating scale and a way to record a review per employee
-per period. AGENTS.md §25 names `PerformanceRatingScale` alongside `LeavePolicy`/
+per period. ENGINEERING.md §25 names `PerformanceRatingScale` alongside `LeavePolicy`/
 `AttendancePolicy`/`PayrollPolicy` as a strongly-typed domain policy — but unlike those, a
 rating scale is really an ordered list of levels (Needs Improvement, Meets Expectations, …),
 which is exactly the shape the Catalog system (ADR-016) already exists to manage, not a

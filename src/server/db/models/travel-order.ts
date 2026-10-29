@@ -2,7 +2,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
 // Mirrors the legacy v1 app's Travel Orders Logging module: one or more
-// employees dispatched for a date range. No hard delete (AGENTS.md §53) —
+// employees dispatched for a date range. No hard delete (ENGINEERING.md §53) —
 // a travel order that's called off is cancelled via `status`, not removed.
 const travelOrderSchema = new Schema(
   {

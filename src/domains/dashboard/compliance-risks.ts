@@ -27,7 +27,7 @@ function addDays(key: string, days: number): string {
 
 /**
  * What already settles a probation's evaluation (ADR-053): HR recorded it as
- * sent or completed outside EychAr (`followUps`, keyed by
+ * sent or completed outside PCAS HRIS (`followUps`, keyed by
  * `regularizationFollowUpKey`), or an evaluation of a regularization type
  * was submitted in Performance since the employee was hired
  * (`evaluatedOn`: employee id → latest submission, "YYYY-MM-DD").

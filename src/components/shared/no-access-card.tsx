@@ -29,7 +29,7 @@ export function accessRequestText(details: Pick<NoAccessDetails, "permission" | 
   const needed = details.superAdminOnly
     ? "This page is only for the Super Administrator."
     : `Could you add "${details.permissionLabel ?? details.permission ?? "this page's access"}"${details.permission ? ` (${details.permission})` : ""} to my role?`;
-  return [`Hi, I need access to a page in EychAr.`, needed, details.signedInAs ? `My account: ${details.signedInAs}` : null, pageUrl ? `Page: ${pageUrl}` : null]
+  return [`Hi, I need access to a page in PCAS HRIS.`, needed, details.signedInAs ? `My account: ${details.signedInAs}` : null, pageUrl ? `Page: ${pageUrl}` : null]
     .filter(Boolean)
     .join("\n");
 }

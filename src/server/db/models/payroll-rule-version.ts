@@ -1,6 +1,6 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-// Country-specific numbers as DATA, never as formulas in code (AGENTS.md
+// Country-specific numbers as DATA, never as formulas in code (ENGINEERING.md
 // §28). Typed subdocuments, not Mixed (§25). Never edited in place: a
 // correction is a new version, so a past run's ruleVersionId keeps pointing
 // at exactly what it used.

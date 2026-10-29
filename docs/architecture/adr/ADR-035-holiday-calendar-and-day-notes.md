@@ -7,10 +7,10 @@ Accepted
 ## Context
 
 HR asked to click a date on Attendance › Schedules and see notes about it, for example that the
-day is a Philippine holiday. Asked directly, the user chose:
+day is a Philippine holiday. Asked directly, the product owner chose:
 
 - **An HR-managed holiday calendar**, with a one-click Philippine list, rather than a fixed list in
-  code. AGENTS.md §25 names `HolidayCalendar` as a policy, and §2 forbids hardcoding the business.
+  code. ENGINEERING.md §25 names `HolidayCalendar` as a policy, and §2 forbids hardcoding the business.
 - The day panel also shows **company events**, the **day's head-count**, and a **free-form HR note**.
 
 ## Decision

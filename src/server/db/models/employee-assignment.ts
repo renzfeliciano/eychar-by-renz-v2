@@ -1,6 +1,6 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-// Following AGENTS.md §15's own example schema. Moving an employee never
+// Following ENGINEERING.md §15's own example schema. Moving an employee never
 // edits a row in place — the current row's effectiveTo is closed and a new
 // row is created (see EmployeeAssignmentService.transfer), so historical
 // organizational state stays reconstructable (§16) without relying on

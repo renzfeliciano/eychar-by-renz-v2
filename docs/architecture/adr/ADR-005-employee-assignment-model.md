@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-AGENTS.md §15 calls `EmployeeAssignment` "one of the most important domain models." §16
+ENGINEERING.md §15 calls `EmployeeAssignment` "one of the most important domain models." §16
 requires historical organizational structure to be reconstructable from effective-dated records,
 not audit logs. §59's required historical test is explicit: move Employee A from
 Position=Supervisor/Project=A/Manager=B (2025) to Position=Operations Manager/Project=B/
@@ -28,7 +28,7 @@ organizationId, fields, actor)`:
    `effectiveFrom` — the row is never deleted or overwritten.
 3. Creates a brand-new `EmployeeAssignment` row for the new state.
 
-Three read methods answer the three questions AGENTS.md's test requires: `getCurrent(employeeId)`
+Three read methods answer the three questions ENGINEERING.md's test requires: `getCurrent(employeeId)`
 (the open row, `effectiveTo` unset), `getAsOf(employeeId, date)` (whichever row was effective on
 that date — this is what "historical date selection" in the future Org Chart phase will call),
 and `getHistory(employeeId)` (every row, in order).
@@ -41,14 +41,14 @@ needing special handling.
 
 - `tests/domains/workforce/employee-assignment-service.test.ts` reproduces §59's scenario
   literally (2025 assignment, transfer to 2026, assert all four properties) — this is the one
-  test in the codebase that most directly proves a core AGENTS.md requirement, not just an
+  test in the codebase that most directly proves a core ENGINEERING.md requirement, not just an
   implementation detail.
 - No Mongo transaction wraps `transfer()`'s two writes (close old, create new) — consistent with
-  Phase 1/2's restraint on infrastructure (AGENTS.md §33) and with the fact that
+  Phase 1/2's restraint on infrastructure (ENGINEERING.md §33) and with the fact that
   `mongodb-memory-server`'s default standalone test instance doesn't support multi-document
   transactions either. If a partial-failure incident is ever observed in practice, that's a
   concrete reason to revisit — not a preemptive one.
 - The same `transfer()` method handles every kind of move (position change, project change,
   manager change, or all three at once) — there is no separate "promote" or "reassign manager"
-  operation, because AGENTS.md's model doesn't distinguish them; they're all just a new
+  operation, because ENGINEERING.md's model doesn't distinguish them; they're all just a new
   `EmployeeAssignment` row.

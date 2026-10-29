@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
-// `type` is a free-form string, not a hardcoded enum (AGENTS.md §10) — a
+// `type` is a free-form string, not a hardcoded enum (ENGINEERING.md §10) — a
 // seeded organizationUnitTypes catalog is deferred until a UI actually
 // needs a managed dropdown (see ARCHITECTURE.md).
 const organizationUnitSchema = new Schema(

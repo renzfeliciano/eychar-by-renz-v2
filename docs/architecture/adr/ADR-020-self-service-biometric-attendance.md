@@ -8,10 +8,10 @@ after a face-liveness challenge.
 
 ## Context
 
-The user asked that clock-in/out capture biometrics and geolocation — specifically Android
+The product owner asked that clock-in/out capture biometrics and geolocation — specifically Android
 fingerprint / iOS Face ID where available. That rules out a shared-kiosk model: platform
 biometrics are tied to a signed-in device session, not a shared terminal, so it requires each
-employee to have their own login. Presented with the tradeoffs, the user chose, explicitly:
+employee to have their own login. Presented with the tradeoffs, the product owner chose, explicitly:
 
 - **Full employee self-service login**, not a kiosk shared by a supervisor's device.
 - **Both** a WebAuthn platform-authenticator confirmation (Face ID/fingerprint/screen lock) **and**

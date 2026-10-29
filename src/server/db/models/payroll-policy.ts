@@ -2,7 +2,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 
 // How pay is computed for an organization, or a project that overrides it
-// (resolved via the shared resolveOrgProjectPolicy(), AGENTS.md §26).
+// (resolved via the shared resolveOrgProjectPolicy(), ENGINEERING.md §26).
 // The numbers that vary by country (tax, contributions) live in
 // PayrollRuleVersion instead.
 const payrollPolicySchema = new Schema(

@@ -47,7 +47,7 @@ export const authOptions: NextAuthOptions = {
   // JWT strategy: authentication (this file) stays fully separate from
   // authorization (src/server/authorization/authorize.ts), which is
   // re-resolved from RoleAssignment/Role on every request rather than
-  // cached in the token (AGENTS.md §19).
+  // cached in the token (ENGINEERING.md §19).
   session: {
     strategy: "jwt",
     // The cookie's own lifetime. A session really ends sooner: when it's idle

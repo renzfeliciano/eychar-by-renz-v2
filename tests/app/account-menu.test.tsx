@@ -15,9 +15,9 @@ beforeEach(() => {
 });
 
 const PROPS = {
-  displayName: "Renzo Payod",
-  username: "renzy_admin",
-  email: "renzo@example.com",
+  displayName: "Maria Santos",
+  username: "hr_admin",
+  email: "maria.santos@example.com",
   organizationName: "Project Concepts and Administrative Services, Inc.",
   roleNames: ["HR Administrator", "Payroll Approver"],
   canManageAccess: true,
@@ -28,12 +28,12 @@ describe("AccountMenu", () => {
     const user = userEvent.setup();
     render(<AccountMenu {...PROPS} />);
 
-    const trigger = screen.getByRole("button", { name: "Account menu for Renzo Payod" });
-    expect(trigger).toHaveTextContent("RP");
+    const trigger = screen.getByRole("button", { name: "Account menu for Maria Santos" });
+    expect(trigger).toHaveTextContent("MS");
     await user.click(trigger);
 
-    expect(await screen.findByText("@renzy_admin")).toBeInTheDocument();
-    expect(screen.getByText("renzo@example.com")).toBeInTheDocument();
+    expect(await screen.findByText("@hr_admin")).toBeInTheDocument();
+    expect(screen.getByText("maria.santos@example.com")).toBeInTheDocument();
     expect(screen.getByText("Project Concepts and Administrative Services, Inc.")).toBeInTheDocument();
     const roles = within(screen.getByLabelText("Your roles"));
     expect(roles.getByText("HR Administrator")).toBeInTheDocument();

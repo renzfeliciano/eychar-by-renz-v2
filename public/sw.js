@@ -1,5 +1,5 @@
 /*
- * EychAr service worker (ADR-036).
+ * PCAS HRIS service worker (ADR-036).
  *
  * Deliberately conservative for an HR system: it never caches API
  * responses or rendered pages (they hold personal and payroll data and
@@ -10,7 +10,7 @@
  * Bump VERSION to roll every client onto a fresh cache.
  */
 const VERSION = "v2";
-const STATIC_CACHE = `eychar-static-${VERSION}`;
+const STATIC_CACHE = `pcas-hris-static-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png"];
 
@@ -30,7 +30,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("eychar-") && key !== STATIC_CACHE)
+            .filter((key) => key.startsWith("pcas-hris-") && key !== STATIC_CACHE)
             .map((key) => caches.delete(key)),
         ),
       )

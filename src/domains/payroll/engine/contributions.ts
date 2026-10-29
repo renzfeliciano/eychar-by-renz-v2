@@ -17,7 +17,7 @@ export type ContributionRow = {
 };
 
 /**
- * A government contribution as data, never as a formula in code (AGENTS.md
+ * A government contribution as data, never as a formula in code (ENGINEERING.md
  * §28). The base is the employee's monthly basic pay, clamped between
  * `floor` and `ceiling` before rates apply; rows are matched on the
  * unclamped salary.

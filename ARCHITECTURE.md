@@ -1,14 +1,14 @@
 # Architecture
 
-EychAr (EychAr /eɪtʃ ɑːr/, formerly WorkforceHub — ADR-036) is a configurable,
+PCAS HRIS is a configurable,
 multi-tenant-capable HRIS platform. The database describes
 the business (organizations, people, roles, permissions); the application code provides reusable
-capabilities on top of that data. See [AGENTS.md](./AGENTS.md) for the full engineering
+capabilities on top of that data. See [docs/ENGINEERING.md](./docs/ENGINEERING.md) for the full engineering
 instructions this repository is built against.
 
 ## Status
 
-**Phase 8 complete** (see AGENTS.md §57) — every named sub-phase (Recruitment, Performance,
+**Phase 8 complete** (see ENGINEERING.md §57) — every named sub-phase (Recruitment, Performance,
 Cases, Assets, Documents, Events) is implemented, on top of Phases 1–8c, plus several ad hoc
 enhancements beyond the original phase list: employee self-service attendance (ADR-020), Travel
 Orders and Asset Issuance mirrored from the legacy v1 app (ADR-022), and custom roles/staff
@@ -36,7 +36,7 @@ print), "Issued assets" and "Documents" sections on `/people/[id]`, `/events` (m
 ## Architecture style
 
 Domain-oriented modular monolith (ADR-001). No microservices, no message broker, no Redis —
-none of those have a concrete requirement yet (AGENTS.md §45).
+none of those have a concrete requirement yet (ENGINEERING.md §45).
 
 ## Directory structure
 
@@ -57,13 +57,13 @@ src/
 
 Route handlers orchestrate: Authenticate → Validate → Resolve Context → Authorize → Execute
 (domain service) → Persist → Audit → Return. They do not contain business logic themselves
-(AGENTS.md §37). See ADR-013 for the UI/design-system layer.
+(ENGINEERING.md §37). See ADR-013 for the UI/design-system layer.
 
 ## Identity model (ADR-003)
 
 `User` (login identity) → `Person` (human identity) → `Employee` (workforce identity) →
 `Employment` (lifecycle) → `EmployeeAssignment` (where/what/who) — five distinct models, per
-AGENTS.md §13. A `Person` is not assumed to be an `Employee` (Phase 1's HR user has no `Employee`
+ENGINEERING.md §13. A `Person` is not assumed to be an `Employee` (Phase 1's HR user has no `Employee`
 record at all); an `Employee` has no status field of its own — see "Workforce (Phase 3)" below.
 
 ## Organization structure (Phase 2)
@@ -71,7 +71,7 @@ record at all); an `Employee` has no status field of its own — see "Workforce 
 `OrganizationUnit` (self-referencing `parentUnitId`, free-form `type`), `Position`, `Location`,
 `Project` (`locationId?`) — see ADR-004 (Position vs Role)
 and ADR-006 (Effective Dating) for the two decisions specific to this phase. No hard delete
-anywhere (AGENTS.md §53); every domain service exposes `create()` and `updateStatus()`
+anywhere (ENGINEERING.md §53); every domain service exposes `create()` and `updateStatus()`
 (active/inactive, plus `effectiveTo` for the two effective-dated models) but never a delete.
 
 ## Workforce (Phase 3)
@@ -104,7 +104,7 @@ matching the current Employment-type filter, not just what's visible.
 
 ## Organizational chart (Phase 4, ADR-009)
 
-A projection, not a source of truth (AGENTS.md §18) — `OrgChartService.getSnapshot(organizationId,
+A projection, not a source of truth (ENGINEERING.md §18) — `OrgChartService.getSnapshot(organizationId,
 filters)` (`src/domains/workforce/org-chart-service.ts`) builds a reporting-relationship tree
 (via `EmployeeAssignment.reportsToEmployeeId`) from a single bulk as-of-date query, the same
 effective-dating filter `EmployeeAssignmentService.getAsOf` uses per-employee, generalized to the
@@ -135,7 +135,7 @@ own `User.employeeId` and never touches the granular permission catalog at all.
 self-service-attendance-service.ts`) reuse `AttendanceService`'s `computeStatus()`, but hard-require
 a fresh `WebAuthnService.verifyAuthentication()` (platform authenticator — Face ID/fingerprint/
 screen lock, via `@simplewebauthn/server`) before writing anything. See ADR-020 for the full set
-of tradeoffs the user chose explicitly (full self-service login over a shared kiosk; both WebAuthn
+of tradeoffs the product owner chose explicitly (full self-service login over a shared kiosk; both WebAuthn
 and photo, not one; HR-provisioned accounts; photos stored as base64 in MongoDB).
 
 **Geofence + liveness (ADR-026).** Clock-in now also requires the employee to pick a project that is
@@ -185,7 +185,7 @@ have it yet, audited as one batch.
 
 Leave balances can be granted/adjusted from two places sharing the same components: the org-wide
 `/leave/balances` list (bulk view across every employee, e.g. year-end rollout) and a "Leave
-balances" card on `/people/[id]` (per the user's own workflow — granting one employee's balance
+balances" card on `/people/[id]` (per HR's own workflow — granting one employee's balance
 without hunting them down in a dropdown first). `GrantLeaveBalanceDialog` is employee-page-scoped
 (no employee picker, `employeeId` comes from the page); `AdjustLeaveBalanceDialog`
 (`src/components/shared/`) is shared by both since it only ever needs a `balanceId`, used
@@ -221,7 +221,7 @@ days/period) and `PayrollRuleVersion` (tax brackets, statutory contributions) bo
 Organization→Project override independently via `resolveOrgProjectPolicy()` — the shared
 resolver's third caller, after Attendance and Leave. `PayrollRuleVersion` is never edited in
 place: a correction creates a new, auto-numbered version, so a `PayrollRun`'s snapshotted
-`policyId`/`ruleVersionId` always identify exactly what was used, satisfying AGENTS.md §28's
+`policyId`/`ruleVersionId` always identify exactly what was used, satisfying ENGINEERING.md §28's
 reproducibility requirement directly. `Compensation` (base salary + allowance per pay period) is
 its own effective-dated model, deliberately separate from `Employment` (see that model's own
 comment) and revised via the same transfer mechanic as `EmployeeAssignment`.
@@ -299,7 +299,7 @@ stint in place" precedent. There's no separate `.approve` permission (unlike Lea
 submitting is a single-actor action, and no employee-facing acknowledgment step, since this
 codebase has no employee self-service portal yet to acknowledge from.
 
-Probation evaluations sent or completed outside EychAr (email, paper) are recorded as
+Probation evaluations sent or completed outside PCAS HRIS (email, paper) are recorded as
 `EvaluationFollowUp` ("Mark sent" on the dashboard's probation rows); that, or a submitted
 evaluation of a type flagged `isRegularization`, takes the probation off the Compliance list
 (ADR-053).
@@ -314,7 +314,7 @@ actually are for a property-management org (SeNA/labor, criminal, civil, regulat
 pattern as everywhere else. `CaseService.update()` is a full replace (`caseSchema` reused for
 create and update), matching v1's single reused form dialog. `/cases` offers CSV export and a
 print report (`hidden print:block`, per ADR-018/019's Tailwind-first print convention) — v1's
-hard-delete was intentionally not ported (AGENTS.md §53: no hard deletes anywhere in this
+hard-delete was intentionally not ported (ENGINEERING.md §53: no hard deletes anywhere in this
 codebase); a case is retired via its `status` catalog value instead.
 
 ## People roster paging
@@ -338,7 +338,7 @@ Both mirror the legacy v1 app's real modules. `TravelOrder` (`employeeIds[]` ref
 (`employeeId`, `assetName`, `assetType?`, `serialNumber?`, `condition` — a fixed enum matching v1
 exactly, not a catalog — `issuedDate`, `returnedDate?`, `remarks?`) is instead a card on
 `/people/[id]` rather than v1's separate employee-lookup page, since the People roster + detail
-page already is that lookup. Neither supports v1's hard delete (AGENTS.md §53) — a travel order
+page already is that lookup. Neither supports v1's hard delete (ENGINEERING.md §53) — a travel order
 is cancelled via `status`, an asset-issuance mistake is corrected via `update()`.
 
 ## Events (Phase 8, ADR-024)
@@ -349,7 +349,7 @@ active|cancelled`). `/events?month=YYYY-MM` follows this app's own `DateNav`-sty
 URL-param-driven navigation (`MonthNav`) rather than v1's client-side re-fetch on every
 prev/next click, so a month's events are already in the initial server render.
 `EventService.listForMonth()` only ever returns `status: "active"` rows — no hard delete
-(AGENTS.md §53), a cancelled event just stops appearing on the calendar. Clicking a day opens
+(ENGINEERING.md §53), a cancelled event just stops appearing on the calendar. Clicking a day opens
 `EventDayDialog`, the same list-then-form dialog shape as Travel Orders/Asset Issuance.
 An event in a category flagged `metadata.isHoliday` (the seeded "Holiday") carries a
 `holidayType` and keeps a linked `Holiday` on the holiday calendar in step with it (ADR-049).
@@ -361,7 +361,7 @@ calendar.
 
 The last Phase 8 sub-phase, and the only one with nothing in the legacy v1 app to mirror — scope
 (employee 201-file documents, not a company-wide library) and storage (base64 in MongoDB, same
-call as ADR-020's attendance photos) were confirmed directly with the user rather than inferred.
+call as ADR-020's attendance photos) were confirmed directly with the product owner rather than inferred.
 `EmployeeDocument` (`employeeId`, `title`, `documentType` — the ninth org-managed catalog,
 ADR-016 — `fileName`/`fileType`/`fileSize`/`fileData`, `expiresAt?`, `notes?`) lives on a
 "Documents" card on `/people/[id]`. **Storage moved to private object storage in ADR-038:** files
@@ -376,7 +376,7 @@ edited in place at the byte level; `update()`'s schema omits every file field en
 
 - **`Holiday`** (`organizationId`, `date` as UTC midnight of the day, `name`, `type:
 regular|special_non_working|special_working`, optional `scope`/`source`, `presetKey` when loaded
-  from a preset, `eventId` when a holiday event owns it (ADR-049), `status`). The organization's own data, the `HolidayCalendar` AGENTS.md §25 asks
+  from a preset, `eventId` when a holiday event owns it (ADR-049), `status`). The organization's own data, the `HolidayCalendar` ENGINEERING.md §25 asks
   for. Removing one cancels it (`status`), never deletes. Index `{ organizationId, date }`.
 - **Country presets** (`src/domains/holidays/presets/`) only _propose_ a year's holidays. The
   Philippine preset has 2026 checked against Proclamation No. 1006, s. 2025 and No. 1264, s. 2026
@@ -399,9 +399,9 @@ regular|special_non_working|special_working`, optional `scope`/`source`, `preset
 
 ## Brand & installable app (ADR-036)
 
-- The product is **EychAr ** (formerly WorkforceHub). Every product string comes from
+- The product is **PCAS HRIS**. Every product string comes from
   `src/lib/brand.ts`; organization names and logos stay data. Page titles use the root layout's
-  template (`"Schedules · EychAr "`), with a `metadata.title` on each page.
+  template (`"Schedules · PCAS HRIS"`), with a `metadata.title` on each page.
 - **PWA**: `src/app/manifest.ts` (standalone, shortcuts to Clock, Schedules, People), icons in
   `public/icons` plus `src/app/icon.png`/`apple-icon.png`, and `public/sw.js` registered by
   `ServiceWorkerRegister` in production only. The worker caches only fingerprinted static assets
@@ -417,7 +417,7 @@ regular|special_non_working|special_working`, optional `scope`/`source`, `preset
 - `src/lib/site.ts` resolves the public URL (`NEXT_PUBLIC_SITE_URL` → `NEXTAUTH_URL` → Vercel
   production domain) for `metadataBase`, and builds the description; the organization name comes
   from `SITE_ORGANIZATION_NAME` (deployment config, never hardcoded). The sign-in layout adds a
-  canonical link, Open Graph/Twitter cards with `public/og/eychar-share.png`, and JSON-LD.
+  canonical link, Open Graph/Twitter cards with `public/og/pcas-hris-share.png`, and JSON-LD.
 
 ## Security hardening (ADR-037)
 
@@ -455,12 +455,12 @@ Server-side only, resolved from data on every check — never cached role-name s
   (`effectiveFrom <= now <= effectiveTo|null`) `RoleAssignment` in that organization whose `Role`
   carries the permission key.
 - `hasActiveRoleAssignment({ userId, organizationId })` — organization _membership_ only; kept as
-  a documented primitive (AGENTS.md §22) though no route currently calls it (see ADR-007).
+  a documented primitive (ENGINEERING.md §22) though no route currently calls it (see ADR-007).
 - `requireAuthenticatedUser()`, `requireOrganizationAccess(organizationId)`,
   `requirePermission(permission, organizationId)` — the primitives route handlers call.
 
 Permission keys are granular per resource — `<resource>.create` / `<resource>.read` /
-`<resource>.update` (e.g. `positions.read`), matching AGENTS.md §20's own example, not one coarse
+`<resource>.update` (e.g. `positions.read`), matching ENGINEERING.md §20's own example, not one coarse
 `<resource>.manage`. `GET` routes require `<resource>.read` explicitly; Server Component pages
 call the identical `requirePermission` check via `src/app/_shared/has-permission.ts` (shared
 across `/organization`, `/people`, and `/attendance`) so a page can never show data an API route
@@ -534,7 +534,7 @@ indexes and lists ones the schemas no longer declare. The connection pool is 5 p
 ## Audit (part of ADR-007's server-side trust boundary)
 
 `AuditService.record(...)` is the only write path onto `AuditLog`. Every mutation calls it, per
-AGENTS.md §35. Security events about accounts (sign-ins, failures, locks, password and two-step
+ENGINEERING.md §35. Security events about accounts (sign-ins, failures, locks, password and two-step
 changes) go through `auditUserEvent` (`src/domains/identity/user-audit.ts`), which files them
 under the account's organization.
 
@@ -587,7 +587,7 @@ revoked assignment takes effect immediately rather than waiting for the token to
 Single-active-session and idle-timeout enforcement (`src/server/auth/session-policy.ts`,
 `ConcurrentSessionGuard`) are layered on top — see ADR-010's later section for the mechanism.
 
-## UI standards (mobile-first, AGENTS.md §23/§41)
+## UI standards (mobile-first, ENGINEERING.md §23/§41)
 
 - **Tables:** `DataTable` columns take `mobile: "title" | "subtitle" | "badge" | "meta" | "actions" |
 "hidden"`; below `md` each row becomes a stacked card from the same markup.

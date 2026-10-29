@@ -1,9 +1,9 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-// Strongly typed, not generic JSON (AGENTS.md §25). Org-wide by default;
+// Strongly typed, not generic JSON (ENGINEERING.md §25). Org-wide by default;
 // an optional projectId makes this an override, resolved explicitly by
 // AttendancePolicyService.resolve() rather than an implicit hierarchy
-// applied to every domain (AGENTS.md §26).
+// applied to every domain (ENGINEERING.md §26).
 const attendancePolicySchema = new Schema(
   {
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },

@@ -7,7 +7,7 @@ import { Bone, CardSkeleton, HeaderSkeleton, RecordHeaderSkeleton, StripSkeleton
  * that's coming, so content settles into place instead of popping in.
  * Announced once as a single status.
  *
- * The skeleton shows at once, and the animated EychAr loader sits on top of it:
+ * The skeleton shows at once, and the animated brand loader sits on top of it:
  * a small card at the centre of the main panel (below the top bar, beside the sidebar), the same spot on every page. It is sticky inside the panel's own scroll area, and the offsets cancel the panel padding and the 4rem top bar (workspace-layout.tsx), fading in
  * almost immediately (`.brand-loader-stage` in globals.css) and staying until
  * the page replaces both. The progress bar runs throughout.

@@ -1,4 +1,4 @@
-const INSTALLED = Symbol.for("eychar.mediapipeInfoRouting");
+const INSTALLED = Symbol.for("pcas-hris.mediapipeInfoRouting");
 
 type MarkedConsoleError = typeof console.error & { [INSTALLED]?: true };
 

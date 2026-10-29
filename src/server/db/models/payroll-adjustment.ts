@@ -4,7 +4,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 // holiday pay, night differential, bonuses, 13th month, loans, cash
 // advances (ADR-014 decision 1: what attendance can't derive). Editable
 // only while the run is a draft; each change recomputes the run.
-// `category` is free-form (AGENTS.md §10), with suggested codes in
+// `category` is free-form (ENGINEERING.md §10), with suggested codes in
 // adjustment-categories.ts; `amount` is always positive and `direction`
 // says which way it moves pay.
 const payrollAdjustmentSchema = new Schema(

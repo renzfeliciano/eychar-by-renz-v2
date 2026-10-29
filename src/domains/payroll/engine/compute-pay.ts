@@ -80,7 +80,7 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 
 /**
  * One employee's pay for one period: pure arithmetic over already-resolved
- * inputs, so the same inputs always give the same payslip (AGENTS.md §28).
+ * inputs, so the same inputs always give the same payslip (ENGINEERING.md §28).
  * Every line is rounded to centavos as it is produced and totals are sums
  * of rounded lines, so the payslip always adds up.
  *

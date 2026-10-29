@@ -36,12 +36,12 @@ function effectiveFilter(effectiveDate: Date) {
 }
 
 /**
- * Organization → Project override resolution (AGENTS.md §26): the most
+ * Organization → Project override resolution (ENGINEERING.md §26): the most
  * specific active policy effective on `effectiveDate` wins, project-scoped
  * first, falling back to org-wide. Generic over the policy model so each
  * domain (Attendance, Leave, ...) keeps its own typed `resolve()` wrapper
  * — this only factors out the query shape they'd otherwise duplicate
- * (AGENTS.md §56: extracted because a second real caller showed up, not
+ * (ENGINEERING.md §56: extracted because a second real caller showed up, not
  * pre-built for a hypothetical one).
  *
  * `model` is typed `Model<any>` rather than a minimal duck-typed interface:

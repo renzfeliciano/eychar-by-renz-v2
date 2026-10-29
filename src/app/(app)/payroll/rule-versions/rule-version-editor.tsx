@@ -56,7 +56,7 @@ function NumberCell({ value, onChange, label, placeholder }: { value: Cell; onCh
 /**
  * Editor for a new rule version: withholding tax tables per pay frequency
  * and contribution tables, as data. Creating it never touches the version
- * it's based on (AGENTS.md §28).
+ * it's based on (ENGINEERING.md §28).
  */
 export function RuleVersionEditor({ organizationId, initial }: { organizationId: string; initial: EditorInitial }) {
   const router = useRouter();

@@ -2,7 +2,7 @@
  * Prepares a throwaway database for the Playwright tests (tests/e2e) in one
  * step, with no manual sign-in afterwards:
  *
- *   E2E_MONGODB_URI=mongodb://127.0.0.1:27017/eychar_e2e \
+ *   E2E_MONGODB_URI=mongodb://127.0.0.1:27017/pcas_hris_e2e \
  *   E2E_USERNAME=hr.e2e E2E_PASSWORD=... \
  *   E2E_APPROVER_USERNAME=approver.e2e E2E_APPROVER_PASSWORD=... \
  *   npx tsx scripts/seed-e2e.ts

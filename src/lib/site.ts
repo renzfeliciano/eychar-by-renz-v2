@@ -36,7 +36,8 @@ export function siteDescription(): string {
 }
 
 export const SITE_KEYWORDS = [
-  "EychAr",
+  "PCAS HRIS",
+  "PCAS",
   "HRIS",
   "HR system",
   "human resources",
@@ -47,9 +48,9 @@ export const SITE_KEYWORDS = [
   "Philippines HRIS",
 ];
 
-/** The share-preview image (public/og/eychar-share.png), 1200×630. */
+/** The share-preview image (public/og/pcas-hris-share.png), 1200×630. */
 export const SITE_SHARE_IMAGE = {
-  url: "/og/eychar-share.png",
+  url: "/og/pcas-hris-share.png",
   width: 1200,
   height: 630,
   alt: `${BRAND.fullName}: people, time and payroll`,

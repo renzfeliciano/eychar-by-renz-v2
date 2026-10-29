@@ -4,7 +4,7 @@ import type { PayFrequency } from "../engine/pay-frequency";
 
 /**
  * Philippine statutory rates effective 2025, as DATA for a starter
- * PayrollRuleVersion (AGENTS.md §28: country rules live in rule data, never
+ * PayrollRuleVersion (ENGINEERING.md §28: country rules live in rule data, never
  * in formulas). HR creates a new rule version when agencies publish new
  * rates; nothing here is read by the payroll engine directly.
  *

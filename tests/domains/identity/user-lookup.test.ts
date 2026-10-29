@@ -10,12 +10,12 @@ describe("findUserByLogin", () => {
   });
 
   it("matches by username", async () => {
-    await UserModel.create({ username: "renzy_admin", passwordHash: "hash" });
+    await UserModel.create({ username: "hr_admin", passwordHash: "hash" });
 
-    const user = await findUserByLogin("renzy_admin");
+    const user = await findUserByLogin("hr_admin");
 
     expect(user).not.toBeNull();
-    expect(user?.username).toBe("renzy_admin");
+    expect(user?.username).toBe("hr_admin");
   });
 
   it("matches by email when no username is provided", async () => {
@@ -28,17 +28,17 @@ describe("findUserByLogin", () => {
   });
 
   it("is case-insensitive and trims whitespace", async () => {
-    await UserModel.create({ username: "renzy_admin", passwordHash: "hash" });
+    await UserModel.create({ username: "hr_admin", passwordHash: "hash" });
 
-    const user = await findUserByLogin("  Renzy_Admin  ");
+    const user = await findUserByLogin("  HR_Admin  ");
 
     expect(user).not.toBeNull();
   });
 
   it("returns null for a disabled account", async () => {
-    await UserModel.create({ username: "renzy_admin", passwordHash: "hash", status: "disabled" });
+    await UserModel.create({ username: "hr_admin", passwordHash: "hash", status: "disabled" });
 
-    const user = await findUserByLogin("renzy_admin");
+    const user = await findUserByLogin("hr_admin");
 
     expect(user).toBeNull();
   });

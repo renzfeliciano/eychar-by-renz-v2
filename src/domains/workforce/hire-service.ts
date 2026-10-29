@@ -9,7 +9,7 @@ import type { HireEmployeeInput } from "@/shared/validation/workforce";
  * (Person → Employee → Employment → EmployeeAssignment), not one Mongo
  * transaction — see ADR-005. A hire failing halfway is rare and
  * recoverable at this scale; wrapping it would be an unjustified
- * transaction (AGENTS.md §33).
+ * transaction (ENGINEERING.md §33).
  */
 export const HireService = {
   async hire(input: HireEmployeeInput, actor: { userId?: string }) {

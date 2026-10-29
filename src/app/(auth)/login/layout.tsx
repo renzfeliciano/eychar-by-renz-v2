@@ -31,7 +31,7 @@ export default async function LoginLayout({ children }: { children: React.ReactN
     applicationCategory: "BusinessApplication",
     applicationSubCategory: "Human resources information system",
     operatingSystem: "Web, Android, iOS, Windows, macOS",
-    creator: { "@type": "Person", name: "Renz" },
+    creator: { "@type": "Organization", name: "Project Concepts and Administrative Services, Inc." },
     ...(org ? { provider: { "@type": "Organization", name: org } } : {}),
   };
   return (

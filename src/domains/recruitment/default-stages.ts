@@ -1,6 +1,6 @@
 /**
  * The recruitment stages `npm run db:seed` gives an organization (seeded
- * configuration, AGENTS.md §54: HR can rename, reorder or deactivate them in
+ * configuration, ENGINEERING.md §54: HR can rename, reorder or deactivate them in
  * Settings › Catalogs). What a stage means is its metadata: `isTerminal`
  * (out of the pipeline) and `isHired` (counts as a hire).
  *

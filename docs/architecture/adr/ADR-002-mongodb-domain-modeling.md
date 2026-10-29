@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-AGENTS.md §31 requires an intentional embed-vs-reference decision per collection, justified by
+ENGINEERING.md §31 requires an intentional embed-vs-reference decision per collection, justified by
 actual access patterns, not a blanket normalize-everything or embed-everything rule.
 
 ## Decision

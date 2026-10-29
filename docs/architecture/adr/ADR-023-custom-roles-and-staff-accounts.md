@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The user wanted a real, employee-specific case handled: someone holding a particular Position
+The product owner wanted a real, employee-specific case handled: someone holding a particular Position
 (e.g. Building Administrator) should be able to do full employee-record CRUD, and asked that this
 be made "flexible... without hardcoding anything." That request sits close to a boundary this project already drew: an earlier request to make `Role` itself
 catalog-driven, and a separate request for a fully dynamic/DB-driven permissions engine, were both
@@ -17,7 +17,7 @@ Presented with the fork — (a) reuse the existing `Role`/`RoleAssignment`/`Perm
 real management UI so HR can compose a role from existing permission keys and assign it to
 anyone, vs. (b) make a Position itself imply permissions automatically, a new authorization input
 this codebase's `Position` model explicitly disclaims ("never used for authorization... anywhere")
-— the user chose (a).
+— the product owner chose (a).
 
 Also surfaced along the way: giving a *self-service* employee account (one with `User.employeeId`
 set) a permission-rich role wouldn't actually grant HR-shell access, because `(app)/layout.tsx`

@@ -20,7 +20,7 @@ async function makeUser() {
 // read-then-write, so it loses concurrent $inc updates; real MongoDB updates a
 // single document atomically. The truly parallel test runs only on MongoDB;
 // the deterministic tests below pin down the same property everywhere.
-const onFerretDb = process.env.MONGODB_URI === "mongodb://127.0.0.1:27017/eychar_test";
+const onFerretDb = process.env.MONGODB_URI === "mongodb://127.0.0.1:27017/pcas_hris_test";
 
 describe("sign-in under parallel guessing", () => {
   beforeEach(async () => {

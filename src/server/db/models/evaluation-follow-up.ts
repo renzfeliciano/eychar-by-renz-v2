@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
 import { hiddenPlugin } from "../hidden-plugin";
 
-// A probation evaluation handled outside EychAr (ADR-053): HR sent the
+// A probation evaluation handled outside PCAS HRIS (ADR-053): HR sent the
 // paper or emailed form to the evaluator, or the evaluation came back done.
 // Recording it takes the "Evaluate … before regularization" row off the
 // dashboard for that probation (`dueKey`); the record stays for reference.

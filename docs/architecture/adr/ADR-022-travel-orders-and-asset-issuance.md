@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The user asked for two more modules mirrored from the legacy v1 app (`PCAS-WorkforceHub`): Travel
+The product owner asked for two more modules mirrored from the legacy v1 app: Travel
 Orders Logging (dispatch one or more employees for a date range) and Asset Issuance Logging (track
 company assets issued to an employee). As with Cases and Recruitment earlier, the v1 source
 (`src/repositories/models/travel-order-model.ts`, `asset-issuance-model.ts`,
@@ -17,7 +17,7 @@ than re-derived from a one-line domain description.
 
 - **Travel Orders**: `TravelOrder` (`organizationId`, `employeeIds[]` ref Employee, `startDate`,
   `endDate`, `remarks?`, `status: "scheduled" | "cancelled"`). v1 allows a hard delete;
-  this app never does (AGENTS.md §53), so a travel order that's called off is `cancel()`led
+  this app never does (ENGINEERING.md §53), so a travel order that's called off is `cancel()`led
   (status flips to `"cancelled"`) instead of removed — the UI's "×" button on a row maps to an
   HTTP `DELETE` that performs this soft cancel server-side, keeping the same one-click UX v1 had
   without violating the no-hard-delete rule. `assertEmployeesExist()` batches the existence check
@@ -26,7 +26,7 @@ than re-derived from a one-line domain description.
 - **Asset Issuance**: `AssetIssuance` (`organizationId`, `employeeId`, `assetName`, `assetType?`,
   `serialNumber?`, `condition` — a fixed `"Good"|"Fair"|"Damaged"|"Lost"` enum matching v1 exactly,
   intentionally **not** turned into an org-managed catalog since v1 itself treats it as a fixed,
-  small set, unlike the nine entities the user separately asked to decatalog-code), `issuedDate`,
+  small set, unlike the nine entities the product owner separately asked to decatalog-code), `issuedDate`,
   `returnedDate?`, `remarks?`. No delete here either — an erroneous entry is corrected via
   `update()`, and there's no natural "cancelled" state the way a travel order has.
 - **UI placement deliberately deviates from v1**: v1 gives Asset Issuance its own top-level

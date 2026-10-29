@@ -8,7 +8,7 @@ Accepted. Its visual direction (colors, type, cards) is superseded by ADR-048; t
 
 Phases 1–2 used bare Tailwind utility classes with ad-hoc inline `style={{ color: "var(--x)" }}`
 CSS custom properties per page — no shared component layer, so every list page repeated its own
-`<table>` markup and every form repeated its own `<input>`/`<select>`/`<button>` styling. AGENTS.md
+`<table>` markup and every form repeated its own `<input>`/`<select>`/`<button>` styling. ENGINEERING.md
 §41 requires a mobile-first UI and says to "use the existing design system if the repository
 already has one" — at this point there wasn't one yet, just per-page improvisation.
 
@@ -31,7 +31,7 @@ On top of the copied `src/components/ui/*` primitives, a small shared layer in
   once instead of in every form (units/positions/projects/hire/transfer all need it).
 - `AppShell` / `NavLinks` — the persistent sidebar + topbar chrome, wrapping every authenticated
   route via `src/app/(app)/layout.tsx`; a mobile drawer (shadcn `Sheet`) covers the same nav below
-  the `md` breakpoint (AGENTS.md §41's mobile-first requirement).
+  the `md` breakpoint (ENGINEERING.md §41's mobile-first requirement).
 
 Routes were reorganized into an `(app)` route group (`dashboard`, `organization/*`, `people/*`)
 sharing that one layout, while `(auth)/login` stays outside it as a plain centered card. This is
@@ -53,11 +53,10 @@ segment.
 - Every Phase 2/3 list and form was rewritten against this shared layer in the same pass, so
   there is no lingering "old style" page for a future contributor to accidentally copy from.
 
-## Addendum (2026-09-27): visual direction follows the vendored design skills
+## Addendum (2026-09-27): a restrained visual direction
 
-The user asked that the newly vendored design skills (`emil-design-eng`, `impeccable`,
-`taste-skill` — see `.claude/skills/THIRD_PARTY_SKILLS.md`) govern the look, superseding the
-earlier "glassmorphism + soft gradients" brief. Concretely:
+The product owner asked for a calmer, more restrained look, superseding the earlier
+"glassmorphism + soft gradients" brief. Concretely:
 
 - **Color is restrained.** One brand blue (`--primary`) for primary actions, selection and state.
   The blue→violet `--gradient-brand` and the brand-colored `--shadow-glow` halo were removed; icon
@@ -68,7 +67,7 @@ earlier "glassmorphism + soft gradients" brief. Concretely:
   elements sitting over the login photo. Dialogs use a plain dim scrim like the Sheet.
 - **Headings carry themselves:** no accent bar beside page titles, no gradient banner on the
   dashboard (it opens with a normal `PageHeader`).
-- **Motion** uses emil's curves as the app-wide Tailwind easing (`ease-out`, `ease-in-out`,
+- **Motion** uses custom curves as the app-wide Tailwind easing (`ease-out`, `ease-in-out`,
   `ease-drawer`, and the default for every `transition-*`), explicit transition properties (never
   `transition-all`), a `scale(0.97)` press on buttons, and gentler (fade-only) enter/exit under
   `prefers-reduced-motion`.
@@ -80,7 +79,7 @@ clickable progress segments that fill over each photo's turn (static under reduc
 password field warns when Caps Lock is on. The feature-chip row was removed: the headline carries
 the message on its own.
 
-**Enterprise pass (2026-09-28).** The user asked for every screen, from the dashboard through
+**Enterprise pass (2026-09-28).** The product owner asked for every screen, from the dashboard through
 roles, to look enterprise-grade. The shared pieces every page now uses:
 
 - `MetricCard`: a summary strip. Its tone marks meaning: primary for the headline figure,
@@ -103,7 +102,7 @@ Screen by screen:
 - **Employee profiles:** a summary header.
 - **Daily roster:** the day's present, late, absent, on-leave and not-recorded counts.
 - **Leave balances:** one row per employee, leave types as columns, and a detail side panel. This
-  was the user's explicit request.
+  was the product owner's explicit request.
 - **Settings:** a sticky catalog index; per-role member and permission counts on Roles & access.
 - **Dashboard:** opens with a greeting and the date, then:
   - four linked headline cards: headcount, at work today, on leave today, next pay date;

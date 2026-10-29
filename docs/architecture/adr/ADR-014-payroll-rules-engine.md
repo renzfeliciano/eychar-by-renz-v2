@@ -8,7 +8,7 @@ write, instead of a transaction) still stands.
 
 ## Context
 
-AGENTS.md §28 is explicit about Payroll: it "must be a configurable rules engine," must never
+ENGINEERING.md §28 is explicit about Payroll: it "must be a configurable rules engine," must never
 hardcode a formula like `salary * 0.05`, and every result "must be reproducible" (Policy
 Version, Rules Used, Inputs, Calculation Results, Adjustments, Approvals all identifiable after
 the fact). §28 also says the architecture should support Philippine payroll requirements
@@ -28,7 +28,7 @@ Building either would be new infrastructure this phase doesn't otherwise need. S
 
 - **Computed automatically** by the rules engine: Basic Salary (prorated against unpaid
   absences) and Tax + Statutory Contributions (via a generic progressive-bracket formula applied
-  to seeded `PayrollRuleVersion` data). These are exactly the two categories AGENTS.md's own
+  to seeded `PayrollRuleVersion` data). These are exactly the two categories ENGINEERING.md's own
   warning is about — nobody should ever see `income * 0.15` written in application code, and
   nobody does; `computeProgressiveBracketTax()` (`src/domains/payroll/payroll-tax.ts`) takes the
   bracket table as a parameter and works for any country's shape.
@@ -39,7 +39,7 @@ Building either would be new infrastructure this phase doesn't otherwise need. S
 
 ## Decision 2: `PayrollPolicy` + `PayrollRuleVersion`, resolved independently
 
-AGENTS.md's own suggested concepts (`PayrollPolicy`, `PayrollRule`, `PayrollRuleVersion`) are
+ENGINEERING.md's own suggested concepts (`PayrollPolicy`, `PayrollRule`, `PayrollRuleVersion`) are
 collapsed to two models here, not three — a version *is* the versioned bundle of rules (tax
 brackets + statutory contributions together), the same way `AttendancePolicy` bundles
 `standardStartTime`/`gracePeriodMinutes`/`workDays` into one document rather than separate child
@@ -74,8 +74,8 @@ switching `tests/global-setup.ts` from a standalone `mongodb-memory-server` inst
 single-node replica set — the first transaction-capable test infrastructure in the codebase,
 touching every existing test file's shared database setup, not just Payroll's. ADR-005 already
 made the same call for Employee Transfer's two sequential writes, on the same MVP-restraint
-grounds (AGENTS.md §33: "use transactions only where necessary," §63: "do not prematurely
-introduce infrastructure"). The precompute-then-persist guard closes the practical risk this
+grounds (ENGINEERING.md §33: "use transactions only where necessary," §45: no infrastructure without a
+concrete requirement). The precompute-then-persist guard closes the practical risk this
 phase actually has — a partially-computed run never gets written at all — while the narrow
 remaining risk (the bulk insert itself failing, e.g. a concurrent duplicate-run race) is the same
 class of rare edge case ADR-005 already accepted elsewhere.

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The last remaining named Phase 8 sub-phase (AGENTS.md §57) was Events — a company-wide calendar
+The last remaining named Phase 8 sub-phase (ENGINEERING.md §57) was Events — a company-wide calendar
 of meetings, holidays, and deadlines. `EventCategory` (the org-managed lookup list Meeting/
 Holiday/Deadline/Reminder/Other) was already seeded and manageable under Settings > Catalogs
 since Phase 8's catalog foundation (ADR-016), specifically ahead of this domain existing yet. v1's
@@ -19,7 +19,7 @@ every other v1-based module this phase.
 - **`Event`** (`organizationId`, `title`, `date`, `time?`, `category`, `description?`,
   `status: "active"|"cancelled"`). `category` is a plain trimmed String validated against the
   `EventCategory` catalog (`EventCategoryService.assertValidCode`), matching every other
-  catalog-driven field in this app. v1 hard-deletes an event; this app never does (AGENTS.md
+  catalog-driven field in this app. v1 hard-deletes an event; this app never does (ENGINEERING.md
   §53) — `cancel()` flips `status`, and `listForMonth()` only ever returns `status: "active"`
   rows, so a cancelled event simply stops appearing on the calendar.
 - **Navigation follows this app's own established convention, not v1's**: v1's `EventsModule`
@@ -38,5 +38,5 @@ every other v1-based module this phase.
 
 - No recurring events (a weekly standup repeated every Monday) — v1 doesn't have this either;
   each occurrence is its own `Event` row. Worth a follow-up if requested.
-- This closes out every named Phase 8 sub-phase from AGENTS.md §57 (Recruitment, Performance,
+- This closes out every named Phase 8 sub-phase from ENGINEERING.md §57 (Recruitment, Performance,
   Cases, Assets, Events) except **Documents**, which remains unimplemented.

@@ -116,7 +116,7 @@ export function EvaluationFollowUpDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{employeeName}&apos;s evaluation</DialogTitle>
-          <DialogDescription>Record an evaluation handled outside EychAr. It comes off the Compliance list; you can undo it right after.</DialogDescription>
+          <DialogDescription>Record an evaluation handled outside PCAS HRIS. It comes off the Compliance list; you can undo it right after.</DialogDescription>
         </DialogHeader>
         <form id="evaluation-follow-up-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <RequiredFieldsHint />

@@ -4,7 +4,7 @@ import { catalogFlag } from "@/domains/catalog/catalog-flags";
  * When an employment has a contract that ends. Whether a type carries an
  * end-of-contract date is data on its catalog item
  * (`metadata.requiresEndOfContract`, e.g. Contractual, Probationary), never
- * a list of codes here (AGENTS.md §2). Pure, so client components and the
+ * a list of codes here (ENGINEERING.md §2). Pure, so client components and the
  * dashboard can use it, and the rules are tested directly.
  */
 

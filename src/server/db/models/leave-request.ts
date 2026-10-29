@@ -1,6 +1,6 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-// `status` is a real state machine (Phase 6 — AGENTS.md §57):
+// `status` is a real state machine (Phase 6 — ENGINEERING.md §57):
 // pending -> approved/rejected (LeaveRequestService.decide, gated by
 // leave.approve) or pending -> cancelled (LeaveRequestService.cancel,
 // gated by leave.update). No employee created via HireService.hire() has

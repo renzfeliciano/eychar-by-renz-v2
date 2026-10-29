@@ -1,6 +1,6 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-// `scope` is a discriminated shape (AGENTS.md §21): `{ type: "organization" }`
+// `scope` is a discriminated shape (ENGINEERING.md §21): `{ type: "organization" }`
 // grants the role across the whole organization (and is what every document
 // written before scopes existed means, with or without the field);
 // `{ type: "project", projectIds }` grants it only on those projects. One

@@ -43,7 +43,7 @@ function applyChange(currentRate: number, changeType: BulkCompensationChangeInpu
 }
 
 /**
- * Effective-dated pay terms (AGENTS.md §27). Rows are never edited: a
+ * Effective-dated pay terms (ENGINEERING.md §27). Rows are never edited: a
  * revision closes the current terms the day before it starts, so every
  * calendar day resolves exactly one row and past payroll keeps using the
  * terms it was computed with.

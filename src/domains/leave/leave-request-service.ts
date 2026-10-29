@@ -126,7 +126,7 @@ export const LeaveRequestService = {
     return request;
   },
 
-  /** The approval workflow AGENTS.md §57 names — gated by leave.approve at the route. */
+  /** The approval workflow ENGINEERING.md §57 names — gated by leave.approve at the route. */
   async decide(
     id: string,
     organizationId: string,

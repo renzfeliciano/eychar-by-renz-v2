@@ -10,7 +10,7 @@ describe("app time (Asia/Manila)", () => {
   });
 
   it("shows a stored instant as Manila clock time", () => {
-    // Renzy's real check-in: 12:27 PM in Manila, stored as 04:27 UTC.
+    // A real check-in: 12:27 PM in Manila, stored as 04:27 UTC.
     expect(clockTime(new Date("2026-10-01T04:27:43.666Z"))).toBe("12:27");
     expect(clockTime(new Date("2026-10-01T00:00:00.000Z"))).toBe("08:00");
     expect(minutesOfDayInAppZone(new Date("2026-10-01T04:27:43.666Z"))).toBe(12 * 60 + 27);

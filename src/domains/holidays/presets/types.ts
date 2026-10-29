@@ -21,7 +21,7 @@ export type PresetYear = {
  * A country's holiday preset: rules and official lists that *propose*
  * holidays for a year. Nothing is used until HR reviews the preview and
  * saves the ones they want into the organization's own calendar, so the
- * preset never becomes business logic (AGENTS.md: model the business).
+ * preset never becomes business logic (ENGINEERING.md: model the business).
  */
 export type HolidayPreset = {
   key: string;

@@ -4,7 +4,7 @@ import { EvaluationFollowUpService } from "@/domains/performance/evaluation-foll
 import { recordEvaluationFollowUpSchema } from "@/shared/validation/performance";
 import { toErrorResponse } from "@/shared/errors/to-response";
 
-/** Record a probation evaluation as sent or completed outside EychAr (ADR-053). */
+/** Record a probation evaluation as sent or completed outside PCAS HRIS (ADR-053). */
 export async function POST(request: NextRequest) {
   try {
     const input = recordEvaluationFollowUpSchema.parse(await request.json());

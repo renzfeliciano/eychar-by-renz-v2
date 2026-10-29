@@ -75,7 +75,7 @@ export const LeavePolicyService = {
   },
 
   /**
-   * Organization → Project override resolution (AGENTS.md §26) via the
+   * Organization → Project override resolution (ENGINEERING.md §26) via the
    * shared resolver (src/server/policies/resolve-org-project-policy.ts) —
    * the same shape AttendancePolicyService uses, scoped further to a
    * specific leaveTypeId via extraFilter.

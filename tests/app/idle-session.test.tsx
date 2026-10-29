@@ -97,7 +97,7 @@ describe("IdleSessionGuard at zero", () => {
     expect(screen.getByRole("dialog")).toHaveTextContent("Signing you out");
 
     // Activity written by another tab, or a stray mouse move, can't revive it.
-    window.localStorage.setItem("eychar:last-activity", String(Date.now()));
+    window.localStorage.setItem("pcas-hris:last-activity", String(Date.now()));
     fireEvent.mouseMove(window);
     act(() => vi.advanceTimersByTime(60_000));
     expect(screen.getByRole("dialog")).toHaveTextContent("Signing you out");
@@ -115,7 +115,7 @@ describe("IdleSessionGuard at zero", () => {
   it("follows another tab that signed out for inactivity", () => {
     render(<IdleSessionGuard onSignOut={onSignOut} />);
     act(() => vi.advanceTimersByTime(5_000));
-    window.localStorage.setItem("eychar:idle-signed-out", String(Date.now()));
+    window.localStorage.setItem("pcas-hris:idle-signed-out", String(Date.now()));
     act(() => vi.advanceTimersByTime(1_000));
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });

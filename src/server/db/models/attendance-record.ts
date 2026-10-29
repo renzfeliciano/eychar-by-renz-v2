@@ -45,7 +45,7 @@ const clockEventSchema = new Schema(
 // One record per employee per calendar day (unique index below) — a
 // correction goes through AttendanceService.adjust(), never a second
 // record() call. `status` is computed and stored at record time using
-// whichever policy resolves for that date (AGENTS.md §27) — never
+// whichever policy resolves for that date (ENGINEERING.md §27) — never
 // recomputed later against today's policy, so `policyId` records which
 // policy version produced it, for reproducibility.
 const attendanceRecordSchema = new Schema(

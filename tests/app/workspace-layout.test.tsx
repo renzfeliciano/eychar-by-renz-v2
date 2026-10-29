@@ -7,7 +7,7 @@ import { WorkspaceLayout } from "@/components/shared/workspace-layout";
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 
-const ACCOUNT = { displayName: "Renzy Admin", username: "renzy_admin", email: null, organizationName: "PCAS", roleNames: ["Admin"], canManageAccess: true };
+const ACCOUNT = { displayName: "HR Admin", username: "hr_admin", email: null, organizationName: "PCAS", roleNames: ["Admin"], canManageAccess: true };
 
 describe("WorkspaceLayout mobile navigation", () => {
   it("puts the mobile menu's links in their own scroll area, so modules below the fold stay reachable", async () => {

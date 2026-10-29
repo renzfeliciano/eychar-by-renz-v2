@@ -1,7 +1,7 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
 // Append-only: no update/delete API is exposed anywhere over this model
-// (AGENTS.md §35). Historical org state is reconstructed from
+// (ENGINEERING.md §35). Historical org state is reconstructed from
 // effective-dated domain records, not from this log.
 const auditLogSchema = new Schema(
   {

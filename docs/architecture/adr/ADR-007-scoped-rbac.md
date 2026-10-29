@@ -6,7 +6,7 @@ Accepted (foundation only — organization scope; project/unit scope deferred)
 
 ## Context
 
-AGENTS.md §20–§22 requires RBAC resolved from data (`User` → `RoleAssignment` → `Role` →
+ENGINEERING.md §20–§22 requires RBAC resolved from data (`User` → `RoleAssignment` → `Role` →
 permission keys), server-side only, with no `user.role === "..."` checks and no client-supplied
 scope trusted without independent verification. §60 defines the required authorization test:
 an org-wide role assignment must grant access across every project scope in that org; a
@@ -28,7 +28,7 @@ project-scoped assignment must grant access to its own project and deny every ot
 
 - **Permission granularity** (added in Phase 2, before Workforce/Attendance/Leave/Payroll
   introduce many more permissions, so the convention is settled early rather than retrofitted):
-  every permission key is `<resource>.<create|read|update>`, matching AGENTS.md §20's own example
+  every permission key is `<resource>.<create|read|update>`, matching ENGINEERING.md §20's own example
   (`employees.read`, `employees.create`) rather than one coarse `<resource>.manage`. There is no
   `.delete` key anywhere, because nothing in this codebase hard-deletes (§53) — removal is always
   a `status` transition, covered by `.update`. `GET` routes now require `<resource>.read`
@@ -52,6 +52,6 @@ project-scoped assignment must grant access to its own project and deny every ot
   discriminant branches to `authorize()`'s query and to this ADR — not a new authorization
   mechanism.
 - `hasActiveRoleAssignment`/`requireOrganizationAccess` are no longer called by any route now that
-  reads require an explicit `.read` permission — kept as a documented primitive (AGENTS.md §22
+  reads require an explicit `.read` permission — kept as a documented primitive (ENGINEERING.md §22
   names it explicitly) for a future case that only needs "is this user a member at all" (e.g. an
   organization switcher), not removed as dead code.
