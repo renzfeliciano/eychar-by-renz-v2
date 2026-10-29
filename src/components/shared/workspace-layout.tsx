@@ -82,7 +82,7 @@ export function WorkspaceLayout({
           <Logo priority className="size-8 rounded-md" />
           {!collapsed && <BrandName className="text-sm" />}
         </div>
-        <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-3">
+        <div className="sidebar-scroll relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-3">
           <NavLinks
             collapsed={collapsed}
             isSuperAdmin={isSuperAdmin}
@@ -188,7 +188,11 @@ export function WorkspaceLayout({
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        {/* `relative` makes the scroll area the containing block for absolutely
+            positioned content (sr-only labels, popover anchors). Without it they
+            are placed against the document, stretch <body> past the viewport and
+            give the page a second, browser-level scrollbar. */}
+        <main className="relative min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-8 md:pb-[calc(2rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-6xl">
             <ModuleTabs
               isSuperAdmin={isSuperAdmin}

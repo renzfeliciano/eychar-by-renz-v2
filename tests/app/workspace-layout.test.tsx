@@ -27,3 +27,18 @@ describe("WorkspaceLayout mobile navigation", () => {
     expect(within(scrollArea).getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();
   });
 });
+
+describe("WorkspaceLayout scrolling", () => {
+  it("keeps absolutely positioned content inside the main scroll area, so the browser shows one scrollbar", () => {
+    render(
+      <WorkspaceLayout account={ACCOUNT}>
+        <p>content</p>
+      </WorkspaceLayout>,
+    );
+
+    // An unpositioned scroll area lets sr-only labels far down a long page stretch <body>.
+    const main = screen.getByRole("main");
+    expect(main.className).toMatch(/(^| )overflow-y-auto( |$)/);
+    expect(main.className).toMatch(/(^| )relative( |$)/);
+  });
+});
