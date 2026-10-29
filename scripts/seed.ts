@@ -4,6 +4,7 @@ import argon2 from "argon2";
 import { checkPassword } from "@/shared/validation/password-policy";
 import { connectMongoDB } from "@/server/db/connection";
 import { SuperAdminService } from "@/domains/authorization/super-admin-service";
+import { BusinessRuleError } from "@/shared/errors";
 import {
   OrganizationModel,
   PermissionModel,
@@ -272,7 +273,69 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
  * `npm run db:seed` loads them from .env.local/.env first (below), and
  * scripts/seed-e2e.ts calls this directly against the E2E database.
  */
-export async function seed(): Promise<{ organizationId: string; hrUserId: string }> {
+/**
+ * The optional dedicated Super Administrator account (SEED_SUPER_ADMIN_*):
+ * all three set, or none (then the HR account holds the role, as before).
+ */
+function readSuperAdminSeed(hrUsername: string): { fullName: string; username: string; password: string } | null {
+  const fullName = process.env.SEED_SUPER_ADMIN_FULL_NAME?.trim();
+  const username = process.env.SEED_SUPER_ADMIN_USERNAME?.trim().toLowerCase();
+  const password = process.env.SEED_SUPER_ADMIN_PASSWORD;
+  if (!fullName && !username && !password) return null;
+  if (!fullName || !username || !password) {
+    throw new Error("Set all of SEED_SUPER_ADMIN_FULL_NAME, SEED_SUPER_ADMIN_USERNAME and SEED_SUPER_ADMIN_PASSWORD, or none of them");
+  }
+  if (username === hrUsername) throw new Error("SEED_SUPER_ADMIN_USERNAME must differ from SEED_HR_USERNAME");
+  return { fullName, username, password };
+}
+
+/**
+ * A seeded login (Person + User). It follows the same password rules as
+ * everyone else and must replace this password (it sits in an env file) at
+ * first sign-in. An existing account is never touched.
+ */
+async function ensureSeedAccount(
+  organizationId: mongoose.Types.ObjectId,
+  account: { fullName: string; username: string; password: string },
+  passwordVariable: string,
+) {
+  const existing = await UserModel.findOne({ username: account.username });
+  if (existing) return existing;
+  const problems = checkPassword(account.password, { username: account.username });
+  if (problems.length) throw new Error(`${passwordVariable} doesn't meet the password policy: ${problems.join(" ")}`);
+  const { firstName, lastName } = splitFullName(account.fullName);
+  const person = await PersonModel.create({ organizationId, firstName, lastName });
+  return UserModel.create({
+    username: account.username,
+    passwordHash: await argon2.hash(account.password),
+    personId: person._id,
+    mustChangePassword: true,
+  });
+}
+
+/**
+ * Refuses before creating anything when another account already holds the
+ * Super Administrator role, so a refused run doesn't leave an extra login behind.
+ */
+async function assertSuperAdminRoleFree(organizationId: mongoose.Types.ObjectId, slug: string, username: string) {
+  const role = await RoleModel.findOne({ organizationId, system: "super_admin" }).select("_id").lean();
+  if (!role) return;
+  const now = new Date();
+  const holders = await RoleAssignmentModel.find({
+    organizationId,
+    roleId: role._id,
+    effectiveFrom: { $lte: now },
+    $or: [{ effectiveTo: { $exists: false } }, { effectiveTo: null }, { effectiveTo: { $gte: now } }],
+  })
+    .select("userId")
+    .lean();
+  const seedUser = await UserModel.findOne({ username }).select("_id").lean();
+  if (holders.some((holder) => !seedUser || holder.userId.toString() !== seedUser._id.toString())) {
+    throw new Error(`${username} can't be made Super Administrator: another account already holds the role in "${slug}". The seed never moves it.`);
+  }
+}
+
+export async function seed(): Promise<{ organizationId: string; hrUserId: string; superAdminUserId: string }> {
   await connectMongoDB();
   await upsertPermissionCatalog();
   await retireSupersededPermissions();
@@ -288,6 +351,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
       "SEED_ORGANIZATION_NAME, SEED_ORGANIZATION_SLUG, SEED_HR_FULL_NAME, SEED_HR_USERNAME and SEED_HR_PASSWORD must be set (see .env.local.example)",
     );
   }
+  const superAdminSeed = readSuperAdminSeed(hrUsername);
 
   // Organization is a plain data record, editable later (name/slug are not
   // hardcoded anywhere in application logic) — this seed just establishes
@@ -329,26 +393,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   // active, so this is cleanup, not a correctness fix.
   await RoleModel.updateMany({ status: { $exists: false } }, { $set: { status: "active" } });
 
-  let hrUser = await UserModel.findOne({ username: hrUsername });
-  if (!hrUser) {
-    // The first HR account follows the same password rules as everyone else,
-    // and must replace this password (it sits in an env file) at first sign-in.
-    // An existing account is never touched.
-    const problems = checkPassword(hrPassword, { username: hrUsername });
-    if (problems.length) throw new Error(`SEED_HR_PASSWORD doesn't meet the password policy: ${problems.join(" ")}`);
-    const { firstName, lastName } = splitFullName(hrFullName);
-    const person = await PersonModel.create({
-      organizationId: organization._id,
-      firstName,
-      lastName,
-    });
-    hrUser = await UserModel.create({
-      username: hrUsername,
-      passwordHash: await argon2.hash(hrPassword),
-      personId: person._id,
-      mustChangePassword: true,
-    });
-  }
+  const hrUser = await ensureSeedAccount(organization._id, { fullName: hrFullName, username: hrUsername, password: hrPassword }, "SEED_HR_PASSWORD");
 
   await RoleAssignmentModel.findOneAndUpdate(
     { userId: hrUser._id, roleId: hrRole._id, organizationId: organization._id },
@@ -689,11 +734,25 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     await EvaluatorRuleModel.findOneAndUpdate({ organizationId: organization._id, name: rule.name }, { $setOnInsert: { organizationId: organization._id, ...rule } }, { upsert: true });
   }
 
-  // The one Super Administrator: the seed's HR account. Refuses if someone else already holds it.
-  await SuperAdminService.ensure(organization._id.toString(), hrUser._id.toString());
+  // The one Super Administrator: the dedicated SEED_SUPER_ADMIN_* account when set, else the HR
+  // account. Refuses if someone else already holds it; the seed never moves the role.
+  if (superAdminSeed) await assertSuperAdminRoleFree(organization._id, organization.slug, superAdminSeed.username);
+  const superAdminUser = superAdminSeed
+    ? await ensureSeedAccount(organization._id, superAdminSeed, "SEED_SUPER_ADMIN_PASSWORD")
+    : hrUser;
+  try {
+    await SuperAdminService.ensure(organization._id.toString(), superAdminUser._id.toString());
+  } catch (error) {
+    if (!(error instanceof BusinessRuleError)) throw error;
+    throw new Error(
+      `${superAdminUser.username} can't be made Super Administrator: another account already holds the role in "${organization.slug}". The seed never moves it.`,
+    );
+  }
 
-  console.log(`Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrUsername}.`);
-  return { organizationId: organization._id.toString(), hrUserId: hrUser._id.toString() };
+  console.log(
+    `Seed complete: organization "${organization.name}" (${organization.slug}), HR user ${hrUsername}, Super Administrator ${superAdminUser.username}.`,
+  );
+  return { organizationId: organization._id.toString(), hrUserId: hrUser._id.toString(), superAdminUserId: superAdminUser._id.toString() };
 }
 
 // `npm run db:seed` (tsx scripts/seed.ts). Imported (scripts/seed-e2e.ts), nothing runs on its own.

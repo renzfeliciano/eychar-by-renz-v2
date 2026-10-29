@@ -40,7 +40,9 @@ The app runs on http://localhost:4100.
   GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and every pull request; the
   end-to-end tests run there too, after those pass, against a MongoDB replica set
 - `npm run db:seed` — idempotent: seeds the initial organization, permission catalog, HR
-  Administrator role, and HR user from `SEED_*` env vars
+  Administrator role, and HR user from `SEED_*` env vars. With `SEED_SUPER_ADMIN_*` set, it also
+  creates a separate Super Administrator account; without them the HR user holds that role. The
+  seed never moves the Super Administrator role from an account that already holds it.
 
 ## Deploying on Vercel
 
