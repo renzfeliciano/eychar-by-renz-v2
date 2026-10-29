@@ -264,7 +264,11 @@ column order and terminal-stage detection — without a business-rules engine ex
 `scripts/seed.ts` seeds a starter set of values for every catalog type (sourced from the legacy
 v1 app's real "Workspace administration" lists, plus a plain Needs Improvement…Outstanding scale
 for Performance ratings) plus real `Position`/`Project` data, each upserted idempotently by
-`{organizationId, code}` so re-running `db:seed` never duplicates rows.
+`{organizationId, code}` so re-running `db:seed` never duplicates rows. Attendance statuses are
+seeded only where payroll reads them correctly (`summarizeAttendance` pays any code other than
+`absent`/`on_leave` as a day worked), so v1's Half-day, Day off, Tardy/Late and Undertime, and the
+"Transfer" employment type, are not seeded; the starter leave types (VL, SL, EL, AUL, SPL, Offset)
+are. Dropping an item from the seed never removes it from an existing cluster.
 
 ## Recruitment (Phase 8a, ADR-015)
 

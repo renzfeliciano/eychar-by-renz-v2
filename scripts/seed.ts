@@ -28,6 +28,7 @@ import {
   SeparationTypeModel,
   ClearanceChecklistItemModel,
   PaymentMethodModel,
+  LeaveTypeModel,
   PositionModel,
   ProjectModel,
 } from "@/server/db/models";
@@ -464,11 +465,12 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     }
   }
 
+  // v1's "Transfer" is not seeded: a transfer is a new EmployeeAssignment (ADR-005), not a kind of
+  // employment. Removing an item here never touches an existing cluster; HR deactivates it there.
   await seedCatalogDefaults(EmploymentTypeModel, [
     { code: "regular", name: "Regular", sortOrder: 0 },
     { code: "probationary", name: "Probationary", sortOrder: 1, metadata: { requiresEndOfContract: true, regularizeAfterMonths: 6 } },
     { code: "contractual", name: "Contractual", sortOrder: 2, metadata: { requiresEndOfContract: true } },
-    { code: "transfer", name: "Transfer", sortOrder: 3 },
   ]);
 
   await seedCatalogDefaults(EmploymentStatusModel, [
@@ -479,18 +481,19 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     { code: "awol", name: "AWOL", sortOrder: 4, metadata: { isActiveHeadcount: false } },
   ]);
 
+  // Only statuses payroll reads correctly (summarizeAttendance): "absent" is unpaid, "on_leave" is
+  // paid leave, "late" counts minutes late, and every other code is a day worked. v1's "Half-day",
+  // "Day off" and "Tardy/Late" are not seeded because payroll would pay them as full days worked
+  // ("Day off" on a rest day even reads as rest-day work), and "Undertime" duplicates what
+  // check-out times already measure. Adding them back needs a payroll treatment first.
   await seedCatalogDefaults(AttendanceStatusModel, [
-    { code: "present", name: "Present", sortOrder: 0 },
-    { code: "late", name: "Late", sortOrder: 1 },
-    { code: "absent", name: "Absent", sortOrder: 2 },
-    { code: "on_leave", name: "On Leave", sortOrder: 3 },
-    { code: "offset", name: "Offset", sortOrder: 4 },
-    { code: "half_day", name: "Half-day", sortOrder: 5 },
-    { code: "day_off", name: "Day off", sortOrder: 6 },
-    { code: "restday_work", name: "Restday work", sortOrder: 7 },
-    { code: "holiday_work", name: "Holiday work", sortOrder: 8 },
-    { code: "undertime", name: "Undertime", sortOrder: 9 },
-    { code: "tardy_late", name: "Tardy/Late", sortOrder: 10 },
+    { code: "present", name: "Present", description: "Worked; on time, or no attendance policy to judge by.", sortOrder: 0 },
+    { code: "late", name: "Late", description: "Worked; minutes after the policy's start time are deducted in payroll.", sortOrder: 1 },
+    { code: "absent", name: "Absent", description: "Unpaid absence on a workday. Leave without pay is recorded as absent.", sortOrder: 2 },
+    { code: "on_leave", name: "On Leave", description: "Paid leave on a workday.", sortOrder: 3 },
+    { code: "offset", name: "Offset", description: "Paid day off taken against hours already worked; paid as a day worked.", sortOrder: 4 },
+    { code: "restday_work", name: "Restday work", description: "Worked on a rest day; payroll flags it for rest-day pay.", sortOrder: 5 },
+    { code: "holiday_work", name: "Holiday work", description: "Worked on a holiday; holiday pay is added as a payroll adjustment.", sortOrder: 6 },
   ]);
 
   // Includes the withdrawal outcomes (withdrawn before/after start, did not proceed): closed, not hires.
@@ -563,6 +566,25 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     { code: "check", name: "Check", sortOrder: 1 },
     { code: "cash", name: "Cash", sortOrder: 2 },
   ]);
+
+  // Starter leave types: the set HR configured on the first cluster, so a fresh database starts
+  // the same. Insert-only by {organizationId, code}; includeHidden so a hidden existing type is
+  // matched instead of tripping the unique index.
+  const LEAVE_TYPE_DEFAULTS = [
+    { code: "VL", name: "Vacation Leave" },
+    { code: "SL", name: "Sick Leave" },
+    { code: "EL", name: "Emergency Leave" },
+    { code: "AUL", name: "Authorized Unpaid Leave" },
+    { code: "SPL", name: "Solo Parent Leave" },
+    { code: "OFFSET", name: "Offset" },
+  ];
+  for (const leaveType of LEAVE_TYPE_DEFAULTS) {
+    await LeaveTypeModel.findOneAndUpdate(
+      { organizationId: organization._id, code: leaveType.code },
+      { $setOnInsert: { organizationId: organization._id, ...leaveType, requiresApproval: true, convertibleAtSeparation: false, status: "active" } },
+      { upsert: true, includeHidden: true },
+    );
+  }
 
   // Starter clearance checklist (ADR-031), only for an organization that has none yet,
   // so re-running the seed never re-adds items HR has edited or retired.

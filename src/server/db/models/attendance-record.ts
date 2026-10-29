@@ -58,9 +58,10 @@ const attendanceRecordSchema = new Schema(
     // Plain string, validated at the service boundary against the org's
     // AttendanceStatus collection (AttendanceStatusService.assertValidCode)
     // instead of a hardcoded Mongoose enum — an org can add codes like
-    // "restday_work"/"undertime" via Settings without a schema change.
+    // "restday_work" via Settings without a schema change.
     // "present"/"late"/"absent"/"on_leave" stay meaningful to
-    // AttendanceService/PayrollService by literal code, same as before.
+    // AttendanceService/PayrollService by literal code, same as before;
+    // payroll pays any other code as a day worked.
     status: { type: String, required: true, trim: true },
     policyId: { type: Schema.Types.ObjectId, ref: "AttendancePolicy" },
     // The project/site the employee actually clocked in at that day — can
