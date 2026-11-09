@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { useFieldErrors } from "@/lib/field-errors";
 import { OptionSelect } from "@/components/shared/option-select";
+import { REMARKS_MAX_LENGTH, remarksSchema } from "@/shared/validation/shared";
 
 type Option = { id: string; label: string };
 type EmploymentTypeOption = Option & { requiresEndOfContract: boolean };
@@ -30,6 +31,7 @@ const HIRE_FIELD_IDS = {
   phone: "hire-phone",
   employeeNumber: "hire-employee-number",
   address: "hire-address",
+  remarks: "hire-remarks",
   employmentType: "hire-employment-type",
   effectiveFrom: "hire-date-hired",
   endOfContract: "hire-end-of-contract",
@@ -60,6 +62,7 @@ export function HireForm({
   const [birthDate, setBirthDate] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [employmentType, setEmploymentType] = useState("");
   const [dateHired, setDateHired] = useState("");
@@ -70,7 +73,7 @@ export function HireForm({
   const [tinNumber, setTinNumber] = useState("");
   const [positionId, setPositionId] = useState("");
   const [projectId, setProjectId] = useState("");
-  const { fieldErrors, formError, setFieldError, setFromResponse, clear: clearErrors } = useFieldErrors({ fieldIds: HIRE_FIELD_IDS });
+  const { fieldErrors, formError, setFieldError, setFromResponse, clearField: clearFieldError, clear: clearErrors } = useFieldErrors({ fieldIds: HIRE_FIELD_IDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedType = employmentTypes.find((type) => type.id === employmentType);
@@ -83,6 +86,8 @@ export function HireForm({
     if (!firstName.trim()) return setFieldError("firstName", "First name is required.");
     if (!lastName.trim()) return setFieldError("lastName", "Last name is required.");
     if (!employmentType) return setFieldError("employmentType", "Select an employment type.");
+    const remarksCheck = remarksSchema.safeParse(remarks);
+    if (!remarksCheck.success) return setFieldError("remarks", remarksCheck.error.issues[0].message);
     if (showEndOfContract && !endOfContract) return setFieldError("endOfContract", "End of contract is required for this employment type.");
     setIsSubmitting(true);
 
@@ -98,6 +103,7 @@ export function HireForm({
         birthDate: birthDate || undefined,
         phone: phone || undefined,
         address: address || undefined,
+        remarks: remarks.trim() || undefined,
         employeeNumber: employeeNumber || undefined,
         employmentType,
         effectiveFrom: dateHired || undefined,
@@ -161,6 +167,9 @@ export function HireForm({
           </div>
           <FormField label="Address" htmlFor="hire-address" error={fieldErrors.address}>
             <Textarea id="hire-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
+          </FormField>
+          <FormField label="Remarks" htmlFor="hire-remarks" error={fieldErrors.remarks} description={`Optional note for the roster, e.g. "Senior, PWD". ${remarks.length}/${REMARKS_MAX_LENGTH}`}>
+            <Input id="hire-remarks" value={remarks} onChange={(event) => { setRemarks(event.target.value); clearFieldError("remarks"); }} placeholder="e.g. Senior, PWD" />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect

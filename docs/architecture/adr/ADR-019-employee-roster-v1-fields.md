@@ -54,3 +54,11 @@ models already owns that kind of fact, not flattened back into one document.
   natural next addition if requested.
 - A person hired before this ADR simply has these fields `undefined` — Age/Length of Service
   render as "—" for them, not an error, since every new field is optional at the schema level.
+
+## Addendum: optional remarks
+
+`Person` gains an optional free-text `remarks` (max 200 characters) so HR can note things like "Senior, PWD" on the roster. It is shown as a roster column, in the CSV/print export, and on the profile header, and edited in the Hire form and Edit dialog. It is deliberately **not** part of roster search.
+
+One rule (`remarksSchema`, `src/shared/validation/shared.ts`) is enforced at every layer: the forms check it before submitting, the API routes parse it with zod, and the Mongoose schema carries the same `maxlength`. Hire treats a blank note as unset; edit treats `""` as "clear it" (`$unset`).
+
+Remarks can hold sensitive facts (e.g. PWD status) and travel with the audited, permission-checked export, so share exports only with people who need them.

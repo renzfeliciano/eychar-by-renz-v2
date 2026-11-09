@@ -20,6 +20,7 @@ import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/fo
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { useFieldErrors } from "@/lib/field-errors";
 import { cn } from "@/lib/utils";
+import { REMARKS_MAX_LENGTH, remarksSchema } from "@/shared/validation/shared";
 
 const GENDER_OPTIONS: SelectOption[] = [
   { id: "Male", label: "Male" },
@@ -36,6 +37,7 @@ export type EditEmployeeInitialValue = {
   birthDate?: string | null;
   phone?: string | null;
   address?: string | null;
+  remarks?: string | null;
   sssNumber?: string | null;
   philHealthNumber?: string | null;
   pagIbigNumber?: string | null;
@@ -43,7 +45,7 @@ export type EditEmployeeInitialValue = {
 };
 
 /** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
-const EDIT_EMPLOYEE_FIELDS = ["gender", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
+const EDIT_EMPLOYEE_FIELDS = ["gender", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
@@ -67,11 +69,12 @@ export function EditEmployeeDialog({
   const [birthDate, setBirthDate] = useState(initialValue.birthDate ?? "");
   const [phone, setPhone] = useState(initialValue.phone ?? "");
   const [address, setAddress] = useState(initialValue.address ?? "");
+  const [remarks, setRemarks] = useState(initialValue.remarks ?? "");
   const [sssNumber, setSssNumber] = useState(initialValue.sssNumber ?? "");
   const [philHealthNumber, setPhilHealthNumber] = useState(initialValue.philHealthNumber ?? "");
   const [pagIbigNumber, setPagIbigNumber] = useState(initialValue.pagIbigNumber ?? "");
   const [tinNumber, setTinNumber] = useState(initialValue.tinNumber ?? "");
-  const { fieldErrors, formError, setFromResponse, clearField: clearFieldError, clear: clearErrors } = useFieldErrors({ formId, fields: EDIT_EMPLOYEE_FIELDS });
+  const { fieldErrors, formError, setFieldError, setFromResponse, clearField: clearFieldError, clear: clearErrors } = useFieldErrors({ formId, fields: EDIT_EMPLOYEE_FIELDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function resetToInitial() {
@@ -84,6 +87,7 @@ export function EditEmployeeDialog({
     setBirthDate(initialValue.birthDate ?? "");
     setPhone(initialValue.phone ?? "");
     setAddress(initialValue.address ?? "");
+    setRemarks(initialValue.remarks ?? "");
     setSssNumber(initialValue.sssNumber ?? "");
     setPhilHealthNumber(initialValue.philHealthNumber ?? "");
     setPagIbigNumber(initialValue.pagIbigNumber ?? "");
@@ -99,6 +103,9 @@ export function EditEmployeeDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     clearErrors();
+    // Same rule the API enforces (remarksSchema), so a too-long note is caught before the round trip.
+    const remarksCheck = remarksSchema.safeParse(remarks);
+    if (!remarksCheck.success) return setFieldError("remarks", remarksCheck.error.issues[0].message);
     setIsSubmitting(true);
 
     const response = await fetch(`/api/employees/${employeeId}`, {
@@ -119,6 +126,7 @@ export function EditEmployeeDialog({
         birthDate,
         phone,
         address,
+        remarks,
         sssNumber,
         philHealthNumber,
         pagIbigNumber,
@@ -219,6 +227,17 @@ export function EditEmployeeDialog({
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City"
+            />
+          </FormField>
+          <FormField label="Remarks" htmlFor={`${formId}-remarks`} error={fieldErrors.remarks} description={`Optional note for the roster, e.g. "Senior, PWD". ${remarks.length}/${REMARKS_MAX_LENGTH}`}>
+            <Input
+              id={`${formId}-remarks`}
+              value={remarks}
+              onChange={(event) => {
+                setRemarks(event.target.value);
+                clearFieldError("remarks");
+              }}
+              placeholder="e.g. Senior, PWD"
             />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">

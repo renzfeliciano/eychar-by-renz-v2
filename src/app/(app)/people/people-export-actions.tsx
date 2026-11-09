@@ -28,6 +28,7 @@ const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
     { header: "Birth date", width: 12, value: (row) => row.birthDate },
     { header: "Contact number", width: 16, value: (row) => row.contactNumber },
     { header: "Address", width: 40, wrap: true, value: (row) => row.address },
+    { header: "Remarks", width: 30, wrap: true, value: (row) => row.remarks },
     { header: "SSS no", width: 15, value: (row) => row.sssNumber },
     { header: "PhilHealth no", width: 16, value: (row) => row.philHealthNumber },
     { header: "Pag-IBIG no", width: 16, value: (row) => row.pagIbigNumber },

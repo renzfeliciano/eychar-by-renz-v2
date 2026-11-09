@@ -26,7 +26,7 @@ export type RosterPageQuery = {
   contractsEnding?: { from: Date; to: Date; activeStatuses: string[]; typesWithoutEnd: string[] };
 };
 
-type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date };
+type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date; remarks?: string };
 export type RosterRow = {
   _id: Types.ObjectId;
   employeeNumber?: string;
@@ -141,6 +141,7 @@ export const EmployeeRosterService = {
                   "person.lastName": 1,
                   "person.email": 1,
                   "person.birthDate": 1,
+                  "person.remarks": 1,
                   currentEmployment: 1,
                   currentAssignment: 1,
                 },
@@ -232,6 +233,7 @@ export const EmployeeRosterService = {
           birthDate: birthDate ? new Date(birthDate).toISOString().slice(0, 10) : "",
           contactNumber: row.person?.phone ?? "",
           address: row.person?.address ?? "",
+          remarks: row.person?.remarks ?? "",
           sssNumber: row.person?.sssNumber ?? "",
           philHealthNumber: row.person?.philHealthNumber ?? "",
           pagIbigNumber: row.person?.pagIbigNumber ?? "",
@@ -255,6 +257,7 @@ export type RosterExportRow = {
   birthDate: string;
   contactNumber: string;
   address: string;
+  remarks: string;
   sssNumber: string;
   philHealthNumber: string;
   pagIbigNumber: string;

@@ -27,7 +27,7 @@ function latestPerEmployee<T extends { employeeId: Types.ObjectId }>(rows: T[]):
 // IDs for the roster export, status/type/dates for headcount, payroll and
 // contracts, position/project/manager for scoping) — not Person.metadata or
 // the timestamps of every history row.
-const ROSTER_PERSON_FIELDS = "firstName middleName lastName email phone gender birthDate address sssNumber philHealthNumber pagIbigNumber tinNumber";
+const ROSTER_PERSON_FIELDS = "firstName middleName lastName email phone gender birthDate address remarks sssNumber philHealthNumber pagIbigNumber tinNumber";
 const ROSTER_EMPLOYMENT_FIELDS = "employeeId employmentType status effectiveFrom effectiveTo endOfContract";
 const ROSTER_ASSIGNMENT_FIELDS = "employeeId positionId organizationUnitId projectId locationId effectiveFrom effectiveTo";
 
