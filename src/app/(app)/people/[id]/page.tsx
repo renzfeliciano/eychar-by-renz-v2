@@ -260,6 +260,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               {detail.currentEmployment && <StatusBadge status={detail.currentEmployment.status} />}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{[positionTitle, projectName, typeLabel].filter(Boolean).join(" · ") || "No current assignment"}</p>
+            {detail.person?.remarks && (
+              <p className="mt-1 text-sm" data-testid="profile-remarks">
+                <span className="text-muted-foreground">Remarks: </span>
+                {detail.person.remarks}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {superAdmin && <HideToggle organizationId={organizationId} type="employee" id={employeeId} label={personName} hidden={Boolean(detail.employee.hiddenFromOthers)} />}
@@ -290,6 +296,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   birthDate: detail.person.birthDate ? new Date(detail.person.birthDate).toISOString().slice(0, 10) : undefined,
                   phone: detail.person.phone,
                   address: detail.person.address,
+                  remarks: detail.person.remarks,
                   sssNumber: detail.person.sssNumber,
                   philHealthNumber: detail.person.philHealthNumber,
                   pagIbigNumber: detail.person.pagIbigNumber,

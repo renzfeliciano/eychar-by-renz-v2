@@ -16,6 +16,11 @@ export function objectIdSchema(message = "Select a valid option") {
   return z.string().trim().regex(/^[a-f\d]{24}$/i, message);
 }
 
+/** Longest an employee's free-text remarks may be (roster note such as "Senior, PWD"). */
+export const REMARKS_MAX_LENGTH = 200;
+/** One rule for remarks, used by the form, the API routes and (as a maxlength) the Mongoose schema. */
+export const remarksSchema = z.string().trim().max(REMARKS_MAX_LENGTH, `Remarks can be at most ${REMARKS_MAX_LENGTH} characters`);
+
 /** PH mobile number: XXXX-XXX-XXXX (11 digits), always starting with "09". */
 export const contactNumberSchema = z
   .string()

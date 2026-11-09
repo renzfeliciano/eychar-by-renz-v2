@@ -14,6 +14,7 @@ export type CreatePersonInput = {
   gender?: "Male" | "Female";
   birthDate?: Date;
   address?: string;
+  remarks?: string;
   sssNumber?: string;
   philHealthNumber?: string;
   pagIbigNumber?: string;
@@ -42,6 +43,7 @@ export const PersonService = {
       gender: input.gender,
       birthDate: input.birthDate,
       address: input.address,
+      remarks: input.remarks,
       sssNumber: input.sssNumber,
       philHealthNumber: input.philHealthNumber,
       pagIbigNumber: input.pagIbigNumber,
@@ -78,6 +80,7 @@ export const PersonService = {
       gender: existing.gender,
       birthDate: existing.birthDate,
       address: existing.address,
+      remarks: existing.remarks,
       sssNumber: existing.sssNumber,
       philHealthNumber: existing.philHealthNumber,
       pagIbigNumber: existing.pagIbigNumber,

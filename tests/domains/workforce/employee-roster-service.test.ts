@@ -8,12 +8,13 @@ const unique = () => `${Date.now()}-${Math.random()}`;
 
 async function seedEmployee(
   organizationId: Types.ObjectId,
-  input: { first: string; last: string; number: string; type?: string; status?: string; hired?: string; positionId?: Types.ObjectId; ids?: boolean; endOfContract?: string },
+  input: { first: string; last: string; number: string; type?: string; status?: string; hired?: string; positionId?: Types.ObjectId; ids?: boolean; endOfContract?: string; remarks?: string },
 ) {
   const person = await PersonModel.create({
     organizationId,
     firstName: input.first,
     lastName: input.last,
+    ...(input.remarks ? { remarks: input.remarks } : {}),
     ...(input.ids ? { sssNumber: "34-1234567-8", philHealthNumber: "12-345678901-2", pagIbigNumber: "1234-5678-9012", tinNumber: "123-456-789-000" } : {}),
   });
   const employee = await EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: input.number });
@@ -71,6 +72,21 @@ describe("EmployeeRosterService", () => {
 
     const regexCharacters = await EmployeeRosterService.page(organizationId.toString(), { ...base, q: ".*" });
     expect(regexCharacters.total).toBe(0);
+  });
+
+  it("returns each person's remarks on the page and in the export, without making them searchable", async () => {
+    await seedEmployee(organizationId, { first: "Gina", last: "Uy", number: "E-020", remarks: "Senior, PWD" });
+    const page = await EmployeeRosterService.page(organizationId.toString(), { ...base, sort: "employeeNumber" });
+    expect(page.rows.find((row) => row.employeeNumber === "E-020")?.person?.remarks).toBe("Senior, PWD");
+    expect(page.rows.find((row) => row.employeeNumber === "E-001")?.person?.remarks).toBeUndefined();
+
+    // Remarks just sit there: searching for one finds nobody.
+    expect((await EmployeeRosterService.page(organizationId.toString(), { ...base, q: "PWD" })).total).toBe(0);
+
+    const lookups = { positionTitleById: new Map(), projectNameById: new Map(), statusNameByCode: new Map() };
+    const rows = await EmployeeRosterService.exportRows(organizationId.toString(), lookups);
+    expect(rows.find((row) => row.name === "Gina Uy")?.remarks).toBe("Senior, PWD");
+    expect(rows.find((row) => row.name === "Ana Cruz")?.remarks).toBe("");
   });
 
   it("filters by employment type and sorts by the requested column", async () => {

@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { REMARKS_MAX_LENGTH } from "@/shared/validation/shared";
 
 const personSchema = new Schema(
   {
@@ -11,6 +12,8 @@ const personSchema = new Schema(
     gender: { type: String, enum: ["Male", "Female"] },
     birthDate: { type: Date },
     address: { type: String, trim: true },
+    // Free-text HR note shown on the roster (e.g. "Senior, PWD"); length rule mirrors remarksSchema.
+    remarks: { type: String, trim: true, maxlength: REMARKS_MAX_LENGTH },
     // Statutory ID numbers — plain text, format-validated at the service
     // boundary (src/shared/validation/shared.ts) rather than the schema.
     sssNumber: { type: String, trim: true },

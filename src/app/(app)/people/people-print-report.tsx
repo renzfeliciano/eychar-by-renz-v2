@@ -35,6 +35,7 @@ export function PeoplePrintReport({ rows }: { rows: PeopleExportRow[] }) {
             <th className={cn(cellClass, "bg-[#f2f2ef] font-bold")}>Employment status</th>
             <th className={cn(cellClass, "bg-[#f2f2ef] font-bold")}>Age</th>
             <th className={cn(cellClass, "bg-[#f2f2ef] font-bold")}>Length of service</th>
+            <th className={cn(cellClass, "bg-[#f2f2ef] font-bold")}>Remarks</th>
           </tr>
         </thead>
         <tbody>
@@ -48,6 +49,7 @@ export function PeoplePrintReport({ rows }: { rows: PeopleExportRow[] }) {
               <td className={cellClass}>{row.employmentStatus}</td>
               <td className={cellClass}>{row.age || "—"}</td>
               <td className={cellClass}>{row.lengthOfService}</td>
+              <td className={cellClass}>{row.remarks || "—"}</td>
             </tr>
           ))}
         </tbody>

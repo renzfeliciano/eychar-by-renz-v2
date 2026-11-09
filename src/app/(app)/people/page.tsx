@@ -245,6 +245,12 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               sortKey: "lengthOfService",
               render: (row) => (row.currentEmployment?.effectiveFrom ? formatLengthOfService(new Date(row.currentEmployment.effectiveFrom)) : "—"),
             },
+            {
+              key: "remarks",
+              header: "Remarks", mobile: "hidden",
+              className: "max-w-56",
+              render: (row) => (row.person?.remarks ? <span className="block truncate" title={row.person.remarks}>{row.person.remarks}</span> : "—"),
+            },
           ]}
           rows={pageRows}
           getRowKey={(row) => row._id.toString()}

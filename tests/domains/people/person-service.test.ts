@@ -68,4 +68,21 @@ describe("PersonService", () => {
       PersonService.update(foreignPerson._id.toString(), organization._id.toString(), { firstName: "X" }, {}),
     ).rejects.toThrow(NotFoundError);
   });
+  it("stores, replaces and clears remarks, and the model refuses an over-long one", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-person-remarks-${Date.now()}` });
+    const orgId = organization._id.toString();
+    const person = await PersonService.create({ organizationId: orgId, firstName: "Jane", lastName: "Doe", remarks: "Senior, PWD" }, {});
+    expect(person.remarks).toBe("Senior, PWD");
+
+    const replaced = await PersonService.update(person._id.toString(), orgId, { remarks: "Solo parent" }, {});
+    expect(replaced.remarks).toBe("Solo parent");
+
+    // "" is the edit form's "clear it" signal: the field is removed, not stored blank.
+    const cleared = await PersonService.update(person._id.toString(), orgId, { remarks: "" }, {});
+    expect(cleared.remarks).toBeUndefined();
+    expect((await PersonModel.findById(person._id).lean())?.remarks).toBeUndefined();
+
+    // Last line of defence behind the form and the API route.
+    await expect(PersonService.create({ organizationId: orgId, firstName: "Too", lastName: "Long", remarks: "x".repeat(201) }, {})).rejects.toThrow();
+  });
 });
