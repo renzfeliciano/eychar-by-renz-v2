@@ -24,6 +24,8 @@ export const hireEmployeeSchema = z.object({
   address: z.string().trim().max(255).optional(),
   // A whitespace-only note is "no note": never stored as an empty string.
   remarks: remarksSchema.transform((value) => value || undefined).optional(),
+  // A level from the Education levels catalog (checked by PersonService); blank means none.
+  educationLevelCode: z.string().trim().max(200).transform((value) => value || undefined).optional(),
   sssNumber: sssNumberSchema.optional(),
   philHealthNumber: philHealthNumberSchema.optional(),
   pagIbigNumber: pagIbigNumberSchema.optional(),
@@ -49,6 +51,7 @@ export const updateEmployeeProfileSchema = z.object({
   phone: clearable(contactNumberSchema).optional(),
   address: z.string().trim().max(255).optional(),
   remarks: remarksSchema.optional(),
+  educationLevelCode: clearable(z.string().trim().min(1).max(200)).optional(),
   sssNumber: clearable(sssNumberSchema).optional(),
   philHealthNumber: clearable(philHealthNumberSchema).optional(),
   pagIbigNumber: clearable(pagIbigNumberSchema).optional(),
@@ -93,4 +96,45 @@ export type ChangeEmploymentTermsSchemaInput = z.infer<typeof changeEmploymentTe
 export const employeeExportQuerySchema = z.object({
   organizationId: objectId(),
   employmentType: z.string().trim().max(100).optional(),
+});
+
+const educationSchoolSchema = z.string().trim().min(1, "Enter the school.").max(200, "The school can be at most 200 characters.");
+const educationLevelCodeSchema = z.string().trim().min(1, "Choose a level.").max(200);
+
+/**
+ * POST /api/employees/[id]/education. The year's range depends on today, so the service checks it;
+ * here it only has to be a number.
+ */
+export const createEducationRecordSchema = z.object({
+  organizationId: objectId(),
+  levelCode: educationLevelCodeSchema,
+  school: educationSchoolSchema,
+  course: z.string().trim().max(200, "The course can be at most 200 characters.").optional(),
+  yearGraduated: z.number().optional(),
+});
+
+/** PATCH /api/employees/[id]/education/[recordId]: send only what changed; `""` clears the course and `null` clears the year. */
+export const updateEducationRecordSchema = z.object({
+  organizationId: objectId(),
+  levelCode: educationLevelCodeSchema.optional(),
+  school: educationSchoolSchema.optional(),
+  course: z.string().trim().max(200, "The course can be at most 200 characters.").optional(),
+  yearGraduated: z.number().nullable().optional(),
+});
+
+/** DELETE /api/employees/[id]/education/[recordId]. */
+export const removeEducationRecordSchema = z.object({ organizationId: objectId() });
+
+/** PATCH /api/employees/[id]/employment/ending: send only what changed (the reason, the last day, the note). */
+export const correctEndingSchema = z.object({
+  organizationId: objectId(),
+  status: z.string().max(200).trim().min(1).optional(),
+  effectiveTo: z.coerce.date().optional(),
+  terminationReason: z.string().max(2000).trim().optional(),
+});
+
+/** POST /api/employees/[id]/employment/reinstate: why the ending was wrong. */
+export const reinstateEmploymentSchema = z.object({
+  organizationId: objectId(),
+  reason: z.string().trim().min(1, "Enter why the employment is being reinstated.").max(2000),
 });

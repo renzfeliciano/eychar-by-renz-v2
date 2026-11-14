@@ -26,7 +26,7 @@ export async function paidRegularRunsInYear(organizationId: Types.ObjectId, year
     status: { $in: PAID },
     payPeriodEnd: { $gte: dateKeyToDate(`${year}-01-01`), $lte: dateKeyToDate(`${year}-12-31`) },
   })
-    .select("_id projectId payPeriodEnd")
+    .select("_id projectId payPeriodStart payPeriodEnd")
     .lean();
 }
 

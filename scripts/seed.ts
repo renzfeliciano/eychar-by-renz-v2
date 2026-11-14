@@ -18,6 +18,7 @@ import {
   EmploymentStatusModel,
   AttendanceStatusModel,
   RecruitmentStageModel,
+  ComplaintStageModel,
   EventCategoryModel,
   CaseClassificationModel,
   CaseStatusModel,
@@ -27,6 +28,7 @@ import {
   DocumentTypeModel,
   ClearanceDepartmentModel,
   SeparationTypeModel,
+  EducationLevelModel,
   ClearanceChecklistItemModel,
   PaymentMethodModel,
   LeaveTypeModel,
@@ -35,9 +37,11 @@ import {
 } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
+import { EDUCATION_LEVEL_DEFAULTS } from "@/domains/catalog/education-level-defaults";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
 import { DEFAULT_RECRUITMENT_STAGES } from "@/domains/recruitment/default-stages";
+import { DEFAULT_COMPLAINT_STAGES } from "@/domains/complaints/default-stages";
 import type { Model } from "mongoose";
 
 // Baseline permission catalog. This is seeded *data*, not hardcoded
@@ -84,6 +88,7 @@ const BASELINE_PERMISSIONS = [
   { key: "attendance.create", description: "Record employee attendance", category: "attendance" },
   { key: "attendance.read", description: "View attendance records", category: "attendance" },
   { key: "attendance.update", description: "Adjust attendance records", category: "attendance" },
+  { key: "attendance.recalculate", description: "Recalculate stored attendance day results over a range", category: "attendance" },
   { key: "attendance-policies.create", description: "Create attendance policies", category: "attendance" },
   { key: "attendance-policies.read", description: "View attendance policies", category: "attendance" },
   { key: "attendance-policies.update", description: "Update attendance policies", category: "attendance" },
@@ -149,6 +154,9 @@ const BASELINE_PERMISSIONS = [
   { key: "applicants.create", description: "Add applicants", category: "recruitment" },
   { key: "applicants.read", description: "View applicants", category: "recruitment" },
   { key: "applicants.update", description: "Edit applicants and move them between pipeline stages", category: "recruitment" },
+  { key: "complaints.create", description: "Add complaints", category: "complaints" },
+  { key: "complaints.read", description: "View complaints", category: "complaints" },
+  { key: "complaints.update", description: "Edit complaints and move them between stages", category: "complaints" },
 
   { key: "review-cycles.create", description: "Create performance review cycles", category: "performance" },
   { key: "review-cycles.read", description: "View performance review cycles", category: "performance" },
@@ -212,6 +220,12 @@ const BASELINE_PERMISSIONS = [
   { key: "separation-types.create", description: "Add separation types", category: "settings" },
   { key: "separation-types.read", description: "View separation types", category: "settings" },
   { key: "separation-types.update", description: "Retire separation types", category: "settings" },
+  { key: "education-levels.create", description: "Add education levels", category: "settings" },
+  { key: "education-levels.read", description: "View education levels", category: "settings" },
+  { key: "education-levels.update", description: "Retire education levels", category: "settings" },
+  { key: "complaint-stages.create", description: "Add complaint stage catalog items", category: "settings" },
+  { key: "complaint-stages.read", description: "View complaint stage catalog items", category: "settings" },
+  { key: "complaint-stages.update", description: "Retire complaint stage catalog items", category: "settings" },
 
   // Final settlement (ADR-032).
   { key: "final-settlements.read", description: "View final settlements", category: "final settlement" },
@@ -543,6 +557,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
 
   // Includes the withdrawal outcomes (withdrawn before/after start, did not proceed): closed, not hires.
   await seedCatalogDefaults(RecruitmentStageModel, DEFAULT_RECRUITMENT_STAGES);
+  await seedCatalogDefaults(ComplaintStageModel, DEFAULT_COMPLAINT_STAGES);
 
   await seedCatalogDefaults(EventCategoryModel, [
     { code: "meeting", name: "Meeting", sortOrder: 0 },
@@ -605,6 +620,8 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
     { code: "redundancy", name: "Redundancy", sortOrder: 4 },
     { code: "death", name: "Death", sortOrder: 5 },
   ]);
+
+  await seedCatalogDefaults(EducationLevelModel, EDUCATION_LEVEL_DEFAULTS);
 
   await seedCatalogDefaults(PaymentMethodModel, [
     { code: "bank_transfer", name: "Bank transfer", sortOrder: 0 },

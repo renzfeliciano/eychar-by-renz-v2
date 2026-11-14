@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "./payroll-status-badge";
 import { NewRunDialog, type RunSuggestion } from "./new-run-dialog";
 import { ThirteenthMonthRunDialog } from "./thirteenth-month-run-dialog";
+import { YearEndRunDialog } from "./year-end-run-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll runs" };
@@ -95,6 +96,7 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
           canCreate ? (
             <div className="flex flex-wrap items-center gap-2">
               <ThirteenthMonthRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} currentYear={Number(today.slice(0, 4))} />
+              <YearEndRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} currentYear={Number(today.slice(0, 4))} />
               <NewRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} suggestions={suggestions} />
             </div>
           ) : undefined

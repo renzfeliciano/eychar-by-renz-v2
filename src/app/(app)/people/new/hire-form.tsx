@@ -32,6 +32,7 @@ const HIRE_FIELD_IDS = {
   employeeNumber: "hire-employee-number",
   address: "hire-address",
   remarks: "hire-remarks",
+  educationLevelCode: "hire-education",
   employmentType: "hire-employment-type",
   effectiveFrom: "hire-date-hired",
   endOfContract: "hire-end-of-contract",
@@ -48,11 +49,14 @@ export function HireForm({
   positions,
   projects,
   employmentTypes,
+  educationLevels = [],
 }: {
   organizationId: string;
   positions: Option[];
   projects: Option[];
   employmentTypes: EmploymentTypeOption[];
+  /** Choices for Highest educational attainment (see educationLevelOptions). */
+  educationLevels?: Option[];
 }) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
@@ -63,6 +67,7 @@ export function HireForm({
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [educationLevelCode, setEducationLevelCode] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [employmentType, setEmploymentType] = useState("");
   const [dateHired, setDateHired] = useState("");
@@ -104,6 +109,7 @@ export function HireForm({
         phone: phone || undefined,
         address: address || undefined,
         remarks: remarks.trim() || undefined,
+        educationLevelCode: educationLevelCode || undefined,
         employeeNumber: employeeNumber || undefined,
         employmentType,
         effectiveFrom: dateHired || undefined,
@@ -168,6 +174,19 @@ export function HireForm({
           <FormField label="Address" htmlFor="hire-address" error={fieldErrors.address}>
             <Textarea id="hire-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
           </FormField>
+          <OptionSelect
+            id="hire-education"
+            label="Highest educational attainment"
+            value={educationLevelCode}
+            onChange={(value) => {
+              setEducationLevelCode(value);
+              clearFieldError("educationLevelCode");
+            }}
+            options={educationLevels}
+            placeholder="Not specified"
+            error={fieldErrors.educationLevelCode}
+            testId="hire-education"
+          />
           <FormField label="Remarks" htmlFor="hire-remarks" error={fieldErrors.remarks} description={`Optional note for the roster, e.g. "Senior, PWD". ${remarks.length}/${REMARKS_MAX_LENGTH}`}>
             <Input id="hire-remarks" value={remarks} onChange={(event) => { setRemarks(event.target.value); clearFieldError("remarks"); }} placeholder="e.g. Senior, PWD" />
           </FormField>

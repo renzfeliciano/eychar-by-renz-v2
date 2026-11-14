@@ -138,6 +138,64 @@ describe("EmploymentService", () => {
     expect(terminated.status).toBe("resigned");
   });
 
+  it("records the reason in the audit entry when employment ends", async () => {
+    const { organization, employee } = await seedEmployee("8");
+    await EmploymentStatusService.create(
+      { organizationId: organization._id.toString(), code: "resigned", name: "Resigned", metadata: { isActiveHeadcount: false } },
+      {},
+    );
+    const stint = await EmploymentService.create(
+      { organizationId: organization._id.toString(), employeeId: employee._id.toString(), employmentType: "regular" },
+      {},
+    );
+
+    await EmploymentService.terminate(
+      stint._id.toString(),
+      organization._id.toString(),
+      { status: "resigned", terminationReason: "Moving abroad" },
+      {},
+    );
+
+    const audit = await AuditLogModel.findOne({ resourceId: stint._id, action: "employment.terminated" }).lean();
+    expect(audit?.after).toMatchObject({ status: "resigned", terminationReason: "Moving abroad" });
+  });
+
+  it("refuses to end employment with a status the catalog counts as active headcount", async () => {
+    const { organization, employee } = await seedEmployee("9");
+    await EmploymentStatusService.create(
+      { organizationId: organization._id.toString(), code: "on_leave", name: "On Leave", metadata: { isActiveHeadcount: true } },
+      {},
+    );
+    const stint = await EmploymentService.create(
+      { organizationId: organization._id.toString(), employeeId: employee._id.toString(), employmentType: "regular" },
+      {},
+    );
+
+    await expect(
+      EmploymentService.terminate(stint._id.toString(), organization._id.toString(), { status: "on_leave" }, {}),
+    ).rejects.toThrow(BusinessRuleError);
+
+    const unchanged = await EmploymentModel.findById(stint._id).lean();
+    expect(unchanged?.status).toBe("active");
+    expect(unchanged?.effectiveTo).toBeUndefined();
+  });
+
+  it("refuses an end date in the future, or before the employee was hired", async () => {
+    const { organization, employee } = await seedEmployee("10");
+    const stint = await EmploymentService.create(
+      { organizationId: organization._id.toString(), employeeId: employee._id.toString(), employmentType: "regular", effectiveFrom: new Date("2026-03-01T00:00:00Z") },
+      {},
+    );
+    const orgId = organization._id.toString();
+
+    const tomorrow = new Date(Date.now() + 2 * 86_400_000);
+    await expect(EmploymentService.terminate(stint._id.toString(), orgId, { effectiveTo: tomorrow }, {})).rejects.toThrow(/future/);
+    await expect(EmploymentService.terminate(stint._id.toString(), orgId, { effectiveTo: new Date("2026-02-28T00:00:00Z") }, {})).rejects.toThrow(/before/);
+
+    const unchanged = await EmploymentModel.findById(stint._id).lean();
+    expect(unchanged?.status).toBe("active");
+  });
+
   describe("changeTerms (regularize, renew, change type)", () => {
     const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

@@ -18,6 +18,7 @@ import { dateKeyToDate, dateToDateKey } from "@/lib/date-key";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError, ValidationError } from "@/shared/errors";
 import type { FinalSettlementActionInput, ManualLineInput } from "@/shared/validation/final-settlement";
 import { computeSettlement, type ManualLine } from "./settlement-calculator";
+import { accountabilityDrift, describeDrift } from "./settlement-accountabilities";
 import { payPremiumsOf } from "@/domains/payroll/engine/premiums";
 import { basicEarnedFrom } from "@/domains/payroll/engine/thirteenth-month";
 import { thirteenthMonthPaid } from "@/domains/payroll/thirteenth-month-ledger";
@@ -25,6 +26,8 @@ import { thirteenthMonthPaid } from "@/domains/payroll/thirteenth-month-ledger";
 type Actor = { userId?: string };
 
 const EDITABLE = ["draft"];
+/** Actions that move a settlement toward release. */
+const FORWARD_ACTIONS: string[] = ["submit", "review", "approve", "disburse"];
 
 const toObjectId = (id?: string) => (id && Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : undefined);
 
@@ -226,6 +229,18 @@ export const FinalSettlementService = {
       entry = { action, at: now, by: toObjectId(actor.userId), note: note || undefined, version: settlement.version };
       settlement.history.push(entry);
     };
+
+    // Moving forward needs the settlement to deduct exactly what the
+    // clearance flags right now: a flag raised, changed, cleared or waived
+    // after it was computed stops it until it's recomputed.
+    if (FORWARD_ACTIONS.includes(input.action)) {
+      const clearance = await ClearanceCaseModel.findById(settlement.clearanceCaseId).select("items").lean();
+      const drift = accountabilityDrift(clearance?.items ?? [], settlement.lines);
+      if (drift.length) {
+        const fix = settlement.status === "draft" ? "Recompute the settlement first" : "Return it to draft and recompute it first";
+        throw new BusinessRuleError(`The clearance's red flags changed since this settlement was computed (${drift.map(describeDrift).join("; ")}). ${fix}.`);
+      }
+    }
 
     let closesClearance = false;
     switch (input.action) {

@@ -3,6 +3,7 @@ import { connectMongoDB } from "@/server/db/connection";
 import { PersonModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
+import { EducationLevelService } from "@/domains/catalog/education-level-service";
 
 export type CreatePersonInput = {
   organizationId: string;
@@ -15,6 +16,8 @@ export type CreatePersonInput = {
   birthDate?: Date;
   address?: string;
   remarks?: string;
+  /** A code from the Education levels catalog. */
+  educationLevelCode?: string;
   sssNumber?: string;
   philHealthNumber?: string;
   pagIbigNumber?: string;
@@ -32,6 +35,8 @@ export type UpdatePersonInput = Partial<{
 export const PersonService = {
   async create(input: CreatePersonInput, actor: { userId?: string }) {
     await connectMongoDB();
+    // Checked before anything is written, so a bad level can't leave a half-made hire behind.
+    if (input.educationLevelCode) await EducationLevelService.assertValidCode(input.organizationId, input.educationLevelCode);
 
     const person = await PersonModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
@@ -44,6 +49,7 @@ export const PersonService = {
       birthDate: input.birthDate,
       address: input.address,
       remarks: input.remarks,
+      educationLevelCode: input.educationLevelCode,
       sssNumber: input.sssNumber,
       philHealthNumber: input.philHealthNumber,
       pagIbigNumber: input.pagIbigNumber,
@@ -70,6 +76,11 @@ export const PersonService = {
       organizationId: new Types.ObjectId(organizationId),
     }).lean();
     if (!existing) throw new NotFoundError("Person not found in this organization");
+    // Only a level that is actually changing is checked: "" clears it, and the edit form re-sends the unchanged level
+    // with every save, so a level HR has since retired must not block edits to anything else about the person.
+    if (patch.educationLevelCode && patch.educationLevelCode !== existing.educationLevelCode) {
+      await EducationLevelService.assertValidCode(organizationId, patch.educationLevelCode);
+    }
 
     const before = {
       firstName: existing.firstName,
@@ -81,6 +92,7 @@ export const PersonService = {
       birthDate: existing.birthDate,
       address: existing.address,
       remarks: existing.remarks,
+      educationLevelCode: existing.educationLevelCode,
       sssNumber: existing.sssNumber,
       philHealthNumber: existing.philHealthNumber,
       pagIbigNumber: existing.pagIbigNumber,

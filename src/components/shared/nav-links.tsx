@@ -30,6 +30,7 @@ import {
   Star,
   Gavel,
   Plane,
+  ShieldAlert,
   ShieldCheck,
   UserCog,
   UserMinus,
@@ -78,6 +79,8 @@ export const CATALOG_READ_PERMISSIONS = [
   "clearance-departments.read",
   "separation-types.read",
   "payment-methods.read",
+  "education-levels.read",
+  "complaint-stages.read",
 ] as const;
 
 /**
@@ -143,6 +146,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/travel-orders", label: "Travel orders", icon: Plane, permission: "travel-orders.read" },
       { href: "/recruitment/tracking", label: "Recruitment", icon: KanbanSquare, permission: "applicants.read" },
       { href: "/performance", label: "Performance", icon: Star, anyPermission: ["performance-evaluations.read", "review-cycles.read"] },
+      { href: "/complaints", label: "Complaints", icon: ShieldAlert, permission: "complaints.read" },
       { href: "/cases", label: "Cases", icon: Gavel, permission: "cases.read" },
       { href: "/events", label: "Events", icon: CalendarDays, permission: "events.read" },
       {

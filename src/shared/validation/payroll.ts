@@ -95,6 +95,19 @@ const contributionRuleSchema = z.object({
   rows: z.array(contributionRowSchema).max(200).min(1, "Each contribution needs at least one row"),
 });
 
+// Form 2316 box map (payroll plan Phase 4): see engine/year-end-tax.ts.
+const form2316BoxSchema = z.object({
+  box: z.string().trim().min(1).max(8),
+  label: z.string().trim().min(1).max(120),
+  part: z.enum(["non_taxable", "taxable"]),
+  codes: z.array(z.string().trim().min(1).max(40)).max(50).default([]),
+  minimumWage: z.enum(["any", "mwe", "non_mwe"]).nullish(),
+  taxable: z.enum(["any", "yes", "no"]).nullish(),
+  lessContributions: z.boolean().nullish(),
+  capped: z.boolean().nullish(),
+  overflowTo: z.string().trim().max(8).nullish(),
+});
+
 export const createPayrollRuleVersionSchema = z.object({
   organizationId: objectId(),
   projectId: optionalId,
@@ -106,6 +119,11 @@ export const createPayrollRuleVersionSchema = z.object({
     .array(z.object({ payFrequency: PAY_FREQUENCY, brackets: z.array(taxBracketSchema).max(100).min(1, "Each tax table needs at least one bracket") }))
     .min(1, "Add at least one withholding tax table"),
   contributions: z.array(contributionRuleSchema).max(50).default([]),
+  // Year-end (Phase 4): optional; a version without an annual table can't be used for a year-end run.
+  annualTaxTable: z.array(taxBracketSchema).max(100).optional(),
+  benefitsExemptionCap: money("Benefits exemption").nullish(),
+  form2316Boxes: z.array(form2316BoxSchema).max(80).optional(),
+  form2316Excluded: z.array(z.string().trim().min(1).max(40)).max(50).optional(),
 });
 
 export const updatePayrollRuleVersionStatusSchema = z.object({
@@ -142,6 +160,51 @@ export const createThirteenthMonthRunSchema = z
     payDate: calendarDateSchema,
   })
   .refine((input) => Number(input.payDate.slice(0, 4)) >= input.year, { message: "Pay the 13th month in its year or later.", path: ["payDate"] });
+
+export const createYearEndRunSchema = z
+  .object({
+    organizationId: objectId(),
+    projectId: optionalId,
+    year: z.coerce.number().int().min(2000).max(2100),
+    payDate: calendarDateSchema,
+  })
+  .refine((input) => Number(input.payDate.slice(0, 4)) >= input.year, { message: "Settle the year's tax in that year or later.", path: ["payDate"] });
+
+const dateInYear = calendarDateSchema.nullish();
+export const priorEmploymentSchema = z
+  .object({
+    organizationId: objectId(),
+    employeeId: objectId(),
+    year: z.coerce.number().int().min(2000).max(2100),
+    employerName: z.string().trim().min(1, "Name the previous employer").max(160),
+    employerTin: z.string().trim().max(20).nullish(),
+    employerAddress: z.string().trim().max(300).nullish(),
+    employerZipCode: z.string().trim().max(10).nullish(),
+    periodFrom: dateInYear,
+    periodTo: dateInYear,
+    taxableCompensation: money("Taxable compensation"),
+    nonTaxableCompensation: money("Non-taxable compensation").default(0),
+    taxWithheld: money("Tax withheld").default(0),
+    concurrent: z.boolean().default(false),
+  })
+  .refine((input) => [input.periodFrom, input.periodTo].every((date) => !date || Number(date.slice(0, 4)) === input.year), { message: "The period must be within the year.", path: ["periodFrom"] })
+  .refine((input) => !input.periodFrom || !input.periodTo || input.periodFrom <= input.periodTo, { message: "The period ends before it starts.", path: ["periodTo"] });
+
+// The employer's BIR registration for Form 2316 (payroll plan Phase 4).
+const optionalText = (max: number) => z.string().trim().max(max).nullish().transform((value) => value || undefined);
+export const employerTaxSchema = z.object({
+  organizationId: objectId(),
+  tin: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((value) => value || undefined)
+    .refine((value) => !value || /^\d{3}-?\d{3}-?\d{3}(-?\d{3,5})?$/.test(value), "Enter the TIN as 9 to 14 digits, e.g. 123-456-789-000"),
+  registeredName: optionalText(160),
+  registeredAddress: optionalText(300),
+  zipCode: optionalText(10),
+  rdoCode: optionalText(10),
+});
 
 export const thirteenthMonthTrueUpSchema = z.object({ organizationId: objectId(), year: z.coerce.number().int().min(2000).max(2100) });
 
@@ -219,6 +282,9 @@ export type CreatePayrollRuleVersionInput = z.infer<typeof createPayrollRuleVers
 export type UpdatePayrollRuleVersionStatusInput = z.infer<typeof updatePayrollRuleVersionStatusSchema>;
 export type CreatePayrollRunInput = z.infer<typeof createPayrollRunSchema>;
 export type CreateThirteenthMonthRunInput = z.infer<typeof createThirteenthMonthRunSchema>;
+export type CreateYearEndRunInput = z.infer<typeof createYearEndRunSchema>;
+export type PriorEmploymentInput = z.infer<typeof priorEmploymentSchema>;
+export type EmployerTaxInput = z.infer<typeof employerTaxSchema>;
 export type PayrollRunActionInput = z.infer<typeof payrollRunActionSchema>;
 export type PayrollAdjustmentInput = z.infer<typeof payrollAdjustmentSchema>;
 export type CreatePayrollScheduleInput = z.infer<typeof createPayrollScheduleSchema>;

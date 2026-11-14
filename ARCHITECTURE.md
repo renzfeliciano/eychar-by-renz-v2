@@ -323,6 +323,30 @@ print report (`hidden print:block`, per ADR-018/019's Tailwind-first print conve
 hard-delete was intentionally not ported (ENGINEERING.md §53: no hard deletes anywhere in this
 codebase); a case is retired via its `status` catalog value instead.
 
+## Complaints (ADR-054)
+
+Incident reports and complaints about an employee, tracked across a board the way Recruitment
+tracks applicants. `Complaint` (`employeeId` the respondent, `irNumber` automatic `IR-0001`,
+`receivedDate`, `remarks?`, `stage`) validates `stage` against the `ComplaintStage` catalog
+(seeded: Received IR/complaint, Set a date for NTE, Administrative Hearing, Sanction; the last is
+`isTerminal`) with **free-form movement in any direction** and no required dates. A new complaint
+starts in the lowest-sorted active stage, read from the catalog. `/complaints` is a drag-and-drop
+board and list (`@dnd-kit/core`, same structure as `/recruitment/tracking`); the menu item sits in
+More right after Performance. Separate from Cases, which is a project-level legal register.
+Permissions `complaints.create|read|update` (org-wide, not project-scoped) and the catalog's
+`complaint-stages.*`; no delete route, a complaint is retired by moving it to a closing stage;
+the Super Administrator can hide it as test data or delete it from the recycle bin. Every
+change is audited (`complaint.created`, `.updated` with before/after, `.stage_moved`,
+`.stage_details_updated`).
+
+Each complaint also carries optional incident details (project/site, picked from the existing Projects list, description, what, where,
+incident date, complainant name) and one **details section per stage** in `stageDetails`, keyed by
+stage code (`domains/complaints/stage-sections.ts`: NTE, hearing, sanction, and a generic section
+for any other stage). Moving a card to a stage with no details yet opens that stage's form (save
+and move, or move without); sections are edited from the side panel through
+`PATCH /api/complaints/[id]/details`. The Actions menu and Overdue status from the mockups are a
+later phase.
+
 ## People roster paging
 
 The People page reads one page of employees at a time: `EmployeeRosterService.page()` joins each
@@ -622,6 +646,9 @@ any exist: every clearance item flagged as an issue (ADR-031), with its note, am
 who flagged it and where its resolution stands (no settlement yet, to be deducted in the draft
 settlement, approved but not released). A flag leaves once the item is cleared or waived, or the
 final settlement is disbursed (ADR-032); settlement details show only with `final-settlements.read`.
+A settlement that doesn't deduct exactly what the clearance flags right now can't move toward
+release until it's recomputed, and the Compliance final-pay row names the red flags and blocking
+items still open for that separation.
 
 ## Known gaps (tracked, not silently ignored)
 

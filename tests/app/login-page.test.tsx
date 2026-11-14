@@ -205,4 +205,11 @@ describe("LoginPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("You were signed out after a period of inactivity. Sign in again to continue.");
     window.history.pushState({}, "", "/login");
   });
+
+  it("explains an ended session when a save was refused and there was no session left", async () => {
+    window.history.pushState({}, "", "/login?reason=expired");
+    render(<LoginPage />);
+    expect(await screen.findByRole("status")).toHaveTextContent("Your session ended, so that change wasn't saved. Sign in again and repeat it.");
+    window.history.pushState({}, "", "/login");
+  });
 });

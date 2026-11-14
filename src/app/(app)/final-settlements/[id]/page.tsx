@@ -4,7 +4,8 @@ import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
-import { ArrowDownRight, ArrowUpRight, Info } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Info, OctagonAlert } from "lucide-react";
+import { accountabilityDrift, describeDrift } from "@/domains/final-settlement/settlement-accountabilities";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { FinalSettlementService } from "@/domains/final-settlement/final-settlement-service";
@@ -111,6 +112,8 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
     ? (line: Line) => (line.manualLineId ? <RemoveLineButton organizationId={organizationId} settlementId={id} lineId={line.manualLineId} label={line.label} /> : null)
     : null;
   const totals = settlement.totals ?? { earnings: 0, deductions: 0, net: 0 };
+  // Same check FinalSettlementService.act enforces, shown before anyone tries.
+  const drift = settlement.status === "disbursed" || settlement.status === "cancelled" ? [] : accountabilityDrift(clearance.items, settlement.lines);
   const inputs = (settlement.inputs ?? {}) as { dailyRate?: number; lastPaidThrough?: string | null; rateType?: string; rate?: number };
 
   return (
@@ -138,6 +141,22 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
           tone={settlement.status === "disbursed" ? "success" : daysLeft < 0 ? "danger" : daysLeft <= 7 ? "warning" : "default"}
         />
       </MetricStrip>
+
+      {drift.length > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert" data-testid="settlement-flags-changed">
+          <OctagonAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">
+              The clearance&apos;s red flags changed since this settlement was computed. It can&apos;t move on until it&apos;s {settlement.status === "draft" ? "recomputed" : "returned to draft and recomputed"}.
+            </p>
+            <ul className="list-disc pl-5">
+              {drift.map((entry) => (
+                <li key={entry.itemId}>{describeDrift(entry)}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">

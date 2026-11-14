@@ -20,6 +20,7 @@ const HIDEABLE = {
   case: models.CaseModel,
   event: models.EventModel,
   applicant: models.ApplicantModel,
+  complaint: models.ComplaintModel,
   clearance: models.ClearanceCaseModel,
   "final-settlement": models.FinalSettlementModel,
   "staff-account": models.UserModel,

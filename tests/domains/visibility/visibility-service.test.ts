@@ -62,6 +62,6 @@ describe("hidden test data", () => {
     await VisibilityService.setHidden("project", project._id.toString(), s.organizationId, true, { userId: s.owner });
 
     expect(await ProjectModel.countDocuments({ organizationId: s.organizationId })).toBe(0);
-    expect(VisibilityService.hideableTypes()).toEqual(expect.arrayContaining(["employee", "project", "location", "position", "staff-account", "leave-type", "shift-template"]));
+    expect(VisibilityService.hideableTypes()).toEqual(expect.arrayContaining(["employee", "project", "location", "position", "staff-account", "leave-type", "shift-template", "complaint"]));
   });
 });

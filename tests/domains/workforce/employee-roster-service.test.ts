@@ -8,13 +8,14 @@ const unique = () => `${Date.now()}-${Math.random()}`;
 
 async function seedEmployee(
   organizationId: Types.ObjectId,
-  input: { first: string; last: string; number: string; type?: string; status?: string; hired?: string; positionId?: Types.ObjectId; ids?: boolean; endOfContract?: string; remarks?: string },
+  input: { first: string; last: string; number: string; type?: string; status?: string; hired?: string; positionId?: Types.ObjectId; ids?: boolean; endOfContract?: string; remarks?: string; educationLevelCode?: string },
 ) {
   const person = await PersonModel.create({
     organizationId,
     firstName: input.first,
     lastName: input.last,
     ...(input.remarks ? { remarks: input.remarks } : {}),
+    ...(input.educationLevelCode ? { educationLevelCode: input.educationLevelCode } : {}),
     ...(input.ids ? { sssNumber: "34-1234567-8", philHealthNumber: "12-345678901-2", pagIbigNumber: "1234-5678-9012", tinNumber: "123-456-789-000" } : {}),
   });
   const employee = await EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: input.number });
@@ -87,6 +88,33 @@ describe("EmployeeRosterService", () => {
     const rows = await EmployeeRosterService.exportRows(organizationId.toString(), lookups);
     expect(rows.find((row) => row.name === "Gina Uy")?.remarks).toBe("Senior, PWD");
     expect(rows.find((row) => row.name === "Ana Cruz")?.remarks).toBe("");
+  });
+
+  it("returns each person's educational attainment on the page, and its catalog name in the export, without making it searchable", async () => {
+    await seedEmployee(organizationId, { first: "Liza", last: "Tan", number: "E-030", educationLevelCode: "masters_degree" });
+    await seedEmployee(organizationId, { first: "Mario", last: "Reyes", number: "E-031", educationLevelCode: "retired_level" });
+    const page = await EmployeeRosterService.page(organizationId.toString(), { ...base, sort: "employeeNumber" });
+    expect(page.rows.find((row) => row.employeeNumber === "E-030")?.person?.educationLevelCode).toBe("masters_degree");
+    expect(page.rows.find((row) => row.employeeNumber === "E-001")?.person?.educationLevelCode).toBeUndefined();
+    expect((await EmployeeRosterService.page(organizationId.toString(), { ...base, q: "masters_degree" })).total).toBe(0);
+
+    const lookups = {
+      positionTitleById: new Map(),
+      projectNameById: new Map(),
+      statusNameByCode: new Map(),
+      educationLevelNameByCode: new Map([["masters_degree", "Master’s Degree"]]),
+    };
+    const rows = await EmployeeRosterService.exportRows(organizationId.toString(), lookups);
+    expect(rows.find((row) => row.name === "Liza Tan")?.educationLevel).toBe("Master’s Degree");
+    // A code with no catalog name (an unconfigured catalog) is shown as it was entered, never dropped.
+    expect(rows.find((row) => row.name === "Mario Reyes")?.educationLevel).toBe("retired_level");
+    expect(rows.find((row) => row.name === "Ana Cruz")?.educationLevel).toBe("");
+  });
+
+  it("still exports when the caller has no education names to give", async () => {
+    await seedEmployee(organizationId, { first: "Liza", last: "Tan", number: "E-040", educationLevelCode: "masters_degree" });
+    const rows = await EmployeeRosterService.exportRows(organizationId.toString(), { positionTitleById: new Map(), projectNameById: new Map(), statusNameByCode: new Map() });
+    expect(rows.find((row) => row.name === "Liza Tan")?.educationLevel).toBe("masters_degree");
   });
 
   it("filters by employment type and sorts by the requested column", async () => {

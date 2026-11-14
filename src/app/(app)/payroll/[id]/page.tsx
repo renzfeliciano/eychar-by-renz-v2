@@ -129,6 +129,19 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           monthsWithPay: record.thirteenthMonth.monthsWithPay,
         }
       : null,
+    yearEnd: record.yearEnd
+      ? {
+          year: record.yearEnd.year,
+          presentTaxable: record.yearEnd.presentTaxable,
+          previousTaxable: record.yearEnd.previousTaxable ?? 0,
+          grossTaxable: record.yearEnd.grossTaxable,
+          taxDue: record.yearEnd.taxDue,
+          presentWithheld: record.yearEnd.presentWithheld,
+          previousWithheld: record.yearEnd.previousWithheld ?? 0,
+          difference: record.yearEnd.difference,
+          benefitsExcess: record.yearEnd.benefitsExcess ?? 0,
+        }
+      : null,
     netPay: record.netPay,
     previousNetPay: record.previousNetPay ?? null,
     warnings: record.warnings.map((warning: { code: string; message: string; blocking: boolean }) => ({ code: warning.code, message: warning.message, blocking: warning.blocking })),
@@ -181,6 +194,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
             employees={totals.employees}
             netPayLabel={formatPeso(totals.netPay)}
             trueUpYear={status === "draft" && runTypeOf(run) === "regular" && dateToDateKey(run.payPeriodStart).slice(5, 7) === "01" ? run.payPeriodStart.getUTCFullYear() - 1 : undefined}
+            yearEnd={runTypeOf(run) === "year_end_adjustment"}
             exclusions={(run.exclusions ?? []).map((exclusion: { employeeId: unknown; employeeName: string; reason: string }) => ({ employeeId: String(exclusion.employeeId), employeeName: exclusion.employeeName, reason: exclusion.reason }))}
           />
         }

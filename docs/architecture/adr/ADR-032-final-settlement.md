@@ -2,7 +2,12 @@
 
 ## Status
 
-Proposed (2026-09-30). Design only; not yet implemented. Companion to ADR-031 (Workforce Clearance).
+Accepted (2026-11-14), partially implemented. Companion to ADR-031 (Workforce Clearance).
+
+The design was Proposed on 2026-09-30. It is accepted now because the settlement pages and the
+disbursement action are already live, so the design needs to be the agreed target, not a proposal.
+Controls below that are still missing are tracked as open work (knowledge/known-gaps-and-mismatches.md,
+B1). Until they land, do not treat a disbursed settlement as audit-complete.
 
 ## Context
 
@@ -48,6 +53,14 @@ Case closed                     ◄─────── Settlement released (cl
 - **Approval waits for clearance.** Submitting for approval is blocked until clearance has no open
   blocking items. This is the key control: nothing is paid out while accountabilities are
   unresolved.
+- **The settlement must match the flags it copied (HR concerns, Nov 2026).** A settlement copies
+  the clearance's flagged amounts when it's prepared. If an item is flagged, re-amounted, cleared or
+  waived afterwards, the settlement can't be submitted, reviewed, approved or disbursed until it
+  is recomputed (returned to draft first if it has moved on). This holds even after approval, so
+  a discrepancy found late (an unremitted ₱54,000 cash collection) still stops the release. The
+  check is `accountabilityDrift` (`settlement-accountabilities.ts`). The settlement page shows
+  the differences, and the dashboard's final-pay row lists the red flags and blocking items still
+  open.
 
 ## Decision
 

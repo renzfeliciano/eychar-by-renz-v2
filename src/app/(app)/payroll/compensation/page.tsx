@@ -17,6 +17,7 @@ import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { CompensationFormDialog, type CompensationTerms } from "./compensation-form-dialog";
 import { BulkChangeDialog } from "./bulk-change-dialog";
+import { PriorEmploymentDialog } from "./prior-employment-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Compensation" };
@@ -74,6 +75,19 @@ export default async function CompensationPage({ searchParams }: { searchParams:
       rate: (row) => row.current?.rate ?? -1,
     },
   });
+  const termsAction = (row: (typeof rows)[number]) => {
+    if (row.current && canUpdate && !row.upcoming) {
+      const current: CompensationTerms = {
+        rateType: row.current.rateType as "monthly" | "daily",
+        rate: row.current.rate,
+        allowances: (row.current.allowances as Allowance[]).map((allowance) => ({ name: allowance.name, amount: allowance.amount, basis: allowance.basis, taxable: allowance.taxable })),
+        minimumWageEarner: row.current.minimumWageEarner,
+      };
+      return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} current={current} />;
+    }
+    if (!row.current && !row.upcoming && canCreate) return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} />;
+    return null;
+  };
   const projectOptions = projects.filter((project) => project.status === "active").map((project) => ({ id: project._id.toString(), label: project.name }));
 
   return (
@@ -179,19 +193,12 @@ export default async function CompensationPage({ searchParams }: { searchParams:
               key: "action",
               header: "",
               className: "text-right",
-              render: (row) => {
-                if (row.current && canUpdate && !row.upcoming) {
-                  const current: CompensationTerms = {
-                    rateType: row.current.rateType as "monthly" | "daily",
-                    rate: row.current.rate,
-                    allowances: (row.current.allowances as Allowance[]).map((allowance) => ({ name: allowance.name, amount: allowance.amount, basis: allowance.basis, taxable: allowance.taxable })),
-                    minimumWageEarner: row.current.minimumWageEarner,
-                  };
-                  return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} current={current} />;
-                }
-                if (!row.current && !row.upcoming && canCreate) return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} />;
-                return null;
-              },
+              render: (row) => (
+                <div className="flex items-center justify-end gap-1">
+                  <PriorEmploymentDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} canEdit={canCreate && canUpdate} currentYear={Number(today.slice(0, 4))} />
+                  {termsAction(row)}
+                </div>
+              ),
             },
           ]}
           rows={pageRows}

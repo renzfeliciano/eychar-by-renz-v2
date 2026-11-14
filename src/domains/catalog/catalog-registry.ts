@@ -11,6 +11,8 @@ import { DocumentTypeService } from "./document-type-service";
 import { ClearanceDepartmentService } from "./clearance-department-service";
 import { SeparationTypeService } from "./separation-type-service";
 import { PaymentMethodService } from "./payment-method-service";
+import { EducationLevelService } from "./education-level-service";
+import { ComplaintStageService } from "./complaint-stage-service";
 
 /**
  * Maps a URL-safe type slug to its bound service + permission prefix, so
@@ -34,6 +36,8 @@ export const CATALOG_REGISTRY = {
   "clearance-departments": { service: ClearanceDepartmentService, permissionPrefix: "clearance-departments" },
   "separation-types": { service: SeparationTypeService, permissionPrefix: "separation-types" },
   "payment-methods": { service: PaymentMethodService, permissionPrefix: "payment-methods" },
+  "education-levels": { service: EducationLevelService, permissionPrefix: "education-levels" },
+  "complaint-stages": { service: ComplaintStageService, permissionPrefix: "complaint-stages" },
 } as const;
 
 export type CatalogTypeSlug = keyof typeof CATALOG_REGISTRY;

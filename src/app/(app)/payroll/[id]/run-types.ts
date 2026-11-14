@@ -38,6 +38,8 @@ export type RegisterRow = {
   warnings: PayslipWarning[];
   /** On a 13th-month run's rows: what the amount was computed from. */
   thirteenthMonth?: { year: number; basicEarned: number; estimatedBasic: number; estimatedFrom: string | null; divisor: number; alreadyPaid: number; monthsWithPay: number } | null;
+  /** On a year-end run's rows: the annualization (payroll plan Phase 4). */
+  yearEnd?: { year: number; presentTaxable: number; previousTaxable: number; grossTaxable: number; taxDue: number; presentWithheld: number; previousWithheld: number; difference: number; benefitsExcess: number } | null;
 };
 
 export type AdjustmentRow = {

@@ -15,6 +15,12 @@ import { ExportDialog } from "@/components/shared/export-dialog";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 
+const YEAR_END_REPORT_OPTIONS = [
+  { id: "reconciliation", label: "Year-end tax reconciliation" },
+  { id: "form-2316", label: "Form 2316 data" },
+  { id: "annex-f", label: "Substituted filing list (Annex F)" },
+] as const;
+
 type Action = "recompute" | "submit" | "approve" | "return" | "release" | "cancel";
 
 type Props = {
@@ -30,6 +36,8 @@ type Props = {
   netPayLabel: string;
   /** On a January draft: the year whose 13th month can be trued up in this run. */
   trueUpYear?: number;
+  /** A year-end run: the export offers its three reports instead of the register. */
+  yearEnd?: boolean;
   /** Employees the run leaves out; submitting needs a reason for each. */
   exclusions?: { employeeId: string; employeeName: string; reason: string }[];
 };
@@ -60,6 +68,8 @@ export function RunActions(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Action | null>(null);
   const [trueUpBusy, setTrueUpBusy] = useState(false);
+  const [report, setReport] = useState<(typeof YEAR_END_REPORT_OPTIONS)[number]["id"]>("reconciliation");
+  const exportHref = (format: "xlsx" | "csv") => `/api/payroll-runs/${props.runId}/export?organizationId=${props.organizationId}&format=${format}${props.yearEnd ? `&report=${report}` : ""}`;
 
   async function addTrueUp() {
     setTrueUpBusy(true);
@@ -286,13 +296,25 @@ export function RunActions(props: Props) {
       </Link>
       <ExportDialog
         title={`Export ${props.runNumber}`}
-        description="The payroll register, one row per employee with a totals row, plus a contributions sheet with employee and employer shares for remittance."
+        description={
+          props.yearEnd
+            ? "The year-end reconciliation, the data for each employee's BIR Form 2316, or the list of employees qualified for substituted filing (Annex F). Check box numbers against the current BIR form."
+            : "The payroll register, one row per employee with a totals row, plus a contributions sheet with employee and employer shares for remittance."
+        }
         testIdPrefix="payroll-run-export"
-        targets={{
-          xlsx: { href: `/api/payroll-runs/${props.runId}/export?organizationId=${props.organizationId}&format=xlsx` },
-          csv: { href: `/api/payroll-runs/${props.runId}/export?organizationId=${props.organizationId}&format=csv` },
-        }}
-      />
+        targets={{ xlsx: { href: exportHref("xlsx") }, csv: { href: exportHref("csv") } }}
+      >
+        {props.yearEnd && (
+          <div role="radiogroup" aria-label="Report" className="flex flex-col gap-1.5" data-testid="payroll-run-export-report">
+            {YEAR_END_REPORT_OPTIONS.map((option) => (
+              <label key={option.id} className="flex items-center gap-2 text-sm">
+                <input type="radio" name="year-end-report" value={option.id} checked={report === option.id} onChange={() => setReport(option.id)} />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </ExportDialog>
       {buttons}
 
       <Dialog open={dialog !== null} onOpenChange={(next) => !next && busy === null && setDialog(null)}>

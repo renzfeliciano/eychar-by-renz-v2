@@ -105,6 +105,36 @@ const payrollRecordSchema = new Schema(
       ),
       default: undefined,
     },
+    // On a year-end adjustment run's record only (payroll plan Phase 4): the annualization and the
+    // Form 2316 amounts it came from, so the record reproduces (§46) and the 2316 export reads it back.
+    yearEnd: {
+      type: new Schema(
+        {
+          year: { type: Number, required: true },
+          periodFrom: { type: String },
+          periodTo: { type: String },
+          minimumWageEarner: { type: Boolean, default: false },
+          presentTaxable: { type: Number, required: true },
+          previousTaxable: { type: Number, required: true, default: 0 },
+          grossTaxable: { type: Number, required: true },
+          taxDue: { type: Number, required: true },
+          presentWithheld: { type: Number, required: true },
+          previousWithheld: { type: Number, required: true, default: 0 },
+          withheld: { type: Number, required: true },
+          difference: { type: Number, required: true },
+          benefitsExcess: { type: Number, required: true, default: 0 },
+          gross: { type: Number, required: true },
+          nonTaxableTotal: { type: Number, required: true },
+          taxableTotal: { type: Number, required: true },
+          boxes: { type: [new Schema({ box: { type: String, required: true }, amount: { type: Number, required: true } }, { _id: false })], default: [] },
+          unmapped: { type: [String], default: [] },
+          previousEmploymentIds: { type: [Schema.Types.ObjectId], default: [] },
+          sourceRunIds: { type: [Schema.Types.ObjectId], default: [] },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true },
 );

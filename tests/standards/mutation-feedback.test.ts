@@ -18,6 +18,7 @@ const TOAST = /toast\.(success|error)/;
 // Deliberate exceptions, each with its reason.
 const NO_SPINNER: Record<string, string> = {
   "src/app/(app)/recruitment/tracking/applicant-pipeline.tsx": "optimistic drag-and-drop: the card moves at once and rolls back with a toast on failure",
+  "src/app/(app)/complaints/complaint-pipeline.tsx": "optimistic drag-and-drop: the card moves at once and rolls back with a toast on failure",
   "src/app/(app)/leave/types/convertible-toggle.tsx": "a checkbox that's disabled while saving, then confirmed with a toast",
 };
 const NO_TOAST: Record<string, string> = {

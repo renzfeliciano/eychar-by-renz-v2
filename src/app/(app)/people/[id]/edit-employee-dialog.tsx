@@ -38,6 +38,8 @@ export type EditEmployeeInitialValue = {
   phone?: string | null;
   address?: string | null;
   remarks?: string | null;
+  /** Code of an Education levels catalog item. */
+  educationLevelCode?: string | null;
   sssNumber?: string | null;
   philHealthNumber?: string | null;
   pagIbigNumber?: string | null;
@@ -45,16 +47,19 @@ export type EditEmployeeInitialValue = {
 };
 
 /** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
-const EDIT_EMPLOYEE_FIELDS = ["gender", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
+const EDIT_EMPLOYEE_FIELDS = ["gender", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "educationLevelCode", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
   employeeId,
   initialValue,
+  educationLevels = [],
 }: {
   organizationId: string;
   employeeId: string;
   initialValue: EditEmployeeInitialValue;
+  /** Choices for Highest educational attainment (see educationLevelOptions). */
+  educationLevels?: SelectOption[];
 }) {
   const router = useRouter();
   const formId = `edit-employee-form-${employeeId}`;
@@ -70,6 +75,7 @@ export function EditEmployeeDialog({
   const [phone, setPhone] = useState(initialValue.phone ?? "");
   const [address, setAddress] = useState(initialValue.address ?? "");
   const [remarks, setRemarks] = useState(initialValue.remarks ?? "");
+  const [educationLevelCode, setEducationLevelCode] = useState(initialValue.educationLevelCode ?? "");
   const [sssNumber, setSssNumber] = useState(initialValue.sssNumber ?? "");
   const [philHealthNumber, setPhilHealthNumber] = useState(initialValue.philHealthNumber ?? "");
   const [pagIbigNumber, setPagIbigNumber] = useState(initialValue.pagIbigNumber ?? "");
@@ -88,6 +94,7 @@ export function EditEmployeeDialog({
     setPhone(initialValue.phone ?? "");
     setAddress(initialValue.address ?? "");
     setRemarks(initialValue.remarks ?? "");
+    setEducationLevelCode(initialValue.educationLevelCode ?? "");
     setSssNumber(initialValue.sssNumber ?? "");
     setPhilHealthNumber(initialValue.philHealthNumber ?? "");
     setPagIbigNumber(initialValue.pagIbigNumber ?? "");
@@ -127,6 +134,7 @@ export function EditEmployeeDialog({
         phone,
         address,
         remarks,
+        educationLevelCode,
         sssNumber,
         philHealthNumber,
         pagIbigNumber,
@@ -229,6 +237,19 @@ export function EditEmployeeDialog({
               placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City"
             />
           </FormField>
+          <OptionSelect
+            id={`${formId}-educationLevelCode`}
+            error={fieldErrors.educationLevelCode}
+            label="Highest educational attainment"
+            value={educationLevelCode}
+            onChange={(value) => {
+              setEducationLevelCode(value);
+              clearFieldError("educationLevelCode");
+            }}
+            options={educationLevels}
+            placeholder="Not specified"
+            testId="edit-employee-education"
+          />
           <FormField label="Remarks" htmlFor={`${formId}-remarks`} error={fieldErrors.remarks} description={`Optional note for the roster, e.g. "Senior, PWD". ${remarks.length}/${REMARKS_MAX_LENGTH}`}>
             <Input
               id={`${formId}-remarks`}

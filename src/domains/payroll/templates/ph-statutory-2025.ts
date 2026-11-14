@@ -13,7 +13,13 @@ import type { PayFrequency } from "../engine/pay-frequency";
  * Circular 2020-0005 schedule for 2024–2025 (5% on ₱10,000–₱100,000,
  * shared equally); HDMF Circular 460 (EE 1% up to ₱1,500, else 2%; ER 2%;
  * on up to ₱10,000); BIR RR 11-2018 withholding tables from 2023.
- * Verify against the agencies' current issuances before relying on them.
+ *
+ * Checked 2026-11-14 against secondary sources (calculator and guide sites):
+ * no 2026 change found for SSS, PhilHealth (5%, ₱10,000–₱100,000), Pag-IBIG
+ * (₱10,000 cap, 2% above ₱1,500) or the TRAIN annual brackets. Those sources are
+ * not agency issuances, so verify on sss.gov.ph, philhealth.gov.ph, pagibigfund.gov.ph
+ * and bir.gov.ph before relying on them. Withholding brackets are the TRAIN annual
+ * brackets ÷ 52 / 24 / 12, to the centavo.
  */
 
 function sssRows(): ContributionRow[] {
@@ -44,34 +50,34 @@ export const PH_STATUTORY_2025: {
     {
       payFrequency: "weekly",
       brackets: [
-        bracket(0, 4808, 0, 0),
-        bracket(4808, 7692, 0, 0.15),
-        bracket(7692, 15385, 432.6, 0.2),
-        bracket(15385, 38462, 1971.2, 0.25),
-        bracket(38462, 153846, 7740.45, 0.3),
-        bracket(153846, null, 42355.65, 0.35),
+        bracket(0, 4807.69, 0, 0),
+        bracket(4807.69, 7692.31, 0, 0.15),
+        bracket(7692.31, 15384.62, 432.69, 0.2),
+        bracket(15384.62, 38461.54, 1971.15, 0.25),
+        bracket(38461.54, 153846.15, 7740.38, 0.3),
+        bracket(153846.15, null, 42355.77, 0.35),
       ],
     },
     {
       payFrequency: "semi-monthly",
       brackets: [
-        bracket(0, 10417, 0, 0),
-        bracket(10417, 16667, 0, 0.15),
-        bracket(16667, 33333, 937.5, 0.2),
-        bracket(33333, 83333, 4270.7, 0.25),
-        bracket(83333, 333333, 16770.7, 0.3),
-        bracket(333333, null, 91770.7, 0.35),
+        bracket(0, 10416.67, 0, 0),
+        bracket(10416.67, 16666.67, 0, 0.15),
+        bracket(16666.67, 33333.33, 937.5, 0.2),
+        bracket(33333.33, 83333.33, 4270.83, 0.25),
+        bracket(83333.33, 333333.33, 16770.83, 0.3),
+        bracket(333333.33, null, 91770.83, 0.35),
       ],
     },
     {
       payFrequency: "monthly",
       brackets: [
-        bracket(0, 20833, 0, 0),
-        bracket(20833, 33333, 0, 0.15),
-        bracket(33333, 66667, 1875, 0.2),
-        bracket(66667, 166667, 8541.8, 0.25),
-        bracket(166667, 666667, 33541.8, 0.3),
-        bracket(666667, null, 183541.8, 0.35),
+        bracket(0, 20833.33, 0, 0),
+        bracket(20833.33, 33333.33, 0, 0.15),
+        bracket(33333.33, 66666.67, 1875, 0.2),
+        bracket(66666.67, 166666.67, 8541.67, 0.25),
+        bracket(166666.67, 666666.67, 33541.67, 0.3),
+        bracket(666666.67, null, 183541.67, 0.35),
       ],
     },
   ],

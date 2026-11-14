@@ -2,9 +2,10 @@
  * Idle sign-out (ADR-030 addendum): after this long without a keypress,
  * click, scroll or touch the session ends, with a warning shown for the
  * last few seconds. The organization's Security settings override these;
- * these are the defaults it starts with.
+ * these are the defaults it starts with. 30 minutes, matching ADR-030 (the
+ * server-side token limit in src/server/auth/inactivity.ts is the same).
  */
-export const SESSION_IDLE_MS = 60_000;
+export const SESSION_IDLE_MS = 30 * 60_000;
 export const SESSION_IDLE_WARNING_MS = 15_000;
 
 /** Grace the server adds on top of the idle limit, so a person active right up to it isn't cut off between activity pings. */

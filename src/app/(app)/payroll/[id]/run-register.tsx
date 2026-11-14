@@ -31,6 +31,7 @@ type Props = {
 
 function attendanceSummary(row: RegisterRow): string {
   if (row.thirteenthMonth) return `Basic ${formatPeso(row.thirteenthMonth.basicEarned + row.thirteenthMonth.estimatedBasic)} ÷ ${row.thirteenthMonth.divisor}`;
+  if (row.yearEnd) return `Tax due ${formatPeso(row.yearEnd.taxDue)} · withheld ${formatPeso(row.yearEnd.presentWithheld + row.yearEnd.previousWithheld)}`;
   const parts = [`${row.attendance.daysWorked} worked`];
   if (row.attendance.paidLeaveDays) parts.push(`${row.attendance.paidLeaveDays} leave`);
   if (row.attendance.absentDays) parts.push(`${row.attendance.absentDays} absent`);
@@ -228,7 +229,16 @@ function Payslip({
         )}
 
         <dl className="grid grid-cols-3 gap-2 text-center">
-          {(row.thirteenthMonth
+          {(row.yearEnd
+            ? [
+                ["Taxable, here", formatPeso(row.yearEnd.presentTaxable)],
+                ["Taxable, previous", row.yearEnd.previousTaxable ? formatPeso(row.yearEnd.previousTaxable) : "—"],
+                ["Tax due", formatPeso(row.yearEnd.taxDue)],
+                ["Withheld, here", formatPeso(row.yearEnd.presentWithheld)],
+                ["Withheld, previous", row.yearEnd.previousWithheld ? formatPeso(row.yearEnd.previousWithheld) : "—"],
+                [row.yearEnd.difference > 0 ? "To collect" : row.yearEnd.difference < 0 ? "To refund" : "Difference", formatPeso(Math.abs(row.yearEnd.difference))],
+              ]
+            : row.thirteenthMonth
             ? [
                 ["Basic earned", formatPeso(row.thirteenthMonth.basicEarned)],
                 ["Estimated", row.thirteenthMonth.estimatedBasic ? formatPeso(row.thirteenthMonth.estimatedBasic) : "—"],

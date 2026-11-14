@@ -48,6 +48,7 @@ export default function LoginPage() {
     const reason = new URLSearchParams(window.location.search).get("reason");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL on arrival
     if (reason === "idle") setNotice("You were signed out after a period of inactivity. Sign in again to continue.");
+    else if (reason === "expired") setNotice("Your session ended, so that change wasn't saved. Sign in again and repeat it.");
     else if (reason === "password-changed") setNotice("Your password was changed, which signed you out everywhere. Sign in with your new password.");
   }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -5,6 +5,8 @@ import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { accessibleProjectIds, authorize, hasActiveRoleAssignment, type AccessibleProjects } from "./authorize";
 import { getSession } from "@/server/auth/session";
 
+export const SESSION_ENDED_MESSAGE = "Your session has ended. Sign in again to continue.";
+
 export const PENDING_PASSWORD_CHANGE_MESSAGE = "Choose a new password before continuing: you signed in with a temporary one.";
 
 export const PENDING_TWO_STEP_MESSAGE = "Your organization requires two-step verification. Set it up under Account › Security to continue.";
@@ -33,7 +35,9 @@ export type RequireAuthenticatedUserOptions = {
  */
 export async function requireAuthenticatedUser(options: RequireAuthenticatedUserOptions = {}): Promise<{ userId: string }> {
   const session = await getSession();
-  if (!session?.user?.id) throw new AuthenticationError();
+  // `reason` lets the browser show the right notice (expired, ended, signed in
+  // elsewhere) instead of printing the message; see SessionExpiryWatcher.
+  if (!session?.user?.id) throw new AuthenticationError(SESSION_ENDED_MESSAGE, { reason: session?.error ?? "NoSession" });
   if (session.mustChangePassword && !options.allowPendingPasswordChange) throw new AuthorizationError(PENDING_PASSWORD_CHANGE_MESSAGE);
   if (session.mustSetUpTwoStep && !options.allowPendingTwoStepSetup) throw new AuthorizationError(PENDING_TWO_STEP_MESSAGE);
   return { userId: session.user.id };

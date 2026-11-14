@@ -15,11 +15,8 @@ import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 
-const FREQUENCIES: SelectOption[] = [
-  { id: "semi-monthly", label: "Semi-monthly" },
-  { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "Monthly" },
-];
+// Monthly only for now (decided 2026-11-14). Semi-monthly and bi-weekly are planned; the engine doesn't support bi-weekly yet.
+const FREQUENCIES: SelectOption[] = [{ id: "monthly", label: "Monthly" }];
 const TIMING: SelectOption[] = [
   { id: "every_cutoff", label: "Split across the month's cutoffs" },
   { id: "last_cutoff_of_month", label: "Whole month on the last cutoff" },
@@ -27,7 +24,7 @@ const TIMING: SelectOption[] = [
 const EMPTY = {
   name: "",
   projectId: "",
-  payFrequency: "semi-monthly",
+  payFrequency: "monthly",
   workDaysPerYear: "261",
   hoursPerDay: "8",
   finalPayDeadlineDays: "30",
@@ -117,7 +114,7 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
             <OptionSelect label="Applies to" value={form.projectId} onChange={(projectId) => setForm({ ...form, projectId })} options={projects} placeholder="Whole organization" />
-            <OptionSelect label="Pay frequency" value={form.payFrequency} onChange={(value) => setForm({ ...form, payFrequency: value || "semi-monthly" })} options={FREQUENCIES} placeholder="Semi-monthly" required />
+            <OptionSelect label="Pay frequency" value={form.payFrequency} onChange={(value) => setForm({ ...form, payFrequency: value || "monthly" })} options={FREQUENCIES} placeholder="Monthly" required />
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Workdays</span>

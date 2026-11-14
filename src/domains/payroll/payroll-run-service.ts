@@ -22,7 +22,9 @@ import { formatMoney } from "@/lib/money";
 import { roundMoney } from "./engine/money";
 import { PayrollPolicyService } from "./payroll-policy-service";
 import { PayrollRuleVersionService } from "./payroll-rule-version-service";
-import type { CreatePayrollRunInput, CreateThirteenthMonthRunInput, PayrollAdjustmentInput, PayrollRunActionInput } from "@/shared/validation/payroll";
+import type { CreatePayrollRunInput, CreateThirteenthMonthRunInput, CreateYearEndRunInput, PayrollAdjustmentInput, PayrollRunActionInput } from "@/shared/validation/payroll";
+import { yearEndRulesOf } from "./year-end-data";
+import { YEAR_END_MISSING_RULES } from "./year-end-compute";
 
 import { NO_ACTIVE_LOCK, assertNoOverlap, findRun, nextRunNumber, withComputeLock } from "./payroll-run-guards";
 import { computeRun } from "./payroll-run-compute";
@@ -187,6 +189,68 @@ export const PayrollRunService = {
       resourceId: run._id.toString(),
       after: { runNumber: prepared!.runNumber, year: input.year, payDate: input.payDate, projectId: input.projectId, totals: prepared!.totals },
       metadata: { source: "manual", runType: "thirteenth_month", lateNote },
+    });
+    return prepared!;
+  },
+
+  /**
+   * Prepares the year-end withholding reconciliation (payroll plan Phase 4): one run per year and scope,
+   * once every regular and 13th-month run of the year is approved, released or cancelled. It uses the
+   * rule version in force on December 31, which must carry the annual table and the Form 2316 box map.
+   */
+  async prepareYearEnd(input: CreateYearEndRunInput, actor: Actor) {
+    await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
+    const start = `${input.year}-01-01`;
+    const end = `${input.year}-12-31`;
+    const organizationId = new Types.ObjectId(input.organizationId);
+
+    const unfinished = await PayrollRunModel.find({
+      organizationId,
+      runType: { $in: [null, "regular", "thirteenth_month"] },
+      status: { $in: ["draft", "submitted"] },
+      payPeriodEnd: { $gte: dateKeyToDate(start), $lte: dateKeyToDate(end) },
+    })
+      .select("runNumber")
+      .lean();
+    if (unfinished.length) throw new BusinessRuleError(`Approve or cancel ${input.year}'s remaining payroll first: ${unfinished.map((other) => other.runNumber).join(", ")}.`);
+
+    const policyResult = await PayrollPolicyService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(end) });
+    if (!policyResult) throw new NotFoundError(`No payroll policy applies on ${formatDateKey(end)}. Add one under Payroll › Policies.`);
+    const ruleResult = await PayrollRuleVersionService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(end) });
+    if (!ruleResult) throw new NotFoundError(`No payroll rule version applies on ${formatDateKey(end)}. Add one under Payroll › Rule versions.`);
+    if (!yearEndRulesOf(ruleResult.policy as Parameters<typeof yearEndRulesOf>[0])) throw new BusinessRuleError(YEAR_END_MISSING_RULES);
+
+    const kind = { runType: "year_end_adjustment" as const };
+    await assertNoOverlap(input.organizationId, input.projectId, start, end, undefined, kind);
+    const now = new Date();
+    const run = await PayrollRunModel.create({
+      organizationId,
+      runNumber: await nextRunNumber(input.organizationId, input.payDate),
+      projectId: toObjectId(input.projectId),
+      runType: "year_end_adjustment",
+      payFrequency: policyResult.policy.payFrequency,
+      payPeriodStart: dateKeyToDate(start),
+      payPeriodEnd: dateKeyToDate(end),
+      payDate: dateKeyToDate(input.payDate),
+      policyId: policyResult.policy._id,
+      ruleVersionId: ruleResult.policy._id,
+      status: "draft",
+      source: { type: "manual" },
+      preparedBy: toObjectId(actor.userId),
+      history: [{ action: "prepared", status: "draft", at: now, by: toObjectId(actor.userId) }],
+    });
+    await computeNewRunOrRemove(run._id, () => assertNoOverlap(input.organizationId, input.projectId, start, end, run._id, kind));
+
+    const prepared = await PayrollRunModel.findById(run._id).lean();
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "payroll-run.prepared",
+      resourceType: "PayrollRun",
+      resourceId: run._id.toString(),
+      after: { runNumber: prepared!.runNumber, year: input.year, payDate: input.payDate, projectId: input.projectId, totals: prepared!.totals },
+      metadata: { source: "manual", runType: "year_end_adjustment", ruleVersionId: ruleResult.policy._id.toString() },
     });
     return prepared!;
   },

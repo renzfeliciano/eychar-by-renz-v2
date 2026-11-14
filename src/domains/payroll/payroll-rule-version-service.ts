@@ -39,6 +39,10 @@ export const PayrollRuleVersionService = {
       description: input.description,
       taxTables: input.taxTables,
       contributions: input.contributions,
+      annualTaxTable: input.annualTaxTable?.length ? input.annualTaxTable : undefined,
+      benefitsExemptionCap: input.benefitsExemptionCap ?? undefined,
+      form2316Boxes: input.form2316Boxes?.length ? input.form2316Boxes : undefined,
+      form2316Excluded: input.form2316Excluded?.length ? input.form2316Excluded : undefined,
       basedOnVersionId: input.basedOnVersionId ? new Types.ObjectId(input.basedOnVersionId) : undefined,
       effectiveFrom,
     });
@@ -55,6 +59,9 @@ export const PayrollRuleVersionService = {
         projectId: version.projectId,
         taxTables: version.taxTables.map((table: { payFrequency: string }) => table.payFrequency),
         contributions: version.contributions.map((contribution: { code: string }) => contribution.code),
+        annualTaxTable: (version.annualTaxTable?.length ?? 0) > 0,
+        benefitsExemptionCap: version.benefitsExemptionCap,
+        form2316Boxes: version.form2316Boxes?.length ?? 0,
       },
       metadata: { basedOnVersionId: input.basedOnVersionId },
     });

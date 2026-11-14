@@ -11,12 +11,12 @@ describe("absolute session lifetime", () => {
     delete process.env.SESSION_MAX_HOURS;
   });
 
-  it("defaults to 12 hours and reads SESSION_MAX_HOURS", () => {
-    expect(getSessionMaxAgeMs()).toBe(12 * HOUR);
+  it("defaults to 8 hours (ADR-030) and reads SESSION_MAX_HOURS", () => {
+    expect(getSessionMaxAgeMs()).toBe(8 * HOUR);
     process.env.SESSION_MAX_HOURS = "4";
     expect(getSessionMaxAgeMs()).toBe(4 * HOUR);
     process.env.SESSION_MAX_HOURS = "nonsense";
-    expect(getSessionMaxAgeMs()).toBe(12 * HOUR);
+    expect(getSessionMaxAgeMs()).toBe(8 * HOUR);
   });
 
   it("ends an active session once it's older than the cap, like going idle", () => {

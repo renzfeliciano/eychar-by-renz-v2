@@ -30,6 +30,9 @@ is stored), the product owner was asked directly rather than guessed at:
   status-based soft one like Travel Orders/Events — a wrong upload is superseded by uploading a
   corrected document; there's no "cancelled" state that make sense for a stored file the way there
   is for a scheduled trip or calendar event.
+  **Amended 2026-11-14:** a document can be removed through the recycle bin (ADR-033): Super
+  Administrator only, recoverable for 30 days, then purged. The "no delete" rule above is replaced
+  by that: nothing is hard-deleted at once, and a deletion is always a recycle-bin batch.
 - **Edit is metadata-only**: `updateEmployeeDocumentSchema` omits the file fields entirely —
   re-uploading is a new document, not a mutation of the stored bytes. This keeps `update()` cheap
   (no re-validation of file size/type) and matches the mental model of "correct the label, not

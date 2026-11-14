@@ -29,6 +29,7 @@ import { CompensationService } from "./compensation-service";
 import { formatMoney } from "@/lib/money";
 import { runTypeOf } from "./payroll-labels";
 import { computeThirteenthMonthRun } from "./thirteenth-month-compute";
+import { computeYearEndRun } from "./year-end-compute";
 
 /** A net pay change bigger than this against the last released payroll is flagged for review. */
 const NET_PAY_CHANGE_THRESHOLD = 0.2;
@@ -91,6 +92,7 @@ export async function computeRun(runId: Types.ObjectId) {
   if (!run) throw new NotFoundError("Payroll run not found");
   // Other run types compute differently (payroll plan Phase 3 onward); each writes the same way.
   if (runTypeOf(run) === "thirteenth_month") return computeThirteenthMonthRun(run);
+  if (runTypeOf(run) === "year_end_adjustment") return computeYearEndRun(run);
   const organizationId = run.organizationId.toString();
   const start = dateToDateKey(run.payPeriodStart);
   const end = dateToDateKey(run.payPeriodEnd);
