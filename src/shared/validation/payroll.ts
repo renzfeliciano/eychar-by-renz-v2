@@ -133,9 +133,30 @@ export const createPayrollRunSchema = z
   })
   .refine((input) => input.payDate >= input.payPeriodStart, { message: "The pay date can't be before the period starts.", path: ["payDate"] });
 
+/** A 13th-month run for one calendar year (payroll plan Phase 3). */
+export const createThirteenthMonthRunSchema = z
+  .object({
+    organizationId: objectId(),
+    projectId: optionalId,
+    year: z.coerce.number().int().min(2000).max(2100),
+    payDate: calendarDateSchema,
+  })
+  .refine((input) => Number(input.payDate.slice(0, 4)) >= input.year, { message: "Pay the 13th month in its year or later.", path: ["payDate"] });
+
+export const thirteenthMonthTrueUpSchema = z.object({ organizationId: objectId(), year: z.coerce.number().int().min(2000).max(2100) });
+
 export const payrollRunActionSchema = z.discriminatedUnion("action", [
   z.object({ organizationId: objectId(), action: z.literal("recompute") }),
-  z.object({ organizationId: objectId(), action: z.literal("submit"), note: z.string().trim().max(500).optional() }),
+  z.object({
+    organizationId: objectId(),
+    action: z.literal("submit"),
+    note: z.string().trim().max(500).optional(),
+    // A reason for each employee the run leaves out (e.g. no pay terms yet): HR confirms they know.
+    exclusionReasons: z
+      .array(z.object({ employeeId: objectId(), reason: z.string().trim().min(3, "Give a reason for each employee left out").max(200) }))
+      .max(1000)
+      .optional(),
+  }),
   z.object({ organizationId: objectId(), action: z.literal("approve"), note: z.string().trim().max(500).optional() }),
   z.object({ organizationId: objectId(), action: z.literal("return"), reason: z.string().trim().min(3, "Say what needs fixing").max(500) }),
   z.object({
@@ -197,6 +218,7 @@ export type UpdatePayrollPolicyStatusInput = z.infer<typeof updatePayrollPolicyS
 export type CreatePayrollRuleVersionInput = z.infer<typeof createPayrollRuleVersionSchema>;
 export type UpdatePayrollRuleVersionStatusInput = z.infer<typeof updatePayrollRuleVersionStatusSchema>;
 export type CreatePayrollRunInput = z.infer<typeof createPayrollRunSchema>;
+export type CreateThirteenthMonthRunInput = z.infer<typeof createThirteenthMonthRunSchema>;
 export type PayrollRunActionInput = z.infer<typeof payrollRunActionSchema>;
 export type PayrollAdjustmentInput = z.infer<typeof payrollAdjustmentSchema>;
 export type CreatePayrollScheduleInput = z.infer<typeof createPayrollScheduleSchema>;

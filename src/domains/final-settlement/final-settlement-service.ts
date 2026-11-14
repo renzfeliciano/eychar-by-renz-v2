@@ -5,7 +5,6 @@ import {
   ClearanceCaseModel,
   FinalSettlementModel,
   LeaveTypeModel,
-  PayrollAdjustmentModel,
   PayrollRecordModel,
   PayrollRunModel,
 } from "@/server/db/models";
@@ -16,16 +15,16 @@ import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignme
 import { LeaveBalanceService } from "@/domains/leave/leave-balance-service";
 import { PaymentMethodService } from "@/domains/catalog/payment-method-service";
 import { dateKeyToDate, dateToDateKey } from "@/lib/date-key";
-import { sumMoney } from "@/domains/payroll/engine/money";
 import { AuthorizationError, BusinessRuleError, ConflictError, NotFoundError, ValidationError } from "@/shared/errors";
 import type { FinalSettlementActionInput, ManualLineInput } from "@/shared/validation/final-settlement";
 import { computeSettlement, type ManualLine } from "./settlement-calculator";
 import { payPremiumsOf } from "@/domains/payroll/engine/premiums";
+import { basicEarnedFrom } from "@/domains/payroll/engine/thirteenth-month";
+import { thirteenthMonthPaid } from "@/domains/payroll/thirteenth-month-ledger";
 
 type Actor = { userId?: string };
 
 const EDITABLE = ["draft"];
-const BASIC_CODES = ["basic", "absences", "tardiness"];
 
 const toObjectId = (id?: string) => (id && Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : undefined);
 
@@ -72,18 +71,22 @@ async function gatherInputs(organizationId: string, employeeId: string, lastWork
   const policy = resolved?.policy;
   if (!policy) throw new BusinessRuleError("No payroll policy applies on the last working day. Add one in Payroll › Policies first.");
 
-  // Payroll already approved or released this year, up to the last day.
+  // Regular payroll already approved or released this year, up to the last day. (Runs saved before run
+  // types existed have none and are regular; 13th-month and other run types are counted below.)
   const runs = await PayrollRunModel.find({
     organizationId: orgObjectId,
+    runType: { $in: [null, "regular"] },
     status: { $in: ["approved", "released"] },
     payPeriodEnd: { $gte: dateKeyToDate(`${year}-01-01`), $lte: dateKeyToDate(lastWorkingDay) },
   })
     .select("_id payPeriodEnd")
     .lean();
   const runIds = runs.map((run) => run._id);
-  const [records, thirteenth] = await Promise.all([
+  // 13th month already paid for the year: adjustments, an approved or released 13th-month run, and a
+  // true-up paid the next January (one reader shared with the 13th-month run, payroll plan Phase 3).
+  const [records, thirteenthPaid] = await Promise.all([
     PayrollRecordModel.find({ payrollRunId: { $in: runIds }, employeeId: employeeObjectId }).select("payrollRunId earnings").lean(),
-    PayrollAdjustmentModel.find({ payrollRunId: { $in: runIds }, employeeId: employeeObjectId, category: "thirteenth_month", direction: "earning" }).select("amount").lean(),
+    thirteenthMonthPaid(orgObjectId, year, [employeeObjectId]),
   ]);
   const paidRunIds = new Set(records.map((record) => record.payrollRunId.toString()));
   const lastPaidThrough = runs
@@ -91,7 +94,8 @@ async function gatherInputs(organizationId: string, employeeId: string, lastWork
     .map((run) => dateToDateKey(run.payPeriodEnd))
     .sort()
     .pop() ?? null;
-  const basicEarnedThisYear = sumMoney(records.flatMap((record) => (record.earnings ?? []).filter((line: { code: string }) => BASIC_CODES.includes(line.code)).map((line: { amount: number }) => line.amount)));
+  // The same base the 13th-month run uses (engine/thirteenth-month.ts), so the two can't disagree.
+  const basicEarnedThisYear = basicEarnedFrom(records.flatMap((record) => record.earnings ?? []));
 
   // Unused days of leave types HR marked convertible.
   const [balances, convertibleTypes] = await Promise.all([
@@ -111,7 +115,7 @@ async function gatherInputs(organizationId: string, employeeId: string, lastWork
     workWeekDays: policy.workWeekDays?.length ? policy.workWeekDays : [1, 2, 3, 4, 5],
     lastPaidThrough,
     basicEarnedThisYear,
-    thirteenthMonthPaidThisYear: sumMoney(thirteenth.map((adjustment) => adjustment.amount)),
+    thirteenthMonthPaidThisYear: thirteenthPaid.get(employeeId) ?? 0,
     thirteenthMonthDivisor: payPremiumsOf(policy).thirteenthMonthDivisor,
     convertibleLeave,
   };

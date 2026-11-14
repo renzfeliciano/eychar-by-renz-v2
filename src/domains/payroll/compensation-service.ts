@@ -96,19 +96,28 @@ export const CompensationService = {
     }
 
     const before = termsSnapshot(latest);
-    latest.effectiveTo = dateKeyToDate(addDays(effectiveKey, -1));
-    await latest.save();
-
-    const next = await CompensationModel.create({
-      organizationId: new Types.ObjectId(organizationId),
-      employeeId: employeeObjectId,
-      rateType: terms.rateType,
-      rate: terms.rate,
-      allowances: terms.allowances,
-      minimumWageEarner: terms.minimumWageEarner,
-      effectiveFrom: dateKeyToDate(effectiveKey),
-      reason: terms.reason,
-      batchId: options.batchId,
+    // Close and open together (ADR-041): a failure between the two writes must
+    // not leave the employee with closed terms and nothing after them, which
+    // would silently drop them from the next payroll run.
+    const next = await withTransaction(async (session) => {
+      await CompensationModel.updateOne({ _id: latest._id }, { $set: { effectiveTo: dateKeyToDate(addDays(effectiveKey, -1)) } }, { session });
+      const [created] = await CompensationModel.create(
+        [
+          {
+            organizationId: new Types.ObjectId(organizationId),
+            employeeId: employeeObjectId,
+            rateType: terms.rateType,
+            rate: terms.rate,
+            allowances: terms.allowances,
+            minimumWageEarner: terms.minimumWageEarner,
+            effectiveFrom: dateKeyToDate(effectiveKey),
+            reason: terms.reason,
+            batchId: options.batchId,
+          },
+        ],
+        { session },
+      );
+      return created;
     });
 
     await AuditService.record({

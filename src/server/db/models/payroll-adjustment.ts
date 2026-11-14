@@ -18,6 +18,9 @@ const payrollAdjustmentSchema = new Schema(
     amount: { type: Number, required: true, min: 0 },
     taxable: { type: Boolean, required: true, default: false },
     notes: { type: String, trim: true },
+    // For a 13th-month line paid outside its year (e.g. the January true-up of last year's 13th month):
+    // the year it belongs to. Without it, a 13th-month line counts for the year its run's period ends in.
+    thirteenthMonthYear: { type: Number },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },

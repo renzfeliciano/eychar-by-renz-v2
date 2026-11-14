@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Ban, CircleCheck, Printer, RefreshCw, SendHorizontal, Undo2, Wallet, ArrowLeft } from "lucide-react";
+import { Ban, CircleCheck, Printer, RefreshCw, Scale, SendHorizontal, Undo2, Wallet, ArrowLeft } from "lucide-react";
 import { iconForAction } from "@/components/ui/action-icon";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,10 @@ type Props = {
   blockingIssues: number;
   employees: number;
   netPayLabel: string;
+  /** On a January draft: the year whose 13th month can be trued up in this run. */
+  trueUpYear?: number;
+  /** Employees the run leaves out; submitting needs a reason for each. */
+  exclusions?: { employeeId: string; employeeName: string; reason: string }[];
 };
 
 type DialogSpec = {
@@ -52,9 +56,27 @@ export function RunActions(props: Props) {
   const [reason, setReason] = useState("");
   const [releasedOn, setReleasedOn] = useState(localDateKey());
   const [paymentReference, setPaymentReference] = useState("");
+  const [exclusionReasons, setExclusionReasons] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Action | null>(null);
+  const [trueUpBusy, setTrueUpBusy] = useState(false);
+
+  async function addTrueUp() {
+    setTrueUpBusy(true);
+    const response = await fetch(`/api/payroll-runs/${props.runId}/thirteenth-month-true-up`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId: props.organizationId, year: props.trueUpYear }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setTrueUpBusy(false);
+    if (!response.ok) return toast.error(body.error ?? "Couldn't add the 13th-month true-up.");
+    if (!body.added) toast.success(body.alreadyAdded ? "The true-up is already in this run" : "No 13th-month differences to settle");
+    else toast.success(`13th-month ${props.trueUpYear} true-up added: ${body.underpaid} underpaid, ${body.overpaid} overpaid; payroll recomputed`);
+    router.refresh();
+  }
   const { status } = props;
+  const exclusions = props.exclusions ?? [];
 
   async function run(action: Action, extra: Record<string, unknown> = {}) {
     setBusy(action);
@@ -89,6 +111,7 @@ export function RunActions(props: Props) {
   function open(spec: DialogSpec) {
     setReason("");
     setPaymentReference("");
+    setExclusionReasons({});
     setReleasedOn(localDateKey());
     setError(null);
     setDialog(spec);
@@ -101,6 +124,14 @@ export function RunActions(props: Props) {
       return run(dialog.action, { reason: reason.trim() });
     }
     if (dialog.fields === "release") return run("release", { releasedOn, paymentReference: paymentReference.trim() || undefined });
+    if (dialog.action === "submit" && exclusions.length) {
+      const missing = exclusions.filter((exclusion) => (exclusionReasons[exclusion.employeeId] ?? "").trim().length < 3);
+      if (missing.length) return setError(`Give a reason for each employee left out: ${missing.map((exclusion) => exclusion.employeeName).join(", ")}.`);
+      return run("submit", {
+        ...(reason.trim() ? { note: reason.trim() } : {}),
+        exclusionReasons: exclusions.map((exclusion) => ({ employeeId: exclusion.employeeId, reason: exclusionReasons[exclusion.employeeId].trim() })),
+      });
+    }
     if (dialog.fields === "note") return run(dialog.action, reason.trim() ? { note: reason.trim() } : {});
     return run(dialog.action);
   }
@@ -108,6 +139,24 @@ export function RunActions(props: Props) {
   const buttons: ReactNode[] = [];
   if (status === "draft" && props.canUpdate) {
     buttons.push(
+      ...(props.trueUpYear
+        ? [
+            <Button
+              key="true-up"
+              size="sm"
+              variant="outline"
+              onClick={addTrueUp}
+              disabled={busy !== null || trueUpBusy}
+              title={`Settle the difference between ${props.trueUpYear}'s 13th month paid and what was earned`}
+              data-testid="payroll-run-thirteenth-month-true-up"
+              icon={Scale}
+              pending={trueUpBusy}
+              pendingLabel="Adding…"
+            >
+              13th month {props.trueUpYear} true-up
+            </Button>,
+          ]
+        : []),
       <Button key="recompute" size="sm" variant="outline" onClick={() => run("recompute")} disabled={busy !== null} data-testid="payroll-run-recompute" icon={RefreshCw} pending={busy === "recompute"} pendingLabel="Recomputing…">
         Recompute
       </Button>,
@@ -265,6 +314,24 @@ export function RunActions(props: Props) {
                       rows={3}
                     />
                   </FormField>
+                )}
+                {dialog.action === "submit" && exclusions.length > 0 && (
+                  <div className="flex flex-col gap-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-3" data-testid="payroll-run-exclusion-reasons">
+                    <p className="text-sm">
+                      {exclusions.length === 1 ? "1 employee isn't" : `${exclusions.length} employees aren't`} in this run and won&apos;t be paid by it. Say why for each, so it&apos;s on record.
+                    </p>
+                    {exclusions.map((exclusion, index) => (
+                      <FormField key={exclusion.employeeId} label={exclusion.employeeName} htmlFor={`payroll-run-exclusion-${index}`} description={exclusion.reason} required>
+                        <Input
+                          id={`payroll-run-exclusion-${index}`}
+                          value={exclusionReasons[exclusion.employeeId] ?? ""}
+                          onChange={(event) => setExclusionReasons({ ...exclusionReasons, [exclusion.employeeId]: event.target.value })}
+                          placeholder="e.g. On unpaid leave, or starts next cutoff"
+                          maxLength={200}
+                        />
+                      </FormField>
+                    ))}
+                  </div>
                 )}
                 {dialog.fields === "note" && (
                   <FormField label="Note (optional)" htmlFor="payroll-run-note">

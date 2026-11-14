@@ -6,7 +6,7 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { ProjectService } from "@/domains/organization/project-service";
-import { PAYROLL_RUN_STATUS_LABELS, formatPeso, type PayrollRunStatus } from "@/domains/payroll/payroll-labels";
+import { PAYROLL_RUN_STATUS_LABELS, formatPeso, runTitle, type PayrollRunStatus } from "@/domains/payroll/payroll-labels";
 import { NotFoundError } from "@/shared/errors";
 import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
 import { PrintButton } from "./print-button";
@@ -88,7 +88,7 @@ export default async function PayslipsPage({ params, searchParams }: { params: P
               <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-[#18181b] pb-3">
                 <div>
                   <p className="text-base font-bold">{organization.name}</p>
-                  <p className="text-[12px] text-[#52525b]">Payslip · {run.runNumber}</p>
+                  <p className="text-[12px] text-[#52525b]">Payslip · {runTitle(run)}</p>
                 </div>
                 <div className="text-right text-[12px]">
                   <p>
@@ -142,8 +142,18 @@ export default async function PayslipsPage({ params, searchParams }: { params: P
               <footer className="mt-4 grid gap-6 text-[11px] text-[#52525b] sm:grid-cols-2 print:grid-cols-2">
                 <div className="flex flex-col gap-0.5">
                   <p>
+                    {record.thirteenthMonth ? (
+                      <>
+                        Basic earned {formatPeso(record.thirteenthMonth.basicEarned)}
+                        {record.thirteenthMonth.estimatedBasic ? ` + ${formatPeso(record.thirteenthMonth.estimatedBasic)} estimated` : ""} ÷ {record.thirteenthMonth.divisor}
+                        {record.thirteenthMonth.alreadyPaid ? ` − ${formatPeso(record.thirteenthMonth.alreadyPaid)} already paid` : ""}
+                      </>
+                    ) : (
+                      <>
                     Days worked {record.attendance?.daysWorked ?? 0} · absent {record.attendance?.absentDays ?? 0} · paid leave {record.attendance?.paidLeaveDays ?? 0} · late/undertime{" "}
                     {(record.attendance?.lateMinutes ?? 0) + (record.attendance?.undertimeMinutes ?? 0)} min
+                      </>
+                    )}
                   </p>
                   <p>Employer contributions {formatPeso(record.employerContributions)} (not deducted from pay).</p>
                   <p>System-generated payslip. Keep it for your records.</p>

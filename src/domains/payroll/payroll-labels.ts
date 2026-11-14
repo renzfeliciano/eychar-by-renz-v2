@@ -12,6 +12,28 @@ export type PayrollRunStatus = keyof typeof PAYROLL_RUN_STATUS_LABELS;
 /** The main path a run takes; cancelled sits outside it. */
 export const PAYROLL_RUN_STEPS: PayrollRunStatus[] = ["draft", "submitted", "approved", "released"];
 
+/** Kinds of payroll run (payroll plan Phase 2). Runs saved before run types existed have none and are regular. */
+export const PAYROLL_RUN_TYPE_LABELS = {
+  regular: "Regular",
+  thirteenth_month: "13th month",
+  year_end_adjustment: "Year-end tax adjustment",
+  final: "Final pay",
+} as const;
+
+export type PayrollRunType = keyof typeof PAYROLL_RUN_TYPE_LABELS;
+export const PAYROLL_RUN_TYPES = Object.keys(PAYROLL_RUN_TYPE_LABELS) as PayrollRunType[];
+
+/** "PR-2026-0001", or "PR-2026-0001 · 13th month" for any run that isn't regular. */
+export function runTitle(run: { runNumber: string; runType?: string | null }): string {
+  const type = runTypeOf(run);
+  return type === "regular" ? run.runNumber : `${run.runNumber} · ${PAYROLL_RUN_TYPE_LABELS[type]}`;
+}
+
+/** A run's type, reading a run saved before run types existed as regular. */
+export function runTypeOf(run: { runType?: string | null }): PayrollRunType {
+  return (run.runType ?? "regular") as PayrollRunType;
+}
+
 export const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** Kept for existing imports: the one money formatter is `formatMoney` in `@/lib/money`. */

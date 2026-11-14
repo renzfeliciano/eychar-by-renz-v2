@@ -87,6 +87,24 @@ const payrollRecordSchema = new Schema(
     netPay: { type: Number, required: true },
     previousNetPay: { type: Number },
     warnings: { type: [warningSchema], default: [] },
+    // On a 13th-month run's record only (payroll plan Phase 3): what the amount was computed from, so it
+    // reproduces later (§46). estimatedBasic covers the part of the year no approved run paid yet (true-up in January).
+    thirteenthMonth: {
+      type: new Schema(
+        {
+          year: { type: Number, required: true },
+          basicEarned: { type: Number, required: true },
+          estimatedBasic: { type: Number, required: true, default: 0 },
+          estimatedFrom: { type: String },
+          divisor: { type: Number, required: true },
+          alreadyPaid: { type: Number, required: true, default: 0 },
+          monthsWithPay: { type: Number, required: true },
+          sourceRunIds: { type: [Schema.Types.ObjectId], default: [] },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true },
 );

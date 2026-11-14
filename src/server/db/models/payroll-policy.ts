@@ -28,6 +28,9 @@ const payrollPolicySchema = new Schema(
     thirteenthMonthDivisor: { type: Number, min: 1, max: 24, default: PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor },
     // Split the month's contributions across cutoffs, or deduct them whole on the month's last cutoff.
     contributionTiming: { type: String, enum: ["every_cutoff", "last_cutoff_of_month"], required: true, default: "every_cutoff" },
+    // 13th month is due on or before this month-day each year (PD 851: December 24). Optional; read with
+    // thirteenthMonthPayByOf, which falls back to "12-24".
+    thirteenthMonthPayBy: { type: String, match: /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/ },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     effectiveTo: { type: Date },

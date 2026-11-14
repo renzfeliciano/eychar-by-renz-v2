@@ -208,7 +208,12 @@ identically from either page.
   - Each is scoped to the organization or one project, and guarded against paying the same people
     twice for the same days.
   - Each run keeps its payslips, register exports and full history.
-- **Payroll schedules** prepare each cutoff's draft automatically.
+  - Submitting a run that leaves employees out (for example, no pay terms) needs a reason for each,
+    kept on the run and in the audit log. A draft shows a notice when a newer policy or rule version
+    applies; it keeps the one it was prepared with.
+  - Permissions: prepare `payroll-runs.create`; recompute, adjustments, submit and cancel
+    `payroll-runs.update`; approve and return `payroll.approve`; release `payroll.release`.
+- **Payroll schedules** (`PayrollSchedule`) prepare each cutoff's draft automatically.
 - **Compensation:** each employee has calendar-dated pay terms (monthly or daily rate, allowances,
   minimum-wage-earner flag). Bulk changes (e.g. a wage order for a project) are previewed, then
   applied as one batch.
@@ -226,7 +231,8 @@ reproducibility requirement directly. `Compensation` (base salary + allowance pe
 its own effective-dated model, deliberately separate from `Employment` (see that model's own
 comment) and revised via the same transfer mechanic as `EmployeeAssignment`.
 
-`PayrollService.generateRun()` computes Basic Salary (prorated against `AttendanceRecord`
+`computeRun()` (`src/domains/payroll/payroll-run-compute.ts`, called by `PayrollRunService.prepare`, recompute and
+submit; the original design called it `PayrollService.generateRun()`) computes Basic Salary (prorated against `AttendanceRecord`
 absences — `"on_leave"` rows don't count, no Attendance/Leave model changes needed) and
 Tax/Statutory Contributions (via a generic progressive-bracket formula applied to seeded rule
 data — never a hardcoded formula) automatically; Overtime, Holiday Pay, Night Differential,

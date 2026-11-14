@@ -47,6 +47,16 @@ const INPUT: RegisterInput = {
 };
 
 describe("payroll register export", () => {
+  it("names the run type in the sheet subtitle, and leaves it out for callers that don't give one", async () => {
+    const subtitleOf = async (input: RegisterInput) => {
+      const loaded = new ExcelJS.Workbook();
+      await loaded.xlsx.load(await buildRegisterWorkbook(input).xlsx.writeBuffer());
+      return String(loaded.getWorksheet("Register")!.getRow(2).getCell(1).value);
+    };
+    expect(await subtitleOf({ ...INPUT, runTypeLabel: "13th month" })).toMatch(/^13th month · /);
+    expect(await subtitleOf(INPUT)).not.toMatch(/13th month/);
+  });
+
   it("lays out one row per employee with a column per contribution and a totals row", async () => {
     const loaded = new ExcelJS.Workbook();
     await loaded.xlsx.load(await buildRegisterWorkbook(INPUT).xlsx.writeBuffer());

@@ -36,6 +36,8 @@ export type RegisterRow = {
   netPay: number;
   previousNetPay: number | null;
   warnings: PayslipWarning[];
+  /** On a 13th-month run's rows: what the amount was computed from. */
+  thirteenthMonth?: { year: number; basicEarned: number; estimatedBasic: number; estimatedFrom: string | null; divisor: number; alreadyPaid: number; monthsWithPay: number } | null;
 };
 
 export type AdjustmentRow = {

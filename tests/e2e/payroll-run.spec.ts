@@ -30,6 +30,9 @@ test("HR prepares a payroll run and submits it; a second person approves it", as
   const runUrl = page.url();
 
   await page.getByTestId("payroll-run-submit").click();
+  // Anyone the run leaves out (e.g. no pay terms in the seed) needs a reason before it can be submitted.
+  const exclusionReasons = page.getByTestId("payroll-run-exclusion-reasons").getByRole("textbox");
+  for (const field of await exclusionReasons.all()) await field.fill("End-to-end test: not paid in this run");
   await page.getByTestId("payroll-run-dialog-confirm").click();
   await expect(page.getByText(/submitted for approval/)).toBeVisible();
 

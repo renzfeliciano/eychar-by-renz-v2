@@ -7,7 +7,7 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { userDisplayNames } from "@/domains/identity/user-directory";
-import { PAYROLL_RUN_STATUS_LABELS, PAYROLL_RUN_STEPS, formatPeso, type PayrollRunStatus } from "@/domains/payroll/payroll-labels";
+import { PAYROLL_RUN_STATUS_LABELS, PAYROLL_RUN_STEPS, formatPeso, runTitle, runTypeOf, type PayrollRunStatus } from "@/domains/payroll/payroll-labels";
 import { PAY_FREQUENCY_LABELS, type PayFrequency } from "@/domains/payroll/engine/pay-frequency";
 import { NotFoundError } from "@/shared/errors";
 import { dateToDateKey, formatDateKey, formatDateRange } from "@/lib/date-key";
@@ -61,6 +61,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
     throw error;
   }
   const { run, records, adjustments, policy, ruleVersion } = detail;
+  const acknowledgedReasons = new Map<string, string>((run.exclusionAcknowledgements ?? []).map((entry: { employeeId: unknown; reason: string }) => [String(entry.employeeId), entry.reason]));
 
   const [canUpdate, canApprove, canRelease, projects] = await Promise.all([
     hasPermission("payroll-runs.update", organizationId),
@@ -117,6 +118,17 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
     employeeContributions: record.employeeContributions,
     employerContributions: record.employerContributions,
     totalDeductions: record.totalDeductions,
+    thirteenthMonth: record.thirteenthMonth
+      ? {
+          year: record.thirteenthMonth.year,
+          basicEarned: record.thirteenthMonth.basicEarned,
+          estimatedBasic: record.thirteenthMonth.estimatedBasic ?? 0,
+          estimatedFrom: record.thirteenthMonth.estimatedFrom ?? null,
+          divisor: record.thirteenthMonth.divisor,
+          alreadyPaid: record.thirteenthMonth.alreadyPaid ?? 0,
+          monthsWithPay: record.thirteenthMonth.monthsWithPay,
+        }
+      : null,
     netPay: record.netPay,
     previousNetPay: record.previousNetPay ?? null,
     warnings: record.warnings.map((warning: { code: string; message: string; blocking: boolean }) => ({ code: warning.code, message: warning.message, blocking: warning.blocking })),
@@ -154,7 +166,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
       </Link>
 
       <PageHeader
-        title={run.runNumber}
+        title={runTitle(run)}
         description={`${scopeLabel} · ${periodLabel} · Pay date ${formatDateKey(dateToDateKey(run.payDate))}`}
         action={
           <RunActions
@@ -168,6 +180,8 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
             blockingIssues={run.blockingIssues ?? 0}
             employees={totals.employees}
             netPayLabel={formatPeso(totals.netPay)}
+            trueUpYear={status === "draft" && runTypeOf(run) === "regular" && dateToDateKey(run.payPeriodStart).slice(5, 7) === "01" ? run.payPeriodStart.getUTCFullYear() - 1 : undefined}
+            exclusions={(run.exclusions ?? []).map((exclusion: { employeeId: unknown; employeeName: string; reason: string }) => ({ employeeId: String(exclusion.employeeId), employeeName: exclusion.employeeName, reason: exclusion.reason }))}
           />
         }
       />
@@ -235,6 +249,21 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           </p>
         </div>
       )}
+      {(detail.newerVersions.policy || detail.newerVersions.ruleVersion) && (
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status" data-testid="payroll-run-newer-versions">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="font-medium">Newer payroll settings apply to this period</p>
+            <p className="mt-1 text-muted-foreground">
+              This draft keeps the settings it was prepared with, even when recomputed:
+              {detail.newerVersions.ruleVersion && ` rule version v${detail.newerVersions.ruleVersion.versionNumber} (${detail.newerVersions.ruleVersion.name}) now applies on the pay date`}
+              {detail.newerVersions.ruleVersion && detail.newerVersions.policy && ", and"}
+              {detail.newerVersions.policy && ` the policy “${detail.newerVersions.policy.name}” now applies to the period`}
+              . To use them, cancel this run and prepare it again.
+            </p>
+          </div>
+        </div>
+      )}
       {(run.exclusions?.length ?? 0) > 0 && (
         <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm" role="status">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
@@ -246,6 +275,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
               {run.exclusions.map((exclusion: { employeeId: unknown; employeeName: string; reason: string }) => (
                 <li key={String(exclusion.employeeId)}>
                   {exclusion.employeeName}: {exclusion.reason}.{" "}
+                  {acknowledgedReasons.get(String(exclusion.employeeId)) && <span>HR&apos;s reason: {acknowledgedReasons.get(String(exclusion.employeeId))}. </span>}
                   <Link href="/payroll/compensation" className="text-primary hover:underline">
                     Set pay terms
                   </Link>

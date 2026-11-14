@@ -19,13 +19,16 @@ import { EmployeeService } from "@/domains/workforce/employee-service";
 import { loadCurrentStaffCheck } from "@/domains/attendance/current-staff";
 import { formatPersonName } from "@/lib/person-name";
 import { dateKeyToDate, dateKeysBetween, dateToDateKey, formatDateKey } from "@/lib/date-key";
-import { computeEmployeePay, type PayAdjustment, type PayWarning } from "./engine/compute-pay";
+import { computeEmployeePay, type PayAdjustment, type PayCompensation, type PayWarning } from "./engine/compute-pay";
+import { blendPayTerms, dayBefore, scheduledDaysInRange } from "./engine/rate-segments";
 import { isLastCutoffOfMonth, type PayFrequency } from "./engine/pay-frequency";
 import { sumMoney } from "./engine/money";
 import { summarizeAttendance } from "./payroll-attendance";
 import { projectsAsOf } from "./payroll-scope";
 import { CompensationService } from "./compensation-service";
 import { formatMoney } from "@/lib/money";
+import { runTypeOf } from "./payroll-labels";
+import { computeThirteenthMonthRun } from "./thirteenth-month-compute";
 
 /** A net pay change bigger than this against the last released payroll is flagged for review. */
 const NET_PAY_CHANGE_THRESHOLD = 0.2;
@@ -65,7 +68,7 @@ export function withSharedRoster<T>(work: () => Promise<T>): Promise<T> {
   return sharedRoster.run(new Map(), work);
 }
 
-function rosterInputsFor(organizationId: string): Promise<RosterInputs> {
+export function rosterInputsFor(organizationId: string): Promise<RosterInputs> {
   const cache = sharedRoster.getStore();
   if (!cache) return loadRosterInputs(organizationId);
   let inputs = cache.get(organizationId);
@@ -86,6 +89,8 @@ function rosterInputsFor(organizationId: string): Promise<RosterInputs> {
 export async function computeRun(runId: Types.ObjectId) {
   const run = await PayrollRunModel.findById(runId);
   if (!run) throw new NotFoundError("Payroll run not found");
+  // Other run types compute differently (payroll plan Phase 3 onward); each writes the same way.
+  if (runTypeOf(run) === "thirteenth_month") return computeThirteenthMonthRun(run);
   const organizationId = run.organizationId.toString();
   const start = dateToDateKey(run.payPeriodStart);
   const end = dateToDateKey(run.payPeriodEnd);
@@ -153,7 +158,19 @@ export async function computeRun(runId: Types.ObjectId) {
       { category: adjustment.category, label: adjustment.label, direction: adjustment.direction as "earning" | "deduction", amount: adjustment.amount, taxable: adjustment.taxable },
     ]);
   }
-  const termChangeByEmployee = new Map(termChanges.map((row) => [row.employeeId.toString(), dateToDateKey(row.effectiveFrom)]));
+  // Terms in force on the first day of the period, and every change within it, so the period can be blended by workdays.
+  const startTermsByEmployee = await CompensationService.getAsOfForEmployees(candidateIds, organizationId, start);
+  const changesByEmployee = new Map<string, typeof termChanges>();
+  for (const row of termChanges) {
+    const key = row.employeeId.toString();
+    changesByEmployee.set(key, [...(changesByEmployee.get(key) ?? []), row]);
+  }
+  const toPayTerms = (row: { rateType: string; rate: number; allowances: { name: string; amount: number; basis: string; taxable: boolean }[]; minimumWageEarner: boolean }): PayCompensation => ({
+    rateType: row.rateType as "monthly" | "daily",
+    rate: row.rate,
+    allowances: row.allowances.map((allowance) => ({ name: allowance.name, amount: allowance.amount, basis: allowance.basis as "monthly" | "daily", taxable: allowance.taxable })),
+    minimumWageEarner: row.minimumWageEarner,
+  });
 
   // The most recent approved or released net pay per employee, for the variance check.
   const priorRunOrder = new Map(priorRuns.map((prior, index) => [prior._id.toString(), index]));
@@ -196,18 +213,22 @@ export async function computeRun(runId: Types.ObjectId) {
       }),
     });
 
+    // Pay terms across the period. Unchanged terms pay as before; a change inside the period blends the terms by scheduled workdays.
+    const changes = (changesByEmployee.get(employeeId) ?? []).map((row) => ({ from: dateToDateKey(row.effectiveFrom), row })).sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+    const startRow = startTermsByEmployee.get(employeeId);
+    const segments = [...(startRow ? [{ from: start, row: startRow }] : []), ...changes];
+    const payTerms = changes.length === 0
+      ? toPayTerms(terms)
+      : blendPayTerms(
+          segments.map((segment, index) => ({
+            terms: toPayTerms(segment.row),
+            scheduledDays: scheduledDaysInRange(periodDays, policy.workWeekDays, segment.from < start ? start : segment.from, index + 1 < segments.length ? dayBefore(segments[index + 1].from) : end),
+          })),
+          policy.workDaysPerYear,
+        );
+
     const pay = computeEmployeePay({
-      compensation: {
-        rateType: terms.rateType as "monthly" | "daily",
-        rate: terms.rate,
-        allowances: terms.allowances.map((allowance: { name: string; amount: number; basis: string; taxable: boolean }) => ({
-          name: allowance.name,
-          amount: allowance.amount,
-          basis: allowance.basis as "monthly" | "daily",
-          taxable: allowance.taxable,
-        })),
-        minimumWageEarner: terms.minimumWageEarner,
-      },
+      compensation: payTerms,
       policy: {
         payFrequency,
         workDaysPerYear: policy.workDaysPerYear,
@@ -223,11 +244,11 @@ export async function computeRun(runId: Types.ObjectId) {
     });
 
     const warnings: PayWarning[] = [...pay.warnings];
-    const changedOn = termChangeByEmployee.get(employeeId);
+    const changedOn = changes.length ? changes[changes.length - 1].from : undefined;
     if (changedOn) {
       warnings.push({
         code: "pay_terms_changed",
-        message: `Pay terms changed on ${formatDateKey(changedOn)}, within this period; the new terms are used. Add a salary adjustment if the days before need the old rate.`,
+        message: `Pay terms changed on ${formatDateKey(changedOn)}, within this period. Basic pay is blended by scheduled workdays: each part of the period uses the terms in force for it.`,
         blocking: false,
       });
     }
