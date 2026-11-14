@@ -319,6 +319,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
         adjustments={adjustmentRows}
         editable={status === "draft" && canUpdate}
         overtimeMultiplier={payPremiumsOf(policy).overtimeMultiplier}
+        computesPremiums={Boolean(run.computePremiums)}
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">

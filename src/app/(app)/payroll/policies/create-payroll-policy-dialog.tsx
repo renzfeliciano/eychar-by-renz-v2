@@ -12,6 +12,8 @@ import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/fo
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { WEEKDAY_NAMES } from "@/domains/payroll/payroll-labels";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
+import { HOLIDAY_DAY_TYPE_DEFAULTS, type HolidayDayType } from "@/domains/payroll/holiday-day-types";
+import { HOLIDAY_TYPE_LABELS, HOLIDAY_TYPES, type HolidayType } from "@/domains/holidays/holiday-types";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 
@@ -35,10 +37,38 @@ const EMPTY = {
   overtimePercent: String(PAY_PREMIUM_DEFAULTS.overtimeMultiplier * 100),
   restDayPercent: String(PAY_PREMIUM_DEFAULTS.restDayMultiplier * 100),
   thirteenthMonthDivisor: String(PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor),
+  // Holiday and night premiums (attendance plan Phase 5), also as percentages.
+  specialHolidayPercent: percentOf(PAY_PREMIUM_DEFAULTS.specialHolidayMultiplier),
+  specialHolidayRestDayPercent: percentOf(PAY_PREMIUM_DEFAULTS.specialHolidayRestDayMultiplier),
+  regularHolidayPercent: percentOf(PAY_PREMIUM_DEFAULTS.regularHolidayMultiplier),
+  regularHolidayRestDayPercent: percentOf(PAY_PREMIUM_DEFAULTS.regularHolidayRestDayMultiplier),
+  premiumOvertimePercent: percentOf(PAY_PREMIUM_DEFAULTS.premiumOvertimeMultiplier),
+  nightDifferentialPercent: percentOf(PAY_PREMIUM_DEFAULTS.nightDifferentialRate),
+  // What each holiday type counts as (attendance plan Phase 4).
+  holidayDayTypes: { ...HOLIDAY_DAY_TYPE_DEFAULTS } as Record<HolidayType, HolidayDayType>,
   effectiveFrom: localDateKey(),
 };
 
+const HOLIDAY_DAY_TYPE_OPTIONS: SelectOption[] = [
+  { id: "regular_holiday", label: "Regular holiday pay" },
+  { id: "special_holiday", label: "Special day pay" },
+  { id: "special_working", label: "Ordinary pay (working day)" },
+  { id: "workday", label: "Not observed" },
+];
+
+const PREMIUM_FIELDS = [
+  { key: "specialHolidayPercent", label: "Special day (%)", id: "policy-special-holiday-percent", max: 500 },
+  { key: "specialHolidayRestDayPercent", label: "Special day on a rest day (%)", id: "policy-special-rest-percent", max: 500 },
+  { key: "regularHolidayPercent", label: "Regular holiday (%)", id: "policy-regular-holiday-percent", max: 500 },
+  { key: "regularHolidayRestDayPercent", label: "Regular holiday on a rest day (%)", id: "policy-regular-rest-percent", max: 500 },
+  { key: "premiumOvertimePercent", label: "Overtime on a premium day (%)", id: "policy-premium-overtime-percent", max: 500 },
+  { key: "nightDifferentialPercent", label: "Night differential (%)", id: "policy-night-percent", max: 100 },
+] as const;
+
 const toMultiplier = (percent: string) => Number((Number(percent) / 100).toPrecision(12));
+function percentOf(multiplier: number) {
+  return String(Number((multiplier * 100).toPrecision(12)));
+}
 
 /** How pay is computed for the organization, or one project that works differently (e.g. a 6-day site). */
 export function CreatePayrollPolicyDialog({ organizationId, projects }: { organizationId: string; projects: SelectOption[] }) {
@@ -76,6 +106,13 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
         overtimeMultiplier: toMultiplier(form.overtimePercent),
         restDayMultiplier: toMultiplier(form.restDayPercent),
         thirteenthMonthDivisor: Number(form.thirteenthMonthDivisor),
+        specialHolidayMultiplier: toMultiplier(form.specialHolidayPercent),
+        specialHolidayRestDayMultiplier: toMultiplier(form.specialHolidayRestDayPercent),
+        regularHolidayMultiplier: toMultiplier(form.regularHolidayPercent),
+        regularHolidayRestDayMultiplier: toMultiplier(form.regularHolidayRestDayPercent),
+        premiumOvertimeMultiplier: toMultiplier(form.premiumOvertimePercent),
+        nightDifferentialRate: toMultiplier(form.nightDifferentialPercent),
+        holidayDayTypes: form.holidayDayTypes,
         effectiveFrom: form.effectiveFrom,
       }),
     });
@@ -174,6 +211,33 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
           <p className="-mt-2 text-xs text-muted-foreground">
             Overtime is a percentage of the hourly rate, rest day pay of the daily rate (Philippines: 125% and 130%). 13th month pay is the year&apos;s basic pay divided by the divisor (Philippines: 12).
           </p>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Holiday and night pay</span>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {PREMIUM_FIELDS.map(({ key, label, id, max }) => (
+                <FormField key={key} label={label} htmlFor={id} required>
+                  <Input id={id} type="number" min={key === "nightDifferentialPercent" ? 0 : 100} max={max} step="any" inputMode="decimal" value={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
+                </FormField>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Percentages of the daily rate for the hours worked that day; overtime on those days is the day&apos;s rate times &quot;Overtime on a premium day&quot;. Night pay is a share of the hour&apos;s rate from 10 p.m. to 6 a.m. Philippine values are filled in: check them against the Labor Code before relying on them.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {HOLIDAY_TYPES.map((type) => (
+              <OptionSelect
+                key={type}
+                label={HOLIDAY_TYPE_LABELS[type]}
+                value={form.holidayDayTypes[type]}
+                onChange={(value) => setForm({ ...form, holidayDayTypes: { ...form.holidayDayTypes, [type]: (value || HOLIDAY_DAY_TYPE_DEFAULTS[type]) as HolidayDayType } })}
+                options={HOLIDAY_DAY_TYPE_OPTIONS}
+                placeholder={HOLIDAY_DAY_TYPE_OPTIONS.find((option) => option.id === HOLIDAY_DAY_TYPE_DEFAULTS[type])?.label}
+                required
+              />
+            ))}
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">How each kind of holiday on the calendar is paid when someone works it.</p>
           <OptionSelect label="Government contributions" value={form.contributionTiming} onChange={(value) => setForm({ ...form, contributionTiming: value || "every_cutoff" })} options={TIMING} placeholder="Split across cutoffs" required />
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={form.deductLateAndUndertime} onCheckedChange={(checked) => setForm({ ...form, deductLateAndUndertime: checked === true })} />

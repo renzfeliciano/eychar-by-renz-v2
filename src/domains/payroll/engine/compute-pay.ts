@@ -2,7 +2,9 @@ import { computeProgressiveBracketTax, type TaxBracket } from "../payroll-tax";
 import { computeMonthlyContributionExact, type ContributionRule } from "./contributions";
 import { roundMoney, sumMoney } from "./money";
 import { periodsPerMonth, type PayFrequency } from "./pay-frequency";
-import { formatMultiplierPercent, payPremiumsOf } from "./premiums";
+import { formatMultiplierPercent, payPremiumsOf, type PayPremiums } from "./premiums";
+import { formatHoursMinutes, premiumLines, type PremiumDay } from "./premium-pay";
+import { COMPUTED_PREMIUM_CATEGORIES } from "../adjustment-categories";
 import { formatMoney } from "@/lib/money";
 
 export type RateType = "monthly" | "daily";
@@ -20,7 +22,9 @@ export type PayPolicy = {
   contributionTiming: "every_cutoff" | "last_cutoff_of_month";
   /** Rest day pay as a multiple of the daily rate (the policy's; PAY_PREMIUM_DEFAULTS when unset). */
   restDayMultiplier?: number;
-};
+} & { [K in keyof PayPremiums]?: number | null };
+
+export { COMPUTED_PREMIUM_CATEGORIES };
 
 export type PayRules = { taxTable: TaxBracket[]; contributions: ContributionRule[] };
 
@@ -39,6 +43,23 @@ export type PayAttendance = {
   restDaysWorked?: number;
   lateMinutes: number;
   undertimeMinutes: number;
+  /** Only on a run that computes premiums (attendance plan Phase 5). */
+  premiums?: PremiumAttendance;
+};
+
+/** The attendance a run that computes premiums reads from the stored day results (attendance plan Phase 5). */
+export type PremiumAttendance = {
+  /** Every day worked that has a stored result. */
+  days: PremiumDay[];
+  /** Unworked regular holidays on workdays where the workday before was attended or on leave. */
+  unworkedRegularHolidaysPaid: number;
+  /** Unworked regular holidays where it wasn't (warned, never deducted). */
+  regularHolidaysAbsentBefore: number;
+  /** Overtime measured but not approved: not paid. */
+  unapprovedOvertimeMinutes: number;
+  missingCheckoutDays: number;
+  /** Days worked whose record has no stored result (older records): read as before, no premiums. */
+  withoutDayResult: number;
 };
 
 export type PayAdjustment = { category: string; label: string; direction: "earning" | "deduction"; amount: number; taxable: boolean };
@@ -50,6 +71,12 @@ export type PayInput = {
   attendance: PayAttendance;
   adjustments: PayAdjustment[];
   isLastCutoffOfMonth: boolean;
+  /**
+   * The run computes overtime, rest-day, holiday and night pay from the stored
+   * attendance day results (attendance plan Phase 5). Off for runs made before
+   * it existed, which pay exactly as before.
+   */
+  computePremiums?: boolean;
 };
 
 export type EarningLine = { code: string; label: string; amount: number; taxable: boolean };
@@ -95,9 +122,14 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
  *   contributions; minimum wage earners are exempt. Other deductions
  *   (loans, cash advances) come off after tax.
  */
-export function computeEmployeePay({ compensation, policy, rules, attendance, adjustments, isLastCutoffOfMonth }: PayInput): PayResult {
+/** The monthly basic contributions are computed on: the rate, or a daily rate's monthly equivalent. Shared with final pay. */
+export function monthlyBasicFor(rateType: "monthly" | "daily", rate: number, workDaysPerYear: number): number {
+  return rateType === "monthly" ? rate : roundMoney((rate * workDaysPerYear) / 12);
+}
+
+export function computeEmployeePay({ compensation, policy, rules, attendance, adjustments, isLastCutoffOfMonth, computePremiums }: PayInput): PayResult {
   const { rateType, rate } = compensation;
-  const monthlyBasic = rateType === "monthly" ? rate : roundMoney((rate * policy.workDaysPerYear) / 12);
+  const monthlyBasic = monthlyBasicFor(rateType, rate, policy.workDaysPerYear);
   const dailyRate = rateType === "monthly" ? roundMoney((rate * 12) / policy.workDaysPerYear) : rate;
   const hourlyRate = roundMoney(dailyRate / policy.hoursPerDay);
   const perMonth = periodsPerMonth(policy.payFrequency);
@@ -131,6 +163,16 @@ export function computeEmployeePay({ compensation, policy, rules, attendance, ad
     } else {
       const share = isPartial && attendance.scheduledDays > 0 ? attendance.eligibleDays / attendance.scheduledDays : 1;
       earnings.push({ code: "allowance", label: allowance.name, amount: roundMoney((allowance.amount / perMonth) * share), taxable: allowance.taxable });
+    }
+  }
+
+  const premiumInputs = computePremiums ? attendance.premiums : undefined;
+  if (premiumInputs) {
+    earnings.push(...premiumLines({ days: premiumInputs.days, dailyRate, hourlyRate, hoursPerDay: policy.hoursPerDay, premiums: payPremiumsOf(policy) }));
+    // A monthly rate already pays regular holidays (the work-year divisor counts them); a daily rate doesn't.
+    if (rateType === "daily" && premiumInputs.unworkedRegularHolidaysPaid > 0) {
+      const count = premiumInputs.unworkedRegularHolidaysPaid;
+      earnings.push({ code: "holiday_pay", label: `Regular holiday pay, not worked (${plural(count, "day")})`, amount: roundMoney(dailyRate * count), taxable: true });
     }
   }
 
@@ -169,8 +211,34 @@ export function computeEmployeePay({ compensation, policy, rules, attendance, ad
       blocking: false,
     });
   }
+  if (premiumInputs) {
+    const manual = adjustments.filter((adjustment) => (COMPUTED_PREMIUM_CATEGORIES as readonly string[]).includes(adjustment.category));
+    if (manual.length) {
+      warnings.push({
+        code: "manual_premium_adjustment",
+        message: `This run computes overtime, rest day, holiday and night pay from attendance. Remove the manual ${[...new Set(manual.map((adjustment) => adjustment.label))].join(", ")} adjustment so it isn't paid twice.`,
+        blocking: true,
+      });
+    }
+    if (premiumInputs.unapprovedOvertimeMinutes > 0) {
+      warnings.push({ code: "unapproved_overtime", message: `${formatHoursMinutes(premiumInputs.unapprovedOvertimeMinutes)} of overtime isn't approved and isn't paid. Approve it in Attendance, then recompute.`, blocking: false });
+    }
+    if (premiumInputs.missingCheckoutDays > 0) {
+      warnings.push({ code: "missing_checkout", message: `${plural(premiumInputs.missingCheckoutDays, "day")} ${premiumInputs.missingCheckoutDays === 1 ? "has" : "have"} no check-out, so no hours count for ${premiumInputs.missingCheckoutDays === 1 ? "it" : "them"}. Fix the attendance, then recompute.`, blocking: false });
+    }
+    if (premiumInputs.withoutDayResult > 0) {
+      warnings.push({ code: "day_result_missing", message: `${plural(premiumInputs.withoutDayResult, "day")} worked ${premiumInputs.withoutDayResult === 1 ? "has" : "have"} no measured hours yet, so no overtime, holiday or night pay for ${premiumInputs.withoutDayResult === 1 ? "it" : "them"}. Recalculate that attendance, then recompute.`, blocking: false });
+    }
+    if (premiumInputs.regularHolidaysAbsentBefore > 0) {
+      warnings.push({
+        code: "holiday_absent_before",
+        message: `Absent the workday before ${plural(premiumInputs.regularHolidaysAbsentBefore, "regular holiday")}. ${rateType === "daily" ? "Not paid for it." : "Still paid in basic pay; deduct it with an adjustment if your policy requires."}`,
+        blocking: false,
+      });
+    }
+  }
   const restDaysWorked = attendance.restDaysWorked ?? 0;
-  if (restDaysWorked > 0) {
+  if (restDaysWorked > 0 && !premiumInputs) {
     const { restDayMultiplier } = payPremiumsOf(policy);
     warnings.push({
       code: "rest_day_work",

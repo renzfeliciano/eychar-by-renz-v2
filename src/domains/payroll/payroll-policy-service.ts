@@ -8,13 +8,14 @@ import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/re
 import { dateKeyToDate } from "@/lib/date-key";
 import { assertNoSameDayVersion } from "./same-day-version-guard";
 import type { CreatePayrollPolicyInput } from "@/shared/validation/payroll";
+import type { PayPremiums } from "./engine/premiums";
 
 export type { PolicySource };
 
 type PayrollPolicyDoc = NonNullable<Awaited<ReturnType<typeof PayrollPolicyModel.findOne>>>;
 
 /** The premiums are optional for callers that predate them (seed, fixtures): the schema defaults fill them in. */
-type PremiumKey = "overtimeMultiplier" | "restDayMultiplier" | "thirteenthMonthDivisor";
+type PremiumKey = keyof PayPremiums;
 type CreatePolicyInput = Omit<CreatePayrollPolicyInput, PremiumKey> & Partial<Pick<CreatePayrollPolicyInput, PremiumKey>>;
 
 export const PayrollPolicyService = {
@@ -38,6 +39,15 @@ export const PayrollPolicyService = {
       overtimeMultiplier: input.overtimeMultiplier,
       restDayMultiplier: input.restDayMultiplier,
       thirteenthMonthDivisor: input.thirteenthMonthDivisor,
+      specialHolidayMultiplier: input.specialHolidayMultiplier,
+      specialHolidayRestDayMultiplier: input.specialHolidayRestDayMultiplier,
+      regularHolidayMultiplier: input.regularHolidayMultiplier,
+      regularHolidayRestDayMultiplier: input.regularHolidayRestDayMultiplier,
+      premiumOvertimeMultiplier: input.premiumOvertimeMultiplier,
+      nightDifferentialRate: input.nightDifferentialRate,
+      holidayDayTypes: input.holidayDayTypes && Object.keys(input.holidayDayTypes).length ? input.holidayDayTypes : undefined,
+      finalPayChecks: input.finalPayChecks?.length ? input.finalPayChecks : undefined,
+      recentPayChangeDays: input.recentPayChangeDays,
       effectiveFrom,
     });
 
@@ -55,6 +65,13 @@ export const PayrollPolicyService = {
         overtimeMultiplier: policy.overtimeMultiplier,
         restDayMultiplier: policy.restDayMultiplier,
         thirteenthMonthDivisor: policy.thirteenthMonthDivisor,
+        specialHolidayMultiplier: policy.specialHolidayMultiplier,
+        specialHolidayRestDayMultiplier: policy.specialHolidayRestDayMultiplier,
+        regularHolidayMultiplier: policy.regularHolidayMultiplier,
+        regularHolidayRestDayMultiplier: policy.regularHolidayRestDayMultiplier,
+        premiumOvertimeMultiplier: policy.premiumOvertimeMultiplier,
+        nightDifferentialRate: policy.nightDifferentialRate,
+        holidayDayTypes: input.holidayDayTypes,
         projectId: policy.projectId,
       },
     });

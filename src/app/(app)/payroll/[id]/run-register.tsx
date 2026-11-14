@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormError, FormField } from "@/components/shared/form-field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { ADJUSTMENT_CATEGORIES } from "@/domains/payroll/adjustment-categories";
+import { ADJUSTMENT_CATEGORIES, COMPUTED_PREMIUM_CATEGORIES } from "@/domains/payroll/adjustment-categories";
 import { formatPeso } from "@/domains/payroll/payroll-labels";
 import { formatMultiplierPercent } from "@/domains/payroll/engine/premiums";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ type Props = {
   editable: boolean;
   /** The run's payroll policy overtime multiple of the hourly rate (1.25 = 125%), for the adjustment hint. */
   overtimeMultiplier: number;
+  /** The run computes overtime, rest day, holiday and night pay from attendance (attendance plan Phase 5). */
+  computesPremiums?: boolean;
 };
 
 function attendanceSummary(row: RegisterRow): string {
@@ -44,7 +46,7 @@ function attendanceSummary(row: RegisterRow): string {
  * raised). While the run is a draft, adjustments are added and removed
  * from the payslip, and the run recomputes on each change.
  */
-export function RunRegister({ runId, organizationId, records, adjustments, editable, overtimeMultiplier }: Props) {
+export function RunRegister({ runId, organizationId, records, adjustments, editable, overtimeMultiplier, computesPremiums = false }: Props) {
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const normalized = query.trim().toLowerCase();
@@ -153,6 +155,7 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
               adjustments={adjustments.filter((adjustment) => adjustment.employeeId === open.employeeId)}
               editable={editable}
               overtimeMultiplier={overtimeMultiplier}
+              computesPremiums={computesPremiums}
             />
           )}
         </SheetContent>
@@ -177,6 +180,7 @@ function Payslip({
   adjustments,
   editable,
   overtimeMultiplier,
+  computesPremiums,
 }: {
   row: RegisterRow;
   runId: string;
@@ -184,6 +188,7 @@ function Payslip({
   adjustments: AdjustmentRow[];
   editable: boolean;
   overtimeMultiplier: number;
+  computesPremiums: boolean;
 }) {
   const router = useRouter();
   const shortMinutes = row.attendance.lateMinutes + row.attendance.undertimeMinutes;
@@ -337,17 +342,31 @@ function Payslip({
               </li>
             ))}
           </ul>
-          {editable && <AddAdjustmentForm runId={runId} organizationId={organizationId} employeeId={row.employeeId} hourlyRate={row.hourlyRate} overtimeMultiplier={overtimeMultiplier} />}
+          {editable && <AddAdjustmentForm runId={runId} organizationId={organizationId} employeeId={row.employeeId} hourlyRate={row.hourlyRate} overtimeMultiplier={overtimeMultiplier} computesPremiums={computesPremiums} />}
         </section>
       </div>
     </>
   );
 }
 
-function AddAdjustmentForm({ runId, organizationId, employeeId, hourlyRate, overtimeMultiplier }: { runId: string; organizationId: string; employeeId: string; hourlyRate: number; overtimeMultiplier: number }) {
+function AddAdjustmentForm({
+  runId,
+  organizationId,
+  employeeId,
+  hourlyRate,
+  overtimeMultiplier,
+  computesPremiums,
+}: {
+  runId: string;
+  organizationId: string;
+  employeeId: string;
+  hourlyRate: number;
+  overtimeMultiplier: number;
+  computesPremiums: boolean;
+}) {
   const router = useRouter();
-  const [category, setCategory] = useState<string>("overtime");
-  const [label, setLabel] = useState("Overtime");
+  const [category, setCategory] = useState<string>(computesPremiums ? "bonus" : "overtime");
+  const [label, setLabel] = useState(computesPremiums ? "Bonus" : "Overtime");
   const [amount, setAmount] = useState("");
   const [taxable, setTaxable] = useState(true);
   const [notes, setNotes] = useState("");
@@ -385,12 +404,16 @@ function AddAdjustmentForm({ runId, organizationId, employeeId, hourlyRate, over
     router.refresh();
   }
 
-  const earnings = ADJUSTMENT_CATEGORIES.filter((item) => item.direction === "earning");
+  // On a run that computes premiums, overtime, rest day, holiday and night pay come from attendance.
+  const earnings = ADJUSTMENT_CATEGORIES.filter((item) => item.direction === "earning" && !(computesPremiums && (COMPUTED_PREMIUM_CATEGORIES as readonly string[]).includes(item.code)));
   const deductions = ADJUSTMENT_CATEGORIES.filter((item) => item.direction === "deduction");
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3" data-testid="payroll-add-adjustment">
       <p className="text-sm font-medium">Add adjustment</p>
+      {computesPremiums && (
+        <p className="text-xs text-muted-foreground">Overtime, rest day, holiday and night pay are computed from attendance on this run. To change them, correct the attendance or approve the overtime, then recompute.</p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Type" required>
           <Select value={category} onValueChange={(value) => value && pick(value)}>
@@ -430,7 +453,7 @@ function AddAdjustmentForm({ runId, organizationId, employeeId, hourlyRate, over
           <span className="text-xs text-muted-foreground">(13th month and de minimis benefits usually aren&apos;t)</span>
         </label>
       )}
-      {(category === "overtime" || category === "rest_day_pay" || category === "holiday_pay") && (
+      {!computesPremiums && (category === "overtime" || category === "rest_day_pay" || category === "holiday_pay") && (
         <p className="text-xs text-muted-foreground">
           For reference: hourly rate {formatPeso(hourlyRate)}; regular overtime is {formatMultiplierPercent(overtimeMultiplier)} of it ({formatPeso(hourlyRate * overtimeMultiplier)} an hour).
         </p>

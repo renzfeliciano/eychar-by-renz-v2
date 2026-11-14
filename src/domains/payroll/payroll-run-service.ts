@@ -17,6 +17,7 @@ import { dateKeyToDate, dateToDateKey, formatDateKey } from "@/lib/date-key";
 import { runTypeOf } from "./payroll-labels";
 import { basicEarnedFrom, thirteenthMonthDueDate } from "./engine/thirteenth-month";
 import { payPremiumsOf } from "./engine/premiums";
+import { COMPUTED_PREMIUM_CATEGORIES } from "./engine/compute-pay";
 import { finalSettlementsInYear, paidRegularRunsInYear, thirteenthMonthPaid } from "./thirteenth-month-ledger";
 import { formatMoney } from "@/lib/money";
 import { roundMoney } from "./engine/money";
@@ -111,6 +112,7 @@ export const PayrollRunService = {
       runNumber: await nextRunNumber(input.organizationId, input.payDate),
       projectId: toObjectId(input.projectId),
       runType: "regular",
+      computePremiums: true,
       payFrequency,
       payPeriodStart: dateKeyToDate(input.payPeriodStart),
       payPeriodEnd: dateKeyToDate(input.payPeriodEnd),
@@ -459,6 +461,9 @@ export const PayrollRunService = {
     const run = await findRun(runId, input.organizationId);
     if (run.status !== "draft") throw new BusinessRuleError("Adjustments can only change while the run is a draft. Return it to draft first.");
     if (runTypeOf(run) !== "regular") throw new BusinessRuleError("Adjustments go on a regular payroll run. This run's amounts come from its own calculation.");
+    if (run.computePremiums && (COMPUTED_PREMIUM_CATEGORIES as readonly string[]).includes(input.category)) {
+      throw new BusinessRuleError("This run computes overtime, rest day, holiday and night pay from attendance. Correct the attendance (or approve the overtime) instead, then recompute.");
+    }
     if (!Types.ObjectId.isValid(input.employeeId) || !(await EmployeeModel.exists({ _id: input.employeeId, organizationId: run.organizationId }))) {
       throw new NotFoundError("Employee not found in this organization");
     }

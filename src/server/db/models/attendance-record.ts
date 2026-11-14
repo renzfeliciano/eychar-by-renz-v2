@@ -50,6 +50,8 @@ const dayResultSchema = new Schema(
     undertimeMinutes: { type: Number, required: true },
     overtimeMinutes: { type: Number, required: true },
     nightDiffMinutes: { type: Number, required: true },
+    // Of those, the minutes that are also overtime (DAY_CALC_VERSION 2). Absent on version 1.
+    nightOvertimeMinutes: { type: Number },
     dayType: { type: String, enum: ["workday", "rest_day", "regular_holiday", "special_holiday", "special_working"], required: true },
     restDay: { type: Boolean, required: true },
     flags: { type: [String], default: [] },

@@ -88,6 +88,9 @@ const payrollRunSchema = new Schema(
     computedAt: { type: Date },
     // Held while the run is being recalculated (see withComputeLock in
     // payroll-run-service.ts); expires on its own if a server dies mid-way.
+    // Computes overtime, rest-day, holiday and night pay from the stored attendance day results
+    // (attendance plan Phase 5). Set on new regular runs; runs made before it pay as they always did.
+    computePremiums: { type: Boolean },
     computeLock: { type: String },
     computeLockUntil: { type: Date },
     preparedBy: { type: Schema.Types.ObjectId, ref: "User" },

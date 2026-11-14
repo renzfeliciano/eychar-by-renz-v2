@@ -22,3 +22,9 @@ export const ADJUSTMENT_CATEGORIES = [
   { code: "cash_advance", label: "Cash advance", direction: "deduction", taxable: false },
   { code: "other_deduction", label: "Other deduction", direction: "deduction", taxable: false },
 ] as const satisfies readonly { code: string; label: string; direction: "earning" | "deduction"; taxable: boolean }[];
+
+/**
+ * Categories a run that computes premiums (attendance plan Phase 5) produces
+ * itself from attendance, so HR can't also add them by hand on that run.
+ */
+export const COMPUTED_PREMIUM_CATEGORIES = ["overtime", "holiday_pay", "rest_day_pay", "night_differential"] as const;

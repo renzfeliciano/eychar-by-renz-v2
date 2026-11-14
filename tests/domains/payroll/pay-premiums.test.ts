@@ -23,7 +23,7 @@ function restDayInput(policy: Partial<PayInput["policy"]> = {}): PayInput {
 
 describe("pay premium defaults", () => {
   it("match the values that used to be hardcoded", () => {
-    expect(PAY_PREMIUM_DEFAULTS).toEqual({ overtimeMultiplier: 1.25, restDayMultiplier: 1.3, thirteenthMonthDivisor: 12 });
+    expect(PAY_PREMIUM_DEFAULTS).toMatchObject({ overtimeMultiplier: 1.25, restDayMultiplier: 1.3, thirteenthMonthDivisor: 12 });
     expect(payPremiumsOf(undefined)).toEqual(PAY_PREMIUM_DEFAULTS);
     expect(payPremiumsOf({ overtimeMultiplier: null })).toEqual(PAY_PREMIUM_DEFAULTS);
     expect(payPremiumsOf({ overtimeMultiplier: 1.5 }).overtimeMultiplier).toBe(1.5);

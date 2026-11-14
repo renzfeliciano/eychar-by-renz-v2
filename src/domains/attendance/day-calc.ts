@@ -19,7 +19,10 @@ import { addDays } from "@/lib/date-key";
  *   excess as overtime too. Coming in early is not overtime. Overtime is
  *   reported either way and flagged until approved.
  * - The break is deducted only when the time worked exceeds it.
- * - Night differential: minutes inside the policy's night window.
+ * - Night differential: minutes inside the policy's night window. Those that
+ *   are also overtime are counted apart (nightOvertimeMinutes, owner decision
+ *   at Gate 3: night differential on overtime is at the overtime rate).
+ *   Overtime is taken as the last minutes worked before check-out.
  * - Rounding: late, undertime, overtime and night minutes round down to the
  *   policy's block (0 = exact minutes).
  * - Missing check-out: flagged, and nothing counts as worked until HR adjusts.
@@ -27,7 +30,8 @@ import { addDays } from "@/lib/date-key";
  *   working day); a rest day or day-off holiday has no hours to be short of.
  */
 
-export const DAY_CALC_VERSION = 1;
+/** Bumped whenever the rules change. 2: nightOvertimeMinutes (Gate 3). */
+export const DAY_CALC_VERSION = 2;
 
 export type DayType = "workday" | "rest_day" | "regular_holiday" | "special_holiday" | "special_working";
 export type DayCalcFlag = "missing_checkin" | "missing_checkout" | "crosses_midnight" | "overtime_unapproved";
@@ -91,6 +95,8 @@ export type DayResult = {
   undertimeMinutes: number;
   overtimeMinutes: number;
   nightDiffMinutes: number;
+  /** Of the night minutes, those that are also overtime. */
+  nightOvertimeMinutes: number;
   dayType: DayType;
   /** Kept apart from dayType: a holiday can fall on a rest day, and pay differs. */
   restDay: boolean;
@@ -175,6 +181,7 @@ export function calculateDay(input: DayCalcInput): DayResult {
     undertimeMinutes: 0,
     overtimeMinutes: 0,
     nightDiffMinutes: 0,
+    nightOvertimeMinutes: 0,
     dayType,
     restDay: input.restDay,
     flags,
@@ -216,11 +223,11 @@ export function calculateDay(input: DayCalcInput): DayResult {
   }
   result.overtimeMinutes = roundDown(Math.min(overtime, result.workedMinutes), rules.roundingMinutes);
 
-  let night = 0;
-  for (const offset of [-1, 0, 1]) {
-    night += overlap({ start: checkIn, end: checkOut }, span(addDays(input.date, offset), rules.nightStartTime, rules.nightEndTime));
-  }
-  result.nightDiffMinutes = roundDown(night, rules.roundingMinutes);
+  const nightIn = (interval: { start: number; end: number }) =>
+    [-1, 0, 1].reduce((sum, offset) => sum + overlap(interval, span(addDays(input.date, offset), rules.nightStartTime, rules.nightEndTime)), 0);
+  result.nightDiffMinutes = roundDown(nightIn({ start: checkIn, end: checkOut }), rules.roundingMinutes);
+  const overtimeSpan = { start: checkOut - Math.min(overtime, result.workedMinutes), end: checkOut };
+  result.nightOvertimeMinutes = Math.min(roundDown(nightIn(overtimeSpan), rules.roundingMinutes), result.nightDiffMinutes, result.overtimeMinutes);
 
   if (appDateKey(new Date(checkIn * MINUTE)) !== appDateKey(new Date(checkOut * MINUTE))) flags.push("crosses_midnight");
   if (result.overtimeMinutes > 0 && !input.overtimeApproved) flags.push("overtime_unapproved");
