@@ -8,6 +8,7 @@ import { formatPersonName } from "@/lib/person-name";
 import { dateKeyToDate, dateToDateKey } from "./schedule-service";
 import { formatShiftHours } from "./schedule-export";
 import { loadCurrentStaffCheck } from "./current-staff";
+import { dayTypeLabel } from "./day-result-labels";
 
 export type AttendanceReportRow = {
   date: string;
@@ -27,6 +28,13 @@ export type AttendanceReportRow = {
   verified: boolean | null;
   source: "Self-service" | "HR" | "";
   scheduled: string;
+  /** From the stored day result (attendance plan Phase 6); absent when the day has none. */
+  dayType?: string;
+  lateMinutes?: number;
+  undertimeMinutes?: number;
+  overtimeMinutes?: number;
+  overtimeApproved?: boolean;
+  nightMinutes?: number;
   notes: string;
 };
 
@@ -134,6 +142,16 @@ export const AttendanceReportService = {
           verified: record && selfService ? Boolean(record.checkIn?.verified) : null,
           source: record ? (selfService ? "Self-service" : "HR") : "",
           scheduled,
+          ...(record?.dayResult
+            ? {
+                dayType: dayTypeLabel(record.dayResult.dayType),
+                lateMinutes: record.dayResult.lateMinutes,
+                undertimeMinutes: record.dayResult.undertimeMinutes,
+                overtimeMinutes: record.dayResult.overtimeMinutes,
+                overtimeApproved: Boolean(record.overtimeApproved),
+                nightMinutes: record.dayResult.nightDiffMinutes,
+              }
+            : {}),
           notes: record?.notes ?? "",
         });
       }

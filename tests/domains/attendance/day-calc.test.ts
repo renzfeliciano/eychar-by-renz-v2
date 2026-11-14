@@ -31,10 +31,22 @@ describe("calculateDay", () => {
       undertimeMinutes: 0,
       overtimeMinutes: 0,
       nightDiffMinutes: 0,
+      nightOvertimeMinutes: 0,
       dayType: "workday",
       restDay: false,
       flags: [],
     });
+  });
+
+  it("night minutes that are also overtime are counted apart (Gate 3: night differential on overtime is at the overtime rate)", () => {
+    const evening = calculateDay(day({ checkInAt: at("09:00"), checkOutAt: at("23:30"), overtimeApproved: true }));
+    expect(evening).toMatchObject({ overtimeMinutes: 330, nightDiffMinutes: 90, nightOvertimeMinutes: 90 });
+
+    const lateShift = calculateDay(day({ shift: { startTime: "14:00", endTime: "23:00", breakMinutes: 60 }, checkInAt: at("14:00"), checkOutAt: at("01:00", "2026-11-17"), overtimeApproved: true }));
+    expect(lateShift).toMatchObject({ overtimeMinutes: 120, nightDiffMinutes: 180, nightOvertimeMinutes: 120 });
+
+    const nightShift = calculateDay(day({ shift: { startTime: "22:00", endTime: "07:00", breakMinutes: 60 }, checkInAt: at("22:00"), checkOutAt: at("09:00", "2026-11-17"), overtimeApproved: true }));
+    expect(nightShift).toMatchObject({ overtimeMinutes: 120, nightDiffMinutes: 480, nightOvertimeMinutes: 0 });
   });
 
   it("late counts the full minutes after the start once past the grace period, as payroll does today", () => {

@@ -119,7 +119,7 @@ attendance: resolves the employee's project as of the record's date
 (`EmployeeAssignmentService.getAsOf`), resolves the applicable `AttendancePolicy` for that
 project+date (`AttendancePolicyService.resolve`, ADR-011), and computes `present`/`late` from the
 check-in time unless an explicit status is given — computed and stored once, never recomputed
-later. `adjust()` is gated by `attendance.update` and writes a full before/after audit entry,
+later (a corrected check-in recomputes a computed status). The calendar day is the organization's (Manila) day (`appCalendarDate`). Each record also stores its measured day (`dayResult`: worked, late, undertime, overtime and night minutes, day type, with the policy, schedule entry, holiday and payroll policy that produced it and a `calcVersion`; ADR-056), computed at record, clock-in, clock-out and on adjust, re-measured only by an explicit, audited recalculate (`attendance.recalculate`). Holidays set the day type through the payroll policy's `holidayDayTypes`. `adjust()` is gated by `attendance.update` (it also approves overtime) and writes a full before/after audit entry,
 which is this phase's approval record rather than a separate request/approve workflow (that's
 Phase 6's pattern).
 
@@ -235,10 +235,11 @@ comment) and revised via the same transfer mechanic as `EmployeeAssignment`.
 submit; the original design called it `PayrollService.generateRun()`) computes Basic Salary (prorated against `AttendanceRecord`
 absences — `"on_leave"` rows don't count, no Attendance/Leave model changes needed) and
 Tax/Statutory Contributions (via a generic progressive-bracket formula applied to seeded rule
-data — never a hardcoded formula) automatically; Overtime, Holiday Pay, Night Differential,
-Bonuses, 13th Month, Loans, and Other Deductions are HR-supplied `PayrollAdjustment` line items
-at generation time rather than derived from attendance clock-in/out (no `HolidayCalendar` model
-exists yet). Every employee's record is computed fully in memory before any write — see ADR-014
+data — never a hardcoded formula) automatically. On new runs (`computePremiums`, ADR-057) it also computes
+overtime (approved only), rest-day, holiday and night pay from the stored attendance day results at the payroll
+policy's multipliers, snapshotting the inputs on each record; HR can't add those four categories by hand there.
+Bonuses, 13th Month, Loans and Other Deductions (and all premiums on older runs) are HR-supplied
+`PayrollAdjustment` line items. Every employee's record is computed fully in memory before any write — see ADR-014
 for why computation happens before any write; the write step itself (replace records + totals)
 runs in one transaction (ADR-041, `src/server/db/transaction.ts`). `approve()` is gated by
 `payroll.approve`, its own permission (same precedent as `leave.approve`).
@@ -654,9 +655,11 @@ items still open for that separation.
 
 - **Biometric devices:** any signed-in self-service session may register another device for
   clock-in; requiring HR approval for a second device is a product decision still open.
-- **Holidays don't drive pay or attendance yet.** The calendar is reference data on Schedules;
-  payroll still takes holiday pay as an adjustment and leave counts calendar days. Holidays also
-  share `attendance.read`/`attendance.update` instead of their own `holidays.*` permissions.
+- **Holidays drive attendance and pay (ADR-056, ADR-057), but leave still counts calendar days,** and
+  holidays share `attendance.read`/`attendance.update` instead of their own `holidays.*` permissions.
+- **Premium percentages** (overtime, rest day, holidays, night) follow the DOLE handbook figures approved at
+  GATE 3 but aren't checked against the official Labor Code text. The present/late status still follows the
+  policy while the stored late minutes follow the shift. Double regular holidays aren't supported.
 - **Eid'l Fitr and future years' proclamations** aren't built in: the Philippine preset flags
   years it hasn't verified, and HR adds proclaimed days by hand.
 

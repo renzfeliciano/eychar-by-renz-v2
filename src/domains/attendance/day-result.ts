@@ -116,6 +116,7 @@ export function dayResultSummary(result: Partial<StoredDayResult> | null | undef
     undertimeMinutes: result.undertimeMinutes,
     overtimeMinutes: result.overtimeMinutes,
     nightDiffMinutes: result.nightDiffMinutes,
+    nightOvertimeMinutes: result.nightOvertimeMinutes,
     dayType: result.dayType,
     restDay: result.restDay,
     flags: [...(result.flags ?? [])],

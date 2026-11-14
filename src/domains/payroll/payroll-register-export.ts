@@ -31,6 +31,13 @@ export type RegisterInput = {
 
 // Basic pay here is net of absences and tardiness, the way a register reads.
 const BASIC_CODES = new Set(["basic", "absences", "tardiness"]);
+// Premium pay gets its own columns (attendance plan Phase 6), computed or entered by hand.
+const PREMIUM_COLUMNS: { header: string; codes: Set<string> }[] = [
+  { header: "Overtime", codes: new Set(["overtime"]) },
+  { header: "Holiday & rest day", codes: new Set(["holiday_pay", "rest_day_pay"]) },
+  { header: "Night differential", codes: new Set(["night_differential"]) },
+];
+const SPLIT_OUT = new Set([...BASIC_CODES, "allowance", ...PREMIUM_COLUMNS.flatMap((column) => [...column.codes])]);
 const HEADER_FILL = "FFF9FAFB";
 const TOTAL_FILL = "FFF3F4F6";
 const MONEY_FORMAT = "#,##0.00";
@@ -64,6 +71,7 @@ function registerRows(input: RegisterInput) {
     "Late/undertime (min)",
     "Basic pay",
     "Allowances",
+    ...PREMIUM_COLUMNS.map((column) => column.header),
     "Other earnings",
     "Gross pay",
     ...contributions.map((column) => column.name),
@@ -82,7 +90,8 @@ function registerRows(input: RegisterInput) {
     (record.attendance.lateMinutes ?? 0) + (record.attendance.undertimeMinutes ?? 0),
     sumMoney(record.earnings.filter((line) => BASIC_CODES.has(line.code)).map((line) => line.amount)),
     sumMoney(record.earnings.filter((line) => line.code === "allowance").map((line) => line.amount)),
-    sumMoney(record.earnings.filter((line) => !BASIC_CODES.has(line.code) && line.code !== "allowance").map((line) => line.amount)),
+    ...PREMIUM_COLUMNS.map((column) => sumMoney(record.earnings.filter((line) => column.codes.has(line.code)).map((line) => line.amount))),
+    sumMoney(record.earnings.filter((line) => !SPLIT_OUT.has(line.code)).map((line) => line.amount)),
     record.grossPay,
     ...contributions.map((column) => amountOf(record, column.code, "employee")),
     record.tax,

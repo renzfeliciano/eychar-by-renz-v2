@@ -19,7 +19,7 @@ import { ScheduleService } from "./schedule-service";
 
 export type DayHoliday = { holidayId: Types.ObjectId; dayType: Exclude<HolidayDayType, "workday">; dayOff: boolean };
 
-type HolidayLean = { _id: Types.ObjectId; type: HolidayType; scope?: string | null };
+export type HolidayLean = { _id: Types.ObjectId; type: HolidayType; scope?: string | null };
 
 /** Stronger first: when two holidays share a day, the stronger day type counts. */
 const STRENGTH: Record<HolidayDayType, number> = { regular_holiday: 3, special_holiday: 2, special_working: 1, workday: 0 };
@@ -27,7 +27,7 @@ const STRENGTH: Record<HolidayDayType, number> = { regular_holiday: 3, special_h
 const normalize = (text: string) => text.trim().toLowerCase();
 
 /** The names a local holiday's scope can match: the project's location name and code. */
-async function placeNamesOf(organizationId: string, projectId: string | undefined): Promise<string[]> {
+export async function placeNamesOf(organizationId: string, projectId: string | undefined): Promise<string[]> {
   if (!projectId) return [];
   const project = await ProjectModel.findOne({ _id: new Types.ObjectId(projectId), organizationId: new Types.ObjectId(organizationId) }).select("locationId").lean<{ locationId?: Types.ObjectId | null }>();
   if (!project?.locationId) return [];
@@ -50,10 +50,20 @@ export async function holidayForDay(input: { organizationId: string; dateKey: st
   if (holidays.length === 0) return null;
 
   const places = holidays.some((holiday) => holiday.scope?.trim()) ? await placeNamesOf(input.organizationId, input.projectId) : [];
+  return pickHoliday(holidays, places, input.mapping);
+}
+
+/**
+ * Of one day's active holidays, the one that applies where the employee
+ * works (`places`: placeNamesOf their project), mapped to its day type; the
+ * stronger day type wins (a regular holiday over a special day). Pure, so
+ * payroll can apply it to a whole period's holidays at once.
+ */
+export function pickHoliday(holidays: HolidayLean[], places: string[], mapping: HolidayDayTypes): DayHoliday | null {
   let best: DayHoliday | null = null;
   for (const holiday of holidays) {
     if (holiday.scope?.trim() && !places.includes(normalize(holiday.scope))) continue;
-    const dayType = input.mapping[holiday.type];
+    const dayType = mapping[holiday.type];
     if (!dayType || dayType === "workday") continue;
     if (best && STRENGTH[best.dayType] >= STRENGTH[dayType]) continue;
     best = { holidayId: holiday._id, dayType, dayOff: isDayOffDayType(dayType) };

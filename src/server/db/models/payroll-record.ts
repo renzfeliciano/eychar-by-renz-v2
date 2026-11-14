@@ -87,6 +87,45 @@ const payrollRecordSchema = new Schema(
     netPay: { type: Number, required: true },
     previousNetPay: { type: Number },
     warnings: { type: [warningSchema], default: [] },
+    // On a run that computes premiums (attendance plan Phase 5): the attendance inputs and rates the
+    // premium lines were computed from, snapshotted so a later attendance correction or policy change
+    // can't change what a finished run says it paid (§28, §46).
+    premiumInputs: {
+      type: new Schema(
+        {
+          engineVersion: { type: Number, required: true },
+          payrollPolicyId: { type: Schema.Types.ObjectId, ref: "PayrollPolicy" },
+          rates: { type: Schema.Types.Mixed, required: true },
+          holidayDayTypes: { type: Schema.Types.Mixed },
+          days: {
+            type: [
+              new Schema(
+                {
+                  attendanceRecordId: { type: Schema.Types.ObjectId, ref: "AttendanceRecord" },
+                  date: { type: String, required: true },
+                  dayType: { type: String, required: true },
+                  restDay: { type: Boolean, required: true },
+                  inBasic: { type: Boolean, required: true },
+                  regularMinutes: { type: Number, required: true },
+                  overtimeMinutes: { type: Number, required: true },
+                  nightMinutes: { type: Number, required: true },
+                  nightOvertimeMinutes: { type: Number, required: true },
+                  calcVersion: { type: Number },
+                },
+                { _id: false },
+              ),
+            ],
+            default: [],
+          },
+          unworkedRegularHolidaysPaid: { type: Number, default: 0 },
+          regularHolidaysAbsentBefore: { type: Number, default: 0 },
+          unapprovedOvertimeMinutes: { type: Number, default: 0 },
+          missingCheckoutDays: { type: Number, default: 0 },
+          withoutDayResult: { type: Number, default: 0 },
+        },
+        { _id: false },
+      ),
+    },
     // On a 13th-month run's record only (payroll plan Phase 3): what the amount was computed from, so it
     // reproduces later (§46). estimatedBasic covers the part of the year no approved run paid yet (true-up in January).
     thirteenthMonth: {

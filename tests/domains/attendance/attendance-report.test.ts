@@ -100,4 +100,23 @@ describe("AttendanceReportService", () => {
     expect(report.rows[4]).toMatchObject({ statusName: "Present", source: "HR", verified: null, checkIn: "", hoursWorked: null, notes: "Recorded by HR" });
     expect(report.rows[2]).toMatchObject({ statusCode: null, statusName: "No record", source: "", scheduled: "", site: "" });
   });
+
+  it("adds the stored day result: day type, late, undertime, overtime and night minutes (attendance plan Phase 6)", async () => {
+    const { organizationId } = await seedOrganization();
+    const angela = await seedEmployee(organizationId, "Angela");
+    await AttendanceRecordModel.create({
+      organizationId,
+      employeeId: angela,
+      date: dateKeyToDate("2026-10-05"),
+      status: "present",
+      checkInAt: zonedInstant("2026-10-05", "08:00"),
+      checkOutAt: zonedInstant("2026-10-05", "19:00"),
+      overtimeApproved: true,
+      dayResult: { scheduledMinutes: 0, workedMinutes: 660, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 180, nightDiffMinutes: 0, dayType: "regular_holiday", restDay: false, flags: [], calcVersion: 2, calculatedAt: new Date() },
+    });
+
+    const report = await AttendanceReportService.build(organizationId, "2026-10-05", "2026-10-05");
+
+    expect(report.rows.find((row) => row.employeeId === angela)).toMatchObject({ dayType: "Regular holiday", lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 180, overtimeApproved: true, nightMinutes: 0 });
+  });
 });

@@ -24,9 +24,11 @@ import { blendPayTerms, dayBefore, scheduledDaysInRange } from "./engine/rate-se
 import { isLastCutoffOfMonth, type PayFrequency } from "./engine/pay-frequency";
 import { sumMoney } from "./engine/money";
 import { summarizeAttendance } from "./payroll-attendance";
+import { loadPremiumContext } from "./payroll-premium-inputs";
 import { projectsAsOf } from "./payroll-scope";
 import { CompensationService } from "./compensation-service";
 import { formatMoney } from "@/lib/money";
+import { payPremiumsOf } from "./engine/premiums";
 import { runTypeOf } from "./payroll-labels";
 import { computeThirteenthMonthRun } from "./thirteenth-month-compute";
 import { computeYearEndRun } from "./year-end-compute";
@@ -129,13 +131,24 @@ export async function computeRun(runId: Types.ObjectId) {
   const projectByEmployee = await projectsAsOf(candidates.map((row) => row._id.toString()), end);
   if (run.projectId) candidates = candidates.filter((row) => projectByEmployee.get(row._id.toString()) === run.projectId!.toString());
   const candidateIds = candidates.map((row) => row._id.toString());
+  // Days a final run (payroll plan Phase 5) already paid are never paid again: its employee is left out.
+  const finalRuns = await PayrollRunModel.find({
+    organizationId: run.organizationId,
+    runType: "final",
+    status: { $in: ["approved", "released"] },
+    payPeriodStart: { $lte: dateKeyToDate(end) },
+    payPeriodEnd: { $gte: dateKeyToDate(start) },
+  })
+    .select("employeeId runNumber payPeriodEnd")
+    .lean();
+  const paidInFinal = new Map(finalRuns.filter((final) => final.employeeId).map((final) => [final.employeeId!.toString(), final]));
   const candidateObjectIds = candidateIds.map((id) => new Types.ObjectId(id));
 
   const [termsByEmployee, termChanges, attendance, adjustments, priorRuns] = await Promise.all([
     CompensationService.getAsOfForEmployees(candidateIds, organizationId, end),
     CompensationModel.find({ organizationId: run.organizationId, employeeId: { $in: candidateObjectIds }, effectiveFrom: { $gt: dateKeyToDate(start), $lte: dateKeyToDate(end) } }).lean(),
     AttendanceRecordModel.find({ organizationId: run.organizationId, employeeId: { $in: candidateObjectIds }, date: { $gte: dateKeyToDate(start), $lte: dateKeyToDate(end) } })
-      .select("employeeId date status checkInAt checkOutAt policyId")
+      .select(`employeeId date status checkInAt checkOutAt policyId${run.computePremiums ? " dayResult overtimeApproved" : ""}`)
       .lean(),
     PayrollAdjustmentModel.find({ payrollRunId: run._id }).lean(),
     PayrollRunModel.find({ organizationId: run.organizationId, _id: { $ne: run._id }, status: { $in: ["approved", "released"] }, payPeriodEnd: { $lt: dateKeyToDate(start) } })
@@ -186,6 +199,9 @@ export async function computeRun(runId: Types.ObjectId) {
     if (!existing || order < existing.order) previousNetByEmployee.set(record.employeeId.toString(), { order, netPay: record.netPay });
   }
 
+  // A run that computes premiums (attendance plan Phase 5) also needs the period's holidays.
+  const premiumContext = run.computePremiums ? await loadPremiumContext({ organizationId, policy, periodDays, attendance, projectByEmployee }) : null;
+
   const lastCutoff = isLastCutoffOfMonth(payFrequency, end);
   const exclusions: { employeeId: Types.ObjectId; employeeName: string; reason: string }[] = [];
   const records = [];
@@ -193,6 +209,11 @@ export async function computeRun(runId: Types.ObjectId) {
   for (const employee of candidates) {
     const employeeId = employee._id.toString();
     const employeeName = formatPersonName(employee.person);
+    const final = paidInFinal.get(employeeId);
+    if (final) {
+      exclusions.push({ employeeId: employee._id, employeeName, reason: `Paid in final pay (${final.runNumber}, to ${formatDateKey(dateToDateKey(final.payPeriodEnd))})` });
+      continue;
+    }
     const terms = termsByEmployee.get(employeeId);
     if (!terms) {
       exclusions.push({ employeeId: employee._id, employeeName, reason: `No pay terms on ${formatDateKey(end)}` });
@@ -203,6 +224,7 @@ export async function computeRun(runId: Types.ObjectId) {
       periodDays,
       workWeekDays: policy.workWeekDays,
       isEligible: eligibilityOf(employeeId),
+      premiums: premiumContext ? await premiumContext.inputsFor(employeeId) : undefined,
       records: (attendanceByEmployee.get(employeeId) ?? []).map((record) => {
         const attendancePolicy = record.policyId ? attendancePolicyById.get(record.policyId.toString()) : undefined;
         return {
@@ -211,6 +233,8 @@ export async function computeRun(runId: Types.ObjectId) {
           checkInAt: record.checkInAt,
           checkOutAt: record.checkOutAt,
           policy: attendancePolicy ? { standardStartTime: attendancePolicy.standardStartTime, standardEndTime: attendancePolicy.standardEndTime } : null,
+          dayResult: record.dayResult,
+          overtimeApproved: record.overtimeApproved,
         };
       }),
     });
@@ -237,8 +261,9 @@ export async function computeRun(runId: Types.ObjectId) {
         hoursPerDay: policy.hoursPerDay,
         deductLateAndUndertime: policy.deductLateAndUndertime,
         contributionTiming: policy.contributionTiming as "every_cutoff" | "last_cutoff_of_month",
-        restDayMultiplier: policy.restDayMultiplier ?? undefined,
+        ...payPremiumsOf(policy),
       },
+      computePremiums: Boolean(run.computePremiums),
       rules: { taxTable: taxTable.brackets, contributions: rules.contributions },
       attendance: summary,
       adjustments: adjustmentsByEmployee.get(employeeId) ?? [],
@@ -292,6 +317,7 @@ export async function computeRun(runId: Types.ObjectId) {
       netPay: pay.netPay,
       previousNetPay: previous,
       warnings,
+      premiumInputs: premiumContext && summary.premiums ? premiumContext.snapshot(employeeId, summary.premiums) : undefined,
     });
   }
 

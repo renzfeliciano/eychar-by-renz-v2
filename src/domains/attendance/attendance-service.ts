@@ -8,7 +8,7 @@ import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { loadCurrentStaffCheck } from "./current-staff";
-import { ConflictError, NotFoundError, BusinessRuleError } from "@/shared/errors";
+import { ConflictError, NotFoundError, BusinessRuleError, ValidationError } from "@/shared/errors";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { assignmentsAsOf } from "@/domains/workforce/assignments-as-of";
 import { AttendancePolicyService } from "./attendance-policy-service";
@@ -80,6 +80,17 @@ export type DayRosterRow = {
     checkOutAt?: Date;
     projectId?: Types.ObjectId;
     checkIn?: { distanceMeters?: number };
+    /** The stored day result (attendance plan Phase 3), shown on the roster (Phase 6). */
+    dayResult?: {
+      workedMinutes: number;
+      lateMinutes: number;
+      undertimeMinutes: number;
+      overtimeMinutes: number;
+      nightDiffMinutes: number;
+      dayType: string;
+      flags?: string[];
+    } | null;
+    overtimeApproved?: boolean;
   };
 };
 
@@ -188,8 +199,15 @@ export const AttendanceService = {
     };
     const checkInChanged = patch.checkInAt !== undefined && patch.checkInAt.getTime() !== record.checkInAt?.getTime();
     const checkOutChanged = patch.checkOutAt !== undefined && patch.checkOutAt.getTime() !== record.checkOutAt?.getTime();
-    const approvalChanged = patch.overtimeApproved !== undefined && patch.overtimeApproved !== Boolean(record.overtimeApproved);
+    // An approval covers the hours HR saw: changing them withdraws it, unless the same change approves again (final review).
+    const nextApproval = patch.overtimeApproved ?? ((checkInChanged || checkOutChanged) && record.overtimeApproved ? false : undefined);
+    const approvalChanged = nextApproval !== undefined && nextApproval !== Boolean(record.overtimeApproved);
 
+    const nextCheckIn = patch.checkInAt ?? record.checkInAt;
+    const nextCheckOut = patch.checkOutAt ?? record.checkOutAt;
+    if (nextCheckIn && nextCheckOut && nextCheckOut.getTime() <= nextCheckIn.getTime()) {
+      throw new ValidationError("The check-out must be after the check-in. For a night shift, the check-out is on the next day.");
+    }
     if (patch.checkInAt !== undefined) record.checkInAt = patch.checkInAt;
     if (patch.checkOutAt !== undefined) record.checkOutAt = patch.checkOutAt;
     if (patch.notes !== undefined) record.notes = patch.notes;
@@ -209,7 +227,7 @@ export const AttendanceService = {
     }
     if (approvalChanged) {
       // Owner decision 1: HR approves overtime on the record; who and when are kept.
-      record.overtimeApproved = patch.overtimeApproved;
+      record.overtimeApproved = nextApproval;
       record.overtimeApprovedBy = actor.userId ? new Types.ObjectId(actor.userId) : undefined;
       record.overtimeApprovedAt = new Date();
     }
@@ -296,7 +314,7 @@ export const AttendanceService = {
     const [employees, records, isCurrentStaff] = await Promise.all([
       EmployeeModel.find({ organizationId: orgObjectId }).select("_id").sort({ _id: 1 }).lean<{ _id: Types.ObjectId }[]>(),
       AttendanceRecordModel.find({ organizationId: orgObjectId, date: day })
-        .select("employeeId status checkInAt checkOutAt projectId checkIn.distanceMeters")
+        .select("employeeId status checkInAt checkOutAt projectId checkIn.distanceMeters dayResult overtimeApproved")
         .lean<(NonNullable<DayRosterRow["record"]> & { employeeId: Types.ObjectId })[]>(),
       loadCurrentStaffCheck(organizationId),
     ]);

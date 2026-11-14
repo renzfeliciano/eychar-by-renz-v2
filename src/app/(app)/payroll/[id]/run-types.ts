@@ -37,6 +37,8 @@ export type RegisterRow = {
   previousNetPay: number | null;
   warnings: PayslipWarning[];
   /** On a 13th-month run's rows: what the amount was computed from. */
+  /** On a run that computes premiums (attendance plan Phase 6): the paid overtime and night minutes, and overtime left unpaid. */
+  premiums?: { overtimeMinutes: number; nightMinutes: number; unapprovedOvertimeMinutes: number } | null;
   thirteenthMonth?: { year: number; basicEarned: number; estimatedBasic: number; estimatedFrom: string | null; divisor: number; alreadyPaid: number; monthsWithPay: number } | null;
   /** On a year-end run's rows: the annualization (payroll plan Phase 4). */
   yearEnd?: { year: number; presentTaxable: number; previousTaxable: number; grossTaxable: number; taxDue: number; presentWithheld: number; previousWithheld: number; difference: number; benefitsExcess: number } | null;

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { calendarDateSchema, dateSpanInDays } from "./schedule";
 import { objectId } from "@/shared/validation/object-id";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
+import { HOLIDAY_DAY_TYPE_CHOICES } from "@/domains/payroll/holiday-day-types";
 
 const PAY_FREQUENCY = z.enum(["weekly", "semi-monthly", "monthly"]);
 const optionalId = z.string().max(200).trim().min(1).optional();
@@ -45,6 +46,9 @@ export const bulkCompensationChangeSchema = z.object({
 
 // ── Policy and rule versions ──────────────────────────────────────────────
 
+const premiumMultiplier = (what: string, fallback: number) => z.coerce.number().min(1, `${what} can't be below the regular rate`).max(5).default(fallback);
+const holidayDayType = z.enum(HOLIDAY_DAY_TYPE_CHOICES);
+
 export const createPayrollPolicySchema = z.object({
   organizationId: objectId(),
   projectId: optionalId,
@@ -60,6 +64,15 @@ export const createPayrollPolicySchema = z.object({
   overtimeMultiplier: z.coerce.number().min(1, "Overtime pay can't be below the regular rate").max(5).default(PAY_PREMIUM_DEFAULTS.overtimeMultiplier),
   restDayMultiplier: z.coerce.number().min(1, "Rest day pay can't be below the regular rate").max(5).default(PAY_PREMIUM_DEFAULTS.restDayMultiplier),
   thirteenthMonthDivisor: z.coerce.number().min(1, "The 13th month divisor must be at least 1").max(24).default(PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor),
+  // Holiday and night premiums (attendance plan Phase 5, GATE 3).
+  specialHolidayMultiplier: premiumMultiplier("Special day pay", PAY_PREMIUM_DEFAULTS.specialHolidayMultiplier),
+  specialHolidayRestDayMultiplier: premiumMultiplier("Special day on a rest day", PAY_PREMIUM_DEFAULTS.specialHolidayRestDayMultiplier),
+  regularHolidayMultiplier: premiumMultiplier("Regular holiday pay", PAY_PREMIUM_DEFAULTS.regularHolidayMultiplier),
+  regularHolidayRestDayMultiplier: premiumMultiplier("Regular holiday on a rest day", PAY_PREMIUM_DEFAULTS.regularHolidayRestDayMultiplier),
+  premiumOvertimeMultiplier: premiumMultiplier("Overtime on a premium day", PAY_PREMIUM_DEFAULTS.premiumOvertimeMultiplier),
+  nightDifferentialRate: z.coerce.number().min(0).max(1, "Night differential is a share of the hourly rate (0.10 = 10%)").default(PAY_PREMIUM_DEFAULTS.nightDifferentialRate),
+  // What each holiday type counts as (attendance plan Phase 4); unset types use the defaults.
+  holidayDayTypes: z.object({ regular: holidayDayType, special_non_working: holidayDayType, special_working: holidayDayType }).partial().optional(),
   effectiveFrom: calendarDateSchema.optional(),
 });
 

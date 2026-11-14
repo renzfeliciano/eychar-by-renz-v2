@@ -16,7 +16,7 @@ import { AttendanceService } from "@/domains/attendance/attendance-service";
 import { DayResultService } from "@/domains/attendance/day-result";
 import { backfillDayResults } from "@/domains/attendance/day-result-backfill";
 import { DAY_CALC_VERSION } from "@/domains/attendance/day-calc";
-import { BusinessRuleError } from "@/shared/errors";
+import { BusinessRuleError, ValidationError } from "@/shared/errors";
 
 const MONDAY = "2026-10-05";
 const SATURDAY = "2026-10-10";
@@ -122,6 +122,27 @@ describe("stored day result (plan Phase 3)", () => {
     expect(audits).toHaveLength(2);
     expect(audits[1].before).toMatchObject({ overtimeApproved: false });
     expect(audits[1].after).toMatchObject({ overtimeApproved: true, dayResult: { flags: [] } });
+  });
+
+  it("changing the hours after approval clears it, unless the same change approves again (final review)", async () => {
+    const { organizationId, employeeId } = await seed("reapprove");
+    const record = await AttendanceService.record({ organizationId, employeeId, date: day(MONDAY), checkInAt: at(MONDAY, "09:00"), checkOutAt: at(MONDAY, "19:00") }, {});
+    await AttendanceService.adjust(record._id.toString(), organizationId, { overtimeApproved: true }, {});
+
+    const longer = await AttendanceService.adjust(record._id.toString(), organizationId, { checkOutAt: at(MONDAY, "22:00") }, {});
+    expect(longer.overtimeApproved).toBe(false);
+    expect(longer.dayResult?.flags).toContain("overtime_unapproved");
+
+    const reapproved = await AttendanceService.adjust(record._id.toString(), organizationId, { checkOutAt: at(MONDAY, "21:00"), overtimeApproved: true }, {});
+    expect(reapproved.overtimeApproved).toBe(true);
+  });
+
+  it("refuses a check-out at or before the check-in (final review)", async () => {
+    const { organizationId, employeeId } = await seed("order");
+    const record = await AttendanceService.record({ organizationId, employeeId, date: day(MONDAY), checkInAt: at(MONDAY, "22:00"), checkOutAt: at("2026-10-06", "06:00") }, {});
+    await expect(AttendanceService.adjust(record._id.toString(), organizationId, { checkOutAt: at(MONDAY, "06:00") }, {})).rejects.toThrow(ValidationError);
+    const stored = await AttendanceRecordModel.findById(record._id).lean<{ checkOutAt: Date }>();
+    expect(stored?.checkOutAt.toISOString()).toBe(at("2026-10-06", "06:00").toISOString());
   });
 });
 

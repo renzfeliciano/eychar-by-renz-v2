@@ -35,6 +35,14 @@ const payrollPolicySchema = new Schema(
     // The attendance day type each holiday type counts as (HOLIDAY_DAY_TYPE_DEFAULTS in
     // src/domains/payroll/holiday-day-types.ts). No schema defaults: read with
     // holidayDayTypesOf, which fills whatever a policy leaves unset.
+    // Holiday, rest-day overtime and night premiums (attendance plan Phase 5, GATE 3). Same pattern:
+    // policies saved before them read as the defaults through payPremiumsOf.
+    specialHolidayMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.specialHolidayMultiplier },
+    specialHolidayRestDayMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.specialHolidayRestDayMultiplier },
+    regularHolidayMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.regularHolidayMultiplier },
+    regularHolidayRestDayMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.regularHolidayRestDayMultiplier },
+    premiumOvertimeMultiplier: { type: Number, min: 1, max: 5, default: PAY_PREMIUM_DEFAULTS.premiumOvertimeMultiplier },
+    nightDifferentialRate: { type: Number, min: 0, max: 1, default: PAY_PREMIUM_DEFAULTS.nightDifferentialRate },
     holidayDayTypes: {
       regular: { type: String, enum: HOLIDAY_DAY_TYPE_CHOICES },
       special_non_working: { type: String, enum: HOLIDAY_DAY_TYPE_CHOICES },
