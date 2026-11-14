@@ -22,6 +22,7 @@ export type AttendanceDayInput = {
     dayType: string;
     restDay: boolean;
     flags?: string[] | null;
+    regularMinutesCap?: number | null;
   } | null;
   overtimeApproved?: boolean | null;
 };
@@ -35,6 +36,8 @@ export type AttendanceDayInput = {
 export type PremiumSummaryInputs = {
   holidays: Map<string, { dayType: string; dayOff: boolean }>;
   previousWorkday: Map<string, { attended: boolean; onLeave: boolean } | null>;
+  /** The payroll policy's daily hours in minutes: a premium day's regular minutes never exceed it (final review). */
+  regularMinutesCap?: number;
 };
 
 export type AttendanceSummary = Required<Omit<PayAttendance, "premiums">> & Pick<PayAttendance, "premiums">;
@@ -144,7 +147,8 @@ export function summarizeAttendance({
         dayType: result.dayType as DayType,
         restDay: result.restDay,
         inBasic: isWorkday,
-        regularMinutes: Math.max(0, result.workedMinutes - result.overtimeMinutes),
+        // Early arrival is never overtime, and never more than a day's regular pay either.
+        regularMinutes: Math.min(Math.max(0, result.workedMinutes - result.overtimeMinutes), result.regularMinutesCap ?? premiums!.regularMinutesCap ?? Infinity),
         overtimeMinutes: approved ? result.overtimeMinutes : 0,
         nightMinutes: approved ? result.nightDiffMinutes : result.nightDiffMinutes - nightOvertime,
         nightOvertimeMinutes: approved ? nightOvertime : 0,

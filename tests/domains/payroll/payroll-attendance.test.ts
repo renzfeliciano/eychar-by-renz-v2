@@ -167,4 +167,15 @@ describe("summarizeAttendance with premiums (plan Phase 5)", () => {
     expect(summary).toMatchObject({ daysWorked: 1 });
     expect(summary.premiums).toMatchObject({ unworkedRegularHolidaysPaid: 0, days: [{ dayType: "regular_holiday", inBasic: true, regularMinutes: 480 }] });
   });
+
+  it("caps a premium day's regular minutes at the daily hours: coming in early isn't extra premium (final review)", () => {
+    const summary = summarizeAttendance({
+      periodDays: ["2026-10-05"],
+      workWeekDays: [1],
+      isEligible: () => true,
+      premiums: { holidays: new Map([["2026-10-05", { dayType: "regular_holiday", dayOff: true }]]), previousWorkday: new Map(), regularMinutesCap: 480 },
+      records: [worked("2026-10-05", { dayType: "regular_holiday", workedMinutes: 600, overtimeMinutes: 0 })],
+    });
+    expect(summary.premiums?.days[0]).toMatchObject({ regularMinutes: 480 });
+  });
 });

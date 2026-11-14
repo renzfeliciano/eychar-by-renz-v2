@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RecordDialog } from "@/app/(app)/attendance/record-dialog";
 import { RecalculateDialog } from "@/app/(app)/attendance/recalculate-dialog";
@@ -72,6 +72,36 @@ describe("RecordDialog measured day (attendance plan Phase 6)", () => {
     renderDialog({ canApproveOvertime: false });
     await user.click(screen.getByTestId("attendance-adjust-button"));
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("RecordDialog night shifts (final review)", () => {
+  // 22:00 Oct 5 to 06:00 Oct 6, Manila.
+  const overnight = { initialCheckInAt: "2026-10-05T14:00:00.000Z", initialCheckOutAt: "2026-10-05T22:00:00.000Z" };
+
+  it("approving overtime sends no times, so an overnight check-out isn't moved", async () => {
+    const user = userEvent.setup();
+    renderDialog(overnight);
+    await user.click(screen.getByTestId("attendance-adjust-button"));
+    await user.click(screen.getByRole("checkbox", { name: /Approve 2h of overtime/ }));
+    await user.click(screen.getByTestId("attendance-record-submit-button"));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({ overtimeApproved: true });
+    expect(body).not.toHaveProperty("checkInAt");
+    expect(body).not.toHaveProperty("checkOutAt");
+  });
+
+  it("a check-out at or before the check-in is the next morning", async () => {
+    const user = userEvent.setup();
+    renderDialog(overnight);
+    await user.click(screen.getByTestId("attendance-adjust-button"));
+    fireEvent.change(screen.getByLabelText("Check-out"), { target: { value: "07:00" } });
+    await user.click(screen.getByTestId("attendance-record-submit-button"));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).checkOutAt).toBe("2026-10-05T23:00:00.000Z");
   });
 });
 

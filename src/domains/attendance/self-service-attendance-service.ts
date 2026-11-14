@@ -11,6 +11,7 @@ import { AttendancePolicyService } from "./attendance-policy-service";
 import { appCalendarDate, computeStatus } from "./attendance-service";
 import { ClockSiteService, type ClockSite } from "./clock-site-service";
 import { buildDayResult } from "./day-result";
+import { addDays, dateKeyToDate, dateToDateKey } from "@/lib/date-key";
 import { evaluateGeofence, formatDistance, type GeofenceResult } from "./geofence";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import type { LivenessChallenge } from "@/shared/validation/attendance";
@@ -98,6 +99,22 @@ async function discardPhoto(photo: StoredPhoto) {
  * attributable to the enrolled employee, not just to whoever holds the
  * session.
  */
+/**
+ * The record a clock-out (or the clock screen) works on: today's, or, when
+ * there is none yet, yesterday's if it was clocked in and never clocked out.
+ * That is a night shift that started before midnight (final review, critical):
+ * its record belongs to the evening's day. Bounded by the calendar day, so no
+ * hour threshold lives in code.
+ */
+async function findClockRecord(organizationId: string, employeeId: string, now: Date) {
+  const ids = { organizationId: new Types.ObjectId(organizationId), employeeId: new Types.ObjectId(employeeId) };
+  const today = appCalendarDate(now);
+  const record = await AttendanceRecordModel.findOne({ ...ids, date: today });
+  if (record) return record;
+  const yesterday = dateKeyToDate(addDays(dateToDateKey(today), -1));
+  return AttendanceRecordModel.findOne({ ...ids, date: yesterday, checkInAt: { $ne: null }, checkOutAt: null });
+}
+
 export const SelfServiceAttendanceService = {
   async checkIn(employeeId: string, organizationId: string, userId: string, data: ClockEventData, actor: { userId?: string }) {
     await connectMongoDB();
@@ -162,13 +179,7 @@ export const SelfServiceAttendanceService = {
     await WebAuthnService.verifyAuthentication(userId, data.webAuthn);
 
     const now = new Date();
-    const date = appCalendarDate(now);
-
-    const record = await AttendanceRecordModel.findOne({
-      organizationId: new Types.ObjectId(organizationId),
-      employeeId: new Types.ObjectId(employeeId),
-      date,
-    });
+    const record = await findClockRecord(organizationId, employeeId, now);
     if (!record) throw new NotFoundError("You haven't clocked in today");
     if (record.checkOutAt) throw new BusinessRuleError("You've already clocked out today");
 
@@ -214,13 +225,8 @@ export const SelfServiceAttendanceService = {
 
   async getTodayRecord(employeeId: string, organizationId: string) {
     await connectMongoDB();
-    const date = appCalendarDate();
-    return AttendanceRecordModel.findOne({
-      organizationId: new Types.ObjectId(organizationId),
-      employeeId: new Types.ObjectId(employeeId),
-      date,
-    })
-      .select("-checkIn.photo -checkOut.photo -checkIn.photoStorage -checkOut.photoStorage")
-      .lean();
+    const found = await findClockRecord(organizationId, employeeId, new Date());
+    if (!found) return null;
+    return AttendanceRecordModel.findById(found._id).select("-checkIn.photo -checkOut.photo -checkIn.photoStorage -checkOut.photoStorage").lean();
   },
 };

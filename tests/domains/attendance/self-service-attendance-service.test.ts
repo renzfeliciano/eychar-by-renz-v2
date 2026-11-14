@@ -255,6 +255,31 @@ describe("SelfServiceAttendanceService", () => {
       expect(record.date.toISOString()).toBe("2026-11-16T00:00:00.000Z");
       expect(record.checkOutAt).toBeTruthy();
     });
+
+    it("a night shift clocks out the next morning onto the evening's record (final review, critical)", async () => {
+      const { organizationId, employeeId, projectId } = await seedEmployeeWithSite("b3-night");
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-16T14:00:00Z") }); // 22:00 Manila, 16th
+      const checkedIn = await SelfServiceAttendanceService.checkIn(employeeId, organizationId, "user-night", clockData({ projectId }), {});
+
+      vi.setSystemTime(new Date("2026-11-16T22:00:00Z")); // 06:00 Manila, 17th
+      expect((await SelfServiceAttendanceService.getTodayRecord(employeeId, organizationId))?._id.toString()).toBe(checkedIn._id.toString());
+      const record = await SelfServiceAttendanceService.checkOut(employeeId, organizationId, "user-night", clockData(), {});
+
+      expect(record._id.toString()).toBe(checkedIn._id.toString());
+      expect(record.date.toISOString()).toBe("2026-11-16T00:00:00.000Z");
+      expect(record.dayResult).toMatchObject({ workedMinutes: 480, nightDiffMinutes: 480 });
+    });
+
+    it("an already closed record from yesterday isn't reopened: clocking out without clocking in is refused", async () => {
+      const { organizationId, employeeId, projectId } = await seedEmployeeWithSite("b3-closed");
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-16T01:00:00Z") }); // 09:00 Manila, 16th
+      await SelfServiceAttendanceService.checkIn(employeeId, organizationId, "user-closed", clockData({ projectId }), {});
+      vi.setSystemTime(new Date("2026-11-16T10:00:00Z"));
+      await SelfServiceAttendanceService.checkOut(employeeId, organizationId, "user-closed", clockData(), {});
+
+      vi.setSystemTime(new Date("2026-11-17T01:00:00Z")); // 09:00 Manila, 17th
+      await expect(SelfServiceAttendanceService.checkOut(employeeId, organizationId, "user-closed", clockData(), {})).rejects.toThrow(/haven't clocked in/);
+    });
   });
 
   it("stores the day result: missing check-out after clock-in, measured time after clock-out (plan Phase 3)", async () => {

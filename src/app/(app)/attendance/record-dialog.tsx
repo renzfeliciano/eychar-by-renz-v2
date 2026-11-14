@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { clockTime, zonedInstant } from "@/lib/app-time";
+import { addDays } from "@/lib/date-key";
 import { useRouter } from "next/navigation";
 import { Clock, Pencil, Save } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -84,14 +85,21 @@ export function RecordDialog({
     // time input above. Appending "Z" treated that local-looking value as
     // UTC instead, silently shifting the stored instant by the local
     // offset from what was intended.
+    // A check-out at or before the check-in is the next morning: a night shift (final review).
+    const checkOutDate = checkInTime && checkOutTime && checkOutTime <= checkInTime ? addDays(date, 1) : date;
     const checkInAt = checkInTime ? zonedInstant(date, checkInTime).toISOString() : undefined;
-    const checkOutAt = checkOutTime ? zonedInstant(date, checkOutTime).toISOString() : undefined;
+    const checkOutAt = checkOutTime ? zonedInstant(checkOutDate, checkOutTime).toISOString() : undefined;
+    // An adjustment sends only the times HR changed, so approving overtime never rewrites them.
+    const changedTimes = {
+      ...(checkInTime !== toTimeInput(initialCheckInAt) ? { checkInAt } : {}),
+      ...(checkOutTime !== toTimeInput(initialCheckOutAt) ? { checkOutAt } : {}),
+    };
 
     const response = existingRecordId
       ? await fetch(`/api/attendance/${existingRecordId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ organizationId, checkInAt, checkOutAt, status: status || undefined, ...(approved !== overtimeApproved ? { overtimeApproved: approved } : {}) }),
+          body: JSON.stringify({ organizationId, ...changedTimes, status: status || undefined, ...(approved !== overtimeApproved ? { overtimeApproved: approved } : {}) }),
         })
       : await fetch("/api/attendance", {
           method: "POST",

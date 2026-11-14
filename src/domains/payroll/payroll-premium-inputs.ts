@@ -21,7 +21,7 @@ type AttendanceRow = {
   dayResult?: { calcVersion?: number | null } | null;
 };
 
-type PolicyRow = { _id: Types.ObjectId; holidayDayTypes?: Record<string, string | null> | null } & { [K in keyof PayPremiums]?: number | null };
+type PolicyRow = { _id: Types.ObjectId; hoursPerDay?: number | null; holidayDayTypes?: Record<string, string | null> | null } & { [K in keyof PayPremiums]?: number | null };
 
 /**
  * What a run that computes premiums needs beyond attendance (attendance plan
@@ -73,7 +73,8 @@ export async function loadPremiumContext(input: {
       const projectId = input.projectByEmployee.get(employeeId) ?? undefined;
       const places = await placesOf(projectId);
       const workedOn = new Set((recordsByEmployee.get(employeeId) ?? []).filter((record) => record.status !== "absent" && record.status !== "on_leave").map((record) => dateToDateKey(record.date)));
-      const result: PremiumSummaryInputs = { holidays: new Map(), previousWorkday: new Map() };
+      const hoursPerDay = typeof policy.hoursPerDay === "number" ? policy.hoursPerDay : undefined;
+      const result: PremiumSummaryInputs = { holidays: new Map(), previousWorkday: new Map(), regularMinutesCap: hoursPerDay ? Math.round(hoursPerDay * 60) : undefined };
       for (const [date, dayHolidays] of holidaysByDate) {
         const holiday = pickHoliday(dayHolidays, places, mapping);
         if (!holiday) continue;
