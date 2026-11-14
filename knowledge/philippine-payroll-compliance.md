@@ -40,11 +40,11 @@ so **every figure here needs checking against the official text before it is rel
 
 | Rule | Standard | Code | Status |
 |---|---|---|---|
-| Overtime | 125% of hourly rate on an ordinary day (Art. 87). | `premiums.ts` default `overtimeMultiplier` 1.25 | **HR entry.** The engine doesn't compute overtime. The multiplier is shown to HR in the adjustment form. |
-| Rest-day work | 130% for the first 8 hours (Art. 91, 93). Overtime on a rest day adds 30% of the hourly rate on top. | `restDayMultiplier` 1.3 | **HR entry.** The 130% is only a warning message. Overtime on a rest day is not combined automatically. |
-| Regular holiday worked | 200% of the daily rate (Art. 94). | none | **Gap.** No holiday multiplier in the policy. The holiday calendar (`src/domains/holidays`) is not linked to pay. |
-| Special non-working day worked | 130% of the daily rate. | none | **Gap.** As above. |
-| Night differential | 10% of the hourly rate for work from 10 p.m. to 6 a.m. (Art. 86). | adjustment category `night_differential`, no calculation | **HR entry.** No automatic calculation. |
+| Overtime | 125% of hourly rate on an ordinary day (Art. 87). | `premiums.ts` default `overtimeMultiplier` 1.25; `engine/premium-pay.ts` | **Computed on new runs** (ADR-057, 2026-11-14), approved overtime only. Older runs: HR entry. |
+| Rest-day work | 130% for the first 8 hours (Art. 91, 93). Overtime on a rest day adds 30% of the hourly rate on top. | `restDayMultiplier` 1.3, `premiumOvertimeMultiplier` 1.3 | **Computed on new runs** (ADR-057): 130%, overtime at 169%. |
+| Regular holiday worked | 200% of the daily rate (Art. 94); 260% on a rest day; overtime +30% of that rate. Unworked: 100% if present or on paid leave the workday before. | `regularHolidayMultiplier` 2, `regularHolidayRestDayMultiplier` 2.6 | **Computed on new runs** (ADR-057); the holiday calendar sets the day type through `holidayDayTypes`. Unworked: paid to daily-rated staff; monthly in basic; absent before warns, no deduction (owner decision). Not supported: double holidays (300%), unworked holiday on a rest day. **Verify against the official text.** |
+| Special non-working day worked | 130% of the daily rate; 150% on a rest day; overtime +30% of that rate. | `specialHolidayMultiplier` 1.3, `specialHolidayRestDayMultiplier` 1.5 | **Computed on new runs** (ADR-057). **Verify against the official text.** |
+| Night differential | 10% of the hourly rate for work from 10 p.m. to 6 a.m. (Art. 86). | `nightDifferentialRate` 0.1; window from the attendance policy | **Computed on new runs** (ADR-057): 10% of the day's hourly rate, of the overtime rate for night overtime. |
 | 13th-month pay | One-twelfth of the basic salary earned in the calendar year (PD 851). Overtime, premiums and allowances are excluded. Due by December 24. | `thirteenthMonthDivisor` 12 in the policy. Used by final settlement only. | **Gap.** The regular 13th-month pay isn't computed in the payroll run, and the December 24 due date isn't enforced. Also, one secondary source includes overtime in the base; the PD 851 basis excludes it. Check the base in the code. |
 | Pay frequency | Wages paid at least twice a month, at intervals not exceeding 16 days (Art. 103). | New policies and schedules are **monthly only** (decided 2026-11-14). `pay-frequency.ts` still accepts weekly and semi-monthly for existing calendars. Bi-weekly is not supported yet. | **Risk, accepted for now.** Monthly pay conflicts with Art. 103 unless an exemption applies. The exemption criteria are not checked here. Confirm before go-live. |
 | Rate in effect on a pay date | Pay follows the rate in effect on each day worked. A change mid-period must be prorated. | `payroll-run-compute.ts` blends the terms in force across the period, weighted by each employee's scheduled workdays (`engine/rate-segments.ts`). A period with no change pays as before. | **Implemented 2026-11-14 (workday basis, decided by the owner).** The blend is by monthly equivalent, so a rate-type change mid-period also blends. The run warns (`pay_terms_changed`) on the record. Contributions use the blended base, which is an approximation. |
@@ -71,7 +71,7 @@ bi-weekly are planned; bi-weekly needs an engine change. Art. 103 is still open 
 - 13th-month computation in the payroll run, with the December 24 check.
 - ₱90,000 exemption tracking across the year.
 - Year-end withholding reconciliation and Form 2316.
-- Holiday, rest-day and night-differential calculation.
+- (Done for new runs, ADR-057, attendance plan Phase 5: holiday, rest-day, overtime and night-differential calculation at the policy's multipliers. Figures still need the official-text check in §6.)
 - Final-pay deadline value and service incentive leave.
 
 ## 6. What to verify before relying on the figures

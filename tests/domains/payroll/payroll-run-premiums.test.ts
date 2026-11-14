@@ -104,3 +104,37 @@ describe("payroll run premiums (attendance plan Phase 5)", () => {
     expect(mara.premiumInputs).toBeUndefined();
   });
 });
+
+// Plan Phase 7: history (§59) and reproducibility (§46).
+describe("payroll premiums over time (attendance plan Phase 7)", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  const strip = (record: { earnings: unknown; premiumInputs?: unknown; netPay: number } | null) => JSON.parse(JSON.stringify({ earnings: record?.earnings, premiumInputs: record?.premiumInputs, netPay: record?.netPay }));
+
+  it("recomputing gives the same payslip, snapshot included", async () => {
+    const { organizationId, monthly } = await seed();
+    const run = await PayrollRunService.prepare({ organizationId, ...PERIOD }, HR);
+    const first = strip(await recordOf(run._id.toString(), monthly));
+
+    await PayrollRunService.act(run._id.toString(), { organizationId, action: "recompute" }, HR);
+
+    expect(strip(await recordOf(run._id.toString(), monthly))).toEqual(first);
+  });
+
+  it("a later payroll or attendance policy doesn't change a period computed under the earlier ones", async () => {
+    const { organizationId, monthly } = await seed();
+    const run = await PayrollRunService.prepare({ organizationId, ...PERIOD }, HR);
+    const before = strip(await recordOf(run._id.toString(), monthly));
+
+    const { PayrollPolicyModel, AttendancePolicyModel: Policies } = await import("@/server/db/models");
+    await PayrollPolicyModel.create({ organizationId, name: "Richer", payFrequency: "semi-monthly", restDayMultiplier: 2, overtimeMultiplier: 2, effectiveFrom: dateKeyToDate("2026-11-01") });
+    await Policies.create({ organizationId, name: "Later", standardStartTime: "07:00", standardEndTime: "16:00", gracePeriodMinutes: 0, workDays: [1, 2, 3, 4, 5, 6], effectiveFrom: dateKeyToDate("2026-11-01") });
+    const { DayResultService } = await import("@/domains/attendance/day-result");
+    await DayResultService.recalculate({ organizationId, from: PERIOD.payPeriodStart, to: PERIOD.payPeriodEnd }, HR);
+    await PayrollRunService.act(run._id.toString(), { organizationId, action: "recompute" }, HR);
+
+    expect(strip(await recordOf(run._id.toString(), monthly))).toEqual(before);
+  });
+});
