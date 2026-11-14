@@ -1,5 +1,6 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
+import { HOLIDAY_DAY_TYPE_CHOICES } from "@/domains/payroll/holiday-day-types";
 
 // How pay is computed for an organization, or a project that overrides it
 // (resolved via the shared resolveOrgProjectPolicy(), ENGINEERING.md §26).
@@ -28,6 +29,17 @@ const payrollPolicySchema = new Schema(
     thirteenthMonthDivisor: { type: Number, min: 1, max: 24, default: PAY_PREMIUM_DEFAULTS.thirteenthMonthDivisor },
     // Split the month's contributions across cutoffs, or deduct them whole on the month's last cutoff.
     contributionTiming: { type: String, enum: ["every_cutoff", "last_cutoff_of_month"], required: true, default: "every_cutoff" },
+    // 13th month is due on or before this month-day each year (PD 851: December 24). Optional; read with
+    // thirteenthMonthPayByOf, which falls back to "12-24".
+    thirteenthMonthPayBy: { type: String, match: /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/ },
+    // The attendance day type each holiday type counts as (HOLIDAY_DAY_TYPE_DEFAULTS in
+    // src/domains/payroll/holiday-day-types.ts). No schema defaults: read with
+    // holidayDayTypesOf, which fills whatever a policy leaves unset.
+    holidayDayTypes: {
+      regular: { type: String, enum: HOLIDAY_DAY_TYPE_CHOICES },
+      special_non_working: { type: String, enum: HOLIDAY_DAY_TYPE_CHOICES },
+      special_working: { type: String, enum: HOLIDAY_DAY_TYPE_CHOICES },
+    },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     effectiveTo: { type: Date },

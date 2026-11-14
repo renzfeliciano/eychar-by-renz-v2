@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { SESSION_IDLE_MS, SESSION_IDLE_WARNING_MS } from "@/lib/session-idle";
 
 const organizationSchema = new Schema(
   {
@@ -9,11 +10,21 @@ const organizationSchema = new Schema(
     // Security settings the Super Administrator controls (Settings › Security).
     security: {
       // Signed out after this long without activity; warned for the last idleWarningSeconds.
-      idleTimeoutSeconds: { type: Number, min: 30, max: 86_400, default: 60 },
-      idleWarningSeconds: { type: Number, min: 5, max: 3_600, default: 15 },
+      // The defaults come from the same constants as SecuritySettingsService, so the two can't disagree
+      // (the schema default once said 60 while the service said 30 minutes, and the schema's won: it is saved into each new organization).
+      idleTimeoutSeconds: { type: Number, min: 30, max: 86_400, default: SESSION_IDLE_MS / 1000 },
+      idleWarningSeconds: { type: Number, min: 5, max: 3_600, default: SESSION_IDLE_WARNING_MS / 1000 },
       // Staff (HR/admin) accounts must use two-step verification; self-service
       // employee accounts are exempt (they clock in with their own device).
       requireTwoStepForStaff: { type: Boolean, default: false },
+    },
+    // The employer's BIR registration, printed on Form 2316 (payroll plan Phase 4; one BIR employer per organization).
+    tax: {
+      tin: { type: String, trim: true },
+      registeredName: { type: String, trim: true },
+      registeredAddress: { type: String, trim: true },
+      zipCode: { type: String, trim: true },
+      rdoCode: { type: String, trim: true },
     },
     // Compliance deadlines the dashboard watches (configuration, not code).
     compliance: {

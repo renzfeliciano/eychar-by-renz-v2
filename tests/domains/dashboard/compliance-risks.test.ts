@@ -64,6 +64,18 @@ describe("finalPayRisks", () => {
       ["Release Ben's final pay", "later", "/final-settlements/s2"],
     ]);
   });
+
+  it("says what still stands in the way: red flags with their amount, and blocking clearance items", () => {
+    const [risk] = finalPayRisks(
+      [{ clearanceId: "1", employeeName: "Jessa Manadong", lastWorkingDayKey: "2026-09-20", openIssues: { redFlags: 1, flaggedAmount: 56_000, blockingOpen: 3 } }],
+      30,
+      TODAY,
+    );
+    expect(risk.detail).toBe("Due in 17 days (30 days after the last working day) · no settlement yet · 1 red flag (₱56,000.00) · 3 blocking items open");
+
+    const [clean] = finalPayRisks([{ clearanceId: "2", employeeName: "Ben", lastWorkingDayKey: "2026-09-20", openIssues: { redFlags: 2, flaggedAmount: 0, blockingOpen: 1 } }], 30, TODAY);
+    expect(clean.detail).toMatch(/· 2 red flags · 1 blocking item open$/);
+  });
 });
 
 describe("documentRisks", () => {

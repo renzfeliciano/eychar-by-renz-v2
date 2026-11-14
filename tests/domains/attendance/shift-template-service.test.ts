@@ -179,3 +179,29 @@ describe("ShiftTemplateService", () => {
     });
   });
 });
+
+describe("ShiftTemplateService break minutes (plan Phase 2)", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("stores a work shift's break, refuses one on a rest day, and an edit can change or clear it", async () => {
+    const organizationId = await seedOrganization("brk");
+    const day = await ShiftTemplateService.create({ organizationId, name: "Day", code: "D", kind: "work", startTime: "08:00", endTime: "17:00", breakMinutes: 60 }, {});
+    expect(day.breakMinutes).toBe(60);
+
+    await expect(ShiftTemplateService.create({ organizationId, name: "Rest", code: "RD", kind: "rest", breakMinutes: 30 }, {})).rejects.toThrow(BusinessRuleError);
+
+    const changed = await ShiftTemplateService.update(day._id.toString(), organizationId, { breakMinutes: 30 }, {});
+    expect(changed.breakMinutes).toBe(30);
+    const cleared = await ShiftTemplateService.update(day._id.toString(), organizationId, { breakMinutes: "" }, {});
+    expect(cleared.breakMinutes).toBeUndefined();
+  });
+
+  it("refuses a break as long as the shift itself", async () => {
+    const organizationId = await seedOrganization("brk2");
+    await expect(
+      ShiftTemplateService.create({ organizationId, name: "Short", code: "S", kind: "work", startTime: "08:00", endTime: "09:00", breakMinutes: 60 }, {}),
+    ).rejects.toThrow(BusinessRuleError);
+  });
+});

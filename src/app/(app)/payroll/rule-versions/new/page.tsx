@@ -5,6 +5,8 @@ import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
+import { PH_YEAR_END_2023 } from "@/domains/payroll/templates/ph-year-end-2023";
+import type { Form2316Box } from "@/domains/payroll/engine/year-end-tax";
 import type { PayFrequency } from "@/domains/payroll/engine/pay-frequency";
 import { PageHeader } from "@/components/shared/page-header";
 import { RuleVersionEditor, type EditorInitial } from "../rule-version-editor";
@@ -42,8 +44,13 @@ export default async function NewRuleVersionPage({ searchParams }: { searchParam
           extraLabel: rule.extraLabel ?? null,
           rows: rule.rows.map((row) => ({ ...row })),
         })),
+        // A version from before year-end data existed starts from the template's (payroll plan Phase 4).
+        annualTaxTable: base.annualTaxTable?.length ? base.annualTaxTable : PH_YEAR_END_2023.annualTaxTable,
+        benefitsExemptionCap: base.benefitsExemptionCap ?? PH_YEAR_END_2023.benefitsExemptionCap,
+        form2316Boxes: (base.form2316Boxes?.length ? base.form2316Boxes : PH_YEAR_END_2023.form2316Boxes) as Form2316Box[],
+        form2316Excluded: base.form2316Excluded?.length ? base.form2316Excluded : PH_YEAR_END_2023.form2316Excluded,
       }
-    : { name: PH_STATUTORY_2025.name, description: PH_STATUTORY_2025.description, basedOnLabel: "the Philippine 2025 template", taxTables: PH_STATUTORY_2025.taxTables, contributions: PH_STATUTORY_2025.contributions };
+    : { name: PH_STATUTORY_2025.name, description: PH_STATUTORY_2025.description, basedOnLabel: "the Philippine 2025 template", taxTables: PH_STATUTORY_2025.taxTables, contributions: PH_STATUTORY_2025.contributions, ...PH_YEAR_END_2023 };
 
   return (
     <div className="flex flex-col gap-6">

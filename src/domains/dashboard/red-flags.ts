@@ -79,10 +79,13 @@ export function clearanceRedFlags(cases: Case[], settlementByCase: ReadonlyMap<s
 function resolutionOf(hidden: boolean, settlement: Settlement | undefined, amount: number | null, deducted: boolean): { stage: RedFlagStage; resolution: string } {
   if (hidden) return { stage: "hidden", resolution: "Unresolved in clearance" };
   if (!settlement || settlement.status === "cancelled") return { stage: "no-settlement", resolution: amount ? "Unresolved · no final settlement yet" : "Unresolved · no amount recorded" };
-  if (settlement.status === "approved") return { stage: "approved", resolution: deducted ? "Deduction approved · final pay not yet released" : "Not in the approved settlement" };
+  // A flagged amount the settlement doesn't deduct holds up its release
+  // (FinalSettlementService.act) until the settlement is recomputed.
+  if (settlement.status === "approved") return { stage: "approved", resolution: deducted ? "Deduction approved · final pay not yet released" : amount ? "Not in the approved settlement · release on hold until it's returned and recomputed" : "Not in the approved settlement" };
   const where = SETTLEMENT_STAGE[settlement.status] ?? settlement.status;
   if (deducted) return { stage: "in-settlement", resolution: `To be deducted from final pay · settlement ${where}` };
-  return { stage: "not-in-settlement", resolution: amount ? `Not yet in the final settlement (${where}) · recompute it` : `Unresolved · settlement ${where}` };
+  const fix = settlement.status === "draft" ? "recompute it" : "on hold until it's returned and recomputed";
+  return { stage: "not-in-settlement", resolution: amount ? `Not yet in the final settlement (${where}) · ${fix}` : `Unresolved · settlement ${where}` };
 }
 
 /** The total involved, for the panel's summary line. */

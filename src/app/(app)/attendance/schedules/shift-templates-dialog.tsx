@@ -24,6 +24,8 @@ export type ShiftOption = {
   endTime: string | null;
   latestStartTime: string | null;
   requiredHours: number | null;
+  /** Unpaid break in minutes (work shifts). */
+  breakMinutes?: number | null;
   status: string;
 };
 
@@ -37,6 +39,8 @@ type Draft = {
   endTime: string;
   latestStartTime: string;
   requiredHours: string;
+  /** "" = no break. */
+  breakMinutes: string;
 };
 
 const DEFAULT_TIMES = { startTime: "08:00", endTime: "17:00", latestStartTime: "10:00", requiredHours: "8" };
@@ -80,7 +84,7 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
 
   function emptyDraft(excludeId: string | null, kind: "work" | "rest" = "work"): Draft {
     const used = shifts.filter((shift) => shift.id !== excludeId).map((shift) => shift.color);
-    return { name: "", code: "", kind, pattern: "fixed", color: nextShiftColor(used, kind), ...DEFAULT_TIMES };
+    return { name: "", code: "", kind, pattern: "fixed", color: nextShiftColor(used, kind), ...DEFAULT_TIMES, breakMinutes: "" };
   }
 
   function startEdit(shift: ShiftOption) {
@@ -96,6 +100,7 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
       endTime: shift.endTime ?? DEFAULT_TIMES.endTime,
       latestStartTime: shift.latestStartTime ?? DEFAULT_TIMES.latestStartTime,
       requiredHours: shift.requiredHours?.toString() ?? DEFAULT_TIMES.requiredHours,
+      breakMinutes: shift.breakMinutes?.toString() ?? "",
     });
     setError(null);
   }
@@ -114,11 +119,12 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
   // Only the fields for the chosen shape are sent; on edit, "" clears the others server-side.
   function timesPayload() {
     const clear = editingId ? "" : undefined;
-    if (draft.kind === "rest") return { startTime: clear, endTime: clear, latestStartTime: clear, requiredHours: clear };
+    if (draft.kind === "rest") return { startTime: clear, endTime: clear, latestStartTime: clear, requiredHours: clear, breakMinutes: clear };
+    const breakMinutes = draft.breakMinutes.trim() ? Number(draft.breakMinutes) : clear;
     if (draft.pattern === "flexible") {
-      return { startTime: draft.startTime, latestStartTime: draft.latestStartTime, requiredHours: Number(draft.requiredHours), endTime: clear };
+      return { startTime: draft.startTime, latestStartTime: draft.latestStartTime, requiredHours: Number(draft.requiredHours), endTime: clear, breakMinutes };
     }
-    return { startTime: draft.startTime, endTime: draft.endTime, latestStartTime: clear, requiredHours: clear };
+    return { startTime: draft.startTime, endTime: draft.endTime, latestStartTime: clear, requiredHours: clear, breakMinutes };
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -281,6 +287,22 @@ export function ShiftTemplatesDialog({ organizationId, shifts }: { organizationI
               </div>
               <p className="-mt-2 text-xs text-muted-foreground">Employees start any time in the window and work the set hours.</p>
             </>
+          )}
+
+          {draft.kind === "work" && (
+            <FormField label="Unpaid break (min)" htmlFor="shift-break" description="Taken off the time worked. Leave blank for none.">
+              <Input
+                id="shift-break"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={480}
+                step={5}
+                value={draft.breakMinutes}
+                onChange={(event) => setDraft({ ...draft, breakMinutes: event.target.value })}
+                placeholder="e.g. 60"
+              />
+            </FormField>
           )}
 
           <div className="flex flex-col gap-2">

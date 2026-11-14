@@ -36,8 +36,8 @@ export class AppError extends Error {
 }
 
 export class AuthenticationError extends AppError {
-  constructor(message = "Authentication required") {
-    super("authentication", message);
+  constructor(message = "Authentication required", details?: unknown) {
+    super("authentication", message, details);
   }
 }
 

@@ -62,3 +62,19 @@ models already owns that kind of fact, not flattened back into one document.
 One rule (`remarksSchema`, `src/shared/validation/shared.ts`) is enforced at every layer: the forms check it before submitting, the API routes parse it with zod, and the Mongoose schema carries the same `maxlength`. Hire treats a blank note as unset; edit treats `""` as "clear it" (`$unset`).
 
 Remarks can hold sensitive facts (e.g. PWD status) and travel with the audited, permission-checked export, so share exports only with people who need them.
+
+## Addendum: educational attainment
+
+`Person` gains an optional `educationLevelCode`, the code of an item in a new **Education levels** catalog (`education-levels`, Settings › Catalogs), so HR can record each employee's highest educational attainment. The list is data, not code: a new organization starts from ten levels (elementary graduate up to doctoral or professional degree, `education-level-defaults.ts`), and HR can add, rename or retire levels without a deploy. It follows the other catalogs (`createSimpleCatalogService`, its own `education-levels.create/read/update` permissions).
+
+The person stores the **code**, not the name, and `PersonService` checks it against the organization's active levels when it is set, the same way employment type is checked: permissive until the catalog has items, then it must match an active one. The check runs before any record is written, so a bad level on a hire leaves no orphan person. Hire treats a blank choice as unset; edit treats `""` as "clear it" (`$unset`).
+
+It is shown as a roster column, in the Excel/CSV export (as the level's name) and the print report, on the profile header, and edited in the Hire form and Edit dialog. A level HR later retires still shows for the people who hold it and is kept in their edit form (marked "retired"), but cannot be chosen for anyone new. Like the statutory IDs and remarks, the value is recorded in the audit entry's before/after snapshot, and it is deliberately **not** part of roster search or filtering. Existing employees simply have it unset, so no backfill is needed.
+
+## Addendum: educational background
+
+Beyond the single "Highest educational attainment" level, HR can record each qualification an employee holds in an **Educational background** card on the profile's Overview, under the personal information: a level (from the Education levels catalog), the school, an optional course or degree, and an optional year graduated. An employee can have several entries, including several at the same level.
+
+Each entry is its own `EducationRecord` document, tied to the **Person** (so it follows a rehire) rather than embedded on the Person: every add, edit and removal is then audited on its own, and the person's audit snapshot, which already carries the statutory IDs, doesn't grow with each school. `EducationRecordService` checks the level against the organization's active levels when it is set or changed (so editing the school on an entry whose level HR later retired still works), requires a school, accepts a year from 1900 up to next year, stores a blank course or year as absent, and refuses an entry reached through another employee's address or another organization.
+
+Permissions are the existing ones: `employees.update` adds, edits and removes; the profile's `employees.read` lists. Removal is a plain delete with the audit entry as the record. The highest-level dropdown and the entries are independent and nothing reconciles them. The entries are not part of the roster table, the export or the print report, which keep their single Education column.

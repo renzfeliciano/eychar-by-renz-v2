@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
 import mongoose, { Types } from "mongoose";
 import { AuditLogModel, CompensationModel, EmployeeAssignmentModel, EmployeeModel, EmploymentModel, PersonModel } from "@/server/db/models";
@@ -47,6 +47,24 @@ describe("CompensationService", () => {
     const history = await CompensationModel.find({ employeeId }).sort({ effectiveFrom: 1 }).lean();
     expect(history[0].effectiveTo).toEqual(dateKeyToDate("2026-09-30"));
     expect(history[1]).toMatchObject({ reason: "Annual increase" });
+  });
+
+  it("leaves the current terms open when opening the new terms fails, so the employee is never left without pay terms", async () => {
+    const { organizationId } = await seedPayrollOrganization();
+    const employeeId = await seedEmployee(organizationId, "Rita", { compensation: { rateType: "monthly", rate: 30000 } });
+    const failure = vi.spyOn(CompensationModel, "create").mockRejectedValueOnce(new Error("write failed"));
+    try {
+      await expect(
+        CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 33000, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-10-01" }, {}),
+      ).rejects.toThrow("write failed");
+    } finally {
+      failure.mockRestore();
+    }
+
+    const history = await CompensationModel.find({ employeeId }).lean();
+    expect(history).toHaveLength(1);
+    expect(history[0].effectiveTo ?? null).toBeNull();
+    expect((await CompensationService.getAsOf(employeeId, organizationId, "2026-10-15"))?.rate).toBe(30000);
   });
 
   it("refuses a revision dated on or before the current terms' start", async () => {

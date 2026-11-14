@@ -80,6 +80,7 @@ describe("isDeletableType", () => {
   it("accepts registered types and rejects inherited object keys", () => {
     expect(isDeletableType("employee")).toBe(true);
     expect(isDeletableType("staff-account")).toBe(true);
+    expect(isDeletableType("complaint")).toBe(true);
     for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"]) expect(isDeletableType(key)).toBe(false);
     expect(Object.keys(DELETABLE_TYPES)).not.toContain("constructor");
   });

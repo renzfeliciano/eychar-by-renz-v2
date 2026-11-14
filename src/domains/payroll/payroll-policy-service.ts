@@ -6,6 +6,7 @@ import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
 import { dateKeyToDate } from "@/lib/date-key";
+import { assertNoSameDayVersion } from "./same-day-version-guard";
 import type { CreatePayrollPolicyInput } from "@/shared/validation/payroll";
 
 export type { PolicySource };
@@ -20,6 +21,8 @@ export const PayrollPolicyService = {
   async create(input: CreatePolicyInput, actor: { userId?: string }) {
     await connectMongoDB();
     await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
+    const effectiveFrom = input.effectiveFrom ? dateKeyToDate(input.effectiveFrom) : new Date();
+    await assertNoSameDayVersion(PayrollPolicyModel, { organizationId: input.organizationId, projectId: input.projectId, effectiveFrom }, "payroll policy");
 
     const policy = await PayrollPolicyModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
@@ -35,7 +38,7 @@ export const PayrollPolicyService = {
       overtimeMultiplier: input.overtimeMultiplier,
       restDayMultiplier: input.restDayMultiplier,
       thirteenthMonthDivisor: input.thirteenthMonthDivisor,
-      ...(input.effectiveFrom ? { effectiveFrom: dateKeyToDate(input.effectiveFrom) } : {}),
+      effectiveFrom,
     });
 
     await AuditService.record({

@@ -40,6 +40,9 @@ export function dateSpanInDays(from: string, to: string): number {
   return Math.round((toUtc(to) - toUtc(from)) / 86_400_000) + 1;
 }
 
+/** Unpaid break on a work shift, in minutes. */
+const breakMinutesSchema = z.coerce.number().int().min(0).max(480);
+
 export const createShiftTemplateSchema = z.object({
   organizationId: objectId(),
   name: z.string().trim().min(1).max(60),
@@ -52,6 +55,7 @@ export const createShiftTemplateSchema = z.object({
   endTime: timeSchema.optional(),
   latestStartTime: timeSchema.optional(),
   requiredHours: requiredHoursSchema.optional(),
+  breakMinutes: breakMinutesSchema.optional(),
 });
 
 // Pre-filled edit form; "" clears a time (needed when switching a shift to a rest day).
@@ -67,6 +71,7 @@ export const updateShiftTemplateSchema = z.object({
   endTime: clearable(timeSchema).optional(),
   latestStartTime: clearable(timeSchema).optional(),
   requiredHours: clearable(requiredHoursSchema).optional(),
+  breakMinutes: clearable(breakMinutesSchema).optional(),
 });
 
 export const scheduleEntryInputSchema = z.object({

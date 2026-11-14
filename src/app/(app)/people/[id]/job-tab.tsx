@@ -20,6 +20,19 @@ export type EmploymentTermsView = {
   evaluations: { outcome: "sent" | "completed"; actionDate: Date; sentTo: string | null; remarks: string | null; recordedBy: string | null }[];
 };
 
+/** One line of how an employment ended, was corrected or was reversed (oldest first, as stored). */
+export type EndingHistoryView = {
+  action: "ended" | "ending_corrected" | "reinstated";
+  statusName: string;
+  /** "YYYY-MM-DD", or null when the entry has no last day (a reinstatement). */
+  lastDayKey: string | null;
+  reason: string | null;
+  /** ISO time the change was recorded. */
+  at: string;
+};
+
+const ENDING_ACTION_LABELS: Record<EndingHistoryView["action"], string> = { ended: "Ended", ending_corrected: "Ending corrected", reinstated: "Reinstated" };
+
 type TermsEntry =
   { kind: "change"; date: Date; change: EmploymentTermsView["changes"][number]; current: boolean } | { kind: "evaluation"; date: Date; evaluation: EmploymentTermsView["evaluations"][number] };
 
@@ -40,6 +53,7 @@ export function JobTab({
   employeeId,
   assignmentHistory,
   employment,
+  endingHistory,
   positionTitleById,
   projectNameById,
   canUpdate,
@@ -58,6 +72,8 @@ export function JobTab({
     projectId?: Types.ObjectId | null;
   }[];
   employment?: EmploymentTermsView | null;
+  /** How the employment ended and any correction or reinstatement, oldest first. Nothing is shown when empty. */
+  endingHistory?: EndingHistoryView[];
   positionTitleById: Map<string, string>;
   projectNameById: Map<string, string>;
   canUpdate: boolean;
@@ -118,6 +134,29 @@ export function JobTab({
                   </p>
                   <p className="mt-0.5 font-medium">Hired as {employment.firstType}</p>
                 </li>
+              </ol>
+            </CardContent>
+          </Card>
+        )}
+        {endingHistory && endingHistory.length > 0 && (
+          <Card data-testid="ending-history">
+            <CardHeader>
+              <CardTitle>Ending history</CardTitle>
+              <CardDescription>How this employment ended, and any correction or reinstatement, newest first</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ol className="relative flex flex-col gap-5 border-l pl-6">
+                {[...endingHistory].reverse().map((entry, index) => (
+                  <li key={`${entry.at}-${index}`} className="relative" data-action={entry.action}>
+                    <Dot current={index === 0} />
+                    <p className="text-xs text-muted-foreground tabular-nums">{formatDate(new Date(entry.at))}</p>
+                    <p className="mt-0.5 font-medium">{ENDING_ACTION_LABELS[entry.action]}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {[entry.statusName, entry.lastDayKey ? `last day ${formatDate(new Date(`${entry.lastDayKey}T00:00:00Z`))}` : null].filter(Boolean).join(" · ")}
+                    </p>
+                    {entry.reason && <p className="mt-1 text-sm whitespace-pre-line">{entry.reason}</p>}
+                  </li>
+                ))}
               </ol>
             </CardContent>
           </Card>

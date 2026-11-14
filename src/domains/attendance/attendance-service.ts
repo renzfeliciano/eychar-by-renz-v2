@@ -1,7 +1,8 @@
 import { Types } from "mongoose";
 import { minutesOfDayInAppZone } from "@/lib/app-time";
+import { dateKeyToDate, localDateKey } from "@/lib/date-key";
 import { connectMongoDB } from "@/server/db/connection";
-import { AttendanceRecordModel, EmployeeAssignmentModel, EmployeeModel, EmploymentModel, PersonModel } from "@/server/db/models";
+import { AttendanceRecordModel, EmployeeModel, EmploymentModel, PersonModel } from "@/server/db/models";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { isDuplicateKeyError } from "@/server/db/mongo-errors";
 import { AuditService } from "@/server/audit/audit-service";
@@ -11,6 +12,7 @@ import { ConflictError, NotFoundError, BusinessRuleError } from "@/shared/errors
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { assignmentsAsOf } from "@/domains/workforce/assignments-as-of";
 import { AttendancePolicyService } from "./attendance-policy-service";
+import { buildDayResult, dayResultSummary } from "./day-result";
 import type { RecordAttendanceInput, AdjustAttendanceInput } from "@/shared/validation/attendance";
 
 // policy.standardStartTime ("09:00") is the organization's own local
@@ -41,6 +43,17 @@ export function toCalendarDateUtc(date: Date): Date {
 }
 
 /**
+ * The calendar day an *instant* (a clock-in, "now") falls on in the
+ * organization's zone, stored as UTC midnight of that day (ADR-045). Use this,
+ * not toCalendarDateUtc, for instants: 02:00 Manila is still the previous day
+ * in UTC. toCalendarDateUtc is only for values that already are calendar
+ * dates (a "2026-10-01" from a form).
+ */
+export function appCalendarDate(instant: Date = new Date()): Date {
+  return dateKeyToDate(localDateKey(instant));
+}
+
+/**
  * Computed and stored at record time, using whichever policy resolves for
  * this record's own date (ENGINEERING.md §27) — never recomputed later against
  * today's policy. Without a resolvable policy there's nothing to compare
@@ -51,6 +64,9 @@ export function computeStatus(checkInAt: Date | undefined, policy: { standardSta
   const lateThreshold = parseHHmm(policy.standardStartTime) + policy.gracePeriodMinutes;
   return minutesSinceMidnight(checkInAt) > lateThreshold ? "late" : "present";
 }
+
+/** The statuses computeStatus produces; only these are recomputed on adjust. */
+const COMPUTED_STATUSES = new Set(["present", "late"]);
 
 export type DayRosterRow = {
   _id: Types.ObjectId;
@@ -94,6 +110,15 @@ export const AttendanceService = {
 
     const status = input.status ?? computeStatus(input.checkInAt, resolved?.policy ?? null);
     await AttendanceStatusService.assertValidCode(input.organizationId, status);
+    const dayResult = await buildDayResult({
+      organizationId: input.organizationId,
+      employeeId: input.employeeId,
+      date,
+      checkInAt: input.checkInAt,
+      checkOutAt: input.checkOutAt,
+      projectId: assignment?.projectId,
+      policyId: resolved?.policy._id,
+    });
 
     let record;
     try {
@@ -106,6 +131,7 @@ export const AttendanceService = {
         status,
         policyId: resolved?.policy._id,
         notes: input.notes,
+        dayResult,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -152,12 +178,46 @@ export const AttendanceService = {
       await AttendanceStatusService.assertValidCode(organizationId, patch.status);
     }
 
-    const before = { status: record.status, checkInAt: record.checkInAt, checkOutAt: record.checkOutAt, notes: record.notes };
+    const before = {
+      status: record.status,
+      checkInAt: record.checkInAt,
+      checkOutAt: record.checkOutAt,
+      notes: record.notes,
+      overtimeApproved: record.overtimeApproved ?? false,
+      dayResult: dayResultSummary(record.dayResult),
+    };
+    const checkInChanged = patch.checkInAt !== undefined && patch.checkInAt.getTime() !== record.checkInAt?.getTime();
+    const checkOutChanged = patch.checkOutAt !== undefined && patch.checkOutAt.getTime() !== record.checkOutAt?.getTime();
+    const approvalChanged = patch.overtimeApproved !== undefined && patch.overtimeApproved !== Boolean(record.overtimeApproved);
 
     if (patch.checkInAt !== undefined) record.checkInAt = patch.checkInAt;
     if (patch.checkOutAt !== undefined) record.checkOutAt = patch.checkOutAt;
     if (patch.notes !== undefined) record.notes = patch.notes;
-    record.status = patch.status ?? record.status;
+    if (patch.status) {
+      record.status = patch.status;
+    } else if (checkInChanged && COMPUTED_STATUSES.has(record.status)) {
+      // A corrected check-in would otherwise leave a stale present/late flag.
+      // Measured, like record(), against the policy for the record's own date
+      // and project (the site clocked in at, else the assignment that day).
+      // A status HR chose by hand (on_leave, absent, ...) is never overridden.
+      const projectId = record.projectId?.toString() ?? (await EmployeeAssignmentService.getAsOf(record.employeeId.toString(), record.date))?.projectId?.toString();
+      const resolved = await AttendancePolicyService.resolve({ organizationId, projectId, effectiveDate: record.date });
+      const status = computeStatus(record.checkInAt ?? undefined, resolved?.policy ?? null);
+      await AttendanceStatusService.assertValidCode(organizationId, status);
+      record.status = status;
+      record.policyId = resolved?.policy._id;
+    }
+    if (approvalChanged) {
+      // Owner decision 1: HR approves overtime on the record; who and when are kept.
+      record.overtimeApproved = patch.overtimeApproved;
+      record.overtimeApprovedBy = actor.userId ? new Types.ObjectId(actor.userId) : undefined;
+      record.overtimeApprovedAt = new Date();
+    }
+    // Re-measured only when what it's measured from changed: a notes-only edit
+    // never silently picks up a schedule changed since (that's recalculate's job).
+    if (checkInChanged || checkOutChanged || approvalChanged || !record.dayResult) {
+      record.dayResult = await buildDayResult(record);
+    }
     await record.save();
 
     await AuditService.record({
@@ -167,7 +227,14 @@ export const AttendanceService = {
       resourceType: "AttendanceRecord",
       resourceId: record._id.toString(),
       before,
-      after: { status: record.status, checkInAt: record.checkInAt, checkOutAt: record.checkOutAt, notes: record.notes },
+      after: {
+        status: record.status,
+        checkInAt: record.checkInAt,
+        checkOutAt: record.checkOutAt,
+        notes: record.notes,
+        overtimeApproved: record.overtimeApproved ?? false,
+        dayResult: dayResultSummary(record.dayResult),
+      },
     });
 
     return record;
@@ -261,12 +328,11 @@ export const AttendanceService = {
 
     const pageIds = onRoster.slice((paging.page - 1) * paging.pageSize, paging.page * paging.pageSize).map((employee) => employee._id);
     if (pageIds.length === 0) return { rows: [], total: onRoster.length, notRecorded, countByStatus };
+    // The project each person was on that day, the same as listForOrganization
+    // reads it (assignmentsAsOf), not their latest assignment.
     const [pageEmployees, assignments] = await Promise.all([
       EmployeeModel.find({ _id: { $in: pageIds } }).select("employeeNumber personId").lean<{ _id: Types.ObjectId; employeeNumber?: string; personId: Types.ObjectId }[]>(),
-      EmployeeAssignmentModel.find({ employeeId: { $in: pageIds } })
-        .select("employeeId projectId effectiveFrom")
-        .sort({ effectiveFrom: -1 })
-        .lean<{ employeeId: Types.ObjectId; projectId?: Types.ObjectId }[]>(),
+      assignmentsAsOf(pageIds.map((id) => ({ employeeId: id.toString(), date: day }))),
     ]);
     const persons = await PersonModel.find({ _id: { $in: pageEmployees.map((employee) => employee.personId) } })
       .select("firstName middleName lastName")
@@ -274,10 +340,10 @@ export const AttendanceService = {
     const personById = new Map(persons.map((person) => [person._id.toString(), person]));
     const employeeById = new Map(pageEmployees.map((employee) => [employee._id.toString(), employee]));
     const assignmentByEmployee = new Map<string, { projectId?: Types.ObjectId }>();
-    for (const assignment of assignments) {
-      const key = assignment.employeeId.toString();
-      if (!assignmentByEmployee.has(key)) assignmentByEmployee.set(key, { projectId: assignment.projectId });
-    }
+    pageIds.forEach((id, index) => {
+      const assignment = assignments[index];
+      if (assignment) assignmentByEmployee.set(id.toString(), { projectId: assignment.projectId ?? undefined });
+    });
 
     const rows = pageIds.map((id) => {
       const key = id.toString();

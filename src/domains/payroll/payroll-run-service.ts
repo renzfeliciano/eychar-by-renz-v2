@@ -13,11 +13,18 @@ import {
 import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
-import { dateKeyToDate } from "@/lib/date-key";
+import { dateKeyToDate, dateToDateKey, formatDateKey } from "@/lib/date-key";
+import { runTypeOf } from "./payroll-labels";
+import { basicEarnedFrom, thirteenthMonthDueDate } from "./engine/thirteenth-month";
+import { payPremiumsOf } from "./engine/premiums";
+import { finalSettlementsInYear, paidRegularRunsInYear, thirteenthMonthPaid } from "./thirteenth-month-ledger";
+import { formatMoney } from "@/lib/money";
 import { roundMoney } from "./engine/money";
 import { PayrollPolicyService } from "./payroll-policy-service";
 import { PayrollRuleVersionService } from "./payroll-rule-version-service";
-import type { CreatePayrollRunInput, PayrollAdjustmentInput, PayrollRunActionInput } from "@/shared/validation/payroll";
+import type { CreatePayrollRunInput, CreateThirteenthMonthRunInput, CreateYearEndRunInput, PayrollAdjustmentInput, PayrollRunActionInput } from "@/shared/validation/payroll";
+import { yearEndRulesOf } from "./year-end-data";
+import { YEAR_END_MISSING_RULES } from "./year-end-compute";
 
 import { NO_ACTIVE_LOCK, assertNoOverlap, findRun, nextRunNumber, withComputeLock } from "./payroll-run-guards";
 import { computeRun } from "./payroll-run-compute";
@@ -35,6 +42,45 @@ const TRANSITIONS: Record<Exclude<PayrollRunActionInput["action"], "recompute">,
   release: { from: ["approved"], to: "released", past: "released", error: "Only an approved run can be released." },
   cancel: { from: ["draft", "submitted"], to: "cancelled", past: "cancelled", error: "Only a draft or submitted run can be cancelled. Return an approved run first; correct a released one in the next payroll." },
 };
+
+/**
+ * Computes a run just created as a draft, or removes it if anything fails. `recheck` runs first: two
+ * prepares at the same moment (or a manual one racing the schedule) both pass the first overlap check,
+ * and the one created later gives way.
+ */
+async function computeNewRunOrRemove(runId: Types.ObjectId, recheck: () => Promise<void>) {
+  try {
+    await recheck();
+    await withComputeLock(runId, () => computeRun(runId));
+  } catch (error) {
+    await withTransaction(async (session) => {
+      await PayrollRecordModel.deleteMany({ payrollRunId: runId }, { session });
+      await PayrollRunModel.deleteOne({ _id: runId }, { session });
+    });
+    throw error;
+  }
+}
+
+/**
+ * For a draft: the policy or rule version that would apply if it were prepared today, when that is
+ * not the one it was computed with (for example a corrected rule version added since). The draft
+ * keeps its snapshot (recompute uses the stored ids); this only lets HR see it and decide whether
+ * to cancel and prepare it again. Released and other non-draft runs never get a notice.
+ */
+async function newerVersionsFor(run: { status: string; organizationId: Types.ObjectId; projectId?: Types.ObjectId | null; payPeriodEnd: Date; payDate: Date; policyId: Types.ObjectId; ruleVersionId: Types.ObjectId }) {
+  if (run.status !== "draft") return {};
+  const scope = { organizationId: run.organizationId.toString(), projectId: run.projectId?.toString() };
+  const [policyResult, ruleResult] = await Promise.all([
+    PayrollPolicyService.resolve({ ...scope, effectiveDate: run.payPeriodEnd }),
+    PayrollRuleVersionService.resolve({ ...scope, effectiveDate: run.payDate }),
+  ]);
+  const policy = policyResult && !policyResult.policy._id.equals(run.policyId) ? { id: policyResult.policy._id.toString(), name: policyResult.policy.name as string } : undefined;
+  const ruleVersion =
+    ruleResult && !ruleResult.policy._id.equals(run.ruleVersionId)
+      ? { id: ruleResult.policy._id.toString(), name: ruleResult.policy.name as string, versionNumber: ruleResult.policy.versionNumber as number }
+      : undefined;
+  return { ...(policy ? { policy } : {}), ...(ruleVersion ? { ruleVersion } : {}) };
+}
 
 /**
  * Payroll runs (ADR-029): prepared as a draft for a scope (organization or
@@ -64,6 +110,7 @@ export const PayrollRunService = {
       organizationId: new Types.ObjectId(input.organizationId),
       runNumber: await nextRunNumber(input.organizationId, input.payDate),
       projectId: toObjectId(input.projectId),
+      runType: "regular",
       payFrequency,
       payPeriodStart: dateKeyToDate(input.payPeriodStart),
       payPeriodEnd: dateKeyToDate(input.payPeriodEnd),
@@ -76,18 +123,7 @@ export const PayrollRunService = {
       history: [{ action: "prepared", status: "draft", at: now, by: toObjectId(actor.userId), note: options.source?.type === "schedule" ? "Prepared automatically from the payroll schedule" : undefined }],
     });
 
-    try {
-      // Two prepares at the same moment (or a manual one racing the schedule)
-      // both pass the first check; the one created later gives way.
-      await assertNoOverlap(input.organizationId, input.projectId, input.payPeriodStart, input.payPeriodEnd, run._id);
-      await withComputeLock(run._id, () => computeRun(run._id));
-    } catch (error) {
-      await withTransaction(async (session) => {
-        await PayrollRecordModel.deleteMany({ payrollRunId: run._id }, { session });
-        await PayrollRunModel.deleteOne({ _id: run._id }, { session });
-      });
-      throw error;
-    }
+    await computeNewRunOrRemove(run._id, () => assertNoOverlap(input.organizationId, input.projectId, input.payPeriodStart, input.payPeriodEnd, run._id));
 
     const prepared = await PayrollRunModel.findById(run._id).lean();
     await AuditService.record({
@@ -97,7 +133,124 @@ export const PayrollRunService = {
       resourceType: "PayrollRun",
       resourceId: run._id.toString(),
       after: { runNumber: prepared!.runNumber, payPeriodStart: input.payPeriodStart, payPeriodEnd: input.payPeriodEnd, payDate: input.payDate, projectId: input.projectId, totals: prepared!.totals },
-      metadata: { source: options.source?.type ?? "manual", scheduleId: options.source?.scheduleId },
+      metadata: { source: options.source?.type ?? "manual", scheduleId: options.source?.scheduleId, runType: "regular" },
+    });
+    return prepared!;
+  },
+
+  /**
+   * Prepares the 13th-month run for a calendar year (payroll plan Phase 3, PD 851): every employee's basic
+   * pay earned that year divided by the policy's divisor, from approved and released regular runs, with the
+   * rest of December estimated. One per year per scope (the run-type overlap rule). The policy is the one in
+   * force on Dec 31; a pay date after the policy's deadline (default Dec 24) is allowed but noted.
+   */
+  async prepareThirteenthMonth(input: CreateThirteenthMonthRunInput, actor: Actor) {
+    await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
+    const start = `${input.year}-01-01`;
+    const end = `${input.year}-12-31`;
+
+    const policyResult = await PayrollPolicyService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(end) });
+    if (!policyResult) throw new NotFoundError(`No payroll policy applies on ${formatDateKey(end)}. Add one under Payroll › Policies.`);
+    // A 13th-month run withholds nothing, but every run records the rule version in force on its pay date.
+    const ruleResult = await PayrollRuleVersionService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(input.payDate) });
+    if (!ruleResult) throw new NotFoundError("No payroll rule version applies on the pay date. Add one under Payroll › Rule versions.");
+
+    const kind = { runType: "thirteenth_month" as const };
+    await assertNoOverlap(input.organizationId, input.projectId, start, end, undefined, kind);
+    const dueBy = thirteenthMonthDueDate(policyResult.policy, input.year);
+    const lateNote = input.payDate > dueBy ? `Pay date is after the ${formatDateKey(dueBy)} deadline in the policy (PD 851).` : undefined;
+
+    const now = new Date();
+    const run = await PayrollRunModel.create({
+      organizationId: new Types.ObjectId(input.organizationId),
+      runNumber: await nextRunNumber(input.organizationId, input.payDate),
+      projectId: toObjectId(input.projectId),
+      runType: "thirteenth_month",
+      payFrequency: policyResult.policy.payFrequency,
+      payPeriodStart: dateKeyToDate(start),
+      payPeriodEnd: dateKeyToDate(end),
+      payDate: dateKeyToDate(input.payDate),
+      policyId: policyResult.policy._id,
+      ruleVersionId: ruleResult.policy._id,
+      status: "draft",
+      source: { type: "manual" },
+      preparedBy: toObjectId(actor.userId),
+      history: [{ action: "prepared", status: "draft", at: now, by: toObjectId(actor.userId), note: lateNote }],
+    });
+    await computeNewRunOrRemove(run._id, () => assertNoOverlap(input.organizationId, input.projectId, start, end, run._id, kind));
+
+    const prepared = await PayrollRunModel.findById(run._id).lean();
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "payroll-run.prepared",
+      resourceType: "PayrollRun",
+      resourceId: run._id.toString(),
+      after: { runNumber: prepared!.runNumber, year: input.year, payDate: input.payDate, projectId: input.projectId, totals: prepared!.totals },
+      metadata: { source: "manual", runType: "thirteenth_month", lateNote },
+    });
+    return prepared!;
+  },
+
+  /**
+   * Prepares the year-end withholding reconciliation (payroll plan Phase 4): one run per year and scope,
+   * once every regular and 13th-month run of the year is approved, released or cancelled. It uses the
+   * rule version in force on December 31, which must carry the annual table and the Form 2316 box map.
+   */
+  async prepareYearEnd(input: CreateYearEndRunInput, actor: Actor) {
+    await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
+    const start = `${input.year}-01-01`;
+    const end = `${input.year}-12-31`;
+    const organizationId = new Types.ObjectId(input.organizationId);
+
+    const unfinished = await PayrollRunModel.find({
+      organizationId,
+      runType: { $in: [null, "regular", "thirteenth_month"] },
+      status: { $in: ["draft", "submitted"] },
+      payPeriodEnd: { $gte: dateKeyToDate(start), $lte: dateKeyToDate(end) },
+    })
+      .select("runNumber")
+      .lean();
+    if (unfinished.length) throw new BusinessRuleError(`Approve or cancel ${input.year}'s remaining payroll first: ${unfinished.map((other) => other.runNumber).join(", ")}.`);
+
+    const policyResult = await PayrollPolicyService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(end) });
+    if (!policyResult) throw new NotFoundError(`No payroll policy applies on ${formatDateKey(end)}. Add one under Payroll › Policies.`);
+    const ruleResult = await PayrollRuleVersionService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(end) });
+    if (!ruleResult) throw new NotFoundError(`No payroll rule version applies on ${formatDateKey(end)}. Add one under Payroll › Rule versions.`);
+    if (!yearEndRulesOf(ruleResult.policy as Parameters<typeof yearEndRulesOf>[0])) throw new BusinessRuleError(YEAR_END_MISSING_RULES);
+
+    const kind = { runType: "year_end_adjustment" as const };
+    await assertNoOverlap(input.organizationId, input.projectId, start, end, undefined, kind);
+    const now = new Date();
+    const run = await PayrollRunModel.create({
+      organizationId,
+      runNumber: await nextRunNumber(input.organizationId, input.payDate),
+      projectId: toObjectId(input.projectId),
+      runType: "year_end_adjustment",
+      payFrequency: policyResult.policy.payFrequency,
+      payPeriodStart: dateKeyToDate(start),
+      payPeriodEnd: dateKeyToDate(end),
+      payDate: dateKeyToDate(input.payDate),
+      policyId: policyResult.policy._id,
+      ruleVersionId: ruleResult.policy._id,
+      status: "draft",
+      source: { type: "manual" },
+      preparedBy: toObjectId(actor.userId),
+      history: [{ action: "prepared", status: "draft", at: now, by: toObjectId(actor.userId) }],
+    });
+    await computeNewRunOrRemove(run._id, () => assertNoOverlap(input.organizationId, input.projectId, start, end, run._id, kind));
+
+    const prepared = await PayrollRunModel.findById(run._id).lean();
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "payroll-run.prepared",
+      resourceType: "PayrollRun",
+      resourceId: run._id.toString(),
+      after: { runNumber: prepared!.runNumber, year: input.year, payDate: input.payDate, projectId: input.projectId, totals: prepared!.totals },
+      metadata: { source: "manual", runType: "year_end_adjustment", ruleVersionId: ruleResult.policy._id.toString() },
     });
     return prepared!;
   },
@@ -173,7 +326,27 @@ export const PayrollRunService = {
         if (fresh.blockingIssues > 0) {
           throw new BusinessRuleError(`${plural(fresh.blockingIssues, "employee")} ${fresh.blockingIssues === 1 ? "has" : "have"} a blocking issue. Fix it and recompute before submitting.`);
         }
-        return applyTransition({ computeLock: lock }, { submittedBy: by, submittedAt: now }, { computeLock: 1, computeLockUntil: 1 });
+        // Not a block: HR may knowingly leave someone out, but must say why for each (checked after the recompute above).
+        const given = new Map((input.action === "submit" ? (input.exclusionReasons ?? []) : []).map((entry) => [entry.employeeId, entry.reason.trim()]));
+        const exclusions = fresh.exclusions as { employeeId: Types.ObjectId; employeeName: string; reason: string }[];
+        const unexplained = exclusions.filter((exclusion) => !given.get(exclusion.employeeId.toString()));
+        if (unexplained.length) {
+          throw new BusinessRuleError(`Give a reason for each employee this run leaves out before submitting: ${unexplained.map((exclusion) => exclusion.employeeName).join(", ")}.`);
+        }
+        const acknowledgements = exclusions.map((exclusion) => ({
+          employeeId: exclusion.employeeId,
+          employeeName: exclusion.employeeName,
+          computedReason: exclusion.reason,
+          reason: given.get(exclusion.employeeId.toString())!,
+          at: now,
+          by,
+        }));
+        if (acknowledgements.length) {
+          const summary = `Left out: ${acknowledgements.map((entry) => `${entry.employeeName}: ${entry.reason}`).join("; ")}`;
+          note = [note, summary].filter(Boolean).join(" · ");
+          metadata.exclusions = acknowledgements.map((entry) => ({ employeeId: entry.employeeId.toString(), employeeName: entry.employeeName, computedReason: entry.computedReason, reason: entry.reason }));
+        }
+        return applyTransition({ computeLock: lock }, { submittedBy: by, submittedAt: now, exclusionAcknowledgements: acknowledgements }, { computeLock: 1, computeLockUntil: 1 });
       });
     } else {
       updated = await applyTransition(NO_ACTIVE_LOCK(now));
@@ -194,11 +367,98 @@ export const PayrollRunService = {
     return (await PayrollRunModel.findById(run._id).lean())!;
   },
 
+  /**
+   * The January true-up of last year's 13th month (owner decision 2026-11-14): once every regular run of
+   * `year` is approved or released, each employee in this draft gets the difference between what they are
+   * owed (basic actually earned ÷ the divisor) and what was paid for the year, as a 13th-month adjustment:
+   * an earning (non-taxable) if underpaid, a deduction if the December estimate overpaid. HR reviews it
+   * with the rest of the run. Running it again adds nothing for employees who already have one.
+   */
+  async addThirteenthMonthTrueUp(runId: string, input: { organizationId: string; year: number }, actor: Actor) {
+    await connectMongoDB();
+    const run = await findRun(runId, input.organizationId);
+    if (run.status !== "draft") throw new BusinessRuleError("The true-up can only be added while the run is a draft.");
+    if (runTypeOf(run) !== "regular") throw new BusinessRuleError("The true-up goes on a regular payroll run.");
+    if (dateToDateKey(run.payPeriodStart) <= `${input.year}-12-31`) throw new BusinessRuleError(`Add the ${input.year} true-up to a payroll after ${input.year}.`);
+
+    const organizationId = run.organizationId;
+    const yearStart = dateKeyToDate(`${input.year}-01-01`);
+    const yearEnd = dateKeyToDate(`${input.year}-12-31`);
+    const unfinished = await PayrollRunModel.find({ organizationId, runType: { $in: [null, "regular"] }, status: { $in: ["draft", "submitted"] }, payPeriodEnd: { $gte: yearStart, $lte: yearEnd } })
+      .select("runNumber")
+      .lean();
+    if (unfinished.length) throw new BusinessRuleError(`Approve or cancel ${input.year}'s remaining payroll first: ${unfinished.map((other) => other.runNumber).join(", ")}.`);
+    const thirteenthRun = await PayrollRunModel.findOne({ organizationId, runType: "thirteenth_month", status: { $in: ["approved", "released"] }, payPeriodStart: yearStart }).select("policyId").lean();
+    if (!thirteenthRun) throw new BusinessRuleError(`There's no approved 13th-month run for ${input.year} to true up.`);
+    const { thirteenthMonthDivisor: divisor } = payPremiumsOf(await PayrollPolicyModel.findById(thirteenthRun.policyId).lean());
+
+    const inRun = await PayrollRecordModel.find({ payrollRunId: run._id }).select("employeeId employeeName").lean();
+    const employeeIds = inRun.map((record) => record.employeeId as Types.ObjectId);
+    const regularRuns = await paidRegularRunsInYear(organizationId, input.year);
+    const [yearRecords, paid, existing, settled] = await Promise.all([
+      PayrollRecordModel.find({ payrollRunId: { $in: regularRuns.map((regular) => regular._id) }, employeeId: { $in: employeeIds } }).select("employeeId earnings").lean(),
+      thirteenthMonthPaid(organizationId, input.year, employeeIds),
+      PayrollAdjustmentModel.find({ payrollRunId: run._id, category: "thirteenth_month", thirteenthMonthYear: input.year }).select("employeeId").lean(),
+      finalSettlementsInYear(organizationId, input.year),
+    ]);
+    const alreadyAdded = new Set(existing.map((adjustment) => adjustment.employeeId.toString()));
+
+    const lines = inRun.flatMap((record) => {
+      const employeeId = record.employeeId.toString();
+      // Already added, or the year's 13th month was settled in their final pay.
+      if (alreadyAdded.has(employeeId) || settled.has(employeeId)) return [];
+      const basicEarned = basicEarnedFrom(yearRecords.filter((row) => row.employeeId.toString() === employeeId).flatMap((row) => row.earnings ?? []));
+      const owed = roundMoney(basicEarned / divisor - (paid.get(employeeId) ?? 0));
+      if (Math.abs(owed) < 0.01) return [];
+      return [{ employeeId: record.employeeId, employeeName: record.employeeName, basicEarned, paid: paid.get(employeeId) ?? 0, owed }];
+    });
+
+    const created = await withComputeLock(run._id, async () => {
+      const docs = lines.length
+        ? await PayrollAdjustmentModel.insertMany(
+            lines.map((line) => ({
+              payrollRunId: run._id,
+              organizationId,
+              employeeId: line.employeeId,
+              category: "thirteenth_month",
+              thirteenthMonthYear: input.year,
+              label: line.owed > 0 ? `13th month ${input.year} true-up` : `13th month ${input.year} overpaid`,
+              direction: line.owed > 0 ? "earning" : "deduction",
+              amount: Math.abs(line.owed),
+              taxable: false,
+              notes: `${formatMoney(line.basicEarned)} basic earned in ${input.year} ÷ ${divisor} − ${formatMoney(line.paid)} paid`,
+              createdBy: toObjectId(actor.userId),
+            })),
+          )
+        : [];
+      try {
+        await computeRun(run._id);
+      } catch (error) {
+        // The run's records don't include these yet, so take them back out.
+        await PayrollAdjustmentModel.deleteMany({ _id: { $in: docs.map((doc) => doc._id) } });
+        throw error;
+      }
+      return docs;
+    });
+
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "payroll-run.thirteenth-month-true-up",
+      resourceType: "PayrollRun",
+      resourceId: runId,
+      after: { year: input.year, added: lines.map((line) => ({ employeeId: line.employeeId.toString(), employeeName: line.employeeName, amount: line.owed })) },
+      metadata: { year: input.year, divisor, skippedAlreadyAdded: alreadyAdded.size },
+    });
+    return { added: created.length, underpaid: lines.filter((line) => line.owed > 0).length, overpaid: lines.filter((line) => line.owed < 0).length, alreadyAdded: alreadyAdded.size };
+  },
+
   /** Adds an HR input (overtime, loan, …) to a draft run and recomputes it. */
   async addAdjustment(runId: string, input: PayrollAdjustmentInput, actor: Actor) {
     await connectMongoDB();
     const run = await findRun(runId, input.organizationId);
     if (run.status !== "draft") throw new BusinessRuleError("Adjustments can only change while the run is a draft. Return it to draft first.");
+    if (runTypeOf(run) !== "regular") throw new BusinessRuleError("Adjustments go on a regular payroll run. This run's amounts come from its own calculation.");
     if (!Types.ObjectId.isValid(input.employeeId) || !(await EmployeeModel.exists({ _id: input.employeeId, organizationId: run.organizationId }))) {
       throw new NotFoundError("Employee not found in this organization");
     }
@@ -216,7 +476,13 @@ export const PayrollRunService = {
       notes: input.notes,
       createdBy: toObjectId(actor.userId),
       });
-      await computeRun(run._id);
+      try {
+        await computeRun(run._id);
+      } catch (error) {
+        // The run's records still reflect the inputs without this adjustment, so take it back out.
+        await PayrollAdjustmentModel.deleteOne({ _id: created._id });
+        throw error;
+      }
       return created;
     });
 
@@ -241,7 +507,13 @@ export const PayrollRunService = {
     const adjustment = await withComputeLock(run._id, async () => {
       const removed = await PayrollAdjustmentModel.findOneAndDelete({ _id: new Types.ObjectId(adjustmentId), payrollRunId: run._id }).lean();
       if (!removed) throw new NotFoundError("Adjustment not found in this run");
-      await computeRun(run._id);
+      try {
+        await computeRun(run._id);
+      } catch (error) {
+        // The run's records still include this adjustment, so put it back as it was.
+        await PayrollAdjustmentModel.create(removed);
+        throw error;
+      }
       return removed;
     });
 
@@ -269,6 +541,6 @@ export const PayrollRunService = {
       PayrollPolicyModel.findById(run.policyId).select("name payFrequency workDaysPerYear hoursPerDay contributionTiming overtimeMultiplier restDayMultiplier").lean(),
       PayrollRuleVersionModel.findById(run.ruleVersionId).select("name versionNumber contributions.name contributions.extraLabel").lean(),
     ]);
-    return { run: run.toObject(), records, adjustments, policy, ruleVersion };
+    return { run: run.toObject(), records, adjustments, policy, ruleVersion, newerVersions: await newerVersionsFor(run) };
   },
 };

@@ -62,6 +62,7 @@ type ShiftTemplateLike = {
   endTime?: string | null;
   latestStartTime?: string | null;
   requiredHours?: number | null;
+  breakMinutes?: number | null;
 };
 
 /**
@@ -70,7 +71,8 @@ type ShiftTemplateLike = {
  * start/end for that one day, flagged as custom.
  */
 function snapshotShift(shift: ShiftTemplateLike, entry: Pick<ScheduleEntryInput, "startTime" | "endTime">) {
-  const base = { code: shift.code, name: shift.name, kind: shift.kind, color: shift.color ?? undefined };
+  // The break goes with the shift, custom hours or not.
+  const base = { code: shift.code, name: shift.name, kind: shift.kind, color: shift.color ?? undefined, breakMinutes: shift.breakMinutes ?? undefined };
   if (entry.startTime && entry.endTime) {
     return { ...base, pattern: "fixed", startTime: entry.startTime, endTime: entry.endTime, customTimes: true };
   }

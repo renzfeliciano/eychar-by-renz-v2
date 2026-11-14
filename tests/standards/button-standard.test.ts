@@ -20,10 +20,13 @@ function walk(dir: string): string[] {
 }
 
 /** Every <Button …>…</Button> with its opening-tag attributes and children. */
+// Only the exact <Button tag: not <ButtonPrimitive or <ButtonGroup, which are different components.
+const BUTTON_OPEN = /<Button(?=[\s/>])/g;
+
 function buttons(source: string): { attrs: string; body: string; line: number }[] {
   const found: { attrs: string; body: string; line: number }[] = [];
-  let at = source.indexOf("<Button");
-  while (at >= 0) {
+  for (const match of source.matchAll(BUTTON_OPEN)) {
+    const at = match.index!;
     // Walk the opening tag, skipping {...} so `=>` inside handlers doesn't end it.
     let i = at + "<Button".length;
     let depth = 0;
@@ -36,8 +39,9 @@ function buttons(source: string): { attrs: string; body: string; line: number }[
     const attrs = source.slice(at + 7, i);
     const selfClosing = attrs.trimEnd().endsWith("/");
     const end = selfClosing ? i : source.indexOf("</Button>", i);
-    found.push({ attrs, body: selfClosing ? "" : source.slice(i + 1, end), line: source.slice(0, at).split("\n").length });
-    at = source.indexOf("<Button", end);
+    const line = source.slice(0, at).split("\n").length;
+    if (!selfClosing && end < 0) throw new Error(`<Button> on line ${line} has no closing </Button>`);
+    found.push({ attrs, body: selfClosing ? "" : source.slice(i + 1, end), line });
   }
   return found;
 }

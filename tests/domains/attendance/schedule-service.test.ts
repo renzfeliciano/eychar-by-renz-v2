@@ -264,3 +264,21 @@ describe("ScheduleService", () => {
     expect(await ScheduleService.getEntryForDate(organizationId, employeeId, "2026-10-06")).toBeNull();
   });
 });
+
+describe("ScheduleService break snapshot (plan Phase 2)", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("copies the shift's break onto the scheduled day, so a later template edit doesn't change it", async () => {
+    const { organizationId } = await seedOrganization("brk");
+    const employeeId = await seedEmployee(organizationId, "Bea");
+    const shift = await ShiftTemplateService.create({ organizationId, name: "Office", code: "OF", kind: "work", startTime: "08:00", endTime: "17:00", breakMinutes: 60 }, {});
+
+    await ScheduleService.saveEntries(organizationId, [{ employeeId, date: "2026-10-05", shiftTemplateId: shift._id.toString() }], {});
+    await ShiftTemplateService.update(shift._id.toString(), organizationId, { breakMinutes: 30 }, {});
+
+    const entry = await ScheduleEntryModel.findOne({ organizationId, employeeId }).lean();
+    expect(entry?.shift.breakMinutes).toBe(60);
+  });
+});

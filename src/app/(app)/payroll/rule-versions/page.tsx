@@ -39,12 +39,18 @@ export default async function PayrollRuleVersionsPage() {
         title="Rule versions"
         description="Withholding tax and government contribution tables, as data. Versions are never edited: a change is a new version, so every run shows exactly what it used."
         action={
-          canCreate ? (
-            <Link href="/payroll/rule-versions/new" className={cn(buttonVariants({ size: "sm" }))} data-testid="payroll-rule-versions-create-button">
-              <Plus className="size-3.5" />
-              New version
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Employer BIR details for Form 2316 (payroll plan Phase 4). */}
+            <Link href="/payroll/employer" className={cn(buttonVariants({ size: "sm", variant: "outline" }))} data-testid="payroll-employer-tax-link">
+              Employer tax details
             </Link>
-          ) : undefined
+            {canCreate && (
+              <Link href="/payroll/rule-versions/new" className={cn(buttonVariants({ size: "sm" }))} data-testid="payroll-rule-versions-create-button">
+                <Plus className="size-3.5" />
+                New version
+              </Link>
+            )}
+          </div>
         }
       />
       <MetricStrip columns={4}>

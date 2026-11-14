@@ -3,6 +3,7 @@ import { connectMongoDB } from "@/server/db/connection";
 import { OrganizationModel, ProjectModel, PayrollRuleVersionModel } from "@/server/db/models";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
+import { ConflictError } from "@/shared/errors";
 
 // The PH starter tables; these tests are about versioning and resolution, not the numbers.
 const TABLES = { name: "PH", taxTables: PH_STATUTORY_2025.taxTables, contributions: PH_STATUTORY_2025.contributions };
@@ -19,11 +20,23 @@ describe("PayrollRuleVersionService", () => {
   it("auto-increments versionNumber per organization", async () => {
     const organization = await seedOrganization("1");
 
-    const v1 = await PayrollRuleVersionService.create({ organizationId: organization._id.toString(), ...TABLES }, {});
-    const v2 = await PayrollRuleVersionService.create({ organizationId: organization._id.toString(), ...TABLES }, {});
+    const v1 = await PayrollRuleVersionService.create({ organizationId: organization._id.toString(), ...TABLES, effectiveFrom: "2026-01-01" }, {});
+    const v2 = await PayrollRuleVersionService.create({ organizationId: organization._id.toString(), ...TABLES, effectiveFrom: "2026-07-01" }, {});
 
     expect(v1.versionNumber).toBe(1);
     expect(v2.versionNumber).toBe(2);
+  });
+
+  it("refuses a second active version for the same scope starting on the same day, but allows another scope or day", async () => {
+    const organization = await seedOrganization("dup");
+    const organizationId = organization._id.toString();
+    const project = await ProjectModel.create({ organizationId: organization._id, name: "Site", code: `S-${Date.now()}-${Math.random()}` });
+    await PayrollRuleVersionService.create({ organizationId, ...TABLES, effectiveFrom: "2026-01-01" }, {});
+
+    await expect(PayrollRuleVersionService.create({ organizationId, ...TABLES, effectiveFrom: "2026-01-01" }, {})).rejects.toThrow(ConflictError);
+    await expect(PayrollRuleVersionService.create({ organizationId, ...TABLES, projectId: project._id.toString(), effectiveFrom: "2026-01-01" }, {})).resolves.toBeTruthy();
+    await expect(PayrollRuleVersionService.create({ organizationId, ...TABLES, effectiveFrom: "2026-01-02" }, {})).resolves.toBeTruthy();
+    expect(await PayrollRuleVersionModel.countDocuments({ organizationId: organization._id })).toBe(3);
   });
 
   it("starts a separate organization's version numbering from 1", async () => {

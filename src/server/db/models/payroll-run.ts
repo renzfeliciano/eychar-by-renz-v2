@@ -22,6 +22,19 @@ const exclusionSchema = new Schema(
   { _id: false },
 );
 
+// HR's reason, given at submit, for each employee the run leaves out (§5 item 7 of the payroll plan).
+const exclusionAcknowledgementSchema = new Schema(
+  {
+    employeeId: { type: Schema.Types.ObjectId, required: true, ref: "Employee" },
+    employeeName: { type: String, required: true },
+    computedReason: { type: String, required: true },
+    reason: { type: String, required: true, trim: true },
+    at: { type: Date, required: true },
+    by: { type: Schema.Types.ObjectId, ref: "User" },
+  },
+  { _id: false },
+);
+
 // One payroll for one scope (the whole organization, or one project) and
 // one period. Lifecycle (ADR-029): draft (recompute and edit adjustments
 // freely) → submitted → approved (or returned to draft with a reason) →
@@ -33,6 +46,11 @@ const payrollRunSchema = new Schema(
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
     runNumber: { type: String, required: true },
     projectId: { type: Schema.Types.ObjectId, ref: "Project" },
+    // regular | thirteenth_month | year_end_adjustment | final (payroll plan Phase 2, ADR pending).
+    // Optional: a run saved before run types existed has none and reads as regular (runTypeOf).
+    runType: { type: String, enum: ["regular", "thirteenth_month", "year_end_adjustment", "final"] },
+    // A final-pay run pays one employee; two final runs for the same employee conflict.
+    employeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
     payFrequency: { type: String, enum: ["weekly", "semi-monthly", "monthly"], required: true },
     payPeriodStart: { type: Date, required: true },
     payPeriodEnd: { type: Date, required: true },
@@ -63,6 +81,8 @@ const payrollRunSchema = new Schema(
       default: () => ({}),
     },
     exclusions: { type: [exclusionSchema], default: [] },
+    // Set on each submit; older runs have none.
+    exclusionAcknowledgements: { type: [exclusionAcknowledgementSchema], default: undefined },
     blockingIssues: { type: Number, default: 0 },
     warningCount: { type: Number, default: 0 },
     computedAt: { type: Date },

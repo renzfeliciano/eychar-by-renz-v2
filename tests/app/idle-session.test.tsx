@@ -12,15 +12,15 @@ let sessionData: Record<string, unknown> | null = { user: { id: "u1" } };
 vi.mock("next-auth/react", () => ({ useSession: () => ({ data: sessionData, update: (...args: unknown[]) => update(...args), status: "authenticated" }), signOut: (...args: unknown[]) => signOut(...args) }));
 
 describe("idleState", () => {
-  it("defaults to a 1-minute idle limit with a 15-second warning", () => {
-    expect(SESSION_IDLE_MS).toBe(60_000);
+  it("defaults to a 30-minute idle limit (ADR-030) with a 15-second warning", () => {
+    expect(SESSION_IDLE_MS).toBe(30 * 60_000);
     expect(SESSION_IDLE_WARNING_MS).toBe(15_000);
   });
 
   it("is active, then warning in the last 15 seconds, then expired", () => {
-    expect(idleState(0, 30_000)).toEqual({ phase: "active", remainingMs: 30_000 });
-    expect(idleState(0, 46_000)).toEqual({ phase: "warning", remainingMs: 14_000 });
-    expect(idleState(0, 60_000)).toEqual({ phase: "expired", remainingMs: 0 });
+    expect(idleState(0, SESSION_IDLE_MS - 30_000)).toEqual({ phase: "active", remainingMs: 30_000 });
+    expect(idleState(0, SESSION_IDLE_MS - 14_000)).toEqual({ phase: "warning", remainingMs: 14_000 });
+    expect(idleState(0, SESSION_IDLE_MS)).toEqual({ phase: "expired", remainingMs: 0 });
   });
 });
 
@@ -35,7 +35,7 @@ describe("IdleSessionGuard", () => {
   afterEach(() => vi.useRealTimers());
 
   it("warns 15 seconds before the timeout, counting down, then signs out", () => {
-    render(<IdleSessionGuard onSignOut={onSignOut} />);
+    render(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
 
     act(() => vi.advanceTimersByTime(44_000));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -51,13 +51,13 @@ describe("IdleSessionGuard", () => {
   it("still signs out when the session refreshes in the background during the warning", () => {
     // next-auth hands out a new session object (and update function) on every
     // background refetch; that used to restart the idle clock at 0:03.
-    const { rerender } = render(<IdleSessionGuard onSignOut={onSignOut} />);
+    const { rerender } = render(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
     act(() => vi.advanceTimersByTime(56_000));
     expect(screen.getByTestId("idle-countdown")).toHaveTextContent("0:04");
 
     update = vi.fn();
     sessionData = { user: { id: "u1" }, refreshedAt: Date.now() };
-    rerender(<IdleSessionGuard onSignOut={onSignOut} />);
+    rerender(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
     act(() => vi.advanceTimersByTime(1_000));
     expect(screen.getByTestId("idle-countdown")).toHaveTextContent("0:03");
 
@@ -67,7 +67,7 @@ describe("IdleSessionGuard", () => {
   });
 
   it("keeps the session when the person chooses to stay, and counts activity before the warning", () => {
-    render(<IdleSessionGuard onSignOut={onSignOut} />);
+    render(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
 
     act(() => vi.advanceTimersByTime(40_000));
     fireEvent.keyDown(window, { key: "a" });
@@ -91,7 +91,7 @@ describe("IdleSessionGuard at zero", () => {
   afterEach(() => vi.useRealTimers());
 
   it("stays signed out at zero: the warning doesn't restart, even if another tab records activity", () => {
-    render(<IdleSessionGuard onSignOut={onSignOut} />);
+    render(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
     act(() => vi.advanceTimersByTime(60_000));
     expect(onSignOut).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("dialog")).toHaveTextContent("Signing you out");
@@ -107,13 +107,13 @@ describe("IdleSessionGuard at zero", () => {
 
   it("signs out at once when the server says the session already went idle", () => {
     sessionData = { user: { id: "u1" }, error: "SessionExpired" };
-    render(<IdleSessionGuard onSignOut={onSignOut} />);
+    render(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
     expect(onSignOut).toHaveBeenCalledTimes(1);
     sessionData = { user: { id: "u1" } };
   });
 
   it("follows another tab that signed out for inactivity", () => {
-    render(<IdleSessionGuard onSignOut={onSignOut} />);
+    render(<IdleSessionGuard onSignOut={onSignOut} idleMs={60_000} />);
     act(() => vi.advanceTimersByTime(5_000));
     window.localStorage.setItem("pcas-hris:idle-signed-out", String(Date.now()));
     act(() => vi.advanceTimersByTime(1_000));

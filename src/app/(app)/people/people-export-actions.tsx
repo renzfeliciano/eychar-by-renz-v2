@@ -11,7 +11,7 @@ import type { TableExportSpec } from "@/lib/export/table-export";
 // Built on the server (EmployeeRosterService.exportRows) and fetched on demand.
 export type PeopleExportRow = RosterExportRow;
 
-const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
+export const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
   title: "Employee roster",
   sheetName: "Employees",
   noun: ["employee", "employees"],
@@ -26,6 +26,7 @@ const PEOPLE_EXPORT: TableExportSpec<PeopleExportRow> = {
     { header: "Length of service", width: 18, value: (row) => row.lengthOfService },
     { header: "Date hired", width: 12, value: (row) => row.dateHired },
     { header: "Birth date", width: 12, value: (row) => row.birthDate },
+    { header: "Educational attainment", width: 32, wrap: true, value: (row) => row.educationLevel },
     { header: "Contact number", width: 16, value: (row) => row.contactNumber },
     { header: "Address", width: 40, wrap: true, value: (row) => row.address },
     { header: "Remarks", width: 30, wrap: true, value: (row) => row.remarks },

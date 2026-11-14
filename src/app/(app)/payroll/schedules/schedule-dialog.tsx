@@ -27,13 +27,11 @@ export type ScheduleDraft = {
   status?: "active" | "inactive";
 };
 
-const NEW_SCHEDULE: ScheduleDraft = { name: "", projectId: "", payFrequency: "semi-monthly", cutoffDay: 15, payDateOffsetDays: 5, autoPrepare: true };
+const NEW_SCHEDULE: ScheduleDraft = { name: "", projectId: "", payFrequency: "monthly", cutoffDay: 31, payDateOffsetDays: 5, autoPrepare: true };
 
-const FREQUENCIES: SelectOption[] = [
-  { id: "semi-monthly", label: "Semi-monthly" },
-  { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "Monthly" },
-];
+// Monthly only for new calendars (decided 2026-11-14). A calendar that already uses another frequency keeps showing it, so editing it doesn't silently change it.
+const FREQUENCIES: SelectOption[] = [{ id: "monthly", label: "Monthly" }];
+const LEGACY_FREQUENCY_LABELS: Record<string, string> = { "semi-monthly": "Semi-monthly (existing)", weekly: "Weekly (existing)" };
 
 const SEMI_MONTHLY_PATTERNS: SelectOption[] = [
   { id: "15", label: "1st–15th and 16th–end of month" },
@@ -121,11 +119,11 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
               label="Pay frequency"
               value={draft.payFrequency}
               onChange={(value) => {
-                const payFrequency = (value || "semi-monthly") as PayFrequency;
+                const payFrequency = (value || "monthly") as PayFrequency;
                 setDraft({ ...draft, payFrequency, cutoffDay: defaultCutoffDay(payFrequency) });
               }}
-              options={FREQUENCIES}
-              placeholder="Semi-monthly"
+              options={draft.payFrequency === "monthly" ? FREQUENCIES : [...FREQUENCIES, { id: draft.payFrequency, label: LEGACY_FREQUENCY_LABELS[draft.payFrequency] ?? draft.payFrequency }]}
+              placeholder="Monthly"
               required
             />
             {draft.payFrequency === "semi-monthly" && (

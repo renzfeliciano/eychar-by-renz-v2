@@ -27,8 +27,10 @@ declare module "next-auth/jwt" {
     expiredReason?: "idle_timeout" | "concurrent_session" | "session_ended";
     /** May see records hidden as test data (ADR-034). */
     seesHidden?: boolean;
-    /** The organization's idle limit, refreshed on each activity ping. */
+    /** The organization's idle limit, refreshed on each activity ping and when a minute old. */
     idleMs?: number;
+    /** When idleMs and twoStepRequired were last read from the organization (epoch ms). */
+    settingsAt?: number;
     replacedSessionAt?: string;
     replacedBy?: { at: string | null; device: string | null; host: string | null };
   }

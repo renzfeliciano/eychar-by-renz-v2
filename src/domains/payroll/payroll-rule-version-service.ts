@@ -6,6 +6,7 @@ import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
 import { dateKeyToDate } from "@/lib/date-key";
+import { assertNoSameDayVersion } from "./same-day-version-guard";
 import type { CreatePayrollRuleVersionInput } from "@/shared/validation/payroll";
 
 export type { PolicySource };
@@ -25,6 +26,8 @@ export const PayrollRuleVersionService = {
     await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
     await assertOptionalInOrganization(PayrollRuleVersionModel, input.basedOnVersionId, input.organizationId, "Rule version this is based on");
     const organizationId = new Types.ObjectId(input.organizationId);
+    const effectiveFrom = input.effectiveFrom ? dateKeyToDate(input.effectiveFrom) : new Date();
+    await assertNoSameDayVersion(PayrollRuleVersionModel, { organizationId: input.organizationId, projectId: input.projectId, effectiveFrom }, "rule version");
     const latest = await PayrollRuleVersionModel.findOne({ organizationId }).sort({ versionNumber: -1 });
     const versionNumber = (latest?.versionNumber ?? 0) + 1;
 
@@ -36,8 +39,12 @@ export const PayrollRuleVersionService = {
       description: input.description,
       taxTables: input.taxTables,
       contributions: input.contributions,
+      annualTaxTable: input.annualTaxTable?.length ? input.annualTaxTable : undefined,
+      benefitsExemptionCap: input.benefitsExemptionCap ?? undefined,
+      form2316Boxes: input.form2316Boxes?.length ? input.form2316Boxes : undefined,
+      form2316Excluded: input.form2316Excluded?.length ? input.form2316Excluded : undefined,
       basedOnVersionId: input.basedOnVersionId ? new Types.ObjectId(input.basedOnVersionId) : undefined,
-      ...(input.effectiveFrom ? { effectiveFrom: dateKeyToDate(input.effectiveFrom) } : {}),
+      effectiveFrom,
     });
 
     await AuditService.record({
@@ -52,6 +59,9 @@ export const PayrollRuleVersionService = {
         projectId: version.projectId,
         taxTables: version.taxTables.map((table: { payFrequency: string }) => table.payFrequency),
         contributions: version.contributions.map((contribution: { code: string }) => contribution.code),
+        annualTaxTable: (version.annualTaxTable?.length ?? 0) > 0,
+        benefitsExemptionCap: version.benefitsExemptionCap,
+        form2316Boxes: version.form2316Boxes?.length ?? 0,
       },
       metadata: { basedOnVersionId: input.basedOnVersionId },
     });

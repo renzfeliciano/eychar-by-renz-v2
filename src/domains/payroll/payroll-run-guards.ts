@@ -5,6 +5,7 @@ import { Types } from "mongoose";
 import { PayrollRunModel } from "@/server/db/models";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import { dateKeyToDate, dateToDateKey, formatDateRange } from "@/lib/date-key";
+import { PAYROLL_RUN_TYPE_LABELS, runTypeOf, type PayrollRunType } from "./payroll-labels";
 
 export async function findRun(runId: string, organizationId: string) {
   if (!Types.ObjectId.isValid(runId)) throw new NotFoundError("Payroll run not found in this organization");
@@ -23,26 +24,67 @@ export async function nextRunNumber(organizationId: string, payDate: string): Pr
   return `${prefix}${String(next).padStart(4, "0")}`;
 }
 
+/** What the overlap rule needs to know about a run. */
+export type RunKey = {
+  runType?: string | null;
+  projectId?: string | null;
+  employeeId?: string | null;
+  start: string;
+  end: string;
+};
+
 /**
- * The same people can't be paid twice for the same day: an organization-wide
- * run conflicts with any other run over overlapping dates, and a project run
- * conflicts with organization-wide runs and runs for the same project.
- * Cancelled runs don't count.
+ * Whether two runs would pay the same people twice (Gate A of the payroll plan, approved 2026-11-14).
+ * Runs of different types never conflict: a 13th-month, year-end or final run pays something a
+ * regular run does not. Within one type:
+ * - regular, 13th month, year-end: overlapping dates conflict, where an organization-wide run
+ *   conflicts with any run and a project run with organization-wide runs and the same project;
+ * - final: two final-pay runs for the same employee conflict, whatever their dates.
  */
-/** `createdBefore`: only runs created before this one count (the re-check after insert, see prepare). */
-export async function assertNoOverlap(organizationId: string, projectId: string | undefined, start: string, end: string, createdBefore?: Types.ObjectId) {
-  const overlapping = await PayrollRunModel.find({
+export function runsConflict(a: RunKey, b: RunKey): boolean {
+  const type = runTypeOf(a);
+  if (type !== runTypeOf(b)) return false;
+  if (type === "final") return !!a.employeeId && a.employeeId === b.employeeId;
+  const datesOverlap = a.start <= b.end && b.start <= a.end;
+  const scopesOverlap = !a.projectId || !b.projectId || a.projectId === b.projectId;
+  return datesOverlap && scopesOverlap;
+}
+
+/**
+ * The same people can't be paid twice for the same thing (see `runsConflict`). Cancelled runs don't count.
+ * `createdBefore`: only runs created before this one count (the re-check after insert, see prepare).
+ */
+export async function assertNoOverlap(
+  organizationId: string,
+  projectId: string | undefined,
+  start: string,
+  end: string,
+  createdBefore?: Types.ObjectId,
+  kind: { runType?: PayrollRunType; employeeId?: string } = {},
+) {
+  const runType = kind.runType ?? "regular";
+  const candidates = await PayrollRunModel.find({
     organizationId: new Types.ObjectId(organizationId),
     ...(createdBefore ? { _id: { $lt: createdBefore } } : {}),
     status: { $ne: "cancelled" },
-    payPeriodStart: { $lte: dateKeyToDate(end) },
-    payPeriodEnd: { $gte: dateKeyToDate(start) },
+    // Narrow by type in the query; runs saved before run types existed have none and are regular.
+    runType: runType === "regular" ? { $in: [null, "regular"] } : runType,
+    ...(runType === "final" ? { employeeId: kind.employeeId ? new Types.ObjectId(kind.employeeId) : null } : { payPeriodStart: { $lte: dateKeyToDate(end) }, payPeriodEnd: { $gte: dateKeyToDate(start) } }),
   }).lean();
-  const conflict = overlapping.find((run) => !projectId || !run.projectId || run.projectId.toString() === projectId);
+  const mine: RunKey = { runType, projectId, employeeId: kind.employeeId, start, end };
+  const conflict = candidates.find((run) =>
+    runsConflict(mine, {
+      runType: run.runType,
+      projectId: run.projectId?.toString(),
+      employeeId: run.employeeId?.toString(),
+      start: dateToDateKey(run.payPeriodStart),
+      end: dateToDateKey(run.payPeriodEnd),
+    }),
+  );
   if (conflict) {
-    throw new ConflictError(
-      `${conflict.runNumber} already covers ${formatDateRange(dateToDateKey(conflict.payPeriodStart), dateToDateKey(conflict.payPeriodEnd))} for these employees. Cancel it first to prepare another.`,
-    );
+    const what = runType === "final" ? "this employee's final pay" : `${formatDateRange(dateToDateKey(conflict.payPeriodStart), dateToDateKey(conflict.payPeriodEnd))} for these employees`;
+    const label = runType === "regular" ? "" : ` (${PAYROLL_RUN_TYPE_LABELS[runType]})`;
+    throw new ConflictError(`${conflict.runNumber}${label} already covers ${what}. Cancel it first to prepare another.`);
   }
 }
 

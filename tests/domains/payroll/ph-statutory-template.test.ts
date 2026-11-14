@@ -31,9 +31,11 @@ describe("PH statutory template (2025)", () => {
 
   it("has the BIR withholding tables for weekly, semi-monthly and monthly pay", () => {
     expect(PH_STATUTORY_2025.taxTables.map((entry) => entry.payFrequency)).toEqual(["weekly", "semi-monthly", "monthly"]);
-    expect(computeProgressiveBracketTax(10417, table("semi-monthly"))).toBeCloseTo(0);
-    expect(computeProgressiveBracketTax(20000, table("semi-monthly"))).toBeCloseTo(1604.1);
-    expect(computeProgressiveBracketTax(50000, table("monthly"))).toBeCloseTo(5208.4); // 1,875 + 20% × 16,667
-    expect(computeProgressiveBracketTax(10000, table("weekly"))).toBeCloseTo(894.2); // 432.60 + 20% × 2,308
+    // Exempt line is ₱250,000 a year = ₱10,416.67 a semi-monthly period. ₱10,417 is ₱8 a year over it, at 15%.
+    expect(computeProgressiveBracketTax(10416.67, table("semi-monthly"))).toBe(0);
+    expect(computeProgressiveBracketTax(10417, table("semi-monthly"))).toBeCloseTo(0.05, 2);
+    expect(computeProgressiveBracketTax(20000, table("semi-monthly"))).toBeCloseTo(1604.17, 2); // 937.50 + 20% × 3,333.33
+    expect(computeProgressiveBracketTax(50000, table("monthly"))).toBeCloseTo(5208.33, 2); // 1,875 + 20% × 16,666.67
+    expect(computeProgressiveBracketTax(10000, table("weekly"))).toBeCloseTo(894.23, 2); // 432.69 + 20% × 2,307.69
   });
 });

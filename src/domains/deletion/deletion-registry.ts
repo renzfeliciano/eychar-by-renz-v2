@@ -106,6 +106,8 @@ async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId):
     deletes: [
       { model: models.EmployeeModel, filter: { _id: id }, label: "Employee record" },
       ...(person ? [{ model: models.PersonModel, filter: { _id: person._id }, label: "Personal details" }] : []),
+      // Educational background belongs to the person, so it goes (and comes back) with them.
+      ...(person ? [{ model: models.EducationRecordModel, filter: { personId: person._id, organizationId }, label: "Educational background" }] : []),
       byEmployee(models.EmploymentModel, "Employment history"),
       byEmployee(models.EmployeeAssignmentModel, "Job assignments"),
       byEmployee(models.CompensationModel, "Pay terms"),
@@ -244,6 +246,7 @@ export const DELETABLE_TYPES = {
   case: { noun: "case", plan: leaf(models.CaseModel, "Case", text("caseName")) },
   event: { noun: "event", plan: leaf(models.EventModel, "Event", text("title")) },
   applicant: { noun: "applicant", plan: leaf(models.ApplicantModel, "Applicant", text("applicantName")) },
+  complaint: { noun: "complaint", plan: leaf(models.ComplaintModel, "Complaint", text("irNumber")) },
   "asset-issuance": { noun: "asset record", plan: leaf(models.AssetIssuanceModel, "Asset record", text("assetName")) },
   "employee-document": { noun: "document", plan: leaf(models.EmployeeDocumentModel, "Document", text("title")) },
 } as const;

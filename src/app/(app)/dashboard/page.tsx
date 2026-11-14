@@ -33,7 +33,7 @@ import { EmployeeDocumentService } from "@/domains/documents/employee-document-s
 import { HolidayService } from "@/domains/holidays/holiday-service";
 import { HOLIDAY_TYPE_LABELS } from "@/domains/holidays/holiday-types";
 import { collapseKind, rankActions, relativeDue, urgencyFor, type ActionItem, type ActionUrgency } from "@/domains/dashboard/action-queue";
-import { dateToDateKey, formatDateKey, localDateKey } from "@/lib/date-key";
+import { dateKeyToDate, dateToDateKey, formatDateKey, localDateKey } from "@/lib/date-key";
 import { formatPersonName } from "@/lib/person-name";
 import { calculateAge } from "@/lib/employee-dates";
 import { buttonVariants } from "@/components/ui/button";
@@ -166,7 +166,7 @@ export default async function DashboardPage() {
     canReadLeave && canDecideLeave ? LeaveRequestService.listForOrganization(organizationId, { status: "pending" }) : null,
     canReadLeave ? LeaveTypeService.listCurrent(organizationId) : null,
     canReadLeave ? LeaveRequestService.listCoveringDate(organizationId, todayKey) : null,
-    canReadAttendance ? AttendanceService.listForOrganization(organizationId, { date: now }) : null,
+    canReadAttendance ? AttendanceService.listForOrganization(organizationId, { date: dateKeyToDate(todayKey) }) : null,
     canReadTravel ? TravelOrderService.listCurrent(organizationId) : null,
     canReadEvents
       ? Promise.all([EventService.listForMonth(organizationId, todayKey.slice(0, 7)), EventService.listForMonth(organizationId, nextMonthKey(todayKey))]).then(([a, b]) => [...a, ...b])
@@ -302,12 +302,19 @@ export default async function DashboardPage() {
         .filter((clearance) => clearance.status !== "cancelled" && clearance.status !== "closed")
         .map((clearance) => {
           const settlement = settlementByClearance.get(clearance._id.toString());
+          const flagged = clearance.items.filter((item) => item.status === "flagged");
           return {
             clearanceId: clearance._id.toString(),
             employeeName: clearance.employeeName,
             lastWorkingDayKey: dateToDateKey(new Date(clearance.lastWorkingDay)),
             settlementId: canReadSettlements && settlement ? settlement._id.toString() : undefined,
             settlementStatus: settlement?.status ?? null,
+            // The same flags the Red flags panel lists, so the two never disagree.
+            openIssues: {
+              redFlags: flagged.length,
+              flaggedAmount: flagged.reduce((sum, item) => sum + (item.amount && item.amount > 0 ? item.amount : 0), 0),
+              blockingOpen: clearance.items.filter((item) => item.blocking && item.status === "pending").length,
+            },
           };
         }),
       finalPayDays,

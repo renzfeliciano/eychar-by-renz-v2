@@ -22,9 +22,15 @@ describe("SecuritySettingsService", () => {
     await connectMongoDB();
   });
 
-  it("starts at a 1-minute idle limit with a 15-second warning", async () => {
+  it("starts at the 30-minute idle limit of ADR-030 with a 15-second warning, for an organization created with no settings", async () => {
     const s = await seed();
-    expect(await SecuritySettingsService.get(s.organizationId)).toEqual({ idleTimeoutSeconds: 60, idleWarningSeconds: 15, requireTwoStepForStaff: false });
+    expect(await SecuritySettingsService.get(s.organizationId)).toEqual({ idleTimeoutSeconds: 30 * 60, idleWarningSeconds: 15, requireTwoStepForStaff: false });
+  });
+
+  it("writes the same default into a new organization's own record, so the schema and the service can't disagree", async () => {
+    const created = await OrganizationModel.create({ name: "Fresh", slug: `fresh-${Date.now()}-${Math.random()}` });
+    expect(created.security?.idleTimeoutSeconds).toBe(30 * 60);
+    expect(created.security?.idleWarningSeconds).toBe(15);
   });
 
   it("lets only the Super Administrator change it, within sensible limits, and audits it", async () => {

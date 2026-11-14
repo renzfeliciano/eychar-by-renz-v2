@@ -105,6 +105,35 @@ describe("FinalSettlementService", () => {
     expect(clearance).toMatchObject({ status: "closed", active: false });
   });
 
+  it("won't move a settlement on once the clearance's flags changed since it was computed, until it's recomputed", async () => {
+    const s = await seed();
+    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "clear" }, {});
+    const id = (await FinalSettlementService.prepare(s.caseId, s.organizationId, { userId: s.preparer }))._id.toString();
+    await FinalSettlementService.act(id, s.organizationId, { action: "submit" }, { userId: s.preparer });
+    await FinalSettlementService.act(id, s.organizationId, { action: "review" }, { userId: s.reviewer });
+    // Accounting finds a cash discrepancy after the settlement went to review.
+    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "reopen", note: "Cash count short" }, {});
+    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "flag", amount: 54_000, note: "Unremitted collections" }, {});
+
+    await expect(FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.approver })).rejects.toThrow(
+      "Return laptop: flagged at ₱54,000.00 but not deducted",
+    );
+
+    await FinalSettlementService.act(id, s.organizationId, { action: "return", note: "Recompute with the new flag" }, { userId: s.approver });
+    await FinalSettlementService.prepare(s.caseId, s.organizationId, { userId: s.preparer });
+    await FinalSettlementService.act(id, s.organizationId, { action: "submit" }, { userId: s.preparer });
+    await FinalSettlementService.act(id, s.organizationId, { action: "review" }, { userId: s.reviewer });
+    const approved = await FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.approver });
+    expect(approved.status).toBe("approved");
+
+    // Waived after approval: the ₱54,000 deduction no longer stands, so it can't be paid out as is.
+    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "reopen", note: "Recounted" }, {});
+    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "waive", note: "Found in the vault" }, {});
+    await expect(
+      FinalSettlementService.act(id, s.organizationId, { action: "disburse", paymentMethodCode: "bank_transfer", paymentReference: "BDO-1" }, { userId: s.approver }),
+    ).rejects.toThrow("Return laptop: deducted ₱54,000.00 but no longer flagged");
+  });
+
   it("returns a settlement to draft with a reason, and freezes it once approved", async () => {
     const s = await seed();
     await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "clear" }, {});

@@ -25,6 +25,7 @@ export const HireService = {
         birthDate: input.birthDate,
         address: input.address,
         remarks: input.remarks,
+        educationLevelCode: input.educationLevelCode,
         sssNumber: input.sssNumber,
         philHealthNumber: input.philHealthNumber,
         pagIbigNumber: input.pagIbigNumber,

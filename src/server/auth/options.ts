@@ -14,6 +14,9 @@ import { BRAND } from "@/lib/brand";
 import { describeErrorForLog } from "@/shared/errors/to-response";
 import { describeDevice, readHeader } from "@/lib/user-agent";
 
+/** How long a token trusts the organization's session settings it cached before reading them again. */
+const SETTINGS_REFRESH_MS = 60_000;
+
 /** The idle limit for this account's organization (Settings › Security). */
 async function idleLimitMs(userId: string): Promise<number> {
   return (await sessionSettings(userId)).idleMs;
@@ -50,11 +53,13 @@ export const authOptions: NextAuthOptions = {
   // cached in the token (ENGINEERING.md §19).
   session: {
     strategy: "jwt",
-    // The cookie's own lifetime. A session really ends sooner: when it's idle
-    // past the organization's limit (Settings › Security), when it reaches
-    // SESSION_MAX_HOURS since sign-in, or when the account signs in elsewhere,
-    // signs out, or changes its password (all enforced in the jwt callback).
-    maxAge: 60 * 60 * 24 * 30,
+    // The cookie's own lifetime, no longer than the absolute session cap
+    // (SESSION_MAX_HOURS): a copied cookie must not look valid for weeks after
+    // the server would refuse it. A session really ends sooner: when it's idle
+    // past the organization's limit (Settings › Security), or when the account
+    // signs in elsewhere, signs out, or changes its password (all enforced in
+    // the jwt callback).
+    maxAge: Math.ceil(getSessionMaxAgeMs() / 1000),
   },
 
   pages: {
@@ -134,6 +139,7 @@ export const authOptions: NextAuthOptions = {
         token.seesHidden = await viewerMaySeeHidden(user.id, signedIn?.employeeId);
         token.idleMs = settings.idleMs;
         token.twoStepRequired = settings.twoStepRequired;
+        token.settingsAt = now;
         token.mustSetUpTwoStep = needsTwoStepSetup(settings.twoStepRequired, signedIn);
         token.lastActivityAt = now;
         token.signedInAt = now;
@@ -154,10 +160,15 @@ export const authOptions: NextAuthOptions = {
       // Only real activity (pinged by the idle guard) or an explicit update keeps the session alive;
       // background session polling just checks it. Picks up a changed idle limit at the same time.
       const isActivity = trigger === "update";
-      if (isActivity || token.idleMs === undefined || token.twoStepRequired === undefined) {
+      // The cached limit is also re-read once it is a minute old, so an organization
+      // that lowers its idle limit ends idle sessions at the new limit, not whenever
+      // each of them next pings. Within the minute the cache is trusted: this runs on every request.
+      const settingsStale = typeof token.settingsAt !== "number" || Date.now() - token.settingsAt > SETTINGS_REFRESH_MS;
+      if (isActivity || settingsStale || token.idleMs === undefined || token.twoStepRequired === undefined) {
         const settings = await sessionSettings(token.userId as string);
         token.idleMs = settings.idleMs;
         token.twoStepRequired = settings.twoStepRequired;
+        token.settingsAt = Date.now();
       }
 
       await connectMongoDB();

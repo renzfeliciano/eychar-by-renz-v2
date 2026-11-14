@@ -13,6 +13,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "employment-statuses", title: "Employment statuses", description: "Lifecycle states an employment record can be in." },
   { catalogType: "attendance-statuses", title: "Attendance statuses", description: "Daily attendance outcomes selectable when recording or adjusting." },
   { catalogType: "recruitment-stages", title: "Recruitment stages", description: "The applicant pipeline, in order." },
+  { catalogType: "complaint-stages", title: "Complaint stages", description: "The complaint board columns, in order." },
   { catalogType: "event-categories", title: "Event categories", description: "Used to classify calendar events." },
   { catalogType: "case-classifications", title: "Case classifications", description: "Types of cases the organization tracks." },
   { catalogType: "case-statuses", title: "Case statuses", description: "Where a case currently stands." },
@@ -21,6 +22,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "clearance-departments", title: "Clearance departments", description: "Departments that sign off a separating employee's clearance." },
   { catalogType: "separation-types", title: "Separation types", description: "Why an employee leaves: resignation, end of contract, and so on." },
   { catalogType: "payment-methods", title: "Payment methods", description: "How final settlements are paid out." },
+  { catalogType: "education-levels", title: "Education levels", description: "Highest educational attainment choices on the employee roster, from elementary to doctoral." },
   { catalogType: "document-types", title: "Document types", description: "Categories for employee documents (government IDs, contracts, certifications)." },
 ];
 

@@ -44,6 +44,25 @@ const employmentSchema = new Schema(
       ],
       default: [],
     },
+    // How the employment ended, was corrected, or was reversed, oldest first. Appended only, never
+    // edited, so a correction adds to the record instead of erasing the original ending. Rows from
+    // before this field have none and read as empty.
+    endingHistory: {
+      type: [
+        new Schema(
+          {
+            action: { type: String, enum: ["ended", "ending_corrected", "reinstated"], required: true },
+            status: { type: String, required: true, trim: true },
+            effectiveTo: { type: Date },
+            reason: { type: String, trim: true },
+            changedBy: { type: Schema.Types.ObjectId, ref: "User" },
+            changedAt: { type: Date, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
     terminationReason: { type: String, trim: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },

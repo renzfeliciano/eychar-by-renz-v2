@@ -42,6 +42,36 @@ const clockEventSchema = new Schema(
   { _id: false },
 );
 
+const dayResultSchema = new Schema(
+  {
+    scheduledMinutes: { type: Number, required: true },
+    workedMinutes: { type: Number, required: true },
+    lateMinutes: { type: Number, required: true },
+    undertimeMinutes: { type: Number, required: true },
+    overtimeMinutes: { type: Number, required: true },
+    nightDiffMinutes: { type: Number, required: true },
+    dayType: { type: String, enum: ["workday", "rest_day", "regular_holiday", "special_holiday", "special_working"], required: true },
+    restDay: { type: Boolean, required: true },
+    flags: { type: [String], default: [] },
+    // DAY_CALC_VERSION (day-calc.ts) at the time: bumped whenever the rules change.
+    calcVersion: { type: Number, required: true },
+    calculatedAt: { type: Date, required: true },
+    // The inputs it was measured against.
+    policyId: { type: Schema.Types.ObjectId, ref: "AttendancePolicy" },
+    scheduleEntryId: { type: Schema.Types.ObjectId, ref: "ScheduleEntry" },
+    holidayId: { type: Schema.Types.ObjectId, ref: "Holiday" },
+    payrollPolicyId: { type: Schema.Types.ObjectId, ref: "PayrollPolicy" },
+    regularMinutesCap: { type: Number },
+    // Only on holidays (plan Phase 4): the employee's last workday before it, for
+    // payroll's unworked-holiday rule.
+    previousWorkday: {
+      type: new Schema({ date: { type: Date, required: true }, attended: { type: Boolean, required: true }, onLeave: { type: Boolean, required: true } }, { _id: false }),
+      default: undefined,
+    },
+  },
+  { _id: false },
+);
+
 // One record per employee per calendar day (unique index below) — a
 // correction goes through AttendanceService.adjust(), never a second
 // record() call. `status` is computed and stored at record time using
@@ -71,6 +101,17 @@ const attendanceRecordSchema = new Schema(
     notes: { type: String, trim: true },
     checkIn: { type: clockEventSchema },
     checkOut: { type: clockEventSchema },
+    // Overtime approval (owner decision 1): set by HR through adjust().
+    // Unapproved overtime is still measured and reported, but not paid.
+    overtimeApproved: { type: Boolean },
+    overtimeApprovedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    overtimeApprovedAt: { type: Date },
+    // The day's worked time (src/domains/attendance/day-result.ts), stored
+    // once at record, clock-in/out and adjust — never recomputed on read —
+    // with what produced it, so it reproduces. An explicit, audited
+    // recalculation is the only other writer. Optional: older records have
+    // none, and payroll falls back to its earlier reading for them.
+    dayResult: { type: dayResultSchema },
   },
   { timestamps: true },
 );

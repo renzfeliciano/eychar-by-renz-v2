@@ -19,6 +19,9 @@ const shiftTemplateSchema = new Schema(
     endTime: { type: String, trim: true },
     latestStartTime: { type: String, trim: true },
     requiredHours: { type: Number },
+    // Unpaid break, deducted from time worked only when it's longer than the
+    // break (src/domains/attendance/day-calc.ts). Work shifts only.
+    breakMinutes: { type: Number, min: 0 },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
   },
   { timestamps: true },

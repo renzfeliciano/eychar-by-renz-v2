@@ -5,7 +5,7 @@ import { signInAsHR } from "./helpers";
 // forward instead of waiting. The idle limit is whatever Settings › Security
 // says; time moves in 4-second steps (the shortest allowed warning is 5) so
 // the warning can't be skipped. Keep the E2E organization's limit short
-// (the default, 1 minute) or this takes a while.
+// (scripts/seed-e2e.ts sets 1 minute; the app default is 30 minutes) or this takes a while.
 async function waitForIdleWarning(page: Page) {
   const dialog = page.getByTestId("idle-warning-dialog");
   for (let elapsed = 0; elapsed < 2 * 60 * 60_000; elapsed += 4_000) {

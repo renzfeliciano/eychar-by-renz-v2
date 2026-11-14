@@ -11,6 +11,11 @@ export const createAttendancePolicySchema = z.object({
   standardEndTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
   gracePeriodMinutes: z.coerce.number().int().min(0).default(0),
   workDays: z.array(z.number().int().min(0).max(6)).optional(),
+  // Optional time rules (plan Phase 2); left out, the day calculation uses its defaults.
+  breakMinutes: z.coerce.number().int().min(0).max(480).optional(),
+  roundingMinutes: z.coerce.number().int().min(0).max(60).optional(),
+  nightStartTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm").optional(),
+  nightEndTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Use HH:mm").optional(),
 });
 
 export const recordAttendanceSchema = z.object({
@@ -32,6 +37,8 @@ export const adjustAttendanceSchema = z.object({
   checkOutAt: z.coerce.date().optional(),
   status: z.string().max(200).trim().optional(),
   notes: z.string().max(2000).trim().optional(),
+  // HR's overtime approval (plan owner decision 1).
+  overtimeApproved: z.boolean().optional(),
 });
 
 /** The randomized live-face challenges the clock screen can ask for (ADR-026). */
@@ -102,3 +109,13 @@ export type RecordAttendanceInput = z.infer<typeof recordAttendanceSchema>;
 export type AdjustAttendanceInput = z.infer<typeof adjustAttendanceSchema>;
 export type SelfServiceClockInInput = z.infer<typeof selfServiceClockInSchema>;
 export type SelfServiceClockOutInput = z.infer<typeof selfServiceClockOutSchema>;
+
+/** HR's explicit recalculation of stored day results (plan Phase 3); the 62-day cap is enforced by the service. */
+export const recalculateAttendanceSchema = z
+  .object({
+    organizationId: objectId(),
+    from: calendarDateSchema,
+    to: calendarDateSchema,
+    employeeId: objectId().optional(),
+  })
+  .refine((input) => input.to >= input.from, { message: "The end date can't be before the start date.", path: ["to"] });

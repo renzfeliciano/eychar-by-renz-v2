@@ -14,12 +14,18 @@ const personSchema = new Schema(
     address: { type: String, trim: true },
     // Free-text HR note shown on the roster (e.g. "Senior, PWD"); length rule mirrors remarksSchema.
     remarks: { type: String, trim: true, maxlength: REMARKS_MAX_LENGTH },
+    // Highest educational attainment: the code of an EducationLevel catalog item, checked
+    // at the service boundary (PersonService) like employmentType, not by a schema enum.
+    educationLevelCode: { type: String, trim: true },
     // Statutory ID numbers — plain text, format-validated at the service
     // boundary (src/shared/validation/shared.ts) rather than the schema.
     sssNumber: { type: String, trim: true },
     philHealthNumber: { type: String, trim: true },
     pagIbigNumber: { type: String, trim: true },
     tinNumber: { type: String, trim: true },
+    // For BIR Form 2316 (payroll plan Phase 4): the employee's revenue district office and address ZIP code.
+    rdoCode: { type: String, trim: true },
+    zipCode: { type: String, trim: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },

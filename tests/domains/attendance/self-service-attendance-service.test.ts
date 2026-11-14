@@ -6,6 +6,7 @@ import { AttendancePolicyService } from "@/domains/attendance/attendance-policy-
 import { WebAuthnService } from "@/domains/identity/webauthn-service";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
+import { dateKeyToDate, localDateKey } from "@/lib/date-key";
 
 // A real WebAuthn assertion needs an actual (or virtual) authenticator to sign
 // it, which is out of scope for a unit test — every other call in this suite
@@ -198,7 +199,7 @@ describe("SelfServiceAttendanceService", () => {
       await AttendanceRecordModel.create({
         organizationId,
         employeeId,
-        date: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())),
+        date: dateKeyToDate(localDateKey(now)),
         checkInAt: now,
         status: "present",
       });
@@ -227,6 +228,45 @@ describe("SelfServiceAttendanceService", () => {
         BusinessRuleError,
       );
     });
+  });
+
+  describe("calendar day (gap B3)", () => {
+    // 2026-11-15 18:00 UTC is 02:00 on 2026-11-16 in Manila: the record
+    // belongs to the 16th, the day the schedule and dashboard show.
+    const EARLY_MORNING_MANILA = new Date("2026-11-15T18:00:00Z");
+
+    it("files a 02:00 Manila clock-in under the Manila day, not the previous UTC day", async () => {
+      const { organizationId, employeeId, projectId } = await seedEmployeeWithSite("b3-in");
+      vi.useFakeTimers({ toFake: ["Date"], now: EARLY_MORNING_MANILA });
+
+      const record = await SelfServiceAttendanceService.checkIn(employeeId, organizationId, "user-b3", clockData({ projectId }), {});
+
+      expect(record.date.toISOString()).toBe("2026-11-16T00:00:00.000Z");
+      expect((await SelfServiceAttendanceService.getTodayRecord(employeeId, organizationId))?._id.toString()).toBe(record._id.toString());
+    });
+
+    it("finds the Manila day's record for a 07:00 Manila clock-out", async () => {
+      const { organizationId, employeeId, projectId } = await seedEmployeeWithSite("b3-out2");
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-15T17:00:00Z") }); // 01:00 Manila, 16th
+      await SelfServiceAttendanceService.checkIn(employeeId, organizationId, "user-b3p", clockData({ projectId }), {});
+
+      vi.setSystemTime(new Date("2026-11-15T23:00:00Z")); // 07:00 Manila, 16th (UTC is still the 15th)
+      const record = await SelfServiceAttendanceService.checkOut(employeeId, organizationId, "user-b3p", clockData(), {});
+      expect(record.date.toISOString()).toBe("2026-11-16T00:00:00.000Z");
+      expect(record.checkOutAt).toBeTruthy();
+    });
+  });
+
+  it("stores the day result: missing check-out after clock-in, measured time after clock-out (plan Phase 3)", async () => {
+    const { organizationId, employeeId, projectId } = await seedEmployeeWithSite("dr");
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-16T01:00:00Z") }); // 09:00 Manila
+    const checkedIn = await SelfServiceAttendanceService.checkIn(employeeId, organizationId, "user-dr", clockData({ projectId }), {});
+    expect(checkedIn.dayResult).toMatchObject({ workedMinutes: 0, flags: ["missing_checkout"] });
+
+    vi.setSystemTime(new Date("2026-11-16T10:00:00Z")); // 18:00 Manila
+    await SelfServiceAttendanceService.checkOut(employeeId, organizationId, "user-dr", clockData(), {});
+    const stored = await AttendanceRecordModel.findById(checkedIn._id).lean();
+    expect(stored?.dayResult).toMatchObject({ workedMinutes: 540, flags: [] });
   });
 
   it("returns null when there's no record for today yet", async () => {

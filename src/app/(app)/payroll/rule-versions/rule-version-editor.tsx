@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/form-field";
 import type { SelectOption } from "@/components/shared/option-select";
 import { PAY_FREQUENCY_LABELS, type PayFrequency } from "@/domains/payroll/engine/pay-frequency";
+import type { Form2316Box } from "@/domains/payroll/engine/year-end-tax";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,16 @@ export type EditorInitial = {
   basedOnLabel?: string;
   taxTables: { payFrequency: PayFrequency; brackets: EditorBracket[] }[];
   contributions: EditorContribution[];
+  // Year-end (payroll plan Phase 4). The box map isn't edited here; it carries over to the new version.
+  annualTaxTable?: EditorBracket[] | null;
+  benefitsExemptionCap?: number | null;
+  form2316Boxes?: Form2316Box[] | null;
+  form2316Excluded?: string[] | null;
 };
+
+// The annual table sits next to the per-frequency tables as one more tab.
+type TableKey = PayFrequency | "annual";
+const TABLE_LABELS: Record<TableKey, string> = { ...PAY_FREQUENCY_LABELS, annual: "Annual (year-end)" };
 
 // The form keeps numbers as strings while editing; rates are shown as percentages.
 type Cell = string;
@@ -47,7 +57,7 @@ type BracketDraft = { minIncome: Cell; maxIncome: Cell; baseDeduction: Cell; rat
 type RowDraft = { from: Cell; to: Cell; employeeRate: Cell; employerRate: Cell; employeeAmount: Cell; employerAmount: Cell; extraAmount: Cell };
 type ContributionDraft = { code: string; name: string; floor: Cell; ceiling: Cell; extraLabel: string; rows: RowDraft[] };
 
-const FREQUENCY_OPTIONS: SelectOption[] = (Object.keys(PAY_FREQUENCY_LABELS) as PayFrequency[]).map((id) => ({ id, label: PAY_FREQUENCY_LABELS[id] }));
+const FREQUENCY_OPTIONS: SelectOption[] = (Object.keys(TABLE_LABELS) as TableKey[]).map((id) => ({ id, label: TABLE_LABELS[id] }));
 
 function NumberCell({ value, onChange, label, placeholder }: { value: Cell; onChange: (value: Cell) => void; label: string; placeholder?: string }) {
   return <Input type="number" step="any" inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} placeholder={placeholder} className="h-8 min-w-20 px-2 text-right tabular-nums md:text-xs" />;
@@ -63,12 +73,13 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [effectiveFrom, setEffectiveFrom] = useState(localDateKey());
-  const [taxTables, setTaxTables] = useState(
-    initial.taxTables.map((table) => ({
+  const [taxTables, setTaxTables] = useState<{ payFrequency: TableKey; brackets: BracketDraft[] }[]>(
+    [...initial.taxTables, ...(initial.annualTaxTable?.length ? [{ payFrequency: "annual" as const, brackets: initial.annualTaxTable }] : [])].map((table) => ({
       payFrequency: table.payFrequency,
       brackets: table.brackets.map((bracket) => ({ minIncome: toCell(bracket.minIncome), maxIncome: toCell(bracket.maxIncome), baseDeduction: toCell(bracket.baseDeduction), rate: toCell(bracket.rate, true) })),
     })),
   );
+  const [benefitsCap, setBenefitsCap] = useState<Cell>(toCell(initial.benefitsExemptionCap));
   const [contributions, setContributions] = useState<ContributionDraft[]>(
     initial.contributions.map((rule) => ({
       code: rule.code,
@@ -98,7 +109,15 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
     updateContribution(ruleIndex, { rows: contributions[ruleIndex].rows.map((row, r) => (r === index ? { ...row, ...patch } : row)) });
 
   const usedFrequencies = new Set(taxTables.map((table) => table.payFrequency));
-  const missingFrequency = FREQUENCY_OPTIONS.find((option) => !usedFrequencies.has(option.id as PayFrequency));
+  const missingFrequency = FREQUENCY_OPTIONS.find((option) => !usedFrequencies.has(option.id as TableKey));
+  const bracketsOut = (brackets: BracketDraft[]) =>
+    brackets.map((bracket) => ({
+      minIncome: fromCell(bracket.minIncome) ?? 0,
+      maxIncome: fromCell(bracket.maxIncome),
+      baseDeduction: fromCell(bracket.baseDeduction) ?? 0,
+      rate: fromCell(bracket.rate, true) ?? 0,
+    }));
+  const annualTable = taxTables.find((table) => table.payFrequency === "annual");
 
   async function save() {
     setError(null);
@@ -113,15 +132,11 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
         description: description.trim() || undefined,
         effectiveFrom,
         basedOnVersionId: initial.basedOnVersionId,
-        taxTables: taxTables.map((table) => ({
-          payFrequency: table.payFrequency,
-          brackets: table.brackets.map((bracket) => ({
-            minIncome: fromCell(bracket.minIncome) ?? 0,
-            maxIncome: fromCell(bracket.maxIncome),
-            baseDeduction: fromCell(bracket.baseDeduction) ?? 0,
-            rate: fromCell(bracket.rate, true) ?? 0,
-          })),
-        })),
+        taxTables: taxTables.filter((table) => table.payFrequency !== "annual").map((table) => ({ payFrequency: table.payFrequency, brackets: bracketsOut(table.brackets) })),
+        annualTaxTable: annualTable ? bracketsOut(annualTable.brackets) : undefined,
+        benefitsExemptionCap: fromCell(benefitsCap),
+        form2316Boxes: initial.form2316Boxes ?? undefined,
+        form2316Excluded: initial.form2316Excluded ?? undefined,
         contributions: contributions.map((rule) => ({
           code: rule.code.trim(),
           name: rule.name.trim(),
@@ -174,7 +189,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
             <p className="text-sm text-muted-foreground">Tax = base tax + rate × (taxable pay − bracket start). One table per pay frequency.</p>
           </div>
           {missingFrequency && (
-            <Button size="sm" variant="outline" onClick={() => setTaxTables([...taxTables, { payFrequency: missingFrequency.id as PayFrequency, brackets: [{ minIncome: "0", maxIncome: "", baseDeduction: "0", rate: "0" }] }])}>
+            <Button size="sm" variant="outline" onClick={() => setTaxTables([...taxTables, { payFrequency: missingFrequency.id as TableKey, brackets: [{ minIncome: "0", maxIncome: "", baseDeduction: "0", rate: "0" }] }])}>
               <Plus className="size-3.5" />
               Add {missingFrequency.label.toLowerCase()} table
             </Button>
@@ -190,10 +205,20 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
               onClick={() => setActiveTax(index)}
               className={cn("-mb-px border-b-2 px-3 py-1.5 text-sm transition-colors", index === activeTax ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
             >
-              {PAY_FREQUENCY_LABELS[entry.payFrequency]}
+              {TABLE_LABELS[entry.payFrequency]}
             </button>
           ))}
         </div>
+        {table?.payFrequency === "annual" && (
+          <div className="flex flex-wrap items-end gap-3">
+            <p className="max-w-prose text-xs text-muted-foreground">
+              The year-end run taxes the year&apos;s pay with this table and settles the difference with what was withheld. 13th month pay and other benefits are exempt up to the limit; any excess is taxed at year-end.
+            </p>
+            <FormField label="Benefits exempt up to (₱/year)" htmlFor="rule-version-benefits-cap">
+              <Input id="rule-version-benefits-cap" type="number" step="any" inputMode="decimal" value={benefitsCap} onChange={(event) => setBenefitsCap(event.target.value)} className="w-40" />
+            </FormField>
+          </div>
+        )}
         {table && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

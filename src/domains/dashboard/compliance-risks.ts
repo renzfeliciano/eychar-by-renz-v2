@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/money";
 import { daysBetween, relativeDue, urgencyFor, type ActionItem } from "./action-queue";
 
 /**
@@ -73,12 +74,28 @@ export function regularizationRisks(
   });
 }
 
+/** What still holds up a final pay: unresolved red flags (and what they add up to) and blocking clearance items not yet done. */
+export type FinalPayIssues = { redFlags: number; flaggedAmount: number; blockingOpen: number };
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+function issuesNote(issues?: FinalPayIssues): string {
+  if (!issues) return "";
+  const parts = [
+    issues.redFlags ? `${plural(issues.redFlags, "red flag", "red flags")}${issues.flaggedAmount ? ` (${formatMoney(issues.flaggedAmount)})` : ""}` : null,
+    issues.blockingOpen ? `${plural(issues.blockingOpen, "blocking item", "blocking items")} open` : null,
+  ].filter(Boolean);
+  return parts.length ? ` · ${parts.join(" · ")}` : "";
+}
+
 /**
  * Separated employees whose final pay isn't out yet, against the
- * organization's deadline (days after the last working day).
+ * organization's deadline (days after the last working day). Each row also
+ * says what still stands in the way (`openIssues`), so the deadline is never
+ * read without the red flags behind it (HR concerns deck, Nov 2026).
  */
 export function finalPayRisks(
-  separations: { clearanceId: string; employeeName: string; lastWorkingDayKey: string; settlementId?: string; settlementStatus?: string | null }[],
+  separations: { clearanceId: string; employeeName: string; lastWorkingDayKey: string; settlementId?: string; settlementStatus?: string | null; openIssues?: FinalPayIssues }[],
   finalPayDays: number,
   todayKey: string,
 ): ActionItem[] {
@@ -92,7 +109,7 @@ export function finalPayRisks(
         id: `final-pay-${separation.clearanceId}`,
         kind: "final-pay",
         title: days < 0 ? `Final pay overdue: ${separation.employeeName}` : `Release ${separation.employeeName}'s final pay`,
-        detail: `Due ${relativeDue(todayKey, deadlineKey)} (${finalPayDays} days after the last working day)${separation.settlementStatus ? ` · settlement ${separation.settlementStatus}` : " · no settlement yet"}`,
+        detail: `Due ${relativeDue(todayKey, deadlineKey)} (${finalPayDays} days after the last working day)${separation.settlementStatus ? ` · settlement ${separation.settlementStatus}` : " · no settlement yet"}${issuesNote(separation.openIssues)}`,
         href: separation.settlementId ? `/final-settlements/${separation.settlementId}` : `/clearance/${separation.clearanceId}`,
         actionLabel: separation.settlementId ? "Open settlement" : "Open clearance",
         urgency: urgencyFor(todayKey, deadlineKey, 7, 14),

@@ -37,7 +37,9 @@ describe("clearanceRedFlags", () => {
 
     expect(clearanceRedFlags(cases, settled("draft"), names)[0]).toMatchObject({ stage: "in-settlement", resolution: "To be deducted from final pay · settlement draft" });
     expect(clearanceRedFlags(cases, settled("draft", false), names)[0]).toMatchObject({ stage: "not-in-settlement", resolution: "Not yet in the final settlement (draft) · recompute it" });
+    expect(clearanceRedFlags(cases, settled("submitted", false), names)[0]).toMatchObject({ resolution: "Not yet in the final settlement (awaiting review) · on hold until it's returned and recomputed" });
     expect(clearanceRedFlags(cases, settled("approved"), names)[0]).toMatchObject({ stage: "approved", resolution: "Deduction approved · final pay not yet released" });
+    expect(clearanceRedFlags(cases, settled("approved", false), names)[0]).toMatchObject({ stage: "approved", resolution: "Not in the approved settlement · release on hold until it's returned and recomputed" });
     expect(clearanceRedFlags(cases, settled("cancelled"), names)[0].stage).toBe("no-settlement");
     expect(clearanceRedFlags(cases, settled("disbursed"), names)).toEqual([]);
   });

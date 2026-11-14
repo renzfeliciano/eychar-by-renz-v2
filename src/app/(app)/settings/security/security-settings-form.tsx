@@ -7,6 +7,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/form-field";
+import { SESSION_IDLE_MS, SESSION_IDLE_WARNING_MS } from "@/lib/session-idle";
 
 /** Idle sign-out rules for everyone in the organization, staff and self-service alike. */
 export function SecuritySettingsForm({ organizationId, idleTimeoutSeconds, idleWarningSeconds }: { organizationId: string; idleTimeoutSeconds: number; idleWarningSeconds: number }) {
@@ -47,11 +48,11 @@ export function SecuritySettingsForm({ organizationId, idleTimeoutSeconds, idleW
           <Input id="security-warning" type="number" min={1} value={warnAfter} onChange={(event) => setWarnAfter(event.target.value)} placeholder="e.g. 45" />
         </FormField>
         <FormField label="Sign out after (seconds idle)" htmlFor="security-idle" required>
-          <Input id="security-idle" type="number" min={30} max={86400} value={timeoutValue} onChange={(event) => setTimeoutValue(event.target.value)} placeholder="e.g. 60" />
+          <Input id="security-idle" type="number" min={30} max={86400} value={timeoutValue} onChange={(event) => setTimeoutValue(event.target.value)} placeholder={`e.g. ${SESSION_IDLE_MS / 1000}`} />
         </FormField>
       </div>
       <p className="text-xs text-muted-foreground">
-        Default: warning at 45 seconds, sign-out at 60. Applies to every account, including the self-service clock portal. Activity in any open tab counts. A session also ends when the same account signs in somewhere else.
+        Default: a warning {SESSION_IDLE_WARNING_MS / 1000} seconds before sign-out, which happens after {SESSION_IDLE_MS / 60_000} minutes without activity (ADR-030). Applies to every account, including the self-service clock portal. Activity in any open tab counts. A session also ends when the same account signs in somewhere else.
       </p>
       <FormError message={error} />
       <Button type="submit" className="self-start" icon={Save} pending={isSaving} pendingLabel="Saving…">

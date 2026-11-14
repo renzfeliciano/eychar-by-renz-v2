@@ -24,6 +24,8 @@ export type RegisterInput = {
   periodLabel: string;
   payDateLabel: string;
   statusLabel: string;
+  /** The run type's label (Regular, 13th month, …); optional for callers that predate run types. */
+  runTypeLabel?: string;
   records: RegisterRecord[];
 };
 
@@ -139,7 +141,7 @@ export function buildRegisterWorkbook(input: RegisterInput): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = BRAND.fullName;
   workbook.created = new Date();
-  const subtitle = `${input.scopeLabel} · ${input.periodLabel} · pay date ${input.payDateLabel} · ${input.statusLabel}`;
+  const subtitle = `${input.runTypeLabel ? `${input.runTypeLabel} · ` : ""}${input.scopeLabel} · ${input.periodLabel} · pay date ${input.payDateLabel} · ${input.statusLabel}`;
   const employeesLabel = `Total (${input.records.length} employee${input.records.length === 1 ? "" : "s"})`;
 
   const { headers, rows, contributions } = registerRows(input);

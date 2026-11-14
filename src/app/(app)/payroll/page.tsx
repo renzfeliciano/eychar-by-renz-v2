@@ -8,7 +8,7 @@ import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { PayrollScheduleService } from "@/domains/payroll/payroll-schedule-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { userDisplayNames } from "@/domains/identity/user-directory";
-import { PAYROLL_RUN_STATUS_LABELS, formatPeso } from "@/domains/payroll/payroll-labels";
+import { PAYROLL_RUN_STATUS_LABELS, PAYROLL_RUN_TYPE_LABELS, formatPeso, runTypeOf } from "@/domains/payroll/payroll-labels";
 import { dateToDateKey, formatDateKey, formatDateRange, localDateKey } from "@/lib/date-key";
 import { parseTableQuery, applyTableQuery, buildTableHref } from "@/lib/table-query";
 import { PageHeader } from "@/components/shared/page-header";
@@ -17,6 +17,8 @@ import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "./payroll-status-badge";
 import { NewRunDialog, type RunSuggestion } from "./new-run-dialog";
+import { ThirteenthMonthRunDialog } from "./thirteenth-month-run-dialog";
+import { YearEndRunDialog } from "./year-end-run-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll runs" };
@@ -92,7 +94,11 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
         description="Prepare, review and approve each cutoff's payroll, per project or for everyone, then release it once paid."
         action={
           canCreate ? (
-            <NewRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} suggestions={suggestions} />
+            <div className="flex flex-wrap items-center gap-2">
+              <ThirteenthMonthRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} currentYear={Number(today.slice(0, 4))} />
+              <YearEndRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} currentYear={Number(today.slice(0, 4))} />
+              <NewRunDialog organizationId={organizationId} projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))} suggestions={suggestions} />
+            </div>
           ) : undefined
         }
       />
@@ -148,6 +154,7 @@ export default async function PayrollRunsPage({ searchParams }: { searchParams: 
                   <Link href={`/payroll/${run._id.toString()}`} className="font-medium text-primary hover:underline" data-testid="payroll-run-link">
                     {run.runNumber}
                   </Link>
+                  {runTypeOf(run) !== "regular" && <span className="text-xs text-muted-foreground">{PAYROLL_RUN_TYPE_LABELS[runTypeOf(run)]}</span>}
                   {run.source?.type === "schedule" && (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                       <CalendarClock className="size-3" aria-hidden="true" />

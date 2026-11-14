@@ -123,8 +123,16 @@ table editor. Nothing in code reads the numbers.
   - An approver can approve the run, or return it to draft with a reason.
   - Release records the paid date and payment reference, and locks the run.
   - Cancelling (draft or submitted only) needs a reason. Runs are never deleted.
-- **Permissions:** prepare, edit, submit and cancel use `payroll-runs.update`. Approve and return
-  use `payroll.approve`. Release uses `payroll.release`.
+- **Permissions:** prepare uses `payroll-runs.create`. Edit (adjustments), recompute, submit and
+  cancel use `payroll-runs.update`. Approve and return use `payroll.approve`. Release uses
+  `payroll.release`. (Corrected 2026-11-14 to match `src/app/api/payroll-runs/route.ts` and
+  `PERMISSION_BY_ACTION` in `src/app/api/payroll-runs/[id]/route.ts`; this ADR first said prepare used
+  `payroll-runs.update`.)
+- **Run integrity (added 2026-11-14, payroll plan Phase 1):** a run that leaves employees out can be
+  submitted only with a reason for each, recorded on the run, in its history and in the audit entry.
+  Adding or removing an adjustment is undone if the recompute fails. A draft shows a notice when a
+  newer policy or rule version now applies, but keeps its snapshot; to use the newer one, cancel and
+  prepare again.
 - **Reproducibility:**
   - Each record stores the inputs that produced it: rate, rates used, the attendance summary and
     the lines.

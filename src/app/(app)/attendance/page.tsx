@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { clockTime } from "@/lib/app-time";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
-import { AttendanceService } from "@/domains/attendance/attendance-service";
+import { AttendanceService, appCalendarDate } from "@/domains/attendance/attendance-service";
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { formatDistance } from "@/domains/attendance/geofence";
@@ -53,7 +53,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     return <NoAccessState permission="attendance.read" message="You don't have access to view attendance." />;
   }
 
-  const date = dateParam ? new Date(dateParam) : new Date();
+  const date = dateParam ? new Date(dateParam) : appCalendarDate();
   const canRecord = await hasPermission("attendance.create", organizationId);
   const tableQuery = parseTableQuery(params);
 

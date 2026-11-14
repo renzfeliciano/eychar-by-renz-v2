@@ -30,6 +30,8 @@ type Props = {
 };
 
 function attendanceSummary(row: RegisterRow): string {
+  if (row.thirteenthMonth) return `Basic ${formatPeso(row.thirteenthMonth.basicEarned + row.thirteenthMonth.estimatedBasic)} ÷ ${row.thirteenthMonth.divisor}`;
+  if (row.yearEnd) return `Tax due ${formatPeso(row.yearEnd.taxDue)} · withheld ${formatPeso(row.yearEnd.presentWithheld + row.yearEnd.previousWithheld)}`;
   const parts = [`${row.attendance.daysWorked} worked`];
   if (row.attendance.paidLeaveDays) parts.push(`${row.attendance.paidLeaveDays} leave`);
   if (row.attendance.absentDays) parts.push(`${row.attendance.absentDays} absent`);
@@ -227,14 +229,32 @@ function Payslip({
         )}
 
         <dl className="grid grid-cols-3 gap-2 text-center">
-          {[
+          {(row.yearEnd
+            ? [
+                ["Taxable, here", formatPeso(row.yearEnd.presentTaxable)],
+                ["Taxable, previous", row.yearEnd.previousTaxable ? formatPeso(row.yearEnd.previousTaxable) : "—"],
+                ["Tax due", formatPeso(row.yearEnd.taxDue)],
+                ["Withheld, here", formatPeso(row.yearEnd.presentWithheld)],
+                ["Withheld, previous", row.yearEnd.previousWithheld ? formatPeso(row.yearEnd.previousWithheld) : "—"],
+                [row.yearEnd.difference > 0 ? "To collect" : row.yearEnd.difference < 0 ? "To refund" : "Difference", formatPeso(Math.abs(row.yearEnd.difference))],
+              ]
+            : row.thirteenthMonth
+            ? [
+                ["Basic earned", formatPeso(row.thirteenthMonth.basicEarned)],
+                ["Estimated", row.thirteenthMonth.estimatedBasic ? formatPeso(row.thirteenthMonth.estimatedBasic) : "—"],
+                ["Divided by", row.thirteenthMonth.divisor],
+                ["Already paid", row.thirteenthMonth.alreadyPaid ? formatPeso(row.thirteenthMonth.alreadyPaid) : "—"],
+                ["Months with pay", row.thirteenthMonth.monthsWithPay],
+                ["Year", row.thirteenthMonth.year],
+              ]
+            : [
             ["Days worked", row.attendance.daysWorked + (row.attendance.restDaysWorked ? ` + ${row.attendance.restDaysWorked}` : "")],
             ["Absent", row.attendance.absentDays],
             ["Late/undertime", shortMinutes ? `${shortMinutes} min` : "—"],
             ["Paid leave", row.attendance.paidLeaveDays],
             ["Daily rate", formatPeso(row.dailyRate)],
             ["Hourly rate", formatPeso(row.hourlyRate)],
-          ].map(([label, value]) => (
+          ]).map(([label, value]) => (
             <div key={label} className="rounded-lg bg-muted/50 px-2 py-2">
               <dt className="text-[11px] text-muted-foreground">{label}</dt>
               <dd className="text-sm font-medium tabular-nums">{value}</dd>

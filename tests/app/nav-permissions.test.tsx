@@ -54,6 +54,14 @@ describe("navigation by permission", () => {
     expect(screen.getByTestId("nav-link-setup")).toHaveAttribute("href", "/leave/policies");
   });
 
+  it("lists Complaints in More directly after Performance, behind complaints.read", () => {
+    const more = NAV_SECTIONS.find((section) => section.label === "More")!.items.map((item) => item.href);
+    expect(more.indexOf("/complaints")).toBe(more.indexOf("/performance") + 1);
+    const complaints = ITEMS.find((item) => item.href === "/complaints")!;
+    expect(canSeeNavItem(complaints, { heldPermissions: ["complaints.read"] })).toBe(true);
+    expect(canSeeNavItem(complaints, { heldPermissions: ["performance-evaluations.read"] })).toBe(false);
+  });
+
   it("opens Catalogs to anyone who can read one catalog", () => {
     const catalogs = ITEMS.find((item) => item.href === "/settings/catalogs")!;
     expect(canSeeNavItem(catalogs, { heldPermissions: ["case-statuses.read"] })).toBe(true);
@@ -71,7 +79,7 @@ describe("navigation by permission", () => {
     // Every page but the dashboard is gated somehow.
     expect(ITEMS.filter((item) => !item.permission && !item.anyPermission && !item.superAdminOnly).map((item) => item.href)).toEqual(["/dashboard"]);
     // Nothing that was in the sidebar before the regrouping got lost.
-    expect(ITEMS).toHaveLength(32);
+    expect(ITEMS).toHaveLength(33);
   });
 
   it("keeps the catalog permission list in step with the catalog registry", async () => {

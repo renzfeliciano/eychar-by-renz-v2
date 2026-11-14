@@ -34,6 +34,10 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { EmploymentService } from "@/domains/workforce/employment-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
+import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
+import { EducationLevelService } from "@/domains/catalog/education-level-service";
+import { educationLevelName, educationLevelOptions } from "@/domains/catalog/education-level-options";
+import { endReasonChoices } from "@/domains/workforce/end-reasons";
 import { contractEndOf, requiresEndOfContract } from "@/domains/workforce/contract-terms";
 import { userDisplayNames } from "@/domains/identity/user-directory";
 import { missingGovernmentIds, profileAttention, type AttentionTone } from "@/domains/workforce/profile-summary";
@@ -58,7 +62,11 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PageTabs } from "@/components/shared/page-tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TerminateButton } from "./terminate-button";
+import { EndEmploymentDialog } from "./end-employment-dialog";
+import { EditEndingDialog } from "./edit-ending-dialog";
+import { ReinstateDialog } from "./reinstate-dialog";
+import { EducationBackgroundCard } from "./education-background-card";
+import { EducationRecordService, toEducationRecordView, type EducationRecordView } from "@/domains/people/education-record-service";
 import { ChangeEmploymentDialog } from "./change-employment-dialog";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { CreateEmployeeAccountDialog } from "./create-employee-account-dialog";
@@ -153,8 +161,11 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const load = <T,>(when: boolean, query: () => Promise<T>, empty: T): Promise<T> => (when ? query() : Promise.resolve(empty));
 
   const now = new Date();
-  const [employmentTypes, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
+  const [employmentTypes, employmentStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
     EmploymentTypeService.listCurrent(organizationId),
+    EmploymentStatusService.listCurrent(organizationId),
+    EducationLevelService.listCurrent(organizationId),
+    load(on("overview"), async () => (await EducationRecordService.listForEmployee(id, organizationId)).map(toEducationRecordView), [] as EducationRecordView[]),
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmployeeAccountService.getForEmployee(id, organizationId),
@@ -167,6 +178,20 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
     load(can["compensation.read"] && (on("overview") || on("pay")), () => CompensationService.listHistory(id, organizationId), []),
     load(can["clearance.read"] && (on("overview") || on("offboarding")), () => EmployeeRecords.offboarding(id, organizationId), []),
   ]);
+  // What ends employment is catalog data. HR picks from these when ending, or correcting how it ended.
+  const endReasons = canUpdate ? endReasonChoices(employmentStatuses) : [];
+  const statusNameByCode = new Map(employmentStatuses.map((status) => [status.code, status.name]));
+  // For an ended employee: whether Reinstate is blocked and whether the last day is locked, in the server's own words.
+  const endingState = canUpdate && detail.currentEmployment && !isCurrentlyActive ? await EmploymentService.getEndingState(id, organizationId) : null;
+  type EndingEntry = { action: "ended" | "ending_corrected" | "reinstated"; status: string; effectiveTo?: Date | null; reason?: string | null; changedAt: Date };
+  const endingHistory = ((detail.currentEmployment?.endingHistory ?? []) as EndingEntry[]).map((entry) => ({
+    action: entry.action,
+    statusName: statusNameByCode.get(entry.status) ?? entry.status,
+    lastDayKey: entry.effectiveTo ? new Date(entry.effectiveTo).toISOString().slice(0, 10) : null,
+    reason: entry.reason ?? null,
+    at: new Date(entry.changedAt).toISOString(),
+  }));
+
   const [issuedAssets, attendance, payslips, travelOrders, reviews] = await Promise.all([
     load(can["asset-issuances.read"] && on("assets"), () => AssetIssuanceService.listForEmployee(id, organizationId), []),
     load(on("attendance"), () => AttendanceService.listForEmployee(id, organizationId, { from: new Date(now.getTime() - ATTENDANCE_DAYS * 86_400_000) }), []),
@@ -260,6 +285,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               {detail.currentEmployment && <StatusBadge status={detail.currentEmployment.status} />}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{[positionTitle, projectName, typeLabel].filter(Boolean).join(" · ") || "No current assignment"}</p>
+            {detail.person?.educationLevelCode && (
+              <p className="mt-1 text-sm" data-testid="profile-education">
+                <span className="text-muted-foreground">Education: </span>
+                {educationLevelName(educationLevels, detail.person.educationLevelCode)}
+              </p>
+            )}
             {detail.person?.remarks && (
               <p className="mt-1 text-sm" data-testid="profile-remarks">
                 <span className="text-muted-foreground">Remarks: </span>
@@ -281,11 +312,40 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                 todayKey={localDateKey(now)}
               />
             )}
-            {canUpdate && isCurrentlyActive && <TerminateButton employeeId={employeeId} organizationId={organizationId} />}
+            {canUpdate && isCurrentlyActive && endReasons.length > 0 && (
+              <EndEmploymentDialog
+                organizationId={organizationId}
+                employeeId={employeeId}
+                employeeName={personName}
+                reasons={endReasons}
+                todayKey={localDateKey(now)}
+                hiredKey={hiredOn ? hiredOn.toISOString().slice(0, 10) : null}
+              />
+            )}
+            {endingState?.ended && detail.currentEmployment?.effectiveTo && (
+              <>
+                <EditEndingDialog
+                  organizationId={organizationId}
+                  employeeId={employeeId}
+                  employeeName={personName}
+                  reasons={endReasons}
+                  todayKey={localDateKey(now)}
+                  hiredKey={hiredOn ? hiredOn.toISOString().slice(0, 10) : null}
+                  current={{
+                    status: detail.currentEmployment.status,
+                    effectiveToKey: new Date(detail.currentEmployment.effectiveTo).toISOString().slice(0, 10),
+                    note: detail.currentEmployment.terminationReason ?? "",
+                  }}
+                  lastDayLockedReason={endingState.lastDayLockedReason}
+                />
+                <ReinstateDialog organizationId={organizationId} employeeId={employeeId} employeeName={personName} blockedReason={endingState.reinstateBlockedReason} />
+              </>
+            )}
             {canUpdate && detail.person && (
               <EditEmployeeDialog
                 organizationId={organizationId}
                 employeeId={employeeId}
+                educationLevels={educationLevelOptions(educationLevels, detail.person.educationLevelCode)}
                 initialValue={{
                   firstName: detail.person.firstName,
                   middleName: detail.person.middleName,
@@ -297,6 +357,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   phone: detail.person.phone,
                   address: detail.person.address,
                   remarks: detail.person.remarks,
+                  educationLevelCode: detail.person.educationLevelCode,
                   sssNumber: detail.person.sssNumber,
                   philHealthNumber: detail.person.philHealthNumber,
                   pagIbigNumber: detail.person.pagIbigNumber,
@@ -419,6 +480,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               </CardContent>
             </Card>
           </div>
+
+          <EducationBackgroundCard organizationId={organizationId} employeeId={employeeId} employeeName={personName} records={educationRecords} levels={educationLevels.map(({ code, name, status, sortOrder }) => ({ code, name, status, sortOrder }))} canUpdate={canUpdate} />
         </div>
       )}
 
@@ -426,6 +489,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
         <JobTab
           organizationId={organizationId}
           employeeId={employeeId}
+          endingHistory={endingHistory}
           assignmentHistory={detail.assignmentHistory}
           employment={
             detail.currentEmployment
