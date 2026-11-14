@@ -148,6 +148,53 @@ describe("AttendanceService", () => {
     expect(audits[0].after).toMatchObject({ status: "present" });
   });
 
+  it("recomputes present/late when an adjustment changes the check-in and sends no status", async () => {
+    const { organization, employee } = await seedEmployeeWithPolicy("adj-1");
+    const date = todayUtc();
+    const record = await AttendanceService.record(
+      { organizationId: organization._id.toString(), employeeId: employee._id.toString(), date, checkInAt: atLocalTime(date, 9, 25) },
+      {},
+    );
+    expect(record.status).toBe("late");
+
+    const adjusted = await AttendanceService.adjust(record._id.toString(), organization._id.toString(), { checkInAt: atLocalTime(date, 9, 5) }, {});
+
+    expect(adjusted.status).toBe("present");
+    const [audit] = await AuditLogModel.find({ resourceId: record._id, action: "attendance.adjusted" }).lean();
+    expect(audit.before).toMatchObject({ status: "late" });
+    expect(audit.after).toMatchObject({ status: "present" });
+
+    const lateAgain = await AttendanceService.adjust(record._id.toString(), organization._id.toString(), { checkInAt: atLocalTime(date, 9, 40) }, {});
+    expect(lateAgain.status).toBe("late");
+  });
+
+  it("keeps an explicit status on adjust, and never recomputes a status HR set that isn't present/late", async () => {
+    const { organization, employee } = await seedEmployeeWithPolicy("adj-2");
+    const date = todayUtc();
+    const organizationId = organization._id.toString();
+    const late = await AttendanceService.record({ organizationId, employeeId: employee._id.toString(), date, checkInAt: atLocalTime(date, 9, 25) }, {});
+
+    const explicit = await AttendanceService.adjust(late._id.toString(), organizationId, { checkInAt: atLocalTime(date, 9, 0), status: "late" }, {});
+    expect(explicit.status).toBe("late");
+
+    const other = await EmployeeModel.create({ organizationId, personId: employee.personId, employeeNumber: `EMP-adj-2b-${Math.random()}` });
+    const onLeave = await AttendanceService.record({ organizationId, employeeId: other._id.toString(), date, status: "on_leave" }, {});
+    const kept = await AttendanceService.adjust(onLeave._id.toString(), organizationId, { checkInAt: atLocalTime(date, 9, 30) }, {});
+    expect(kept.status).toBe("on_leave");
+  });
+
+  it("does not touch the status when an adjustment changes only notes or check-out", async () => {
+    const { organization, employee } = await seedEmployeeWithPolicy("adj-3");
+    const date = todayUtc();
+    const organizationId = organization._id.toString();
+    // Stored "present" by HR even though the time is late: an adjust that
+    // doesn't change the check-in must leave that decision alone.
+    const record = await AttendanceService.record({ organizationId, employeeId: employee._id.toString(), date, checkInAt: atLocalTime(date, 9, 25), status: "present" }, {});
+
+    const adjusted = await AttendanceService.adjust(record._id.toString(), organizationId, { checkOutAt: atLocalTime(date, 18, 0), notes: "ok" }, {});
+    expect(adjusted.status).toBe("present");
+  });
+
   it("leaves clock photos out of list results (roster/dashboard never render them)", async () => {
     const { organization, employee } = await seedEmployeeWithPolicy("8");
     const date = todayUtc();
@@ -279,5 +326,24 @@ describe("AttendanceService.dayRoster", () => {
     const second = await AttendanceService.dayRoster(organizationId, day, { page: 2, pageSize: 2 });
     expect(second.rows.map((row) => row._id.toString())).toEqual([separated]);
     expect(second.total).toBe(3);
+  });
+
+  it("shows each person's project as of the roster's day, not their latest assignment", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-att-day-asof-${Date.now()}-${Math.random()}` });
+    const organizationId = organization._id.toString();
+    await EmploymentStatusService.create({ organizationId, code: "active", name: "Active", metadata: { isActiveHeadcount: true } }, {});
+    const siteA = await ProjectModel.create({ organizationId, name: "Site A", code: `A-${Math.random()}` });
+    const siteB = await ProjectModel.create({ organizationId, name: "Site B", code: `B-${Math.random()}` });
+    const person = await PersonModel.create({ organizationId, firstName: "Mover", lastName: "Doe" });
+    const employee = await EmployeeModel.create({ organizationId, personId: person._id, employeeNumber: `EMP-mover-${Math.random()}` });
+    await EmploymentModel.create({ organizationId, employeeId: employee._id, employmentType: "regular", status: "active", effectiveFrom: new Date(Date.UTC(2025, 0, 1)) });
+    await EmployeeAssignmentModel.create({ organizationId, employeeId: employee._id, projectId: siteA._id, effectiveFrom: new Date(Date.UTC(2025, 0, 1)), effectiveTo: new Date(Date.UTC(2026, 2, 10)) });
+    await EmployeeAssignmentModel.create({ organizationId, employeeId: employee._id, projectId: siteB._id, effectiveFrom: new Date(Date.UTC(2026, 2, 10)) });
+
+    const before = await AttendanceService.dayRoster(organizationId, new Date(Date.UTC(2026, 2, 3)), { page: 1, pageSize: 10 });
+    expect(before.rows[0].currentAssignment?.projectId?.toString()).toBe(siteA._id.toString());
+
+    const after = await AttendanceService.dayRoster(organizationId, new Date(Date.UTC(2026, 2, 20)), { page: 1, pageSize: 10 });
+    expect(after.rows[0].currentAssignment?.projectId?.toString()).toBe(siteB._id.toString());
   });
 });

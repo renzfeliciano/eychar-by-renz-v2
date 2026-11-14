@@ -18,6 +18,7 @@ import {
 import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/form-field";
 import { OptionSelect } from "@/components/shared/option-select";
 import { cn } from "@/lib/utils";
+import { ATTENDANCE_TIME_RULE_DEFAULTS } from "@/domains/attendance/day-calc";
 
 type ProjectOption = { id: string; label: string };
 
@@ -29,6 +30,11 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
   const [standardStartTime, setStandardStartTime] = useState("09:00");
   const [standardEndTime, setStandardEndTime] = useState("18:00");
   const [gracePeriodMinutes, setGracePeriodMinutes] = useState("10");
+  // Optional time rules: blank sends nothing, and the day calculation's defaults apply.
+  const [breakMinutes, setBreakMinutes] = useState("");
+  const [roundingMinutes, setRoundingMinutes] = useState("");
+  const [nightStartTime, setNightStartTime] = useState("");
+  const [nightEndTime, setNightEndTime] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,6 +53,10 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
         standardStartTime,
         standardEndTime,
         gracePeriodMinutes: Number(gracePeriodMinutes),
+        breakMinutes: breakMinutes.trim() ? Number(breakMinutes) : undefined,
+        roundingMinutes: roundingMinutes.trim() ? Number(roundingMinutes) : undefined,
+        nightStartTime: nightStartTime || undefined,
+        nightEndTime: nightEndTime || undefined,
       }),
     });
 
@@ -72,6 +82,10 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
       setStandardStartTime("09:00");
       setStandardEndTime("18:00");
       setGracePeriodMinutes("10");
+      setBreakMinutes("");
+      setRoundingMinutes("");
+      setNightStartTime("");
+      setNightEndTime("");
       setError(null);
     }
     setOpen(nextOpen);
@@ -105,6 +119,20 @@ export function CreatePolicyDialog({ organizationId, projects }: { organizationI
           <FormField label="Grace (min)" htmlFor="policy-grace" required>
             <Input id="policy-grace" type="number" min={0} placeholder="e.g. 15" value={gracePeriodMinutes} onChange={(event) => setGracePeriodMinutes(event.target.value)} required />
           </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Unpaid break (min)" htmlFor="policy-break" description="For days with no scheduled shift. Blank for none.">
+              <Input id="policy-break" type="number" inputMode="numeric" min={0} max={480} step={5} placeholder="e.g. 60" value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} />
+            </FormField>
+            <FormField label="Round to (min)" htmlFor="policy-rounding" description="Late, undertime, overtime and night minutes round down to this block. Blank for exact minutes.">
+              <Input id="policy-rounding" type="number" inputMode="numeric" min={0} max={60} placeholder="e.g. 15" value={roundingMinutes} onChange={(event) => setRoundingMinutes(event.target.value)} />
+            </FormField>
+            <FormField label="Night starts" htmlFor="policy-night-start" description="Night differential window.">
+              <Input id="policy-night-start" type="time" placeholder={ATTENDANCE_TIME_RULE_DEFAULTS.nightStartTime} value={nightStartTime} onChange={(event) => setNightStartTime(event.target.value)} />
+            </FormField>
+            <FormField label="Night ends" htmlFor="policy-night-end" description={`Blank uses ${ATTENDANCE_TIME_RULE_DEFAULTS.nightStartTime}–${ATTENDANCE_TIME_RULE_DEFAULTS.nightEndTime}.`}>
+              <Input id="policy-night-end" type="time" placeholder={ATTENDANCE_TIME_RULE_DEFAULTS.nightEndTime} value={nightEndTime} onChange={(event) => setNightEndTime(event.target.value)} />
+            </FormField>
+          </div>
           <FormError message={error} />
         </form>
         <DialogFooter>

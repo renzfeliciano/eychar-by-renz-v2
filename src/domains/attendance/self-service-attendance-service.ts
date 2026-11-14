@@ -8,8 +8,9 @@ import { AttendancePhotoStorage, type PhotoStorage } from "@/server/storage/atte
 import { AttendanceStatusService } from "@/domains/catalog/attendance-status-service";
 import { WebAuthnService } from "@/domains/identity/webauthn-service";
 import { AttendancePolicyService } from "./attendance-policy-service";
-import { computeStatus, toCalendarDateUtc } from "./attendance-service";
+import { appCalendarDate, computeStatus } from "./attendance-service";
 import { ClockSiteService, type ClockSite } from "./clock-site-service";
+import { buildDayResult } from "./day-result";
 import { evaluateGeofence, formatDistance, type GeofenceResult } from "./geofence";
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/shared/errors";
 import type { LivenessChallenge } from "@/shared/validation/attendance";
@@ -108,13 +109,15 @@ export const SelfServiceAttendanceService = {
     const geofence = await assertWithinSite("check_in", data, site, { employeeId, organizationId, actorUserId: actor.userId });
 
     const now = new Date();
-    const date = toCalendarDateUtc(now);
+    const date = appCalendarDate(now);
     // The site actually worked today decides the policy — not the
     // assignment's home project — so a rotating employee is measured
     // against that site's schedule.
     const resolved = await AttendancePolicyService.resolve({ organizationId, projectId: site.projectId, effectiveDate: date });
     const status = computeStatus(now, resolved?.policy ?? null);
     await AttendanceStatusService.assertValidCode(organizationId, status);
+    // Until clock-out the day is flagged missing_checkout and counts nothing as worked.
+    const dayResult = await buildDayResult({ organizationId, employeeId, date, checkInAt: now, projectId: site.projectId, policyId: resolved?.policy._id });
 
     // Stored only once every check has passed, so a blocked attempt never
     // leaves a photo behind.
@@ -131,6 +134,7 @@ export const SelfServiceAttendanceService = {
         status,
         policyId: resolved?.policy._id,
         checkIn: toClockEvent(data, photo, now, site, geofence),
+        dayResult,
       });
     } catch (error) {
       await discardPhoto(photo);
@@ -158,7 +162,7 @@ export const SelfServiceAttendanceService = {
     await WebAuthnService.verifyAuthentication(userId, data.webAuthn);
 
     const now = new Date();
-    const date = toCalendarDateUtc(now);
+    const date = appCalendarDate(now);
 
     const record = await AttendanceRecordModel.findOne({
       organizationId: new Types.ObjectId(organizationId),
@@ -179,12 +183,13 @@ export const SelfServiceAttendanceService = {
     record.projectId ??= new Types.ObjectId(site.projectId);
     record.checkOutAt = now;
     record.checkOut = toClockEvent(data, photo, now, site, geofence);
+    record.dayResult = await buildDayResult(record);
     // Saved only if no other clock-out landed first (two tabs or devices at once).
     let saved;
     try {
       saved = await AttendanceRecordModel.updateOne(
         { _id: record._id, checkOutAt: null },
-        { $set: { projectId: record.projectId, checkOutAt: record.checkOutAt, checkOut: record.checkOut } },
+        { $set: { projectId: record.projectId, checkOutAt: record.checkOutAt, checkOut: record.checkOut, dayResult: record.dayResult } },
       );
     } catch (error) {
       await discardPhoto(photo);
@@ -209,7 +214,7 @@ export const SelfServiceAttendanceService = {
 
   async getTodayRecord(employeeId: string, organizationId: string) {
     await connectMongoDB();
-    const date = toCalendarDateUtc(new Date());
+    const date = appCalendarDate();
     return AttendanceRecordModel.findOne({
       organizationId: new Types.ObjectId(organizationId),
       employeeId: new Types.ObjectId(employeeId),

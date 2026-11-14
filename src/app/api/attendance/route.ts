@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccessibleProjects, requirePermission, requireProjectAccess } from "@/server/authorization";
-import { AttendanceService } from "@/domains/attendance/attendance-service";
+import { AttendanceService, appCalendarDate } from "@/domains/attendance/attendance-service";
 import { recordAttendanceSchema } from "@/shared/validation/attendance";
 import { organizationIdParamSchema } from "@/shared/validation/organization";
 import { toErrorResponse } from "@/shared/errors/to-response";
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const dateParam = request.nextUrl.searchParams.get("date");
     const employeeId = request.nextUrl.searchParams.get("employeeId");
     const projectId = request.nextUrl.searchParams.get("projectId") ?? undefined;
-    const date = dateParam ? new Date(dateParam) : new Date();
+    const date = dateParam ? new Date(dateParam) : appCalendarDate();
 
     let records;
     if (employeeId) {

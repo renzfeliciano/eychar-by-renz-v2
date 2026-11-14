@@ -16,6 +16,7 @@ const scheduledShiftSchema = new Schema(
     endTime: { type: String },
     latestStartTime: { type: String },
     requiredHours: { type: Number },
+    breakMinutes: { type: Number },
     // HR set this day's own hours instead of the shift's.
     customTimes: { type: Boolean },
   },

@@ -70,6 +70,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
     endTime: shift.endTime ?? null,
     latestStartTime: shift.latestStartTime ?? null,
     requiredHours: shift.requiredHours ?? null,
+    breakMinutes: shift.breakMinutes ?? null,
     status: shift.status,
   }));
   const projectOptions = projects

@@ -53,6 +53,26 @@ describe("ShiftTemplatesDialog", () => {
     expect(body.endTime).toBeUndefined();
   });
 
+  it("sends the unpaid break for a work shift, and clears it when an edit empties the field", async () => {
+    const user = userEvent.setup();
+    render(<ShiftTemplatesDialog organizationId="org1" shifts={[{ ...DAY, breakMinutes: 60 }]} />);
+    await user.click(screen.getByTestId("schedule-shifts-button"));
+
+    await user.type(screen.getByLabelText(/^Name/), "Office");
+    await user.type(screen.getByLabelText(/^Code/), "of");
+    fireEvent.change(screen.getByLabelText(/Unpaid break/), { target: { value: "60" } });
+    await user.click(screen.getByTestId("shift-submit-button"));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ breakMinutes: 60 });
+
+    await user.click(screen.getByRole("button", { name: /Edit Day/i }));
+    expect(screen.getByLabelText(/Unpaid break/)).toHaveValue(60);
+    fireEvent.change(screen.getByLabelText(/Unpaid break/), { target: { value: "" } });
+    await user.click(screen.getByTestId("shift-submit-button"));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ breakMinutes: "" });
+  });
+
   it("describes flexi and fixed hours in the list", () => {
     expect(formatHours({ kind: "work", pattern: "flexible", startTime: "07:00", endTime: null, latestStartTime: "10:00", requiredHours: 8 })).toBe("Flexi: start 07:00–10:00, 8h");
     expect(formatHours(DAY)).toBe("08:00–17:00");

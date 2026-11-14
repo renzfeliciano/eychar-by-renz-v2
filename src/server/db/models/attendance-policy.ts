@@ -13,6 +13,13 @@ const attendancePolicySchema = new Schema(
     standardEndTime: { type: String, required: true, trim: true },
     gracePeriodMinutes: { type: Number, required: true, default: 0 },
     workDays: { type: [Number], default: [1, 2, 3, 4, 5] },
+    // Time rules for the day calculation (src/domains/attendance/day-calc.ts).
+    // Optional, with no schema default, so policies saved before they existed
+    // stay as they were; timeRulesOf fills the defaults on read.
+    breakMinutes: { type: Number, min: 0 },
+    roundingMinutes: { type: Number, min: 0 },
+    nightStartTime: { type: String, trim: true },
+    nightEndTime: { type: String, trim: true },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     effectiveTo: { type: Date },

@@ -24,6 +24,10 @@ export const AttendancePolicyService = {
       standardEndTime: input.standardEndTime,
       gracePeriodMinutes: input.gracePeriodMinutes,
       workDays: input.workDays,
+      breakMinutes: input.breakMinutes,
+      roundingMinutes: input.roundingMinutes,
+      nightStartTime: input.nightStartTime,
+      nightEndTime: input.nightEndTime,
     });
 
     await AuditService.record({

@@ -14,18 +14,34 @@ type ShiftShape = {
   endTime?: string | null;
   latestStartTime?: string | null;
   requiredHours?: number | null;
+  breakMinutes?: number | null;
 };
+
+function minutesOf(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
 
 /**
  * A fixed work shift needs a real time span (overnight is fine: 22:00→07:00);
  * a flexi one needs a same-day start window and required hours instead of an
  * end; a rest day has no times at all.
  */
-function assertShiftShape({ kind, pattern, startTime, endTime, latestStartTime, requiredHours }: ShiftShape) {
+function assertShiftShape({ kind, pattern, startTime, endTime, latestStartTime, requiredHours, breakMinutes }: ShiftShape) {
   if (kind === "rest") {
     if (startTime || endTime || latestStartTime || requiredHours) throw new BusinessRuleError("A rest day doesn't have start or end times");
+    if (breakMinutes) throw new BusinessRuleError("A rest day doesn't have a break");
     return;
   }
+  assertWorkShape({ pattern, startTime, endTime, latestStartTime, requiredHours });
+  if (breakMinutes) {
+    // Overnight (end before start) runs into the next morning.
+    const length = pattern === "flexible" ? (requiredHours ?? 0) * 60 : (minutesOf(endTime!) - minutesOf(startTime!) + 1440) % 1440;
+    if (breakMinutes >= length) throw new BusinessRuleError("The break must be shorter than the shift");
+  }
+}
+
+function assertWorkShape({ pattern, startTime, endTime, latestStartTime, requiredHours }: Omit<ShiftShape, "kind" | "breakMinutes">) {
   if (pattern === "flexible") {
     if (!startTime || !latestStartTime) throw new BusinessRuleError("A flexi shift needs the earliest and latest start time");
     if (latestStartTime <= startTime) throw new BusinessRuleError("The latest start must be after the earliest start");
@@ -49,6 +65,7 @@ function snapshot(shift: ShiftShape & { name: string; code: string; color?: stri
     endTime: shift.endTime,
     latestStartTime: shift.latestStartTime,
     requiredHours: shift.requiredHours,
+    breakMinutes: shift.breakMinutes,
   };
 }
 
@@ -79,6 +96,7 @@ export const ShiftTemplateService = {
         endTime: input.endTime,
         latestStartTime: input.latestStartTime,
         requiredHours: input.requiredHours,
+        breakMinutes: input.breakMinutes,
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) throw new ConflictError(`Shift code "${input.code.toUpperCase()}" is already in use`);
@@ -146,6 +164,7 @@ export const ShiftTemplateService = {
       endTime: resulting<string>("endTime", existing.endTime),
       latestStartTime: resulting<string>("latestStartTime", existing.latestStartTime),
       requiredHours: resulting<number>("requiredHours", existing.requiredHours),
+      breakMinutes: resulting<number>("breakMinutes", existing.breakMinutes),
     });
 
     let shift;
