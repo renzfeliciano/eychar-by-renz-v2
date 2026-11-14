@@ -18,9 +18,16 @@ const HEADERS = [
   "Distance from site (m)",
   "Biometric verified",
   "Recorded by",
+  // The stored day result (attendance plan Phase 6); blank for days without one.
+  "Day type",
+  "Late (min)",
+  "Undertime (min)",
+  "Overtime (min)",
+  "Overtime approved",
+  "Night (min)",
   "Notes",
 ];
-const COLUMN_WIDTHS = [12, 6, 14, 28, 14, 10, 10, 13, 18, 24, 12, 11, 13, 32];
+const COLUMN_WIDTHS = [12, 6, 14, 28, 14, 10, 10, 13, 18, 24, 12, 11, 13, 16, 10, 12, 12, 11, 10, 32];
 
 // Neutral fills only, as in the schedule export: a document that gets printed and shared.
 const HEADER_FILL = "FFF9FAFB";
@@ -45,6 +52,12 @@ function rowValues(row: AttendanceReportRow): (string | number | null)[] {
     row.distanceMeters,
     yesNo(row.verified),
     row.source,
+    row.dayType ?? "",
+    row.lateMinutes ?? null,
+    row.undertimeMinutes ?? null,
+    row.overtimeMinutes ?? null,
+    yesNo(row.overtimeMinutes ? (row.overtimeApproved ?? false) : null),
+    row.nightMinutes ?? null,
     row.notes,
   ];
 }

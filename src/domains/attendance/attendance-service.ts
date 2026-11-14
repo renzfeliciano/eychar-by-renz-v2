@@ -80,6 +80,17 @@ export type DayRosterRow = {
     checkOutAt?: Date;
     projectId?: Types.ObjectId;
     checkIn?: { distanceMeters?: number };
+    /** The stored day result (attendance plan Phase 3), shown on the roster (Phase 6). */
+    dayResult?: {
+      workedMinutes: number;
+      lateMinutes: number;
+      undertimeMinutes: number;
+      overtimeMinutes: number;
+      nightDiffMinutes: number;
+      dayType: string;
+      flags?: string[];
+    } | null;
+    overtimeApproved?: boolean;
   };
 };
 
@@ -296,7 +307,7 @@ export const AttendanceService = {
     const [employees, records, isCurrentStaff] = await Promise.all([
       EmployeeModel.find({ organizationId: orgObjectId }).select("_id").sort({ _id: 1 }).lean<{ _id: Types.ObjectId }[]>(),
       AttendanceRecordModel.find({ organizationId: orgObjectId, date: day })
-        .select("employeeId status checkInAt checkOutAt projectId checkIn.distanceMeters")
+        .select("employeeId status checkInAt checkOutAt projectId checkIn.distanceMeters dayResult overtimeApproved")
         .lean<(NonNullable<DayRosterRow["record"]> & { employeeId: Types.ObjectId })[]>(),
       loadCurrentStaffCheck(organizationId),
     ]);

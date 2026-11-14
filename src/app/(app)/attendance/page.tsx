@@ -14,8 +14,11 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { DateNav } from "./date-nav";
-import { RecordDialog } from "./record-dialog";
+import { RecordDialog, type MeasuredDay } from "./record-dialog";
+import type { DayRosterRow } from "@/domains/attendance/attendance-service";
 import { ExportAttendanceDialog } from "./export-attendance-dialog";
+import { RecalculateDialog } from "./recalculate-dialog";
+import { dayTypeLabel, formatMinutesShort } from "@/domains/attendance/day-result-labels";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Daily roster" };
@@ -40,6 +43,39 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+type StoredDay = NonNullable<NonNullable<DayRosterRow["record"]>["dayResult"]>;
+
+/** Plain values only: the dialog is a client component. */
+function toMeasured(result: StoredDay): MeasuredDay {
+  return {
+    workedMinutes: result.workedMinutes,
+    lateMinutes: result.lateMinutes,
+    undertimeMinutes: result.undertimeMinutes,
+    overtimeMinutes: result.overtimeMinutes,
+    nightDiffMinutes: result.nightDiffMinutes,
+    dayType: result.dayType,
+    flags: [...(result.flags ?? [])],
+  };
+}
+
+/** The measured day at a glance (attendance plan Phase 6): hours worked, then whatever stands out. */
+function MeasuredCell({ result, overtimeApproved }: { result?: StoredDay | null; overtimeApproved: boolean }) {
+  if (!result) return <span className="text-muted-foreground">—</span>;
+  const notes: string[] = [];
+  if (result.dayType !== "workday") notes.push(dayTypeLabel(result.dayType));
+  if (result.lateMinutes) notes.push(`Late ${formatMinutesShort(result.lateMinutes)}`);
+  if (result.undertimeMinutes) notes.push(`Under ${formatMinutesShort(result.undertimeMinutes)}`);
+  if (result.overtimeMinutes) notes.push(`OT ${formatMinutesShort(result.overtimeMinutes)}${overtimeApproved ? "" : " (unapproved)"}`);
+  if (result.nightDiffMinutes) notes.push(`Night ${formatMinutesShort(result.nightDiffMinutes)}`);
+  if (result.flags?.includes("missing_checkout")) notes.push("No check-out");
+  return (
+    <span className="flex flex-col">
+      <span className="tabular-nums">{formatMinutesShort(result.workedMinutes)}</span>
+      {notes.length > 0 && <span className="text-xs text-muted-foreground">{notes.join(" · ")}</span>}
+    </span>
+  );
+}
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -54,7 +90,11 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   }
 
   const date = dateParam ? new Date(dateParam) : appCalendarDate();
-  const canRecord = await hasPermission("attendance.create", organizationId);
+  const [canRecord, canUpdate, canRecalculate] = await Promise.all([
+    hasPermission("attendance.create", organizationId),
+    hasPermission("attendance.update", organizationId),
+    hasPermission("attendance.recalculate", organizationId),
+  ]);
   const tableQuery = parseTableQuery(params);
 
   // Only one page of people is read and rendered. Who is on the day's roster
@@ -81,7 +121,12 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       <PageHeader
         title="Daily roster"
         description="Who clocked in, when and where, for any day. Record or correct attendance on an employee's behalf."
-        action={<ExportAttendanceDialog organizationId={organizationId} date={toDateInputValue(date)} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {canRecalculate && <RecalculateDialog organizationId={organizationId} date={toDateInputValue(date)} />}
+            <ExportAttendanceDialog organizationId={organizationId} date={toDateInputValue(date)} />
+          </div>
+        }
       />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -132,6 +177,11 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
           { key: "checkIn", header: "Check-in", render: (row) => formatTime(row.record?.checkInAt) },
           { key: "checkOut", header: "Check-out", render: (row) => formatTime(row.record?.checkOutAt) },
           {
+            key: "hours",
+            header: "Hours",
+            render: (row) => <MeasuredCell result={row.record?.dayResult} overtimeApproved={Boolean(row.record?.overtimeApproved)} />,
+          },
+          {
             key: "site",
             header: "Site",
             render: (row) => {
@@ -163,6 +213,9 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                   initialCheckOutAt={existing?.checkOutAt}
                   initialStatus={existing?.status}
                   statusOptions={statusOptions}
+                  measured={existing?.dayResult ? toMeasured(existing.dayResult) : null}
+                  overtimeApproved={Boolean(existing?.overtimeApproved)}
+                  canApproveOvertime={canUpdate}
                 />
               );
             },

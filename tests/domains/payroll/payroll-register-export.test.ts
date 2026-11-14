@@ -66,14 +66,15 @@ describe("payroll register export", () => {
     expect(sheet.getCell("A2").value).toBe("EGI Rufino · Oct 1–15, 2026 · pay date Oct 20, 2026 · Approved");
     expect(sheet.getRow(4).values).toEqual([
       undefined, "#", "Employee #", "Employee", "Rate type", "Rate", "Days worked", "Absences", "Late/undertime (min)",
-      "Basic pay", "Allowances", "Other earnings", "Gross pay", "SSS", "PhilHealth", "Pag-IBIG", "Withholding tax", "Other deductions", "Net pay",
+      "Basic pay", "Allowances", "Overtime", "Holiday & rest day", "Night differential", "Other earnings", "Gross pay", "SSS", "PhilHealth", "Pag-IBIG", "Withholding tax", "Other deductions", "Net pay",
     ]);
     // Basic pay is net of absences and tardiness.
-    expect(sheet.getRow(5).values).toEqual([undefined, 1, "EMP-1", "Angela Santos", "Monthly", 30000, 10, 1, 30, 13620.69, 1000, 500, 15120.69, 750, 375, 100, 296.8, 1000, 12598.89]);
+    // Overtime, holiday/rest day and night pay get their own columns (attendance plan Phase 6).
+    expect(sheet.getRow(5).values).toEqual([undefined, 1, "EMP-1", "Angela Santos", "Monthly", 30000, 10, 1, 30, 13620.69, 1000, 500, 0, 0, 0, 15120.69, 750, 375, 100, 296.8, 1000, 12598.89]);
     const totals = sheet.getRow(7).values as unknown[];
     expect(totals[3]).toBe("Total (2 employees)");
-    expect(totals[12]).toBe(22120.69);
-    expect(totals[18]).toBe(18933.58);
+    expect(totals[15]).toBe(22120.69);
+    expect(totals[21]).toBe(18933.58);
   });
 
   it("adds a contributions sheet with employee, employer and EC shares for remittance", async () => {
@@ -91,7 +92,7 @@ describe("payroll register export", () => {
   it("writes the register as CSV with the same columns", () => {
     const lines = buildRegisterCsv(INPUT).replace(/^﻿/, "").split("\n");
     expect(lines[0]).toContain('"Employee #","Employee","Rate type"');
-    expect(lines[1]).toBe('"1","EMP-1","Angela Santos","Monthly","30000","10","1","30","13620.69","1000","500","15120.69","750","375","100","296.8","1000","12598.89"');
+    expect(lines[1]).toBe('"1","EMP-1","Angela Santos","Monthly","30000","10","1","30","13620.69","1000","500","0","0","0","15120.69","750","375","100","296.8","1000","12598.89"');
     expect(lines).toHaveLength(3);
   });
 });

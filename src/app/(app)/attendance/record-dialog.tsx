@@ -18,7 +18,20 @@ import {
 } from "@/components/ui/dialog";
 import { FormField, FormError } from "@/components/shared/form-field";
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { dayTypeLabel, formatMinutesShort } from "@/domains/attendance/day-result-labels";
 import { cn } from "@/lib/utils";
+
+/** The stored day result as the dialog shows it (attendance plan Phase 6). */
+export type MeasuredDay = {
+  workedMinutes: number;
+  lateMinutes: number;
+  undertimeMinutes: number;
+  overtimeMinutes: number;
+  nightDiffMinutes: number;
+  dayType: string;
+  flags: string[];
+};
 
 function toTimeInput(value?: string | Date | null): string {
   if (!value) return "";
@@ -36,6 +49,9 @@ export function RecordDialog({
   initialCheckOutAt,
   initialStatus,
   statusOptions,
+  measured,
+  overtimeApproved = false,
+  canApproveOvertime = false,
 }: {
   organizationId: string;
   employeeId: string;
@@ -45,12 +61,17 @@ export function RecordDialog({
   initialCheckOutAt?: string | Date | null;
   initialStatus?: string | null;
   statusOptions: SelectOption[];
+  measured?: MeasuredDay | null;
+  overtimeApproved?: boolean;
+  /** attendance.update: overtime is approved through the adjust endpoint. */
+  canApproveOvertime?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [checkInTime, setCheckInTime] = useState(toTimeInput(initialCheckInAt));
   const [checkOutTime, setCheckOutTime] = useState(toTimeInput(initialCheckOutAt));
   const [status, setStatus] = useState(initialStatus ?? "");
+  const [approved, setApproved] = useState(overtimeApproved);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -70,7 +91,7 @@ export function RecordDialog({
       ? await fetch(`/api/attendance/${existingRecordId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ organizationId, checkInAt, checkOutAt, status: status || undefined }),
+          body: JSON.stringify({ organizationId, checkInAt, checkOutAt, status: status || undefined, ...(approved !== overtimeApproved ? { overtimeApproved: approved } : {}) }),
         })
       : await fetch("/api/attendance", {
           method: "POST",
@@ -96,6 +117,7 @@ export function RecordDialog({
       setCheckInTime(toTimeInput(initialCheckInAt));
       setCheckOutTime(toTimeInput(initialCheckOutAt));
       setStatus(initialStatus ?? "");
+      setApproved(overtimeApproved);
       setError(null);
     }
     setOpen(nextOpen);
@@ -127,6 +149,36 @@ export function RecordDialog({
               <Input id="record-check-out" type="time" value={checkOutTime} onChange={(event) => setCheckOutTime(event.target.value)} />
             </FormField>
           </div>
+          {existingRecordId && measured && (
+            <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 text-sm" data-testid="attendance-measured">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">Measured</span>
+                <span className="text-xs text-muted-foreground">{dayTypeLabel(measured.dayType)}</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+                {[
+                  ["Worked", measured.workedMinutes],
+                  ["Late", measured.lateMinutes],
+                  ["Undertime", measured.undertimeMinutes],
+                  ["Overtime", measured.overtimeMinutes],
+                  ["Night", measured.nightDiffMinutes],
+                ].map(([label, minutes]) => (
+                  <div key={label} className="flex justify-between gap-2">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="tabular-nums">{formatMinutesShort(Number(minutes))}</dd>
+                  </div>
+                ))}
+              </dl>
+              {measured.flags.includes("missing_checkout") && <p className="text-xs text-muted-foreground">No check-out yet: no hours count until it&apos;s added.</p>}
+              {canApproveOvertime && measured.overtimeMinutes > 0 && (
+                <label className="flex items-center gap-2">
+                  <Checkbox checked={approved} onCheckedChange={(checked) => setApproved(checked === true)} />
+                  Approve {formatMinutesShort(measured.overtimeMinutes)} of overtime
+                  <span className="text-xs text-muted-foreground">(payroll pays only approved overtime)</span>
+                </label>
+              )}
+            </div>
+          )}
           <OptionSelect label="Status override" value={status} onChange={setStatus} options={statusOptions} placeholder="Compute from check-in" />
           <FormError message={error} />
         </div>

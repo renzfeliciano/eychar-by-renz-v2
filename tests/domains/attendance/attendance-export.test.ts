@@ -56,11 +56,17 @@ describe("buildAttendanceCsv", () => {
   it("writes one row per employee-day with readable values", () => {
     const lines = buildAttendanceCsv(REPORT).replace(/^﻿/, "").split("\n");
     expect(lines[0]).toBe(
-      '"Date","Day","Employee #","Employee","Status","Check-in","Check-out","Hours worked","Scheduled shift","Site","Distance from site (m)","Biometric verified","Recorded by","Notes"',
+      '"Date","Day","Employee #","Employee","Status","Check-in","Check-out","Hours worked","Scheduled shift","Site","Distance from site (m)","Biometric verified","Recorded by","Day type","Late (min)","Undertime (min)","Overtime (min)","Overtime approved","Night (min)","Notes"',
     );
-    expect(lines[1]).toBe('"2026-10-05","Mon","EMP-001","Angela Santos","Late","08:12","17:42","9.5","D 08:00-17:00","EGI Rufino","35","Yes","Self-service",""');
+    expect(lines[1]).toBe('"2026-10-05","Mon","EMP-001","Angela Santos","Late","08:12","17:42","9.5","D 08:00-17:00","EGI Rufino","35","Yes","Self-service","","","","","","",""');
     expect(lines[2]).toContain('"Carlos Villanueva, Jr.","No record","","","","","","",""');
     expect(lines).toHaveLength(5);
+  });
+
+  it("adds the measured day: day type, late, undertime, overtime (and whether it's approved) and night minutes (attendance plan Phase 6)", () => {
+    const measured = { ...BASE, dayType: "Regular holiday", lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 120, overtimeApproved: false, nightMinutes: 60, notes: "OT for pour" };
+    const lines = buildAttendanceCsv({ ...REPORT, rows: [measured] }).replace(/^﻿/, "").split("\n");
+    expect(lines[1]).toBe('"2026-10-05","Mon","EMP-001","Angela Santos","Late","08:12","17:42","9.5","D 08:00-17:00","EGI Rufino","35","Yes","Self-service","Regular holiday","0","0","120","No","60","OT for pour"');
   });
 });
 

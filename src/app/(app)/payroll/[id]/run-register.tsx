@@ -16,6 +16,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ADJUSTMENT_CATEGORIES, COMPUTED_PREMIUM_CATEGORIES } from "@/domains/payroll/adjustment-categories";
 import { formatPeso } from "@/domains/payroll/payroll-labels";
 import { formatMultiplierPercent } from "@/domains/payroll/engine/premiums";
+import { formatMinutesShort } from "@/domains/attendance/day-result-labels";
 import { cn } from "@/lib/utils";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
 
@@ -37,6 +38,9 @@ function attendanceSummary(row: RegisterRow): string {
   const parts = [`${row.attendance.daysWorked} worked`];
   if (row.attendance.paidLeaveDays) parts.push(`${row.attendance.paidLeaveDays} leave`);
   if (row.attendance.absentDays) parts.push(`${row.attendance.absentDays} absent`);
+  if (row.premiums?.overtimeMinutes) parts.push(`OT ${formatMinutesShort(row.premiums.overtimeMinutes)}`);
+  if (row.premiums?.nightMinutes) parts.push(`night ${formatMinutesShort(row.premiums.nightMinutes)}`);
+  if (row.premiums?.unapprovedOvertimeMinutes) parts.push(`${formatMinutesShort(row.premiums.unapprovedOvertimeMinutes)} OT unapproved`);
   return parts.join(" · ");
 }
 

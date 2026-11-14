@@ -37,6 +37,10 @@ const HISTORY_LABELS: Record<string, string> = {
 
 const formatTimestamp = (value: Date) => formatDateTime(value);
 
+/** Adds up one minute field over a record's premium days (attendance plan Phase 6). */
+const sumOf = (days: { overtimeMinutes: number; nightMinutes: number }[] | null | undefined, field: "overtimeMinutes" | "nightMinutes") =>
+  (days ?? []).reduce((sum, day) => sum + (day[field] ?? 0), 0);
+
 /** "SSS, EC, PhilHealth, Pag-IBIG": the employer-paid contributions this run's rule version defines, in its order. */
 function employerShareLabel(rules: { name: string; extraLabel?: string | null }[]): string {
   const names = rules.flatMap((rule) => (rule.extraLabel ? [rule.name, rule.extraLabel] : [rule.name]));
@@ -102,6 +106,13 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
       lateMinutes: record.attendance?.lateMinutes ?? 0,
       undertimeMinutes: record.attendance?.undertimeMinutes ?? 0,
     },
+    premiums: record.premiumInputs
+      ? {
+          overtimeMinutes: sumOf(record.premiumInputs.days, "overtimeMinutes"),
+          nightMinutes: sumOf(record.premiumInputs.days, "nightMinutes"),
+          unapprovedOvertimeMinutes: record.premiumInputs.unapprovedOvertimeMinutes ?? 0,
+        }
+      : null,
     earnings: record.earnings.map((line: { code: string; label: string; amount: number; taxable: boolean }) => ({ code: line.code, label: line.label, amount: line.amount, taxable: line.taxable })),
     contributions: record.contributions.map((line: { code: string; name: string; employee: number; employer: number; extra: number; extraLabel?: string | null }) => ({
       code: line.code,
