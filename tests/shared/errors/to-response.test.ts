@@ -10,6 +10,20 @@ function parseFailure(schema: z.ZodTypeAny, input: unknown): ZodError {
 }
 
 describe("toErrorResponse", () => {
+  it("answers a malformed JSON body with 400, not 500 (gap B2)", async () => {
+    const request = new Request("http://localhost/api/x", { method: "POST", body: "{not json", headers: { "content-type": "application/json" } });
+    const error = await request.json().then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+
+    const response = toErrorResponse(error);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toMatch(/isn't valid JSON/);
+  });
+
   it("turns a completely omitted required field into a friendly message, not Zod's raw internals", async () => {
     // This is exactly the self-service clock-in shape that regressed:
     // organizationId required but never sent by the client at all.

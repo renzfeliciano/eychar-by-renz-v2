@@ -127,6 +127,10 @@ export function toErrorResponse(error: unknown): NextResponse {
   if (isCastError(error)) {
     return NextResponse.json({ error: "Something in the request isn't valid (an id or a date). Check it and try again." }, { status: 400 });
   }
+  // `await request.json()` on a body that isn't JSON: also the caller's mistake.
+  if (error instanceof SyntaxError) {
+    return NextResponse.json({ error: "The request body isn't valid JSON." }, { status: 400 });
+  }
   console.error("Unexpected error", describeErrorForLog(error));
   return NextResponse.json({ error: "Unexpected error — please try again, and contact support if it keeps happening." }, { status: 500 });
 }
