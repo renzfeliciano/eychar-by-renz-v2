@@ -79,3 +79,14 @@ describe("EditEmployeeDialog: civil status", () => {
     expect((await save()).civilStatusCode).toBe("");
   });
 });
+
+describe("EditEmployeeDialog: RDO and ZIP codes (gaps B26)", () => {
+  it("sends the RDO and ZIP codes HR enters, for BIR Form 2316", async () => {
+    const user = setupUser();
+    render(<EditEmployeeDialog {...base} initialValue={{ ...person, rdoCode: "039" }} />);
+    const { save } = await openAndSave(user);
+    expect(screen.getByLabelText(/RDO code/)).toHaveValue("039");
+    await user.type(screen.getByLabelText(/ZIP code/), "1100");
+    expect(await save()).toMatchObject({ rdoCode: "039", zipCode: "1100" });
+  });
+});

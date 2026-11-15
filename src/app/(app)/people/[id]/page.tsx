@@ -28,7 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { formatLengthOfService } from "@/lib/employee-dates";
-import { localDateKey } from "@/lib/date-key";
+import { formatDateKey, localDateKey } from "@/lib/date-key";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
 import { EmployeeService } from "@/domains/workforce/employee-service";
@@ -67,6 +67,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EndEmploymentDialog } from "./end-employment-dialog";
 import { EditEndingDialog } from "./edit-ending-dialog";
 import { ReinstateDialog } from "./reinstate-dialog";
+import { CancelScheduledEndDialog } from "./cancel-scheduled-end-dialog";
 import { EducationBackgroundCard } from "./education-background-card";
 import { EducationRecordService, toEducationRecordView, type EducationRecordView } from "@/domains/people/education-record-service";
 import { ChangeEmploymentDialog } from "./change-employment-dialog";
@@ -112,6 +113,9 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
 
   let detail;
   try {
+    // Apply any end scheduled for a day already past (Phase 5a slice 3), so the profile never shows a stale "active"
+    // when the daily job hasn't run (it is off without CRON_SECRET). Idempotent; a failure here never blocks the page.
+    await EmploymentService.applyDueScheduledEnds({ organizationId }).catch(() => 0);
     detail = await EmployeeService.getDetail(id, organizationId);
   } catch (error) {
     if (error instanceof NotFoundError) notFound();
@@ -286,6 +290,14 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-[1.625rem] leading-tight font-semibold tracking-[-0.018em]">{personName}</h1>
               {detail.currentEmployment && <StatusBadge status={detail.currentEmployment.status} />}
+              {detail.currentEmployment?.scheduledEnd && (
+                // A resignation with notice (Phase 5a slice 3): still active, ending after the scheduled last day.
+                <StatusBadge
+                  status="scheduled"
+                  tone="warning"
+                  label={`Ending after ${formatDateKey(new Date(detail.currentEmployment.scheduledEnd.effectiveTo).toISOString().slice(0, 10))} (${statusNameByCode.get(detail.currentEmployment.scheduledEnd.status) ?? detail.currentEmployment.scheduledEnd.status})`}
+                />
+              )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{[positionTitle, projectName, typeLabel].filter(Boolean).join(" · ") || "No current assignment"}</p>
             {detail.person?.educationLevelCode && (
@@ -322,7 +334,15 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                 todayKey={localDateKey(now)}
               />
             )}
-            {canUpdate && isCurrentlyActive && endReasons.length > 0 && (
+            {canUpdate && isCurrentlyActive && detail.currentEmployment?.scheduledEnd && (
+              <CancelScheduledEndDialog
+                organizationId={organizationId}
+                employeeId={employeeId}
+                employeeName={personName}
+                lastDayLabel={formatDateKey(new Date(detail.currentEmployment.scheduledEnd.effectiveTo).toISOString().slice(0, 10))}
+              />
+            )}
+            {canUpdate && isCurrentlyActive && !detail.currentEmployment?.scheduledEnd && endReasons.length > 0 && (
               <EndEmploymentDialog
                 organizationId={organizationId}
                 employeeId={employeeId}
@@ -372,6 +392,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   philHealthNumber: detail.person.philHealthNumber,
                   pagIbigNumber: detail.person.pagIbigNumber,
                   tinNumber: detail.person.tinNumber,
+                  rdoCode: detail.person.rdoCode,
+                  zipCode: detail.person.zipCode,
                 }}
               />
             )}
@@ -452,6 +474,10 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                     </Fact>
                   ))}
                 </dl>
+                {/* For BIR Form 2316 (gaps B26): shown, not flagged, since only the year-end export needs them. */}
+                <p className="mt-3 text-xs text-muted-foreground" data-testid="profile-rdo-zip">
+                  RDO {detail.person?.rdoCode || "not set"} · ZIP {detail.person?.zipCode || "not set"} (for BIR Form 2316)
+                </p>
                 {missingIds.length > 0 && canUpdate && (
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <IdCard className="size-3.5" aria-hidden="true" />

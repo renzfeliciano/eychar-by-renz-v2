@@ -69,7 +69,13 @@ export async function computeYearEndRun(run: Run) {
 
     const warnings: PayWarning[] = [];
     if (collect > 0) {
-      warnings.push({ code: "year_end_collect", message: `${formatMoney(collect)} more tax is due for ${year}. Deduct it from the employee's pay (balance by January 25 [verify]).`, blocking: false });
+      // Collected by hand (owner decision 2026-11-15): this run shows it as tax, so its net pay is negative; HR deducts
+      // it on a later regular run with the "Year-end tax collected" adjustment.
+      warnings.push({
+        code: "year_end_collect",
+        message: `${formatMoney(collect)} more tax is due for ${year}. It isn't deducted automatically: add a "Year-end tax collected" deduction for ${formatMoney(collect)} on the employee's next regular payroll (balance by January 25 [verify]). The negative net pay here is that amount.`,
+        blocking: false,
+      });
     }
     if (own.previous.ids.length) {
       warnings.push({ code: "year_end_two_employers", message: `Had ${own.previous.ids.length + 1} employers in ${year}: files their own return (not on the substituted-filing list).`, blocking: false });

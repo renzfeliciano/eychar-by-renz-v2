@@ -13,7 +13,7 @@ function yearOf(lines: YearLine[], contributions: { amount: number; minimumWage:
 describe("year-end tax: the Gate C hand-worked examples (payroll plan Phase 4)", () => {
   it("A: ₱30,000/month all year, withheld every cutoff → nothing to settle", () => {
     const amounts = yearOf(repeat(24, line("basic", 15000)), repeat(24, { amount: 1225, minimumWage: false }));
-    expect(amounts.boxes).toMatchObject({ "36": 29400, "39": 330600, "29": 0 });
+    expect(amounts.boxes).toMatchObject({ "34": 29400, "37": 330600, "27": 0 });
     expect(amounts).toMatchObject({ nonTaxableTotal: 29400, taxableTotal: 330600, gross: 360000, benefitsExcess: 0, unmapped: [] });
 
     const result = annualizeTax({ presentTaxable: amounts.taxableTotal, previousTaxable: 0, presentWithheld: 24 * 503.75, previousWithheld: 0, annualTable: annualTaxTable });
@@ -33,7 +33,7 @@ describe("year-end tax: the Gate C hand-worked examples (payroll plan Phase 4)",
 
   it("C: a minimum wage earner's pay is all exempt; contributions come off the minimum-wage box", () => {
     const amounts = yearOf([line("basic", 169650, true, true), line("overtime", 2000, true, true), line("holiday_pay", 1300, true, true)], repeat(12, { amount: 1000, minimumWage: true }));
-    expect(amounts.boxes).toMatchObject({ "29": 157650, "30": 1300, "31": 2000, "36": 12000, "39": 0, "50": 0 });
+    expect(amounts.boxes).toMatchObject({ "27": 157650, "28": 1300, "29": 2000, "34": 12000, "37": 0, "48": 0 });
     expect(amounts).toMatchObject({ taxableTotal: 0, nonTaxableTotal: 172950, gross: 172950 });
     expect(annualizeTax({ presentTaxable: 0, previousTaxable: 0, presentWithheld: 0, previousWithheld: 0, annualTable: annualTaxTable })).toMatchObject({ taxDue: 0, difference: 0 });
   });
@@ -42,7 +42,7 @@ describe("year-end tax: the Gate C hand-worked examples (payroll plan Phase 4)",
 describe("Form 2316 box map", () => {
   it("caps 13th month and other benefits at ₱90,000 and moves the excess to the taxable benefits box (Gate C Q3)", () => {
     const amounts = yearOf([line("basic", 600000), line("thirteenth_month", 100000, false), line("bonus", 5000, false)], []);
-    expect(amounts.boxes).toMatchObject({ "34": 90000, "48": 15000, "39": 600000 });
+    expect(amounts.boxes).toMatchObject({ "32": 90000, "46": 15000, "37": 600000 });
     expect(amounts).toMatchObject({ benefitsExcess: 15000, taxableTotal: 615000, nonTaxableTotal: 90000, gross: 705000 });
   });
 
@@ -51,7 +51,7 @@ describe("Form 2316 box map", () => {
       [line("allowance", 2000, false), line("allowance", 3000, true), line("reimbursement", 900, false), line("year_end_tax_refund", 500, false), line("signing_bonus", 700, true), line("gift", 400, false)],
       [],
     );
-    expect(amounts.boxes).toMatchObject({ "35": 2000, "44": 3000, "51": 700, "37": 400 });
+    expect(amounts.boxes).toMatchObject({ "33": 2000, "42": 3000, "49": 700, "35": 400 });
     expect(amounts.gross).toBe(6100);
     expect(amounts.unmapped).toEqual([]);
   });

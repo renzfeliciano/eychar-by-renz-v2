@@ -250,12 +250,12 @@ describe("getEndingState", () => {
 
   it("says an open employment has not ended", async () => {
     const { organizationId, employeeId } = await endedEmployee({ end: false });
-    expect(await EmploymentService.getEndingState(employeeId, organizationId)).toEqual({ ended: false, reinstateBlockedReason: null, lastDayLockedReason: null });
+    expect(await EmploymentService.getEndingState(employeeId, organizationId)).toEqual({ ended: false, reinstateBlockedReason: null, lastDayLockedReason: null, scheduledEnd: null });
   });
 
   it("is free for an ended employment with nothing in the way", async () => {
     const { organizationId, employeeId } = await endedEmployee();
-    expect(await EmploymentService.getEndingState(employeeId, organizationId)).toEqual({ ended: true, reinstateBlockedReason: null, lastDayLockedReason: null });
+    expect(await EmploymentService.getEndingState(employeeId, organizationId)).toEqual({ ended: true, reinstateBlockedReason: null, lastDayLockedReason: null, scheduledEnd: null });
   });
 
   it("gives the reasons the actions give: a disbursed settlement blocks reinstating, a draft only locks the last day", async () => {

@@ -44,10 +44,13 @@ export type EditEmployeeInitialValue = {
   philHealthNumber?: string | null;
   pagIbigNumber?: string | null;
   tinNumber?: string | null;
+  /** For BIR Form 2316 (revenue district office and ZIP code). */
+  rdoCode?: string | null;
+  zipCode?: string | null;
 };
 
 /** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
-const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatusCode", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
+const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatusCode", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber", "rdoCode", "zipCode"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
@@ -80,6 +83,8 @@ export function EditEmployeeDialog({
   const [philHealthNumber, setPhilHealthNumber] = useState(initialValue.philHealthNumber ?? "");
   const [pagIbigNumber, setPagIbigNumber] = useState(initialValue.pagIbigNumber ?? "");
   const [tinNumber, setTinNumber] = useState(initialValue.tinNumber ?? "");
+  const [rdoCode, setRdoCode] = useState(initialValue.rdoCode ?? "");
+  const [zipCode, setZipCode] = useState(initialValue.zipCode ?? "");
   const { fieldErrors, formError, setFieldError, setFromResponse, clearField: clearFieldError, clear: clearErrors } = useFieldErrors({ formId, fields: EDIT_EMPLOYEE_FIELDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -99,6 +104,8 @@ export function EditEmployeeDialog({
     setPhilHealthNumber(initialValue.philHealthNumber ?? "");
     setPagIbigNumber(initialValue.pagIbigNumber ?? "");
     setTinNumber(initialValue.tinNumber ?? "");
+    setRdoCode(initialValue.rdoCode ?? "");
+    setZipCode(initialValue.zipCode ?? "");
     clearErrors();
   }
 
@@ -139,6 +146,8 @@ export function EditEmployeeDialog({
         philHealthNumber,
         pagIbigNumber,
         tinNumber,
+        rdoCode,
+        zipCode,
       }),
     });
 
@@ -271,6 +280,12 @@ export function EditEmployeeDialog({
             </FormField>
             <FormField label="TIN no." htmlFor={`${formId}-tinNumber`} error={fieldErrors.tinNumber}>
               <Input id={`${formId}-tinNumber`} value={tinNumber} onChange={(event) => setTinNumber(event.target.value)} placeholder="e.g. 123-456-789" />
+            </FormField>
+            <FormField label="RDO code" htmlFor={`${formId}-rdoCode`} error={fieldErrors.rdoCode} description="For BIR Form 2316">
+              <Input id={`${formId}-rdoCode`} value={rdoCode} onChange={(event) => { setRdoCode(event.target.value); clearFieldError("rdoCode"); }} placeholder="e.g. 039" />
+            </FormField>
+            <FormField label="ZIP code" htmlFor={`${formId}-zipCode`} error={fieldErrors.zipCode} description="For BIR Form 2316">
+              <Input id={`${formId}-zipCode`} value={zipCode} onChange={(event) => { setZipCode(event.target.value); clearFieldError("zipCode"); }} placeholder="e.g. 1100" inputMode="numeric" />
             </FormField>
           </div>
           <FormError message={formError} />

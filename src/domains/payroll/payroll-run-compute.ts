@@ -33,6 +33,7 @@ import { runTypeOf } from "./payroll-labels";
 import { computeThirteenthMonthRun } from "./thirteenth-month-compute";
 import { computeBonusRun } from "./bonus-compute";
 import { computeYearEndRun } from "./year-end-compute";
+import { employmentLastDay } from "@/domains/workforce/employment-end";
 
 /** A net pay change bigger than this against the last released payroll is flagged for review. */
 const NET_PAY_CHANGE_THRESHOLD = 0.2;
@@ -123,7 +124,7 @@ export async function computeRun(runId: Types.ObjectId) {
     return (date: string) => {
       let status: string | undefined;
       for (const row of rows) {
-        if (dateToDateKey(row.effectiveFrom) <= date && (!row.effectiveTo || dateToDateKey(row.effectiveTo) >= date)) status = row.status;
+        if (dateToDateKey(row.effectiveFrom) <= date && (employmentLastDay(row) ?? date) >= date) status = row.status;
       }
       return status !== undefined && isCurrentStaff(status);
     };

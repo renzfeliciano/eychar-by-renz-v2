@@ -4,9 +4,17 @@ import { educationLevelName, type EducationLevelItem } from "@/domains/catalog/e
 import type { EducationRecordView } from "@/domains/people/education-record-service";
 import { EducationRecordDialog, RemoveEducationButton } from "./education-record-dialog";
 
+// School and course names can run to 200 characters. On desktop the table cuts them with an ellipsis and
+// a hover tooltip (TruncatedCell). On a phone the row is a stacked card, so they clamp to two lines with an
+// ellipsis instead, and break inside a very long word so nothing pushes the card wider than the screen.
+const LONG_TEXT = "block max-md:line-clamp-2 max-md:break-words";
+
 /**
  * Educational background, under the employee's personal information: each school, course and graduation
  * year, several per level. Anyone who can see the profile sees the list; only an updater gets the controls.
+ *
+ * Column widths: School takes the spare room, since it is the longest and most useful text; Level and
+ * Year hug their content; Course gets a wider cap than the default so a degree name has room.
  */
 export function EducationBackgroundCard({
   organizationId,
@@ -39,10 +47,10 @@ export function EducationBackgroundCard({
       <CardContent>
         <DataTable
           columns={[
-            { key: "level", header: "Level", render: (record) => <span className="font-medium">{educationLevelName(levels, record.levelCode)}</span> },
-            { key: "school", header: "School", render: (record) => record.school },
-            { key: "course", header: "Course or degree", render: (record) => record.course ?? "—" },
-            { key: "year", header: "Year graduated", render: (record) => (record.yearGraduated ? String(record.yearGraduated) : "—") },
+            { key: "level", header: "Level", width: "md" as const, render: (record) => <span className={`${LONG_TEXT} font-medium`}>{educationLevelName(levels, record.levelCode)}</span> },
+            { key: "school", header: "School", width: "fill" as const, render: (record) => <span className={LONG_TEXT}>{record.school}</span> },
+            { key: "course", header: "Course or degree", width: "lg" as const, render: (record) => <span className={LONG_TEXT}>{record.course ?? "—"}</span> },
+            { key: "year", header: "Year graduated", width: "sm" as const, render: (record) => (record.yearGraduated ? String(record.yearGraduated) : "—") },
             ...(canUpdate
               ? [
                   {

@@ -51,7 +51,7 @@ const employmentSchema = new Schema(
       type: [
         new Schema(
           {
-            action: { type: String, enum: ["ended", "ending_corrected", "reinstated"], required: true },
+            action: { type: String, enum: ["ended", "ending_corrected", "reinstated", "end_scheduled", "scheduled_end_cancelled"], required: true },
             status: { type: String, required: true, trim: true },
             effectiveTo: { type: Date },
             reason: { type: String, trim: true },
@@ -64,6 +64,23 @@ const employmentSchema = new Schema(
       default: [],
     },
     terminationReason: { type: String, trim: true },
+    // An ending recorded ahead of time (payroll plan Phase 5a slice 3, owner 2026-11-15): resignation with notice.
+    // The employment stays active (status and effectiveTo untouched) until the day after `effectiveTo`, when the
+    // daily job applies it (EmploymentService.applyDueScheduledEnds). Payroll reads `effectiveTo` as the last day
+    // paid even before then (employment-end.ts). HR can cancel it until it is applied.
+    scheduledEnd: {
+      type: new Schema(
+        {
+          status: { type: String, required: true, trim: true },
+          effectiveTo: { type: Date, required: true },
+          terminationReason: { type: String, trim: true },
+          scheduledBy: { type: Schema.Types.ObjectId, ref: "User" },
+          scheduledAt: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },

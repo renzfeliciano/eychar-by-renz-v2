@@ -96,6 +96,20 @@ describe("LoginPage", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("asks for both fields instead of sending an empty sign-in", async () => {
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: /Sign in/ }));
+    expect(await screen.findByText("Enter your username or email and your password.")).toBeInTheDocument();
+    expect(signIn).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Username or email"), "hr_admin");
+    await user.click(screen.getByRole("button", { name: /Sign in/ }));
+    expect(await screen.findByText("Enter your username or email and your password.")).toBeInTheDocument();
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it("explains a locked account and a busy network", async () => {
     const user = userEvent.setup();
     signIn.mockResolvedValueOnce({ error: "locked" }).mockResolvedValueOnce({ error: "rate_limited" });

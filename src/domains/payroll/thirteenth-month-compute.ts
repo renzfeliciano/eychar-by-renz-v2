@@ -16,6 +16,7 @@ import type { PayFrequency } from "./engine/pay-frequency";
 import type { PayWarning } from "./engine/compute-pay";
 import { projectsAsOf } from "./payroll-scope";
 import { rosterInputsFor } from "./payroll-run-compute";
+import { employmentLastDay } from "@/domains/workforce/employment-end";
 
 type Run = InstanceType<typeof PayrollRunModel>;
 type ThirteenthMonthRecord = Record<string, unknown> & { employeeName: string; grossPay: number; netPay: number; warnings: PayWarning[] };
@@ -59,7 +60,7 @@ export async function computeThirteenthMonthRun(run: Run) {
   const isEmployedOn = (employeeId: string) => (date: string) => {
     let status: string | undefined;
     for (const row of employmentsByEmployee.get(employeeId) ?? []) {
-      if (dateToDateKey(row.effectiveFrom) <= date && (!row.effectiveTo || dateToDateKey(row.effectiveTo) >= date)) status = row.status;
+      if (dateToDateKey(row.effectiveFrom) <= date && (employmentLastDay(row) ?? date) >= date) status = row.status;
     }
     return status !== undefined && isCurrentStaff(status);
   };

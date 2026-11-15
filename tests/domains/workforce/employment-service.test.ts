@@ -180,7 +180,7 @@ describe("EmploymentService", () => {
     expect(unchanged?.effectiveTo).toBeUndefined();
   });
 
-  it("refuses an end date in the future, or before the employee was hired", async () => {
+  it("schedules an end date in the future instead of ending now, and refuses one before the employee was hired", async () => {
     const { organization, employee } = await seedEmployee("10");
     const stint = await EmploymentService.create(
       { organizationId: organization._id.toString(), employeeId: employee._id.toString(), employmentType: "regular", effectiveFrom: new Date("2026-03-01T00:00:00Z") },
@@ -189,7 +189,9 @@ describe("EmploymentService", () => {
     const orgId = organization._id.toString();
 
     const tomorrow = new Date(Date.now() + 2 * 86_400_000);
-    await expect(EmploymentService.terminate(stint._id.toString(), orgId, { effectiveTo: tomorrow }, {})).rejects.toThrow(/future/);
+    // A future last day is scheduled (payroll plan Phase 5a slice 3): the employment stays active.
+    await EmploymentService.terminate(stint._id.toString(), orgId, { effectiveTo: tomorrow }, {});
+    expect((await EmploymentModel.findById(stint._id).lean())?.scheduledEnd).toBeTruthy();
     await expect(EmploymentService.terminate(stint._id.toString(), orgId, { effectiveTo: new Date("2026-02-28T00:00:00Z") }, {})).rejects.toThrow(/before/);
 
     const unchanged = await EmploymentModel.findById(stint._id).lean();

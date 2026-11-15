@@ -60,6 +60,9 @@ export const updateEmployeeProfileSchema = z.object({
   philHealthNumber: clearable(philHealthNumberSchema).optional(),
   pagIbigNumber: clearable(pagIbigNumberSchema).optional(),
   tinNumber: clearable(tinNumberSchema).optional(),
+  // For BIR Form 2316 (payroll plan Phase 4; editable since gaps B26): revenue district office and ZIP code.
+  rdoCode: clearable(z.string().trim().regex(/^\d{2,3}[A-Za-z]?$/, "An RDO code is 2 or 3 digits, sometimes with a letter, e.g. 039 or 21A").transform((value) => value.toUpperCase())).optional(),
+  zipCode: clearable(z.string().trim().regex(/^\d{4}$/, "A Philippine ZIP code is 4 digits, e.g. 1100")).optional(),
 });
 
 export const transferAssignmentSchema = z.object({

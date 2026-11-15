@@ -8,8 +8,9 @@ import type { Form2316Box } from "../engine/year-end-tax";
  * - Annual table: TRAIN (RA 10963) brackets from 2023, as in knowledge/philippine-payroll-compliance.md.
  *   Secondary sources only [verify on bir.gov.ph].
  * - Benefits cap: ₱90,000 for 13th month pay and other benefits (RA 10963) [verify].
- * - Box map: BIR Form 2316 (January 2018 version) as remembered at Gate C. Box numbers and labels
- *   [verify against the current form]; see knowledge/plans/payroll-enhancement.md, Appendix B.
+ * - Box map: BIR Form 2316, January 2018 (ENCS), Part IV-B: items 27–35 non-taxable (36 is their total),
+ *   37–49 taxable (50 is their total). Checked 2026-11-15 against a copy of the form itself (the Gate C draft
+ *   was two numbers off, from an older layout). Gaps B25.
  */
 const bracket = (minIncome: number, maxIncome: number | null, baseDeduction: number, rate: number): TaxBracket => ({ minIncome, maxIncome, rate, baseDeduction });
 
@@ -35,29 +36,29 @@ export const PH_YEAR_END_2023: {
   deMinimisLeaveDays: 10,
   form2316Boxes: [
     // Non-taxable / exempt (Part IV-B A)
-    { box: "29", label: "Basic salary / statutory minimum wage (MWE)", part: "non_taxable", codes: MWE_EXEMPT_BASIC, minimumWage: "mwe", lessContributions: true },
-    { box: "30", label: "Holiday pay (MWE)", part: "non_taxable", codes: ["holiday_pay", "rest_day_pay"], minimumWage: "mwe" },
-    { box: "31", label: "Overtime pay (MWE)", part: "non_taxable", codes: ["overtime"], minimumWage: "mwe" },
-    { box: "32", label: "Night shift differential (MWE)", part: "non_taxable", codes: ["night_differential"], minimumWage: "mwe" },
-    { box: "33", label: "Hazard pay (MWE)", part: "non_taxable", codes: ["hazard_pay"], minimumWage: "mwe" },
-    { box: "34", label: "13th month pay and other benefits", part: "non_taxable", codes: ["thirteenth_month", "bonus"], taxable: "no", capped: true, overflowTo: "48" },
-    { box: "35", label: "De minimis benefits", part: "non_taxable", codes: ["de_minimis", "allowance", "leave_encashment"], taxable: "no" },
-    { box: "36", label: "SSS, GSIS, PhilHealth and Pag-IBIG contributions (employee share)", part: "non_taxable", codes: ["@contributions"] },
-    { box: "37", label: "Salaries and other forms of compensation (non-taxable)", part: "non_taxable", codes: ["*"], taxable: "no" },
-    // Taxable (Part IV-B B)
-    { box: "39", label: "Basic salary", part: "taxable", codes: MWE_EXEMPT_BASIC, minimumWage: "non_mwe", lessContributions: true },
-    { box: "40", label: "Representation", part: "taxable", codes: [] },
-    { box: "41", label: "Transportation", part: "taxable", codes: [] },
-    { box: "42", label: "Cost of living allowance", part: "taxable", codes: [] },
-    { box: "43", label: "Fixed housing allowance", part: "taxable", codes: [] },
-    { box: "44", label: "Others (regular)", part: "taxable", codes: ["allowance"] },
-    { box: "45", label: "Commission", part: "taxable", codes: ["commission"] },
-    { box: "46", label: "Profit sharing", part: "taxable", codes: ["profit_sharing"] },
-    { box: "47", label: "Fees including director's fees", part: "taxable", codes: ["fees"] },
-    { box: "48", label: "Taxable 13th month pay and other benefits", part: "taxable", codes: ["thirteenth_month", "bonus"] },
-    { box: "49", label: "Hazard pay", part: "taxable", codes: ["hazard_pay"] },
-    { box: "50", label: "Overtime pay", part: "taxable", codes: ["overtime", "holiday_pay", "rest_day_pay", "night_differential"] },
-    { box: "51", label: "Others (supplementary)", part: "taxable", codes: ["*"] },
+    { box: "27", label: "Basic salary / statutory minimum wage (MWE)", part: "non_taxable", codes: MWE_EXEMPT_BASIC, minimumWage: "mwe", lessContributions: true },
+    { box: "28", label: "Holiday pay (MWE)", part: "non_taxable", codes: ["holiday_pay", "rest_day_pay"], minimumWage: "mwe" },
+    { box: "29", label: "Overtime pay (MWE)", part: "non_taxable", codes: ["overtime"], minimumWage: "mwe" },
+    { box: "30", label: "Night shift differential (MWE)", part: "non_taxable", codes: ["night_differential"], minimumWage: "mwe" },
+    { box: "31", label: "Hazard pay (MWE)", part: "non_taxable", codes: ["hazard_pay"], minimumWage: "mwe" },
+    { box: "32", label: "13th month pay and other benefits", part: "non_taxable", codes: ["thirteenth_month", "bonus"], taxable: "no", capped: true, overflowTo: "46" },
+    { box: "33", label: "De minimis benefits", part: "non_taxable", codes: ["de_minimis", "allowance", "leave_encashment"], taxable: "no" },
+    { box: "34", label: "SSS, GSIS, PhilHealth and Pag-IBIG contributions (employee share)", part: "non_taxable", codes: ["@contributions"] },
+    { box: "35", label: "Salaries and other forms of compensation (non-taxable)", part: "non_taxable", codes: ["*"], taxable: "no" },
+    // Taxable (Part IV-B B; 42 and 49 are the form's "Others (specify)" lines 42A/B and 49A/B)
+    { box: "37", label: "Basic salary", part: "taxable", codes: MWE_EXEMPT_BASIC, minimumWage: "non_mwe", lessContributions: true },
+    { box: "38", label: "Representation", part: "taxable", codes: [] },
+    { box: "39", label: "Transportation", part: "taxable", codes: [] },
+    { box: "40", label: "Cost of living allowance", part: "taxable", codes: [] },
+    { box: "41", label: "Fixed housing allowance", part: "taxable", codes: [] },
+    { box: "42", label: "Others (regular)", part: "taxable", codes: ["allowance"] },
+    { box: "43", label: "Commission", part: "taxable", codes: ["commission"] },
+    { box: "44", label: "Profit sharing", part: "taxable", codes: ["profit_sharing"] },
+    { box: "45", label: "Fees including director's fees", part: "taxable", codes: ["fees"] },
+    { box: "46", label: "Taxable 13th month pay and other benefits", part: "taxable", codes: ["thirteenth_month", "bonus"] },
+    { box: "47", label: "Hazard pay", part: "taxable", codes: ["hazard_pay"] },
+    { box: "48", label: "Overtime pay", part: "taxable", codes: ["overtime", "holiday_pay", "rest_day_pay", "night_differential"] },
+    { box: "49", label: "Others (supplementary)", part: "taxable", codes: ["*"] },
   ],
   // Not compensation: reimbursements, and the year-end lines themselves (they settle tax, they aren't pay).
   form2316Excluded: ["reimbursement", "year_end_tax", "year_end_tax_refund"],

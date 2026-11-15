@@ -27,8 +27,9 @@ const FIELD_IDS = {
  * Ends the employee's current employment and records why: Resigned, Terminated,
  * AWOL, or whatever the organization has configured as a non-active status.
  * Nothing is preselected, so a resignation is never saved as a termination by
- * default. The end date is today or earlier for now: the status changes at once,
- * so HR ends the employment on the last working day.
+ * default. A last day today or earlier ends it at once; a later one (a resignation
+ * with notice) is scheduled: the employee stays active until then (payroll plan
+ * Phase 5a slice 3).
  */
 export function EndEmploymentDialog({
   organizationId,
@@ -73,7 +74,6 @@ export function EndEmploymentDialog({
     clear();
     if (!selected) return setFieldError("status", "Choose why the employment is ending.");
     if (!effectiveTo) return setFieldError("effectiveTo", "Enter the last day of employment.");
-    if (effectiveTo > todayKey) return setFieldError("effectiveTo", "The last day can't be in the future yet. End the employment on the last working day.");
     if (hiredKey && effectiveTo < hiredKey) return setFieldError("effectiveTo", `The last day can't be before ${employeeName} was hired.`);
     if (needsNote && !note.trim()) return setFieldError("terminationReason", `Add a note for ${selected.name}: say what led to it.`);
 
@@ -96,7 +96,7 @@ export function EndEmploymentDialog({
     }
 
     setOpen(false);
-    toast.success(`${employeeName}'s employment ended: ${selected.name}`);
+    toast.success(effectiveTo > todayKey ? `${employeeName}'s employment is set to end after ${effectiveTo}: ${selected.name}` : `${employeeName}'s employment ended: ${selected.name}`);
     router.refresh();
   }
 
@@ -130,13 +130,12 @@ export function EndEmploymentDialog({
             error={fieldErrors.status}
             testId="end-employment-reason"
           />
-          <FormField label="Last day of employment" htmlFor={FIELD_IDS.effectiveTo} required error={fieldErrors.effectiveTo} description="Today or earlier. For a resignation with notice, come back on the last working day.">
+          <FormField label="Last day of employment" htmlFor={FIELD_IDS.effectiveTo} required error={fieldErrors.effectiveTo} description={effectiveTo > todayKey ? "A later date is scheduled: they stay active and paid through this day, and the employment ends the day after." : "Their last working day. A later date schedules the end (e.g. a resignation with notice)."}>
             <Input
               id={FIELD_IDS.effectiveTo}
               type="date"
               value={effectiveTo}
               min={hiredKey ?? undefined}
-              max={todayKey}
               onChange={(event) => {
                 setEffectiveTo(event.target.value);
                 clearField("effectiveTo");

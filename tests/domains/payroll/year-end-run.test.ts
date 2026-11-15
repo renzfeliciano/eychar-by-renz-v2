@@ -79,7 +79,7 @@ describe("year-end adjustment run (payroll plan Phase 4)", () => {
     expect(a.earnings).toEqual([{ code: "year_end_tax_refund", label: "Tax refund 2026 (year-end)", amount: octoberAngela.tax, taxable: false }]);
     expect(a).toMatchObject({ grossPay: octoberAngela.tax, tax: 0, netPay: octoberAngela.tax });
     const boxes = Object.fromEntries(a.yearEnd!.boxes.map((box: { box: string; amount: number }) => [box.box, box.amount]));
-    expect(boxes).toMatchObject({ "36": octoberAngela.employeeContributions, "39": 13775 });
+    expect(boxes).toMatchObject({ "34": octoberAngela.employeeContributions, "37": 13775 });
 
     // Carlos: ₱400,000 + this year's taxable, by the annual table, less both employers' withholding.
     const c = (await recordOf(run._id, carlos))!;
