@@ -3,11 +3,12 @@ import { connectMongoDB } from "@/server/db/connection";
 import { PayrollRunModel, PayrollScheduleModel, ProjectModel } from "@/server/db/models";
 import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
-import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { AppError, BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { describeErrorForLog } from "@/shared/errors/describe-error";
 import { addDays, dateKeyToDate, dateToDateKey, localDateKey, weekdayOf } from "@/lib/date-key";
 import { periodContaining, periodEndingOnOrBefore, type CutoffSpec, type PayPeriod } from "./engine/pay-periods";
 import type { PayFrequency } from "./engine/pay-frequency";
-import { monthlyPayAcknowledgement } from "./payroll-policy-service";
+import { PayrollPolicyService, monthlyPayAcknowledgement } from "./payroll-policy-service";
 import { PayrollRunService } from "./payroll-run-service";
 import { withSharedRoster } from "./payroll-run-compute";
 import type { CreatePayrollScheduleInput, UpdatePayrollScheduleInput } from "@/shared/validation/payroll";
@@ -113,18 +114,37 @@ export const PayrollScheduleService = {
     return schedule;
   },
 
-  /** Schedules with the cutoff in progress and the last one that closed, for the schedules screen. */
+  /** Active monthly schedules with whether HR acknowledged monthly pay, for the dashboard's risk list (gaps B28). */
+  async listActiveMonthly(organizationId: string) {
+    await connectMongoDB();
+    return PayrollScheduleModel.find({ organizationId: new Types.ObjectId(organizationId), payFrequency: "monthly", status: "active" })
+      .select("name payFrequency status monthlyPayAcknowledgement")
+      .lean();
+  },
+
+  /**
+   * Schedules with the cutoff in progress and the last one that closed, for the schedules screen, and the
+   * payroll policy that applies to the current cutoff (its name and frequency), so the screen can flag a
+   * schedule whose frequency differs from the policy's before a run fails on it (gaps B28).
+   */
   async list(organizationId: string, today: string = localDateKey()) {
     await connectMongoDB();
     const schedules = await PayrollScheduleModel.find({ organizationId: new Types.ObjectId(organizationId) }).sort({ name: 1 }).lean();
     const lastRuns = await PayrollRunModel.find({ _id: { $in: schedules.map((schedule) => schedule.lastRunId).filter(Boolean) } }).select("runNumber").lean();
     const runNumberById = new Map(lastRuns.map((run) => [run._id.toString(), run.runNumber as string]));
-    return schedules.map((schedule) => ({
-      ...schedule,
-      lastRunNumber: schedule.lastRunId ? (runNumberById.get(schedule.lastRunId.toString()) ?? null) : null,
-      currentPeriod: periodContaining(specOf(schedule), today),
-      lastClosedPeriod: periodEndingOnOrBefore(specOf(schedule), addDays(today, -1)),
-    }));
+    return Promise.all(
+      schedules.map(async (schedule) => {
+        const currentPeriod = periodContaining(specOf(schedule), today);
+        const resolved = await PayrollPolicyService.resolve({ organizationId, projectId: schedule.projectId?.toString(), effectiveDate: dateKeyToDate(currentPeriod.end) });
+        return {
+          ...schedule,
+          lastRunNumber: schedule.lastRunId ? (runNumberById.get(schedule.lastRunId.toString()) ?? null) : null,
+          currentPeriod,
+          lastClosedPeriod: periodEndingOnOrBefore(specOf(schedule), addDays(today, -1)),
+          policy: resolved ? { name: resolved.policy.name as string, payFrequency: resolved.policy.payFrequency as string } : null,
+        };
+      }),
+    );
   },
 
   /**
@@ -220,7 +240,7 @@ export const PayrollScheduleService = {
               payDate: period.payDate,
             },
             {},
-            { source: { type: "schedule", scheduleId } },
+            { source: { type: "schedule", scheduleId, scheduleName: schedule.name, payFrequency: schedule.payFrequency } },
           );
           await PayrollScheduleModel.updateOne(
             { _id: schedule._id },
@@ -228,7 +248,10 @@ export const PayrollScheduleService = {
           );
           outcomes.push({ scheduleId, outcome: "prepared", period, runNumber: run.runNumber });
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Couldn't prepare the run";
+          // Only our own plain-language messages reach the screen; a database or
+          // library error stays in the server log (it can carry internal text or personal data).
+          if (!(error instanceof AppError)) console.error("Scheduled payroll run failed", describeErrorForLog(error));
+          const message = error instanceof AppError ? error.message : "Couldn't prepare the run. Try again, and contact support if it keeps happening.";
           await PayrollScheduleModel.updateOne({ _id: schedule._id }, { $set: { lastError: message, lastAttemptAt: new Date() } });
           outcomes.push({ scheduleId, outcome: "failed", period, error: message });
         }

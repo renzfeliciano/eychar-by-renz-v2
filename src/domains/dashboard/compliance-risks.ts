@@ -123,13 +123,18 @@ export function finalPayRisks(
 }
 
 /**
- * Active monthly payroll policies HR hasn't acknowledged (payroll plan Phase 6, owner: flag until acknowledged).
- * Art. 103 asks for pay at least twice a month; monthly stays HR's choice, but an unacknowledged one is a risk.
+ * Active monthly payroll policies and schedules HR hasn't acknowledged (payroll plan Phase 6, owner: flag until
+ * acknowledged; schedules added for gaps B28). Art. 103 asks for pay at least twice a month; monthly stays HR's
+ * choice, but an unacknowledged one is a risk.
  */
-export function monthlyPayRisks(policies: { id: string; name: string; payFrequency: string; status?: string | null; acknowledged: boolean }[]): ActionItem[] {
-  return policies
-    .filter((policy) => policy.payFrequency === "monthly" && policy.status !== "inactive" && !policy.acknowledged)
-    .map((policy) => ({
+export function monthlyPayRisks(
+  policies: { id: string; name: string; payFrequency: string; status?: string | null; acknowledged: boolean }[],
+  schedules: { id: string; name: string; payFrequency: string; status?: string | null; acknowledged: boolean }[] = [],
+): ActionItem[] {
+  const unacknowledged = <T extends { payFrequency: string; status?: string | null; acknowledged: boolean }>(rows: T[]) =>
+    rows.filter((row) => row.payFrequency === "monthly" && row.status !== "inactive" && !row.acknowledged);
+  return [
+    ...unacknowledged(policies).map((policy) => ({
       id: `monthly-pay-${policy.id}`,
       kind: "monthly-pay",
       title: `Review monthly pay: ${policy.name}`,
@@ -137,7 +142,17 @@ export function monthlyPayRisks(policies: { id: string; name: string; payFrequen
       href: "/payroll/policies",
       actionLabel: "Open policies",
       urgency: "soon" as const,
-    }));
+    })),
+    ...unacknowledged(schedules).map((schedule) => ({
+      id: `monthly-schedule-${schedule.id}`,
+      kind: "monthly-pay",
+      title: `Review monthly schedule: ${schedule.name}`,
+      detail: "Pays once a month (Labor Code Art. 103 asks for at least twice). Edit the schedule to change it or acknowledge the risk.",
+      href: "/payroll/schedules",
+      actionLabel: "Open schedules",
+      urgency: "soon" as const,
+    })),
+  ];
 }
 
 /** Employee documents (contracts, licenses, permits) expired or expiring within the window. */

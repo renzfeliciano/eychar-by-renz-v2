@@ -144,6 +144,25 @@ const payrollRecordSchema = new Schema(
       ),
       default: undefined,
     },
+    // On a bonus run's record only: how the amount was worked out, so it reproduces later (§46).
+    bonus: {
+      type: new Schema(
+        {
+          year: { type: Number, required: true },
+          basis: { type: String, required: true },
+          value: { type: Number, required: true },
+          monthlyBasic: { type: Number, required: true },
+          dailyRate: { type: Number, required: true },
+          prorated: { type: Boolean, required: true, default: false },
+          monthsServed: { type: Number },
+          serviceStart: { type: String },
+          computed: { type: Number, required: true },
+          overridden: { type: Boolean, required: true, default: false },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     // On a final run's record only (payroll plan Phase 5): the settlement it pays and its approved hash.
     finalSettlement: {
       type: new Schema(

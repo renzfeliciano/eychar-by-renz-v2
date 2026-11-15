@@ -10,6 +10,15 @@ function parseFailure(schema: z.ZodTypeAny, input: unknown): ZodError {
 }
 
 describe("toErrorResponse", () => {
+  it("never shows the validation library's own wording or its field map", async () => {
+    const schema = z.object({ kind: z.enum(["alpha", "beta"]), code: z.string().regex(/^[A-Z]{2}$/) });
+    const body = await toErrorResponse(parseFailure(schema, { kind: "gamma", code: "x" })).json();
+
+    expect(body.error).toBe("Kind isn't valid");
+    expect(body.error).not.toMatch(/alpha|beta|expected|Invalid option/i);
+    expect(body).not.toHaveProperty("details");
+  });
+
   it("answers a malformed JSON body with 400, not 500 (gap B2)", async () => {
     const request = new Request("http://localhost/api/x", { method: "POST", body: "{not json", headers: { "content-type": "application/json" } });
     const error = await request.json().then(
@@ -21,7 +30,8 @@ describe("toErrorResponse", () => {
     const body = await response.json();
 
     expect(response.status).toBe(400);
-    expect(body.error).toMatch(/isn't valid JSON/);
+    expect(body.error).toMatch(/couldn't read what was sent/i);
+    expect(body.error).not.toMatch(/JSON/);
   });
 
   it("turns a completely omitted required field into a friendly message, not Zod's raw internals", async () => {

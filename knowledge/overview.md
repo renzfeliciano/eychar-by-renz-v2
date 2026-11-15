@@ -14,14 +14,14 @@ Sources: `README.md`, `ARCHITECTURE.md` (Architecture style, Status).
 
 | Concern | Choice |
 |---|---|
-| Framework | `next` 16.3.8, `react`/`react-dom` 19.2.8 |
-| Data | `mongoose` ^9.9.4, `mongodb` ^6.20 |
+| Framework | `next` 16.4.6 (exact pin; 16.3.8 had two critical RCEs, see known-gaps A7), `react`/`react-dom` 19.2.8 |
+| Data | `mongoose` ^9.12.1, `mongodb` ^6.20 |
 | Auth | `next-auth` ^4.24 (ADR-042 stays on v4), `argon2`, `@simplewebauthn/*` (biometric clock-in, ADR-020) |
-| Validation | `zod` ^4.5 |
-| UI | `@base-ui/react`, `lucide-react`, `sonner`, `next-themes`, `tailwindcss` ^4, `class-variance-authority`, `shadcn` |
+| Validation | `zod` ^4.6.7 |
+| UI | `@base-ui/react`, `lucide-react`, `sonner`, `next-themes`, `tailwindcss` ^4, `class-variance-authority`, `shadcn` (devDependency: only its build-time CSS is imported) |
 | Files / export | `@vercel/blob`, `exceljs` 4.4.0, `qrcode` |
 | Liveness | `@mediapipe/tasks-vision` 1.0.1 (WASM copied at build by `scripts/copy-mediapipe-wasm.mjs`) |
-| Tests | `vitest` ^3.2, `@testing-library/*`, `jsdom`, `mongodb-memory-server`, `@playwright/test` |
+| Tests | `vitest` ^4.1.12, `@testing-library/*`, `jsdom`, `mongodb-memory-server`, `@playwright/test` |
 | Language | TypeScript ^5, `tsx` for scripts |
 
 Node 22 in CI (`.github/workflows/ci.yml`).
@@ -43,7 +43,7 @@ Node 22 in CI (`.github/workflows/ci.yml`).
 ## Gates
 
 - **Pre-commit** (`.husky/pre-commit`): lint + typecheck only.
-- **CI** (`.github/workflows/ci.yml`, push to `main` and PRs): lint, typecheck, `npm test`, build.
+- **CI** (`.github/workflows/ci.yml`, push to `main` and PRs): job `check` runs `npm ci`, a production dependency audit (`npm audit --omit=dev --audit-level=high`, fails the build), lint, typecheck, `npm test`, build. Job `e2e` (needs `check`) starts MongoDB 7 as a replica set, seeds it with `scripts/seed-e2e.ts` and runs Playwright (added 2026-11-15, not yet run on GitHub: confirm the first run).
   e2e is noted in README as also running in CI after those pass, but the current `ci.yml` has no
   e2e step. Treat this as a mismatch to confirm (see `known-gaps-and-mismatches.md` once written).
 

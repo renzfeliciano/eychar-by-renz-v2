@@ -1,6 +1,6 @@
 # Testing and verification (Phase 7)
 
-**Built from commit:** `6587050` (main). **Last verified:** `6587050`.
+**Built from commit:** `6587050` (main). **Last verified:** `6587050`; added 2026-11-15: `tests/lib/friendly-error.test.ts`, `tests/domains/workforce/roster-api-view.test.ts`, a validation-wording case in `tests/shared/errors/to-response.test.ts`, a document-ownership case in `employee-document-service.test.ts`; Vitest 4: use `type Mock`, not `ReturnType<typeof vi.fn>`, for typed mocks.
 **Sources of truth:** `docs/engineering/ENGINEERING.md` §46 (testing), §58 (domain test), §59 (historical test), §60 (authorization test); `package.json`; `vitest.config.ts`; `playwright.config.ts`; `.github/workflows/ci.yml`; `.husky/pre-commit`.
 Code wins over docs. Paths are relative to the repo root.
 

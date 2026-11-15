@@ -1,6 +1,6 @@
 # UI patterns and building blocks (Phase 5)
 
-**Built from commit:** `6587050` (main). **Last verified:** `6587050`.
+**Built from commit:** `6587050` (main). **Last verified:** `6587050`; error text rules added 2026-11-15.
 **Sources of truth:** `ARCHITECTURE.md` "UI standards" (line ~590), `docs/engineering/ENGINEERING.md` §23 (UI authorization), §41 (mobile-first), §47-§50 (type safety, errors, observability, code quality), `docs/architecture/adr/ADR-013-ui-design-system.md`, `ADR-048-navy-ledger-design-and-loading-states.md`, `ADR-050-animated-brand-loader.md`, `ADR-046-org-chart-as-a-drawn-canvas.md`.
 Code wins over docs. Cited paths are relative to the repo root.
 
@@ -187,6 +187,13 @@ Code wins over docs. Cited paths are relative to the repo root.
 - Each collected file must contain `toast.success` or `toast.error`.
 - Exempt files: `recruitment/tracking/applicant-pipeline.tsx`, `leave/types/convertible-toggle.tsx` (no spinner); `(self-service)/clock/clock-panel.tsx`, `shared/change-password-form.tsx` (no toast).
 - **New screen:** a file that sends a mutation with a literal method string needs both a pending state and a toast in the same file, or an entry in the exemption map with a reason.
+
+### Error and status text (2026-11-15)
+
+- Show an error from a `catch` with `friendlyErrorMessage(err, "Plain fallback.")` (`src/lib/friendly-error.ts`), never `err.message`.
+- Never render raw JSON, ids, internal type names, library wording or technology names in a screen. The audit sheet keeps the
+  action code and record id inside a collapsed "Technical reference" (`audit-entry-sheet.tsx`); record types are shown through
+  `describeRecordType` ("Leave request", not "LeaveRequest").
 
 ## 9. Known gaps and mismatches
 

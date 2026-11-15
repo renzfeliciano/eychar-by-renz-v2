@@ -61,11 +61,17 @@ export const EmployeeDocumentService = {
   },
 
   /** Metadata only — the stored file itself is never touched by an edit; re-uploading is a new document. */
-  async update(id: string, organizationId: string, patch: Omit<UpdateEmployeeDocumentInput, "organizationId">, actor: { userId?: string }) {
+  async update(id: string, organizationId: string, patch: Omit<UpdateEmployeeDocumentInput, "organizationId">, actor: { userId?: string }, employeeId?: string) {
     await connectMongoDB();
     await DocumentTypeService.assertValidCode(organizationId, patch.documentType);
 
-    const document = await EmployeeDocumentModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
+    // The employee in the URL must own the document, as on download (`getById`).
+    if (!Types.ObjectId.isValid(id) || (employeeId !== undefined && !Types.ObjectId.isValid(employeeId))) throw new NotFoundError("Document not found in this organization");
+    const document = await EmployeeDocumentModel.findOne({
+      _id: new Types.ObjectId(id),
+      organizationId: new Types.ObjectId(organizationId),
+      ...(employeeId !== undefined ? { employeeId: new Types.ObjectId(employeeId) } : {}),
+    });
     if (!document) throw new NotFoundError("Document not found in this organization");
 
     const before = { title: document.title, documentType: document.documentType };

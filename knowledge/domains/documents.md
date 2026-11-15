@@ -14,7 +14,7 @@
 
 **Routes:**
 - `src/app/api/employees/[id]/documents/route.ts`: `GET` (`employee-documents.read`, list without file data); `POST` multipart upload (`employee-documents.create`, requires a `content-length` header (411 otherwise), rejects bodies over the cap before parsing, rate-limited per user with `enforceRateLimit("documentUpload")`).
-- `src/app/api/employees/[id]/documents/[documentId]/route.ts`: `GET` download as an attachment (`employee-documents.read`, scoped by employee id); `PATCH` metadata (`employee-documents.update`).
+- `src/app/api/employees/[id]/documents/[documentId]/route.ts`: `GET` download as an attachment (`employee-documents.read`, scoped by employee id); `PATCH` metadata (`employee-documents.update`, scoped by employee id).
 
 **Pages:**
 - `src/app/(app)/people/[id]/documents-tab.tsx`, `document-form-dialog.tsx`, `document-download-button.tsx`.
@@ -35,9 +35,9 @@
 - Every create and update is audited (`employee-document.created`, `employee-document.updated`).
 
 **Known gaps / mismatches:**
-- `PATCH /api/employees/[id]/documents/[documentId]` ignores the `[id]` segment. It calls `EmployeeDocumentService.update(documentId, org, …)`, which looks up the document by id and organization only. A PATCH with any employee id in the same organization updates the document. The GET route does check the employee.
+- Resolved 2026-11-15: `PATCH /api/employees/[id]/documents/[documentId]` now passes `[id]` to `EmployeeDocumentService.update`, which refuses a document that employee doesn't own, like the GET route.
 - ADR-025 says "no delete at all", and ARCHITECTURE.md § Documents says "No delete of any kind". The recycle-bin registry lists `employee-document` as deletable (`src/domains/deletion/deletion-registry.ts`). See the deletion file.
 - `listExpiringForOrganization` returns at most 200 rows (`.limit(200)`) with no indication of truncation, and the dashboard uses it for the risk list.
 - The Known gaps in ARCHITECTURE.md do not mention documents. No open gap is recorded for them.
 
-**Last verified:** 6587050
+**Last verified:** 6587050; A5 fixed 2026-11-15.

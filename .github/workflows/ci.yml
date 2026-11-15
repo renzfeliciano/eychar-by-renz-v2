@@ -40,6 +40,11 @@ jobs:
 
       - run: npm ci
 
+      # Known-vulnerable production dependencies fail the build. Dev-only tools
+      # are reported but don't block (they never ship).
+      - name: Dependency audit (production)
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -51,3 +56,67 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Flows only a real browser, server and database prove (tests/e2e/README.md).
+  # Runs after the checks pass. Every credential below is a throwaway that
+  # exists only inside this job.
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXTAUTH_SECRET: ci-e2e-secret-not-used-in-production-0123456789
+      MFA_ENCRYPTION_KEY: Y2ktZTJlLWtleS1ub3QtdXNlZC1pbi1wcm9kdWN0aW9uLTAx
+      E2E_MONGODB_URI: mongodb://127.0.0.1:27017/pcas_hris_e2e?directConnection=true
+      MONGODB_URI: mongodb://127.0.0.1:27017/pcas_hris_e2e?directConnection=true
+      NEXTAUTH_URL: http://localhost:4200
+      E2E_USERNAME: hr.e2e
+      E2E_PASSWORD: ci-e2e-passphrase-one-1
+      E2E_APPROVER_USERNAME: approver.e2e
+      E2E_APPROVER_PASSWORD: ci-e2e-passphrase-two-2
+      SEED_ORGANIZATION_NAME: E2E Organization
+      SEED_ORGANIZATION_SLUG: e2e-org
+      SEED_HR_USERNAME: hr.e2e
+      SEED_HR_PASSWORD: ci-e2e-passphrase-one-1
+      SEED_HR_FULL_NAME: E2E HR
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Transactions need a replica set (ADR-041): a single-node one is enough.
+      - name: Start MongoDB 7 as a replica set
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval "db.runCommand({ping:1}).ok" && break
+            sleep 2
+          done
+          docker exec mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]})'
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval "db.hello().isWritablePrimary" | grep -q true && break
+            sleep 2
+          done
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Seed the throwaway database
+        run: npx tsx scripts/seed-e2e.ts
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

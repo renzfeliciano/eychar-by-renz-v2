@@ -1,5 +1,6 @@
 import { formatPeso } from "@/domains/payroll/payroll-labels";
 import { formatDateKey } from "@/lib/date-key";
+import { bonusBasisText } from "@/domains/payroll/bonus-labels";
 
 /** `nonTaxable` marks an earning that isn't taxed (allowances, 13th month, refunds…; payroll plan Phase 7). */
 type Line = { label: string; amount: number; nonTaxable?: boolean };
@@ -44,6 +45,7 @@ export type PayslipRecord = {
   employerContributions: number;
   attendance?: { daysWorked?: number | null; absentDays?: number | null; paidLeaveDays?: number | null; lateMinutes?: number | null; undertimeMinutes?: number | null } | null;
   thirteenthMonth?: { basicEarned: number; estimatedBasic?: number | null; divisor: number; alreadyPaid?: number | null } | null;
+  bonus?: { basis: string; value: number; monthlyBasic: number; dailyRate: number; prorated?: boolean | null; monthsServed?: number | null; computed: number; overridden?: boolean | null } | null;
   yearEnd?: { year: number; grossTaxable: number; taxDue: number; withheld: number; difference: number } | null;
   finalSettlement?: { version: number; hash: string; lastWorkingDay: string } | null;
 };
@@ -148,6 +150,8 @@ export function PayslipCard({
                 Final pay · last working day {formatDateKey(record.finalSettlement.lastWorkingDay)} · settlement version {record.finalSettlement.version} · fingerprint{" "}
                 {String(record.finalSettlement.hash).slice(0, 10)}
               </>
+            ) : record.bonus ? (
+              <>{bonusBasisText(record.bonus)}</>
             ) : record.thirteenthMonth ? (
               <>
                 Basic earned {formatPeso(record.thirteenthMonth.basicEarned)}

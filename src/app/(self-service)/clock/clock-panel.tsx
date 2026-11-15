@@ -16,6 +16,7 @@ import { evaluateGeofence, formatDistance } from "@/domains/attendance/geofence"
 import type { ClockSite } from "@/domains/attendance/clock-site-service";
 import { LivenessCamera, preloadFaceLandmarker, type LivenessCapture } from "./liveness-camera";
 import { formatTime } from "@/lib/app-time";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 export type TodayRecord = {
   checkInAt?: string | null;
@@ -128,7 +129,7 @@ export function ClockPanel({
 
       setHasCredential(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Biometric setup failed or was cancelled.");
+      setError(friendlyErrorMessage(err, "Biometric setup failed or was cancelled."));
     } finally {
       setIsRegistering(false);
     }
@@ -163,7 +164,7 @@ export function ClockPanel({
       setStep("liveness");
     } catch (err) {
       setStep("idle");
-      setError(err instanceof Error ? err.message : "Couldn't check your location. Try again.");
+      setError(friendlyErrorMessage(err, "Couldn't check your location. Try again."));
     }
   }
 
@@ -200,7 +201,7 @@ export function ClockPanel({
       router.refresh();
     } catch (err) {
       setStep("idle");
-      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setError(friendlyErrorMessage(err, "Something went wrong. Try again."));
     } finally {
       pendingRef.current = null;
     }

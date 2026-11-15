@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormError } from "@/components/shared/form-field";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 /**
  * The confirmation step for any destructive/state-changing action (cancel,
@@ -61,7 +62,7 @@ export function ConfirmDialog({
       setOpen(false);
     } catch (err) {
       setIsSubmitting(false);
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(friendlyErrorMessage(err, "Something went wrong. Please try again."));
     }
   }
 

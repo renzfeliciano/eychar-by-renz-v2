@@ -92,6 +92,13 @@ export default async function PayrollSchedulesPage() {
                 <span className="text-xs text-muted-foreground">
                   {describeCutoffs(schedule.payFrequency, schedule.cutoffDay)}; paid {schedule.payDateOffsetDays} days after
                 </span>
+                {schedule.policy && schedule.policy.payFrequency !== schedule.payFrequency && (
+                  // The run would be refused (gaps B28): say so here, before the cutoff closes.
+                  <span className="mt-1 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300" data-testid="schedule-frequency-mismatch">
+                    <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+                    Policy &quot;{schedule.policy.name}&quot; pays {PAY_FREQUENCY_LABELS[schedule.policy.payFrequency as PayFrequency]?.toLowerCase() ?? schedule.policy.payFrequency}; runs won&apos;t be prepared until they match.
+                  </span>
+                )}
               </div>
             ),
           },

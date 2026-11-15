@@ -46,9 +46,28 @@ const payrollRunSchema = new Schema(
     organizationId: { type: Schema.Types.ObjectId, required: true, ref: "Organization" },
     runNumber: { type: String, required: true },
     projectId: { type: Schema.Types.ObjectId, ref: "Project" },
-    // regular | thirteenth_month | year_end_adjustment | final (payroll plan Phase 2, ADR pending).
+    // regular | thirteenth_month | year_end_adjustment | final | bonus (payroll plan Phase 2, ADR pending).
     // Optional: a run saved before run types existed has none and reads as regular (runTypeOf).
-    runType: { type: String, enum: ["regular", "thirteenth_month", "year_end_adjustment", "final"] },
+    runType: { type: String, enum: ["regular", "thirteenth_month", "year_end_adjustment", "final", "bonus"] },
+    // A bonus run's settings (e.g. a Christmas bonus): how each amount is worked out, and HR's per-employee
+    // amounts (0 leaves the employee out). Recomputing applies them again.
+    bonus: {
+      type: new Schema(
+        {
+          label: { type: String, required: true, trim: true },
+          basis: { type: String, enum: ["fixed", "percent_of_monthly", "months_of_pay", "days_of_pay"], required: true },
+          value: { type: Number, required: true, min: 0 },
+          prorate: { type: Boolean, required: true, default: false },
+          minServiceMonths: { type: Number, required: true, default: 0, min: 0 },
+          overrides: {
+            type: [new Schema({ employeeId: { type: Schema.Types.ObjectId, ref: "Employee", required: true }, amount: { type: Number, required: true, min: 0 } }, { _id: false })],
+            default: [],
+          },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     // A final-pay run pays one employee; two final runs for the same employee conflict.
     employeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
     // A final run's settlement (payroll plan Phase 5).

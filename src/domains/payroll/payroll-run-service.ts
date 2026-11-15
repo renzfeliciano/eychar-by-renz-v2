@@ -23,15 +23,17 @@ import { formatMoney } from "@/lib/money";
 import { roundMoney } from "./engine/money";
 import { PayrollPolicyService } from "./payroll-policy-service";
 import { PayrollRuleVersionService } from "./payroll-rule-version-service";
-import type { CreatePayrollRunInput, CreateThirteenthMonthRunInput, CreateYearEndRunInput, PayrollAdjustmentInput, PayrollRunActionInput } from "@/shared/validation/payroll";
+import type { CreateBonusRunInput, CreatePayrollRunInput, CreateThirteenthMonthRunInput, CreateYearEndRunInput, PayrollAdjustmentInput, PayrollRunActionInput, SetBonusAmountInput } from "@/shared/validation/payroll";
 import { yearEndRulesOf } from "./year-end-data";
 import { YEAR_END_MISSING_RULES } from "./year-end-compute";
 
 import { NO_ACTIVE_LOCK, assertNoOverlap, findRun, nextRunNumber, withComputeLock } from "./payroll-run-guards";
 import { computeRun } from "./payroll-run-compute";
+import { PAY_FREQUENCY_LABELS, type PayFrequency } from "./engine/pay-frequency";
 
 type Actor = { userId?: string };
-type RunSource = { type: "manual" | "schedule"; scheduleId?: string };
+/** Where a run came from; a schedule also says its pay frequency, which must match the policy (gaps B28). */
+type RunSource = { type: "manual" | "schedule"; scheduleId?: string; scheduleName?: string; payFrequency?: string };
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const toObjectId = (id?: string | null) => (id ? new Types.ObjectId(id) : undefined);
@@ -100,6 +102,13 @@ export const PayrollRunService = {
     const ruleResult = await PayrollRuleVersionService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(input.payDate) });
     if (!ruleResult) throw new NotFoundError("No payroll rule version applies on the pay date. Add one under Payroll › Rule versions.");
     const payFrequency = policyResult.policy.payFrequency as string;
+    // A schedule cuts periods for its own frequency; paying them under a policy of another frequency would pay a
+    // 14-day period as half a month (or the reverse), so the two must agree (payroll plan Phase 6 follow-up, B28).
+    if (options.source?.payFrequency && options.source.payFrequency !== payFrequency) {
+      throw new BusinessRuleError(
+        `Schedule${options.source.scheduleName ? ` "${options.source.scheduleName}"` : ""} is ${PAY_FREQUENCY_LABELS[options.source.payFrequency as PayFrequency]?.toLowerCase() ?? options.source.payFrequency}, but the payroll policy "${policyResult.policy.name}" pays ${PAY_FREQUENCY_LABELS[payFrequency as PayFrequency]?.toLowerCase() ?? payFrequency}. Change the schedule or the policy so they match.`,
+      );
+    }
     if (!ruleResult.policy.taxTables.some((table: { payFrequency: string }) => table.payFrequency === payFrequency)) {
       throw new BusinessRuleError(`Rule version v${ruleResult.policy.versionNumber} has no ${payFrequency} withholding tax table. Publish a new rule version that has one (Payroll › Rule versions › New; the Philippine template includes every frequency, bi-weekly as the annual table ÷ 26).`);
     }
@@ -196,6 +205,87 @@ export const PayrollRunService = {
   },
 
   /**
+   * Prepares a bonus run (e.g. a Christmas bonus) for a calendar year: every employee who is current staff
+   * on the pay date (in the project, if one is chosen) gets the amount the run's basis works out, optionally
+   * prorated by months served and limited to a minimum service. More than one bonus run a year is allowed;
+   * anyone already paid one is warned about. Not taxed in the run (year-end handles the benefits cap).
+   */
+  async prepareBonus(input: CreateBonusRunInput, actor: Actor) {
+    await connectMongoDB();
+    await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
+    const start = `${input.year}-01-01`;
+    const end = `${input.year}-12-31`;
+
+    const policyResult = await PayrollPolicyService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(input.payDate) });
+    if (!policyResult) throw new NotFoundError(`No payroll policy applies on ${formatDateKey(input.payDate)}. Add one under Payroll › Policies.`);
+    const ruleResult = await PayrollRuleVersionService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(input.payDate) });
+    if (!ruleResult) throw new NotFoundError("No payroll rule version applies on the pay date. Add one under Payroll › Rule versions.");
+
+    const now = new Date();
+    const settings = { label: input.label, basis: input.basis, value: input.value, prorate: input.prorate, minServiceMonths: input.minServiceMonths };
+    const run = await PayrollRunModel.create({
+      organizationId: new Types.ObjectId(input.organizationId),
+      runNumber: await nextRunNumber(input.organizationId, input.payDate),
+      projectId: toObjectId(input.projectId),
+      runType: "bonus",
+      bonus: { ...settings, overrides: [] },
+      payFrequency: policyResult.policy.payFrequency,
+      payPeriodStart: dateKeyToDate(start),
+      payPeriodEnd: dateKeyToDate(end),
+      payDate: dateKeyToDate(input.payDate),
+      policyId: policyResult.policy._id,
+      ruleVersionId: ruleResult.policy._id,
+      status: "draft",
+      source: { type: "manual" },
+      preparedBy: toObjectId(actor.userId),
+      history: [{ action: "prepared", status: "draft", at: now, by: toObjectId(actor.userId), note: input.label }],
+    });
+    await computeNewRunOrRemove(run._id, async () => {});
+
+    const prepared = await PayrollRunModel.findById(run._id).lean();
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "payroll-run.prepared",
+      resourceType: "PayrollRun",
+      resourceId: run._id.toString(),
+      after: { runNumber: prepared!.runNumber, year: input.year, payDate: input.payDate, projectId: input.projectId, totals: prepared!.totals },
+      metadata: { source: "manual", runType: "bonus", ...settings },
+    });
+    return prepared!;
+  },
+
+  /**
+   * Sets one employee's amount on a draft bonus run: a peso amount, 0 to leave them out, or null to go back
+   * to what the run's basis works out. The run is recomputed and the change audited.
+   */
+  async setBonusAmount(runId: string, input: SetBonusAmountInput, actor: Actor) {
+    await connectMongoDB();
+    const run = await findRun(runId, input.organizationId);
+    if (runTypeOf(run) !== "bonus") throw new BusinessRuleError("Only a bonus run's amounts can be set one by one.");
+    if (run.status !== "draft") throw new BusinessRuleError("Amounts can only change while the bonus run is a draft. Return it to draft first.");
+    await assertOptionalInOrganization(EmployeeModel, input.employeeId, input.organizationId, "Employee");
+    const employeeId = new Types.ObjectId(input.employeeId);
+
+    const pulled = await PayrollRunModel.findOneAndUpdate({ _id: run._id, status: "draft" }, { $pull: { "bonus.overrides": { employeeId } } });
+    if (!pulled) throw new BusinessRuleError("Amounts can only change while the bonus run is a draft. Return it to draft first.");
+    if (input.amount !== null) {
+      await PayrollRunModel.updateOne({ _id: run._id, status: "draft" }, { $push: { "bonus.overrides": { employeeId, amount: roundMoney(input.amount) } } });
+    }
+    await withComputeLock(run._id, () => computeRun(run._id));
+
+    await AuditService.record({
+      organizationId: input.organizationId,
+      actorUserId: actor.userId,
+      action: "payroll-run.bonus-amount-set",
+      resourceType: "PayrollRun",
+      resourceId: run._id.toString(),
+      metadata: { employeeId: input.employeeId, amount: input.amount },
+    });
+    return PayrollRunModel.findById(run._id).lean();
+  },
+
+  /**
    * Prepares the year-end withholding reconciliation (payroll plan Phase 4): one run per year and scope,
    * once every regular and 13th-month run of the year is approved, released or cancelled. It uses the
    * rule version in force on December 31, which must carry the annual table and the Form 2316 box map.
@@ -209,7 +299,7 @@ export const PayrollRunService = {
 
     const unfinished = await PayrollRunModel.find({
       organizationId,
-      runType: { $in: [null, "regular", "thirteenth_month"] },
+      runType: { $in: [null, "regular", "thirteenth_month", "bonus"] },
       status: { $in: ["draft", "submitted"] },
       payPeriodEnd: { $gte: dateKeyToDate(start), $lte: dateKeyToDate(end) },
     })

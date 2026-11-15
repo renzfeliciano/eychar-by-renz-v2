@@ -39,7 +39,7 @@ export function yearEndRulesOf(version: { annualTaxTable?: TaxBracket[] | null; 
 /**
  * Every employee's pay lines for `year` from approved or released runs:
  * - regular runs whose period ends in the year (earnings, employee contributions, tax withheld);
- * - the year's 13th-month run;
+ * - the year's 13th-month run and bonus runs (a bonus is a non-taxable "bonus" line, inside the benefits cap);
  * - 13th-month true-ups follow the year they are for (`thirteenthMonthYear`, Gate C Q4), not the run they sit in.
  * Previous-employer entries for the year are attached. `employeeIds` narrows the read.
  */
@@ -47,7 +47,7 @@ export async function employeeYears(organizationId: Types.ObjectId, year: number
   const employeeFilter = employeeIds ? { employeeId: { $in: employeeIds } } : {};
   const [regularRuns, thirteenthRuns] = await Promise.all([
     paidRegularRunsInYear(organizationId, year),
-    PayrollRunModel.find({ organizationId, runType: "thirteenth_month", status: { $in: PAID }, payPeriodStart: dateKeyToDate(`${year}-01-01`) }).select("_id payPeriodStart payPeriodEnd").lean(),
+    PayrollRunModel.find({ organizationId, runType: { $in: ["thirteenth_month", "bonus"] }, status: { $in: PAID }, payPeriodStart: dateKeyToDate(`${year}-01-01`) }).select("_id payPeriodStart payPeriodEnd").lean(),
   ]);
   const regularIds = regularRuns.map((run) => run._id);
   const runById = new Map([...regularRuns, ...thirteenthRuns].map((run) => [run._id.toString(), run]));

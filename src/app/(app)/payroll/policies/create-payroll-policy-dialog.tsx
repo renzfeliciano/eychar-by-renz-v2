@@ -18,6 +18,13 @@ import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 import { PAY_FREQUENCIES, PAY_FREQUENCY_LABELS } from "@/domains/payroll/engine/pay-frequency";
 import { MonthlyPayNotice } from "../monthly-pay-notice";
+import { FINAL_PAY_CHECK_CODES, FINAL_PAY_CHECK_DEFAULTS, FINAL_PAY_CHECK_LABELS, RECENT_PAY_CHANGE_DAYS_DEFAULT, type CheckSeverity, type FinalPayCheckCode } from "@/domains/final-settlement/final-pay-checks";
+
+const SEVERITIES: SelectOption[] = [
+  { id: "blocking", label: "Blocks approval" },
+  { id: "warning", label: "Warning to confirm" },
+  { id: "off", label: "Off" },
+];
 
 // Pay frequency is HR's choice (payroll plan Phase 6). Monthly needs the Art. 103 acknowledgement ticked.
 const FREQUENCIES: SelectOption[] = PAY_FREQUENCIES.map((id) => ({ id, label: PAY_FREQUENCY_LABELS[id] }));
@@ -30,6 +37,9 @@ const EMPTY = {
   projectId: "",
   payFrequency: "semi-monthly",
   acknowledgeMonthlyPay: false,
+  // Final pay checks (payroll plan Phase 5, shown here since gaps B26): severity per check; only changes from the defaults are sent.
+  finalPayChecks: { ...FINAL_PAY_CHECK_DEFAULTS } as Record<FinalPayCheckCode, CheckSeverity>,
+  recentPayChangeDays: String(RECENT_PAY_CHANGE_DAYS_DEFAULT),
   workDaysPerYear: "261",
   hoursPerDay: "8",
   finalPayDeadlineDays: "30",
@@ -102,6 +112,8 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
         projectId: form.projectId || undefined,
         payFrequency: form.payFrequency,
         acknowledgeMonthlyPay: form.payFrequency === "monthly" ? form.acknowledgeMonthlyPay : undefined,
+        finalPayChecks: FINAL_PAY_CHECK_CODES.filter((code) => form.finalPayChecks[code] !== FINAL_PAY_CHECK_DEFAULTS[code]).map((code) => ({ code, severity: form.finalPayChecks[code] })),
+        recentPayChangeDays: Number(form.recentPayChangeDays) !== RECENT_PAY_CHANGE_DAYS_DEFAULT ? Number(form.recentPayChangeDays) : undefined,
         workDaysPerYear: Number(form.workDaysPerYear),
         hoursPerDay: Number(form.hoursPerDay),
         finalPayDeadlineDays: Number(form.finalPayDeadlineDays),
@@ -249,6 +261,28 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
             <Checkbox checked={form.deductLateAndUndertime} onCheckedChange={(checked) => setForm({ ...form, deductLateAndUndertime: checked === true })} />
             Deduct lates and undertime at the hourly rate
           </label>
+          <details className="rounded-lg border px-3 py-2 text-sm" data-testid="policy-final-pay-checks">
+            <summary className="cursor-pointer font-medium">Final pay checks</summary>
+            <p className="mt-1 text-xs text-muted-foreground">What a final settlement is checked for before it&apos;s approved. A blocking check stops approval; a warning needs the approver&apos;s tick.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {FINAL_PAY_CHECK_CODES.map((code) => (
+                <OptionSelect
+                  key={code}
+                  label={FINAL_PAY_CHECK_LABELS[code]}
+                  value={form.finalPayChecks[code]}
+                  onChange={(value) => setForm({ ...form, finalPayChecks: { ...form.finalPayChecks, [code]: (value || FINAL_PAY_CHECK_DEFAULTS[code]) as CheckSeverity } })}
+                  options={SEVERITIES}
+                  placeholder="Default"
+                  testId={`policy-check-${code}`}
+                />
+              ))}
+            </div>
+            <div className="mt-3">
+              <FormField label="Recent pay change: days before the last working day" htmlFor="policy-recent-pay-change-days">
+                <Input id="policy-recent-pay-change-days" type="number" min={1} max={365} value={form.recentPayChangeDays} onChange={(event) => setForm({ ...form, recentPayChangeDays: event.target.value })} className="sm:w-32" placeholder="e.g. 60" />
+              </FormField>
+            </div>
+          </details>
           <FormError message={error} />
         </div>
         <DialogFooter>

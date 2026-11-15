@@ -21,7 +21,7 @@
 **Routes:** None. No handler under `src/app/api/` serves audit data. All reads are server-rendered.
 
 **Pages:**
-- `src/app/(app)/settings/audit/page.tsx` (gated by `audit-logs.read` via `hasPermission`), with `audit-entry-sheet.tsx` for the detail panel.
+- `src/app/(app)/settings/audit/page.tsx` (gated by `audit-logs.read` via `hasPermission`), with `audit-entry-sheet.tsx` for the detail panel (record type through `describeRecordType`; action code and record id under a collapsed "Technical reference").
 - `src/app/(app)/dashboard/page.tsx` (feed of the six latest non-`auth.` entries, line 183).
 - `src/app/(app)/account/security/page.tsx` (`recentSecurityEvents`, line 29).
 - `src/app/(app)/clearance/[id]/page.tsx` reads `AuditLogModel` directly (line 70); see gaps.

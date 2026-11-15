@@ -38,10 +38,10 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/employee
 
 export async function PATCH(request: Request, ctx: RouteContext<"/api/employees/[id]/documents/[documentId]">) {
   try {
-    const { documentId } = await ctx.params;
+    const { id, documentId } = await ctx.params;
     const input = updateEmployeeDocumentSchema.parse(await request.json());
     const { userId } = await requirePermission("employee-documents.update", input.organizationId);
-    const document = await EmployeeDocumentService.update(documentId, input.organizationId, input, { userId });
+    const document = await EmployeeDocumentService.update(documentId, input.organizationId, input, { userId }, id);
     return NextResponse.json({ document: documentMetadata(document) });
   } catch (error) {
     return toErrorResponse(error);

@@ -5,6 +5,10 @@ import { CATALOG_REGISTRY, type CatalogTypeSlug } from "@/domains/catalog/catalo
 import { PageHeader } from "@/components/shared/page-header";
 import { CatalogSection } from "@/components/shared/catalog-section";
 import { NoAccessState } from "@/components/shared/no-access-state";
+import { SeparationTypeService } from "@/domains/catalog/separation-type-service";
+import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
+import { employmentStatusForSeparation } from "@/domains/final-settlement/separation-status";
+import { SeparationStatusMap } from "./separation-status-map";
 
 export const metadata: Metadata = { title: "Catalogs" };
 
@@ -60,6 +64,25 @@ export default async function CatalogsSettingsPage() {
   );
   const visibleSections = sectionsWithAccess.filter((section) => section !== null);
 
+  // Separation type → employment status (ADR-062), shown with the separation types when both lists are readable.
+  const [canReadSeparations, canReadStatuses, canUpdateSeparations] = await Promise.all([
+    hasPermission("separation-types.read", organizationId),
+    hasPermission("employment-statuses.read", organizationId),
+    hasPermission("separation-types.update", organizationId),
+  ]);
+  const separationMap =
+    canReadSeparations && canReadStatuses
+      ? await Promise.all([SeparationTypeService.listCurrent(organizationId), EmploymentStatusService.listCurrent(organizationId)]).then(([types, statuses]) => ({
+          rows: types
+            .filter((type) => type.status === "active")
+            .map((type) => {
+              const metadata = (type.metadata ?? {}) as Record<string, unknown>;
+              return { id: type._id.toString(), name: type.name as string, employmentStatusCode: employmentStatusForSeparation(type), isDefault: !("employmentStatusCode" in metadata) };
+            }),
+          statuses: statuses.filter((status) => status.status === "active").map((status) => ({ id: status.code as string, label: status.name as string })),
+        }))
+      : null;
+
   if (visibleSections.length === 0) {
     return <NoAccessState needed="Read access to at least one catalog" message="You don't have access to view any catalogs." />;
   }
@@ -96,6 +119,11 @@ export default async function CatalogsSettingsPage() {
                 canCreate={section.canCreate}
                 canUpdate={section.canUpdate}
               />
+              {section.catalogType === "separation-types" && separationMap && separationMap.rows.length > 0 && (
+                <div className="mt-4">
+                  <SeparationStatusMap organizationId={organizationId} rows={separationMap.rows} statuses={separationMap.statuses} canUpdate={canUpdateSeparations} />
+                </div>
+              )}
             </section>
           ))}
         </div>

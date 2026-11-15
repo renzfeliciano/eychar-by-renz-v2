@@ -18,6 +18,7 @@ export const PAYROLL_RUN_TYPE_LABELS = {
   thirteenth_month: "13th month",
   year_end_adjustment: "Year-end tax adjustment",
   final: "Final pay",
+  bonus: "Bonus",
 } as const;
 
 export type PayrollRunType = keyof typeof PAYROLL_RUN_TYPE_LABELS;

@@ -98,3 +98,9 @@ export function auditChanges(before: unknown, after: unknown): { label: string; 
     .map((label) => ({ label, before: beforeFields.get(label) ?? "—", after: afterFields.get(label) ?? "—" }))
     .filter((change) => change.before !== change.after);
 }
+
+/** "LeaveRequest" -> "Leave request": the record type as a person would say it, not the system's internal name. */
+export function describeRecordType(resourceType: string): string {
+  const words = resourceType.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

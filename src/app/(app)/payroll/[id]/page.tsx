@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { PayrollStatusBadge } from "../payroll-status-badge";
 import { RunActions } from "./run-actions";
 import { RunRegister } from "./run-register";
+import { BonusPutBackButton } from "./bonus-amount-control";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
@@ -138,6 +139,18 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           divisor: record.thirteenthMonth.divisor,
           alreadyPaid: record.thirteenthMonth.alreadyPaid ?? 0,
           monthsWithPay: record.thirteenthMonth.monthsWithPay,
+        }
+      : null,
+    bonus: record.bonus
+      ? {
+          basis: record.bonus.basis,
+          value: record.bonus.value,
+          monthlyBasic: record.bonus.monthlyBasic,
+          dailyRate: record.bonus.dailyRate,
+          prorated: Boolean(record.bonus.prorated),
+          monthsServed: record.bonus.monthsServed ?? null,
+          computed: record.bonus.computed,
+          overridden: Boolean(record.bonus.overridden),
         }
       : null,
     yearEnd: record.yearEnd
@@ -304,9 +317,15 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
                 <li key={String(exclusion.employeeId)}>
                   {exclusion.employeeName}: {exclusion.reason}.{" "}
                   {acknowledgedReasons.get(String(exclusion.employeeId)) && <span>HR&apos;s reason: {acknowledgedReasons.get(String(exclusion.employeeId))}. </span>}
-                  <Link href="/payroll/compensation" className="text-primary hover:underline">
-                    Set pay terms
-                  </Link>
+                  {runTypeOf(run) === "bonus" ? (
+                    status === "draft" && canUpdate && exclusion.reason === "Left out by HR" ? (
+                      <BonusPutBackButton runId={run._id.toString()} organizationId={organizationId} employeeId={String(exclusion.employeeId)} employeeName={exclusion.employeeName} />
+                    ) : null
+                  ) : (
+                    <Link href="/payroll/compensation" className="text-primary hover:underline">
+                      Set pay terms
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -334,6 +353,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
         editable={status === "draft" && canUpdate}
         overtimeMultiplier={payPremiumsOf(policy).overtimeMultiplier}
         computesPremiums={Boolean(run.computePremiums)}
+        bonusRun={runTypeOf(run) === "bonus"}
       />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
