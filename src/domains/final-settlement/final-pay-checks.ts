@@ -31,6 +31,20 @@ export const FINAL_PAY_CHECK_DEFAULTS: Record<FinalPayCheckCode, Exclude<CheckSe
   unfinished_payroll: "blocking",
   inputs_changed: "warning",
 };
+/** What each check looks for, in HR's words (the policy form, gaps B26). */
+export const FINAL_PAY_CHECK_LABELS: Record<FinalPayCheckCode, string> = {
+  negative_net: "Net final pay is negative",
+  leave_over_limit: "Leave paid out beyond the tax-free limit",
+  thirteenth_month: "13th month already partly paid this year",
+  thirteenth_month_pending: "A 13th-month run is still open",
+  recent_pay_change: "Pay terms changed shortly before the last day",
+  missing_government_ids: "Government IDs missing",
+  tax_true_up: "The year's tax needs a true-up",
+  employment_not_ended: "Employment not ended as the separation says",
+  unfinished_payroll: "A payroll run over the same days is still open",
+  inputs_changed: "Source records changed after approval",
+};
+
 /** V4's window when the policy doesn't set `recentPayChangeDays`. */
 export const RECENT_PAY_CHANGE_DAYS_DEFAULT = 60;
 

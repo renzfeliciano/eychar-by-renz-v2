@@ -29,9 +29,11 @@ import { YEAR_END_MISSING_RULES } from "./year-end-compute";
 
 import { NO_ACTIVE_LOCK, assertNoOverlap, findRun, nextRunNumber, withComputeLock } from "./payroll-run-guards";
 import { computeRun } from "./payroll-run-compute";
+import { PAY_FREQUENCY_LABELS, type PayFrequency } from "./engine/pay-frequency";
 
 type Actor = { userId?: string };
-type RunSource = { type: "manual" | "schedule"; scheduleId?: string };
+/** Where a run came from; a schedule also says its pay frequency, which must match the policy (gaps B28). */
+type RunSource = { type: "manual" | "schedule"; scheduleId?: string; scheduleName?: string; payFrequency?: string };
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const toObjectId = (id?: string | null) => (id ? new Types.ObjectId(id) : undefined);
@@ -100,6 +102,13 @@ export const PayrollRunService = {
     const ruleResult = await PayrollRuleVersionService.resolve({ organizationId: input.organizationId, projectId: input.projectId, effectiveDate: dateKeyToDate(input.payDate) });
     if (!ruleResult) throw new NotFoundError("No payroll rule version applies on the pay date. Add one under Payroll › Rule versions.");
     const payFrequency = policyResult.policy.payFrequency as string;
+    // A schedule cuts periods for its own frequency; paying them under a policy of another frequency would pay a
+    // 14-day period as half a month (or the reverse), so the two must agree (payroll plan Phase 6 follow-up, B28).
+    if (options.source?.payFrequency && options.source.payFrequency !== payFrequency) {
+      throw new BusinessRuleError(
+        `Schedule${options.source.scheduleName ? ` "${options.source.scheduleName}"` : ""} is ${PAY_FREQUENCY_LABELS[options.source.payFrequency as PayFrequency]?.toLowerCase() ?? options.source.payFrequency}, but the payroll policy "${policyResult.policy.name}" pays ${PAY_FREQUENCY_LABELS[payFrequency as PayFrequency]?.toLowerCase() ?? payFrequency}. Change the schedule or the policy so they match.`,
+      );
+    }
     if (!ruleResult.policy.taxTables.some((table: { payFrequency: string }) => table.payFrequency === payFrequency)) {
       throw new BusinessRuleError(`Rule version v${ruleResult.policy.versionNumber} has no ${payFrequency} withholding tax table. Publish a new rule version that has one (Payroll › Rule versions › New; the Philippine template includes every frequency, bi-weekly as the annual table ÷ 26).`);
     }

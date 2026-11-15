@@ -92,3 +92,29 @@ describe("CreatePayrollPolicyDialog pay frequency (payroll plan Phase 6)", () =>
     expect(body).not.toHaveProperty("acknowledgeMonthlyPay");
   });
 });
+
+describe("CreatePayrollPolicyDialog final pay checks (gaps B26)", () => {
+  it("sends only the checks HR changed from the defaults, and the recent pay change window when changed", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<CreatePayrollPolicyDialog organizationId="org1" projects={[]} />);
+    await user.click(screen.getByTestId("payroll-policies-create-button"));
+    await user.type(screen.getByLabelText(/^Name/), "Standard");
+    await user.click(screen.getByText("Final pay checks"));
+    await user.click(screen.getByTestId("policy-check-missing_government_ids"));
+    await user.click(await screen.findByRole("option", { name: "Blocks approval" }));
+    fireEvent.change(screen.getByLabelText(/Recent pay change/), { target: { value: "90" } });
+    await user.click(screen.getByTestId("payroll-policies-create-submit-button"));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ finalPayChecks: [{ code: "missing_government_ids", severity: "blocking" }], recentPayChangeDays: 90 });
+  });
+
+  it("sends no overrides when nothing changed", async () => {
+    const user = await openAndName();
+    await user.click(screen.getByTestId("payroll-policies-create-submit-button"));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.finalPayChecks).toEqual([]);
+    expect(body).not.toHaveProperty("recentPayChangeDays");
+  });
+});

@@ -46,10 +46,10 @@ so **every figure here needs checking against the official text before it is rel
 | Special non-working day worked | 130% of the daily rate; 150% on a rest day; overtime +30% of that rate. | `specialHolidayMultiplier` 1.3, `specialHolidayRestDayMultiplier` 1.5 | **Computed on new runs** (ADR-057). **Verify against the official text.** |
 | Night differential | 10% of the hourly rate for work from 10 p.m. to 6 a.m. (Art. 86). | `nightDifferentialRate` 0.1; window from the attendance policy | **Computed on new runs** (ADR-057): 10% of the day's hourly rate, of the overtime rate for night overtime. |
 | 13th-month pay | One-twelfth of the basic salary earned in the calendar year (PD 851). Overtime, premiums and allowances are excluded. Due by December 24. | `thirteenthMonthDivisor` 12 in the policy. Used by final settlement only. | **Gap.** The regular 13th-month pay isn't computed in the payroll run, and the December 24 due date isn't enforced. Also, one secondary source includes overtime in the base; the PD 851 basis excludes it. Check the base in the code. |
-| Pay frequency | Wages paid at least twice a month, at intervals not exceeding 16 days (Art. 103). | New policies and schedules are **monthly only** (decided 2026-11-14). `pay-frequency.ts` still accepts weekly and semi-monthly for existing calendars. Bi-weekly is not supported yet. | **Risk, accepted for now.** Monthly pay conflicts with Art. 103 unless an exemption applies. The exemption criteria are not checked here. Confirm before go-live. |
+| Pay frequency | Wages paid at least twice a month, at intervals not exceeding 16 days (Art. 103). | HR's choice (payroll plan Phase 6): weekly, bi-weekly, semi-monthly or monthly, for policies and schedules. Choosing monthly shows the Art. 103 warning and needs a ticked acknowledgement, stored with the policy or schedule (who, when, the text) and audited. An active monthly policy without it is a dashboard compliance risk until HR acknowledges it on the policies screen. Never blocked. | **Risk, HR's to accept per policy.** The exemption criteria for monthly pay are not checked here. |
 | Rate in effect on a pay date | Pay follows the rate in effect on each day worked. A change mid-period must be prorated. | `payroll-run-compute.ts` blends the terms in force across the period, weighted by each employee's scheduled workdays (`engine/rate-segments.ts`). A period with no change pays as before. | **Implemented 2026-11-14 (workday basis, decided by the owner).** The blend is by monthly equivalent, so a rate-type change mid-period also blends. The run warns (`pay_terms_changed`) on the record. Contributions use the blended base, which is an approximation. |
 | Final pay | Due within a deadline after separation. Commonly cited as 30 days; not verified in this pass. | `Organization.compliance.finalPayDays`, used by `src/domains/dashboard/compliance-risks.ts` to flag overdue settlements | **Verify.** The number is per organization. Check the DOLE guidance and set the value deliberately. |
-| Service incentive leave | Five days a year of paid leave, after one year of service (Art. 95). | not found as a payroll or leave rule | **Gap, unverified.** Check whether it is configured as a leave type. Not checked in this pass. |
+| Service incentive leave | Five days a year of paid leave, after one year of service (Art. 95). | Checked 2026-11-15 (Phase 6): leave policies give `annualEntitlementDays` per leave type from the start of employment; there is no minimum-service setting and no SIL leave type in the seed. HR can make a 5-day leave type, but it applies from day one. | **Gap, report only** (owner, 2026-11-15). Build a minimum-service rule only if the owner asks. Known-gaps B27. |
 
 ## 5. Decisions and changes
 
@@ -64,15 +64,30 @@ unit, since each employee has their own schedule. The period is paid at the blen
 weighted by workdays (see the table in §4). Tests: `tests/domains/payroll/rate-segments.test.ts` and a
 run-level case in `payroll-run-service.test.ts`.
 
-**Decided, pay frequency:** monthly only for new policies and schedules, for now. Semi-monthly and
-bi-weekly are planned; bi-weekly needs an engine change. Art. 103 is still open (see §4).
+**Decided, pay frequency (2026-11-15, payroll plan Phase 6, replaces the 2026-11-14 monthly-only decision):**
+HR picks the frequency. Bi-weekly is supported: 14-day periods counted from an anchor date on the schedule,
+26 ÷ 12 periods a month, contributions on the month's last period when timing is "last cutoff", and the
+13th-month estimate at 12 ÷ 26 of the salary per period. The BIR publishes no bi-weekly withholding table
+(RR 11-2018 Annex E: daily, weekly, semi-monthly, monthly), so the template's bi-weekly table is the annual
+TRAIN table ÷ 26, to the centavo. A rule version without a bi-weekly table refuses a bi-weekly run with a
+message to publish a new rule version (owner choice). Monthly needs the acknowledgement (see §4).
+Tests: `tests/domains/payroll/pay-frequency-phase-6.test.ts`, `tests/app/schedule-dialog.test.tsx`,
+`tests/app/create-payroll-policy-dialog.test.tsx`.
+
+**Checked 2026-11-15 (Phase 6), statutory tables:** no change found for 2026. SSS 15% on ₱5,000–₱35,000
+salary credits (EE 5%, ER 10%), PhilHealth 5% on ₱10,000–₱100,000 shared equally, Pag-IBIG 1%/2% on up to
+₱10,000 with ER 2%, withholding per RR 11-2018. All secondary sources again (payroll and calculator sites;
+some cite PhilHealth Advisory 2026-0042, not seen). No new rule version was needed, since nothing changed.
+
+**Minimum-wage earners:** the flag on pay terms stays HR's to set. Each time a regional wage order changes,
+check every flagged employee's rate against it (wage orders are regional; they are not in the system).
 
 **Not changed in this pass (needs the agreed method or external data):**
 - 13th-month computation in the payroll run, with the December 24 check.
 - ₱90,000 exemption tracking across the year.
 - Year-end withholding reconciliation and Form 2316.
 - (Done for new runs, ADR-057, attendance plan Phase 5: holiday, rest-day, overtime and night-differential calculation at the policy's multipliers. Figures still need the official-text check in §6.)
-- Final-pay deadline value and service incentive leave.
+- Final-pay deadline value. Service incentive leave: checked 2026-11-15, report only (see §4).
 
 ## 6. What to verify before relying on the figures
 

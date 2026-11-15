@@ -19,6 +19,7 @@ import { CaseStatusService } from "@/domains/catalog/case-status-service";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
+import { PayrollScheduleService } from "@/domains/payroll/payroll-schedule-service";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { greetingFor, upcomingEvents } from "@/domains/dashboard/dashboard-summary";
 import { documentRisks, finalPayRisks, monthlyPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
@@ -134,6 +135,7 @@ export default async function DashboardPage() {
     canReadDocuments,
     canReadAudit,
     canReadPayrollPolicies,
+    canReadPayrollSchedules,
   ] = await Promise.all(
     [
       "employees.read",
@@ -154,10 +156,11 @@ export default async function DashboardPage() {
       "employee-documents.read",
       "audit-logs.read",
       "payroll-policies.read",
+      "payroll-schedules.read",
     ].map(can),
   );
 
-  const [probationEvaluations, roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity, payrollPolicies] = await Promise.all([
+  const [probationEvaluations, roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity, payrollPolicies, payrollSchedules] = await Promise.all([
     // What already settles a probation's evaluation: recorded as sent or done, or submitted in Performance (ADR-053).
     canReadEmployees
       ? Promise.all([
@@ -186,6 +189,7 @@ export default async function DashboardPage() {
     canReadLeave ? LeaveRequestService.listForOrganization(organizationId, { status: "approved" }) : null,
     canReadAudit ? AuditQueryService.list(organizationId, { pageSize: 30 }).then((result) => result.rows.filter((row) => !row.action.startsWith("auth.")).slice(0, 6)) : null,
     canReadPayrollPolicies ? PayrollPolicyService.listCurrent(organizationId) : null,
+    canReadPayrollSchedules ? PayrollScheduleService.listActiveMonthly(organizationId) : null,
   ]);
 
   // Names and who counts as current staff (statuses flagged as active headcount; everyone until the catalog is set up).
@@ -354,11 +358,11 @@ export default async function DashboardPage() {
     const rows: ActionItem[] = missingIds.map((row) => ({ id: `ids-${row._id.toString()}`, kind: "ids", title: `Complete ${nameOf(row._id)}'s government IDs`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: `/people/${row._id.toString()}`, actionLabel: "Open profile", urgency: "later" }));
     complianceRisks.push(...collapseKind(rows, 3, (count) => ({ id: "ids-many", kind: "ids", title: `Complete government IDs for ${count} employees`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: "/people", actionLabel: "Open people", urgency: "later" })));
   }
-  if (payrollPolicies) {
-    // Monthly pay without HR's acknowledgement (payroll plan Phase 6).
-    complianceRisks.push(
-      ...monthlyPayRisks(payrollPolicies.map((policy) => ({ id: policy._id.toString(), name: policy.name, payFrequency: policy.payFrequency, status: policy.status, acknowledged: Boolean(policy.monthlyPayAcknowledgement) }))),
-    );
+  if (payrollPolicies || payrollSchedules) {
+    // Monthly pay without HR's acknowledgement (payroll plan Phase 6; schedules too, gaps B28).
+    const rows = (list: { _id: { toString(): string }; name: string; payFrequency: string; status?: string | null; monthlyPayAcknowledgement?: unknown }[] | null) =>
+      (list ?? []).map((row) => ({ id: row._id.toString(), name: row.name, payFrequency: row.payFrequency, status: row.status, acknowledged: Boolean(row.monthlyPayAcknowledgement) }));
+    complianceRisks.push(...monthlyPayRisks(rows(payrollPolicies), rows(payrollSchedules)));
   }
   const rankedCompliance = rankActions(complianceRisks);
 

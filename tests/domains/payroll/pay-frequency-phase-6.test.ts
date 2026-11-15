@@ -174,3 +174,36 @@ describe("a bi-weekly run", () => {
     );
   });
 });
+
+describe("schedule and policy frequencies (gaps B28)", () => {
+  beforeEach(async () => {
+    await connectMongoDB();
+  });
+
+  it("won't prepare a scheduled run when the schedule's frequency differs from the policy's, and records why", async () => {
+    const { organizationId } = await seedPayrollOrganization(); // a semi-monthly policy
+    await seedEmployee(organizationId, "Dee");
+    const schedule = await PayrollScheduleService.create(
+      createPayrollScheduleSchema.parse({ organizationId, name: "Crew bi-weekly", payFrequency: "bi-weekly", cutoffDay: 5, anchorDate: "2026-11-13", payDateOffsetDays: 5, autoPrepare: true, startsOn: "2026-11-01" }),
+      HR,
+    );
+
+    const [listed] = await PayrollScheduleService.list(organizationId, "2026-11-20");
+    expect(listed.policy).toMatchObject({ name: "Standard", payFrequency: "semi-monthly" });
+
+    const outcomes = await PayrollScheduleService.prepareDue({ organizationId, today: "2026-11-14" });
+    expect(outcomes).toEqual([expect.objectContaining({ outcome: "failed", error: expect.stringMatching(/"Crew bi-weekly" is bi-weekly, but the payroll policy "Standard" pays semi-monthly/) })]);
+    expect((await PayrollScheduleModel.findById(schedule._id).lean())?.lastError).toMatch(/so they match/);
+  });
+
+  it("lists an unacknowledged monthly schedule on the dashboard, next to policies", () => {
+    const rows = monthlyPayRisks(
+      [],
+      [
+        { id: "s1", name: "Office monthly", payFrequency: "monthly", status: "active", acknowledged: false },
+        { id: "s2", name: "Acknowledged", payFrequency: "monthly", status: "active", acknowledged: true },
+      ],
+    );
+    expect(rows).toEqual([expect.objectContaining({ id: "monthly-schedule-s1", kind: "monthly-pay", href: "/payroll/schedules" })]);
+  });
+});
