@@ -16,7 +16,7 @@ const taxBracketSchema = new Schema(
 
 const taxTableSchema = new Schema(
   {
-    payFrequency: { type: String, enum: ["weekly", "semi-monthly", "monthly"], required: true },
+    payFrequency: { type: String, enum: ["weekly", "bi-weekly", "semi-monthly", "monthly"], required: true },
     brackets: { type: [taxBracketSchema], default: [] },
   },
   { _id: false },
@@ -83,6 +83,9 @@ const payrollRuleVersionSchema = new Schema(
     benefitsExemptionCap: { type: Number, min: 0 },
     form2316Boxes: { type: [form2316BoxSchema], default: undefined },
     form2316Excluded: { type: [String], default: undefined },
+    // Final pay (payroll plan Phase 5): unused vacation leave converted to cash is de minimis up to this
+    // many days a year [verify]; the rest is taxable.
+    deMinimisLeaveDays: { type: Number, min: 0 },
     basedOnVersionId: { type: Schema.Types.ObjectId, ref: "PayrollRuleVersion" },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },

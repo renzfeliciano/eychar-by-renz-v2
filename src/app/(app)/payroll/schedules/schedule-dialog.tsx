@@ -12,8 +12,9 @@ import { FormError, FormField, RequiredFieldsHint } from "@/components/shared/fo
 import { OptionSelect, type SelectOption } from "@/components/shared/option-select";
 import { describeCutoffs, WEEKDAY_NAMES } from "@/domains/payroll/payroll-labels";
 import { periodContaining, nextPeriod } from "@/domains/payroll/engine/pay-periods";
-import type { PayFrequency } from "@/domains/payroll/engine/pay-frequency";
-import { formatDateKey, formatDateRange, localDateKey } from "@/lib/date-key";
+import { PAY_FREQUENCIES, PAY_FREQUENCY_LABELS, type PayFrequency } from "@/domains/payroll/engine/pay-frequency";
+import { addDays, formatDateKey, formatDateRange, localDateKey, weekdayOf } from "@/lib/date-key";
+import { MonthlyPayNotice } from "../monthly-pay-notice";
 import { cn } from "@/lib/utils";
 
 export type ScheduleDraft = {
@@ -25,13 +26,21 @@ export type ScheduleDraft = {
   payDateOffsetDays: number;
   autoPrepare: boolean;
   status?: "active" | "inactive";
+  /** Bi-weekly: the end date of one 14-day period ("YYYY-MM-DD"). */
+  anchorDate?: string;
+  /** Monthly: the schedule already carries HR's acknowledgement, so it isn't asked again. */
+  monthlyAcknowledged?: boolean;
 };
 
-const NEW_SCHEDULE: ScheduleDraft = { name: "", projectId: "", payFrequency: "monthly", cutoffDay: 31, payDateOffsetDays: 5, autoPrepare: true };
+const NEW_SCHEDULE: ScheduleDraft = { name: "", projectId: "", payFrequency: "semi-monthly", cutoffDay: 15, payDateOffsetDays: 5, autoPrepare: true };
 
-// Monthly only for new calendars (decided 2026-11-14). A calendar that already uses another frequency keeps showing it, so editing it doesn't silently change it.
-const FREQUENCIES: SelectOption[] = [{ id: "monthly", label: "Monthly" }];
-const LEGACY_FREQUENCY_LABELS: Record<string, string> = { "semi-monthly": "Semi-monthly (existing)", weekly: "Weekly (existing)" };
+// Pay frequency is HR's choice (payroll plan Phase 6). Monthly needs the Art. 103 acknowledgement ticked.
+const FREQUENCIES: SelectOption[] = PAY_FREQUENCIES.map((id) => ({ id, label: PAY_FREQUENCY_LABELS[id] }));
+
+/** The coming Friday (today when it is one): a default end for the first bi-weekly period. */
+function comingFriday(today: string): string {
+  return addDays(today, (5 - weekdayOf(today) + 7) % 7);
+}
 
 const SEMI_MONTHLY_PATTERNS: SelectOption[] = [
   { id: "15", label: "1st–15th and 16th–end of month" },
@@ -39,7 +48,8 @@ const SEMI_MONTHLY_PATTERNS: SelectOption[] = [
   { id: "5", label: "21st–5th and 6th–20th" },
 ];
 
-function defaultCutoffDay(frequency: PayFrequency): number {
+function defaultCutoffDay(frequency: PayFrequency, anchorDate: string): number {
+  if (frequency === "bi-weekly") return weekdayOf(anchorDate);
   return frequency === "weekly" ? 6 : frequency === "monthly" ? 31 : 15;
 }
 
@@ -50,15 +60,20 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
   const [draft, setDraft] = useState<ScheduleDraft>(schedule ?? NEW_SCHEDULE);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [acknowledgeMonthlyPay, setAcknowledgeMonthlyPay] = useState(false);
   const isEdit = Boolean(schedule?.id);
+  const needsMonthlyAcknowledgement = draft.payFrequency === "monthly" && !draft.monthlyAcknowledged;
 
-  const spec = { payFrequency: draft.payFrequency, cutoffDay: draft.cutoffDay, payDateOffsetDays: draft.payDateOffsetDays };
-  const current = periodContaining(spec, localDateKey());
-  const upcoming = [current, nextPeriod(spec, current)];
+  const spec = { payFrequency: draft.payFrequency, cutoffDay: draft.cutoffDay, payDateOffsetDays: draft.payDateOffsetDays, anchorDate: draft.anchorDate };
+  const canPreview = draft.payFrequency !== "bi-weekly" || Boolean(draft.anchorDate);
+  const current = canPreview ? periodContaining(spec, localDateKey()) : null;
+  const upcoming = current ? [current, nextPeriod(spec, current)] : [];
 
   async function save() {
     setError(null);
     if (!draft.name.trim()) return setError("Give the schedule a name.");
+    if (draft.payFrequency === "bi-weekly" && !draft.anchorDate) return setError("Pick the end date of one bi-weekly period.");
+    if (needsMonthlyAcknowledgement && !acknowledgeMonthlyPay) return setError("Tick the acknowledgement to choose monthly pay.");
     setSaving(true);
     const payload = {
       organizationId,
@@ -66,6 +81,8 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
       projectId: draft.projectId || (isEdit ? "" : undefined),
       payFrequency: draft.payFrequency,
       cutoffDay: draft.cutoffDay,
+      anchorDate: draft.payFrequency === "bi-weekly" ? draft.anchorDate : undefined,
+      acknowledgeMonthlyPay: needsMonthlyAcknowledgement ? acknowledgeMonthlyPay : undefined,
       payDateOffsetDays: draft.payDateOffsetDays,
       autoPrepare: draft.autoPrepare,
       ...(isEdit ? { status: draft.status } : { startsOn: localDateKey() }),
@@ -89,6 +106,7 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
       onOpenChange={(next) => {
         if (next) {
           setDraft(schedule ?? NEW_SCHEDULE);
+          setAcknowledgeMonthlyPay(false);
           setError(null);
         }
         setOpen(next);
@@ -119,11 +137,12 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
               label="Pay frequency"
               value={draft.payFrequency}
               onChange={(value) => {
-                const payFrequency = (value || "monthly") as PayFrequency;
-                setDraft({ ...draft, payFrequency, cutoffDay: defaultCutoffDay(payFrequency) });
+                const payFrequency = (value || "semi-monthly") as PayFrequency;
+                const anchorDate = draft.anchorDate ?? comingFriday(localDateKey());
+                setDraft({ ...draft, payFrequency, cutoffDay: defaultCutoffDay(payFrequency, anchorDate), anchorDate: payFrequency === "bi-weekly" ? anchorDate : draft.anchorDate });
               }}
-              options={draft.payFrequency === "monthly" ? FREQUENCIES : [...FREQUENCIES, { id: draft.payFrequency, label: LEGACY_FREQUENCY_LABELS[draft.payFrequency] ?? draft.payFrequency }]}
-              placeholder="Monthly"
+              options={FREQUENCIES}
+              placeholder="Semi-monthly"
               required
             />
             {draft.payFrequency === "semi-monthly" && (
@@ -146,6 +165,17 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
                 required
               />
             )}
+            {draft.payFrequency === "bi-weekly" && (
+              <FormField label="A period ends on" htmlFor="schedule-anchor-date" description="Every period is 14 days; the others end two, four… weeks from this date." required>
+                <Input
+                  id="schedule-anchor-date"
+                  type="date"
+                  value={draft.anchorDate ?? ""}
+                  onChange={(event) => setDraft({ ...draft, anchorDate: event.target.value || undefined, cutoffDay: event.target.value ? weekdayOf(event.target.value) : draft.cutoffDay })}
+                  data-testid="schedule-anchor-date"
+                />
+              </FormField>
+            )}
             {draft.payFrequency === "monthly" && (
               <FormField label="Period ends on day" htmlFor="schedule-cutoff-day" required>
                 <Input
@@ -160,6 +190,7 @@ export function ScheduleDialog({ organizationId, projects, schedule }: { organiz
               </FormField>
             )}
           </div>
+          {needsMonthlyAcknowledgement && <MonthlyPayNotice checked={acknowledgeMonthlyPay} onCheckedChange={setAcknowledgeMonthlyPay} testId="schedule-monthly-notice" />}
           <FormField label="Pay day, days after the cutoff" htmlFor="schedule-offset" required>
             <Input
               id="schedule-offset"

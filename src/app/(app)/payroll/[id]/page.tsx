@@ -153,6 +153,9 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           benefitsExcess: record.yearEnd.benefitsExcess ?? 0,
         }
       : null,
+    finalSettlement: record.finalSettlement
+      ? { settlementId: record.finalSettlement.settlementId.toString(), version: record.finalSettlement.version, hash: record.finalSettlement.hash, lastWorkingDay: record.finalSettlement.lastWorkingDay }
+      : null,
     netPay: record.netPay,
     previousNetPay: record.previousNetPay ?? null,
     warnings: record.warnings.map((warning: { code: string; message: string; blocking: boolean }) => ({ code: warning.code, message: warning.message, blocking: warning.blocking })),

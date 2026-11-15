@@ -49,6 +49,7 @@ export default async function NewRuleVersionPage({ searchParams }: { searchParam
         benefitsExemptionCap: base.benefitsExemptionCap ?? PH_YEAR_END_2023.benefitsExemptionCap,
         form2316Boxes: (base.form2316Boxes?.length ? base.form2316Boxes : PH_YEAR_END_2023.form2316Boxes) as Form2316Box[],
         form2316Excluded: base.form2316Excluded?.length ? base.form2316Excluded : PH_YEAR_END_2023.form2316Excluded,
+        deMinimisLeaveDays: base.deMinimisLeaveDays ?? PH_YEAR_END_2023.deMinimisLeaveDays,
       }
     : { name: PH_STATUTORY_2025.name, description: PH_STATUTORY_2025.description, basedOnLabel: "the Philippine 2025 template", taxTables: PH_STATUTORY_2025.taxTables, contributions: PH_STATUTORY_2025.contributions, ...PH_YEAR_END_2023 };
 

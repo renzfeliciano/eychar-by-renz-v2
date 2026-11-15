@@ -36,7 +36,7 @@ import { EmploymentService } from "@/domains/workforce/employment-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 import { EducationLevelService } from "@/domains/catalog/education-level-service";
-import { educationLevelName, educationLevelOptions } from "@/domains/catalog/education-level-options";
+import { educationLevelName } from "@/domains/catalog/education-level-options";
 import { endReasonChoices } from "@/domains/workforce/end-reasons";
 import { contractEndOf, requiresEndOfContract } from "@/domains/workforce/contract-terms";
 import { userDisplayNames } from "@/domains/identity/user-directory";
@@ -304,7 +304,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               </p>
             )}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* max-w-full lets the buttons wrap onto more lines on a phone; without it this group keeps its one-line width and the card's overflow-hidden cuts the last buttons off. */}
+          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
             {superAdmin && <HideToggle organizationId={organizationId} type="employee" id={employeeId} label={personName} hidden={Boolean(detail.employee.hiddenFromOthers)} />}
             {superAdmin && <DeleteRecordButton organizationId={organizationId} type="employee" id={employeeId} afterDeleteHref="/people" />}
             {canUpdate && isCurrentlyActive && detail.currentEmployment && !detail.currentEmployment.effectiveTo && employmentTypes.length > 0 && (
@@ -351,7 +352,6 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               <EditEmployeeDialog
                 organizationId={organizationId}
                 employeeId={employeeId}
-                educationLevels={educationLevelOptions(educationLevels, detail.person.educationLevelCode)}
                 initialValue={{
                   firstName: detail.person.firstName,
                   middleName: detail.person.middleName,
@@ -364,7 +364,6 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   phone: detail.person.phone,
                   address: detail.person.address,
                   remarks: detail.person.remarks,
-                  educationLevelCode: detail.person.educationLevelCode,
                   sssNumber: detail.person.sssNumber,
                   philHealthNumber: detail.person.philHealthNumber,
                   pagIbigNumber: detail.person.pagIbigNumber,

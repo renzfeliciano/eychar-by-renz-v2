@@ -3,10 +3,11 @@ import { connectMongoDB } from "@/server/db/connection";
 import { PayrollRunModel, PayrollScheduleModel, ProjectModel } from "@/server/db/models";
 import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
-import { NotFoundError } from "@/shared/errors";
-import { addDays, dateKeyToDate, dateToDateKey, localDateKey } from "@/lib/date-key";
+import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { addDays, dateKeyToDate, dateToDateKey, localDateKey, weekdayOf } from "@/lib/date-key";
 import { periodContaining, periodEndingOnOrBefore, type CutoffSpec, type PayPeriod } from "./engine/pay-periods";
 import type { PayFrequency } from "./engine/pay-frequency";
+import { monthlyPayAcknowledgement } from "./payroll-policy-service";
 import { PayrollRunService } from "./payroll-run-service";
 import { withSharedRoster } from "./payroll-run-compute";
 import type { CreatePayrollScheduleInput, UpdatePayrollScheduleInput } from "@/shared/validation/payroll";
@@ -22,8 +23,19 @@ export type PrepareOutcome =
  */
 export const PREPARE_LIMIT_PER_PASS = 3;
 
-function specOf(schedule: { payFrequency: string; cutoffDay: number; payDateOffsetDays: number }): CutoffSpec {
-  return { payFrequency: schedule.payFrequency as PayFrequency, cutoffDay: schedule.cutoffDay, payDateOffsetDays: schedule.payDateOffsetDays };
+function specOf(schedule: { payFrequency: string; cutoffDay: number; payDateOffsetDays: number; anchorDate?: Date | null }): CutoffSpec {
+  return {
+    payFrequency: schedule.payFrequency as PayFrequency,
+    cutoffDay: schedule.cutoffDay,
+    payDateOffsetDays: schedule.payDateOffsetDays,
+    anchorDate: schedule.anchorDate ? dateToDateKey(schedule.anchorDate) : undefined,
+  };
+}
+
+/** A bi-weekly schedule's cutoff weekday comes from its anchor date (Phase 6), so labels read "ending Friday". */
+function biWeeklyCutoff(anchorDate: string | undefined): { anchorDate: Date; cutoffDay: number } {
+  if (!anchorDate) throw new BusinessRuleError("Pick the end date of one bi-weekly period.");
+  return { anchorDate: dateKeyToDate(anchorDate), cutoffDay: weekdayOf(anchorDate) };
 }
 
 /**
@@ -37,15 +49,19 @@ export const PayrollScheduleService = {
   async create(input: CreatePayrollScheduleInput, actor: { userId?: string }) {
     await connectMongoDB();
     await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
+    const acknowledgement = monthlyPayAcknowledgement(input.payFrequency, input.acknowledgeMonthlyPay, actor.userId);
+    const biWeekly = input.payFrequency === "bi-weekly" ? biWeeklyCutoff(input.anchorDate) : undefined;
     const schedule = await PayrollScheduleModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
       projectId: input.projectId ? new Types.ObjectId(input.projectId) : undefined,
       name: input.name,
       payFrequency: input.payFrequency,
-      cutoffDay: input.cutoffDay,
+      cutoffDay: biWeekly?.cutoffDay ?? input.cutoffDay,
+      anchorDate: biWeekly?.anchorDate,
       payDateOffsetDays: input.payDateOffsetDays,
       autoPrepare: input.autoPrepare,
       startsOn: dateKeyToDate(input.startsOn ?? localDateKey()),
+      monthlyPayAcknowledgement: acknowledgement,
     });
     await AuditService.record({
       organizationId: input.organizationId,
@@ -53,7 +69,7 @@ export const PayrollScheduleService = {
       action: "payroll-schedule.created",
       resourceType: "PayrollSchedule",
       resourceId: schedule._id.toString(),
-      after: { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, projectId: schedule.projectId, autoPrepare: schedule.autoPrepare },
+      after: { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, anchorDate: schedule.anchorDate, projectId: schedule.projectId, autoPrepare: schedule.autoPrepare, monthlyPayAcknowledged: acknowledgement?.statement },
     });
     return schedule;
   },
@@ -65,10 +81,22 @@ export const PayrollScheduleService = {
     if (!schedule) throw new NotFoundError("Payroll schedule not found in this organization");
     await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
 
-    const before = { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, payDateOffsetDays: schedule.payDateOffsetDays, autoPrepare: schedule.autoPrepare, status: schedule.status };
-    const { name, payFrequency, cutoffDay, payDateOffsetDays, autoPrepare, status, projectId, startsOn } = input;
+    const before = { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, anchorDate: schedule.anchorDate, payDateOffsetDays: schedule.payDateOffsetDays, autoPrepare: schedule.autoPrepare, status: schedule.status };
+    const { name, payFrequency, cutoffDay, payDateOffsetDays, autoPrepare, status, projectId, startsOn, anchorDate, acknowledgeMonthlyPay } = input;
     const fields = { name, payFrequency, cutoffDay, payDateOffsetDays, autoPrepare, status };
     schedule.set(Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)));
+    // Phase 6: bi-weekly needs its anchor (kept from before when not sent). Monthly needs the acknowledgement, asked
+    // only when the frequency is set or HR ticks it: an existing monthly schedule keeps working until then.
+    if (schedule.payFrequency === "bi-weekly") {
+      schedule.set(biWeeklyCutoff(anchorDate ?? (schedule.anchorDate ? dateToDateKey(schedule.anchorDate) : undefined)));
+    } else if (payFrequency !== undefined) {
+      schedule.set({ anchorDate: undefined });
+    }
+    if (schedule.payFrequency === "monthly" && !schedule.monthlyPayAcknowledgement && (payFrequency !== undefined || acknowledgeMonthlyPay)) {
+      schedule.set({ monthlyPayAcknowledgement: monthlyPayAcknowledgement("monthly", acknowledgeMonthlyPay, actor.userId) });
+    } else if (schedule.payFrequency !== "monthly") {
+      schedule.set({ monthlyPayAcknowledgement: undefined });
+    }
     if (projectId !== undefined) schedule.set({ projectId: projectId ? new Types.ObjectId(projectId) : undefined });
     if (startsOn) schedule.set({ startsOn: dateKeyToDate(startsOn) });
     await schedule.save();
@@ -80,7 +108,7 @@ export const PayrollScheduleService = {
       resourceType: "PayrollSchedule",
       resourceId: id,
       before,
-      after: { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, payDateOffsetDays: schedule.payDateOffsetDays, autoPrepare: schedule.autoPrepare, status: schedule.status },
+      after: { name: schedule.name, payFrequency: schedule.payFrequency, cutoffDay: schedule.cutoffDay, anchorDate: schedule.anchorDate, payDateOffsetDays: schedule.payDateOffsetDays, autoPrepare: schedule.autoPrepare, status: schedule.status, monthlyPayAcknowledged: Boolean(schedule.monthlyPayAcknowledgement) },
     });
     return schedule;
   },

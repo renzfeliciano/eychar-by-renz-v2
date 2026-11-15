@@ -14,6 +14,9 @@ export const manualLineSchema = z.object({
   label: z.string().trim().min(1, "Describe the line").max(120),
   amount: z.number().positive("Enter an amount above zero").max(100_000_000),
   reason: z.string().trim().max(500),
+  // Payroll plan Phase 5 (Gate D): a manual earning is taxable unless HR says not; every line needs a supporting document.
+  taxable: z.boolean().optional(),
+  documentId: objectId(),
 });
 
 export const finalSettlementActionSchema = z.object({
@@ -22,6 +25,8 @@ export const finalSettlementActionSchema = z.object({
   note: z.string().trim().max(500).optional(),
   paymentMethodCode: z.string().trim().max(60).optional(),
   paymentReference: z.string().trim().max(120).optional(),
+  // Approve: the warning check codes the approver confirmed they checked (Gate D Q4).
+  acknowledgedWarnings: z.array(z.string().trim().max(60)).max(20).optional(),
 });
 
 export type ManualLineInput = Omit<z.infer<typeof manualLineSchema>, "organizationId">;

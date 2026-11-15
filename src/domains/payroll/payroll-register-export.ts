@@ -13,6 +13,8 @@ type RegisterRecord = {
   contributions: { code: string; name: string; employee: number; employer: number; extra: number; extraLabel?: string | null }[];
   deductions: { code: string; label: string; amount: number }[];
   grossPay: number;
+  /** Taxable earnings less employee contributions; optional for callers that predate it (then derived). */
+  taxableIncome?: number | null;
   tax: number;
   netPay: number;
 };
@@ -36,6 +38,8 @@ const PREMIUM_COLUMNS: { header: string; codes: Set<string> }[] = [
   { header: "Overtime", codes: new Set(["overtime"]) },
   { header: "Holiday & rest day", codes: new Set(["holiday_pay", "rest_day_pay"]) },
   { header: "Night differential", codes: new Set(["night_differential"]) },
+  // Payroll plan Phase 7: 13th month pay (a 13th-month run, a true-up or final pay) is its own column.
+  { header: "13th month", codes: new Set(["thirteenth_month"]) },
 ];
 const SPLIT_OUT = new Set([...BASIC_CODES, "allowance", ...PREMIUM_COLUMNS.flatMap((column) => [...column.codes])]);
 const HEADER_FILL = "FFF9FAFB";
@@ -74,11 +78,18 @@ function registerRows(input: RegisterInput) {
     ...PREMIUM_COLUMNS.map((column) => column.header),
     "Other earnings",
     "Gross pay",
+    // Payroll plan Phase 7: which part of gross isn't taxed (allowances, 13th month, refunds…) and what tax was computed on.
+    "Non-taxable earnings",
     ...contributions.map((column) => column.name),
+    "Taxable income",
     "Withholding tax",
     "Other deductions",
     "Net pay",
   ];
+  const nonTaxable = (record: RegisterRecord) => sumMoney(record.earnings.filter((line) => !line.taxable).map((line) => line.amount));
+  const employeeShare = (record: RegisterRecord) => sumMoney(record.contributions.map((line) => line.employee));
+  const taxableIncome = (record: RegisterRecord) =>
+    record.taxableIncome ?? Math.max(0, sumMoney([...record.earnings.filter((line) => line.taxable).map((line) => line.amount), -employeeShare(record)]));
   const rows = input.records.map((record, index) => [
     index + 1,
     record.employeeNumber,
@@ -93,7 +104,9 @@ function registerRows(input: RegisterInput) {
     ...PREMIUM_COLUMNS.map((column) => sumMoney(record.earnings.filter((line) => column.codes.has(line.code)).map((line) => line.amount))),
     sumMoney(record.earnings.filter((line) => !SPLIT_OUT.has(line.code)).map((line) => line.amount)),
     record.grossPay,
+    nonTaxable(record),
     ...contributions.map((column) => amountOf(record, column.code, "employee")),
+    taxableIncome(record),
     record.tax,
     sumMoney(record.deductions.map((line) => line.amount)),
     record.netPay,
@@ -141,9 +154,9 @@ function sheetWithTitle(workbook: ExcelJS.Workbook, name: string, title: string,
 
 /**
  * The payroll register workbook. "Register": one row per employee, the
- * pay broken down into basic, allowances, other earnings, each
- * contribution's employee share, tax and other deductions, with a totals
- * row. "Contributions": employee, employer and add-on (EC) shares per
+ * pay broken down into basic, allowances, premiums, 13th month, other
+ * earnings, the non-taxable part of gross, each contribution's employee
+ * share, taxable income, tax and other deductions, with a totals row. "Contributions": employee, employer and add-on (EC) shares per
  * agency, the figures a remittance needs.
  */
 export function buildRegisterWorkbook(input: RegisterInput): ExcelJS.Workbook {
@@ -161,7 +174,8 @@ export function buildRegisterWorkbook(input: RegisterInput): ExcelJS.Workbook {
   const firstMoneyColumn = 9;
   const sums = new Map<number, number>();
   for (let column = firstMoneyColumn; column <= headers.length; column++) {
-    sums.set(column, rows.reduce((sum, values) => sum + Number(values[column - 1] ?? 0), 0));
+    // Totals use the same money rounding as the engine (sumMoney), so the totals row adds up to the centavo.
+    sums.set(column, sumMoney(rows.map((values) => Number(values[column - 1] ?? 0))));
     register.getColumn(column).numFmt = MONEY_FORMAT;
     register.getColumn(column).width = 14;
   }
@@ -190,9 +204,8 @@ export function buildRegisterWorkbook(input: RegisterInput): ExcelJS.Workbook {
   });
   const remittanceSums = new Map<number, number>();
   for (let column = 4; column <= remittanceHeaders.length; column++) {
-    let sum = 0;
-    for (let index = 0; index < input.records.length; index++) sum += Number(remittance.getRow(5 + index).getCell(column).value ?? 0);
-    remittanceSums.set(column, sum);
+    const values = input.records.map((_, index) => Number(remittance.getRow(5 + index).getCell(column).value ?? 0));
+    remittanceSums.set(column, sumMoney(values));
     remittance.getColumn(column).numFmt = MONEY_FORMAT;
     remittance.getColumn(column).width = 14;
   }

@@ -29,13 +29,14 @@ describe("PH statutory template (2025)", () => {
     expect(computeMonthlyContribution(rule("HDMF"), 30000)).toEqual({ employee: 200, employer: 200, extra: 0 });
   });
 
-  it("has the BIR withholding tables for weekly, semi-monthly and monthly pay", () => {
-    expect(PH_STATUTORY_2025.taxTables.map((entry) => entry.payFrequency)).toEqual(["weekly", "semi-monthly", "monthly"]);
+  it("has the BIR withholding tables for weekly, semi-monthly and monthly pay, and a bi-weekly one (annual ÷ 26)", () => {
+    expect(PH_STATUTORY_2025.taxTables.map((entry) => entry.payFrequency)).toEqual(["weekly", "bi-weekly", "semi-monthly", "monthly"]);
     // Exempt line is ₱250,000 a year = ₱10,416.67 a semi-monthly period. ₱10,417 is ₱8 a year over it, at 15%.
     expect(computeProgressiveBracketTax(10416.67, table("semi-monthly"))).toBe(0);
     expect(computeProgressiveBracketTax(10417, table("semi-monthly"))).toBeCloseTo(0.05, 2);
     expect(computeProgressiveBracketTax(20000, table("semi-monthly"))).toBeCloseTo(1604.17, 2); // 937.50 + 20% × 3,333.33
     expect(computeProgressiveBracketTax(50000, table("monthly"))).toBeCloseTo(5208.33, 2); // 1,875 + 20% × 16,666.67
     expect(computeProgressiveBracketTax(10000, table("weekly"))).toBeCloseTo(894.23, 2); // 432.69 + 20% × 2,307.69
+    expect(computeProgressiveBracketTax(20000, table("bi-weekly"))).toBeCloseTo(865.38 + 0.2 * (20000 - 15384.62), 2); // payroll plan Phase 6
   });
 });

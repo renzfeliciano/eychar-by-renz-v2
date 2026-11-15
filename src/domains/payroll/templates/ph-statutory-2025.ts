@@ -19,7 +19,12 @@ import type { PayFrequency } from "../engine/pay-frequency";
  * (₱10,000 cap, 2% above ₱1,500) or the TRAIN annual brackets. Those sources are
  * not agency issuances, so verify on sss.gov.ph, philhealth.gov.ph, pagibigfund.gov.ph
  * and bir.gov.ph before relying on them. Withholding brackets are the TRAIN annual
- * brackets ÷ 52 / 24 / 12, to the centavo.
+ * brackets ÷ 52 / 24 / 12, to the centavo. Rechecked 2026-11-15 (payroll plan Phase 6): still no change
+ * found, again from secondary sources only.
+ *
+ * Bi-weekly: the BIR publishes no bi-weekly table (RR 11-2018 Annex E has daily, weekly, semi-monthly and
+ * monthly), so this one is the annual brackets ÷ 26, to the centavo (payroll plan Phase 6). It is data:
+ * HR can change it in a new rule version.
  */
 
 function sssRows(): ContributionRow[] {
@@ -45,7 +50,7 @@ export const PH_STATUTORY_2025: {
   contributions: ContributionRule[];
 } = {
   name: "Philippines 2025",
-  description: "SSS 2025 table, PhilHealth 5%, Pag-IBIG (₱10,000 fund salary cap), BIR withholding tables (RR 11-2018, from 2023).",
+  description: "SSS 2025 table, PhilHealth 5%, Pag-IBIG (₱10,000 fund salary cap), BIR withholding tables (RR 11-2018, from 2023), with a bi-weekly table (annual ÷ 26).",
   taxTables: [
     {
       payFrequency: "weekly",
@@ -56,6 +61,17 @@ export const PH_STATUTORY_2025: {
         bracket(15384.62, 38461.54, 1971.15, 0.25),
         bracket(38461.54, 153846.15, 7740.38, 0.3),
         bracket(153846.15, null, 42355.77, 0.35),
+      ],
+    },
+    {
+      payFrequency: "bi-weekly",
+      brackets: [
+        bracket(0, 9615.38, 0, 0),
+        bracket(9615.38, 15384.62, 0, 0.15),
+        bracket(15384.62, 30769.23, 865.38, 0.2),
+        bracket(30769.23, 76923.08, 3942.31, 0.25),
+        bracket(76923.08, 307692.31, 15480.77, 0.3),
+        bracket(307692.31, null, 84711.54, 0.35),
       ],
     },
     {

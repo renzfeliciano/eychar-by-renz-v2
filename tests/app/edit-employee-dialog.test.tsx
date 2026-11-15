@@ -8,11 +8,6 @@ const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
-const LEVELS = [
-  { id: "bachelors_degree", label: "Bachelor’s Degree" },
-  { id: "masters_degree", label: "Master’s Degree" },
-];
-
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   refresh.mockReset();
@@ -20,7 +15,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
 });
 
-const base = { organizationId: "org1", employeeId: "e1", educationLevels: LEVELS };
+const base = { organizationId: "org1", employeeId: "e1" };
 const person = { firstName: "Jane", lastName: "Doe" };
 
 async function openAndSave(user: ReturnType<typeof userEvent.setup>) {
@@ -38,52 +33,17 @@ async function openAndSave(user: ReturnType<typeof userEvent.setup>) {
 // environment, not of the dialog), so the click library's pointer-events check is turned off for these tests.
 const setupUser = () => userEvent.setup({ pointerEventsCheck: 0 });
 
-describe("EditEmployeeDialog: educational attainment", () => {
-  it("shows the level on file and sends it back unchanged when nothing else is touched", async () => {
-    const user = setupUser();
-    render(<EditEmployeeDialog {...base} initialValue={{ ...person, educationLevelCode: "bachelors_degree" }} />);
-
-    const { save } = await openAndSave(user);
-    expect(screen.getByTestId("edit-employee-education")).toHaveTextContent("Bachelor’s Degree");
-    expect((await save()).educationLevelCode).toBe("bachelors_degree");
-  });
-
-  it("sends the newly chosen level", async () => {
-    const user = setupUser();
-    render(<EditEmployeeDialog {...base} initialValue={{ ...person, educationLevelCode: "bachelors_degree" }} />);
-
-    const { save } = await openAndSave(user);
-    await user.click(screen.getByTestId("edit-employee-education"));
-    await user.click(await screen.findByRole("option", { name: "Master’s Degree" }));
-    expect((await save()).educationLevelCode).toBe("masters_degree");
-  });
-
-  it("sends an empty value to clear it, which is how the API removes the field", async () => {
-    const user = setupUser();
-    render(<EditEmployeeDialog {...base} initialValue={{ ...person, educationLevelCode: "bachelors_degree" }} />);
-
-    const { save } = await openAndSave(user);
-    await user.click(screen.getByTestId("edit-employee-education"));
-    await user.click(await screen.findByRole("option", { name: "Not specified" }));
-    expect((await save()).educationLevelCode).toBe("");
-  });
-
-  it("starts as Not specified for someone with no level on file", async () => {
+// Highest educational attainment was dropped from the form (the Educational background card records schooling).
+// Saving leaves out the field, so a level already on file is kept as it is rather than cleared.
+describe("EditEmployeeDialog: no educational attainment field", () => {
+  it("doesn't show the field and doesn't send a level, so the one on file is untouched", async () => {
     const user = setupUser();
     render(<EditEmployeeDialog {...base} initialValue={person} />);
 
     const { save } = await openAndSave(user);
-    expect(screen.getByTestId("edit-employee-education")).toHaveTextContent("Not specified");
-    expect((await save()).educationLevelCode).toBe("");
-  });
-
-  it("shows a level HR has since retired, so opening the form never silently blanks it", async () => {
-    const user = setupUser();
-    render(<EditEmployeeDialog {...base} educationLevels={[...LEVELS, { id: "old_level", label: "Old level (retired)" }]} initialValue={{ ...person, educationLevelCode: "old_level" }} />);
-
-    const { save } = await openAndSave(user);
-    expect(screen.getByTestId("edit-employee-education")).toHaveTextContent("Old level (retired)");
-    expect((await save()).educationLevelCode).toBe("old_level");
+    expect(screen.queryByTestId("edit-employee-education")).toBeNull();
+    expect(screen.queryByText("Highest educational attainment")).toBeNull();
+    expect(await save()).not.toHaveProperty("educationLevelCode");
   });
 });
 

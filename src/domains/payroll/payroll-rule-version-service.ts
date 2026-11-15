@@ -43,6 +43,7 @@ export const PayrollRuleVersionService = {
       benefitsExemptionCap: input.benefitsExemptionCap ?? undefined,
       form2316Boxes: input.form2316Boxes?.length ? input.form2316Boxes : undefined,
       form2316Excluded: input.form2316Excluded?.length ? input.form2316Excluded : undefined,
+      deMinimisLeaveDays: input.deMinimisLeaveDays ?? undefined,
       basedOnVersionId: input.basedOnVersionId ? new Types.ObjectId(input.basedOnVersionId) : undefined,
       effectiveFrom,
     });

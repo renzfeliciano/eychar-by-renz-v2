@@ -14,6 +14,7 @@ import { policyCoverage } from "@/server/policies/policy-coverage";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CreatePayrollPolicyDialog } from "./create-payroll-policy-dialog";
+import { AcknowledgeMonthlyPayDialog } from "./acknowledge-monthly-pay-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
 export const metadata: Metadata = { title: "Payroll policies" };
@@ -34,8 +35,9 @@ export default async function PayrollPoliciesPage() {
     return <NoAccessState permission="payroll-policies.read" message="You don't have access to view payroll policies." />;
   }
 
-  const [canCreate, policies, projects] = await Promise.all([
+  const [canCreate, canUpdate, policies, projects] = await Promise.all([
     hasPermission("payroll-policies.create", organizationId),
+    hasPermission("payroll-policies.update", organizationId),
     PayrollPolicyService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
   ]);
@@ -78,7 +80,25 @@ export default async function PayrollPoliciesPage() {
           {
             key: "frequency",
             header: "Pay frequency",
-            render: (policy) => PAY_FREQUENCY_LABELS[policy.payFrequency as PayFrequency] ?? policy.payFrequency,
+            render: (policy) => {
+              const label = PAY_FREQUENCY_LABELS[policy.payFrequency as PayFrequency] ?? policy.payFrequency;
+              if (policy.payFrequency !== "monthly") return label;
+              // Monthly pay (payroll plan Phase 6): show whether HR acknowledged the Art. 103 risk.
+              const acknowledgement = policy.monthlyPayAcknowledgement;
+              return (
+                <div className="flex flex-col gap-1">
+                  <span>{label}</span>
+                  {acknowledgement ? (
+                    <span className="text-xs text-muted-foreground">Risk acknowledged {formatDateKey(dateToDateKey(new Date(acknowledgement.at)))}</span>
+                  ) : (
+                    <>
+                      <span className="text-xs text-amber-700 dark:text-amber-300">Risk not acknowledged</span>
+                      {canUpdate && policy.status !== "inactive" && <AcknowledgeMonthlyPayDialog organizationId={organizationId} policyId={policy._id.toString()} policyName={policy.name} />}
+                    </>
+                  )}
+                </div>
+              );
+            },
           },
           {
             key: "days",

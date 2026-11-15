@@ -6,6 +6,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { formatTime } from "@/lib/app-time";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "./profile-format";
+import { runTitle } from "@/domains/payroll/payroll-labels";
 
 /**
  * The profile tabs that show another module's records for this one person
@@ -76,7 +77,7 @@ export function AttendanceTab({ records, days }: { records: AttendanceRow[]; day
 
 /** Newest first (CompensationService.listHistory). `rate` is the total paid: `baseRate` plus `annualIncrease`. */
 type PayTermsRow = { id: string; rateType: string; rate: number; baseRate: number; annualIncrease: number; allowances: number; effectiveFrom: Date; effectiveTo?: Date | null; reason?: string };
-type PayslipRow = { id: string; runId: string; runNumber: string; status: string; periodStart: Date; periodEnd: Date; payDate: Date; grossPay: number; netPay: number };
+type PayslipRow = { id: string; runId: string; runNumber: string; runType?: string; status: string; periodStart: Date; periodEnd: Date; payDate: Date; grossPay: number; netPay: number };
 
 export function PayTab({ terms, payslips, showTerms, showPayslips }: { terms: PayTermsRow[]; payslips: PayslipRow[]; showTerms: boolean; showPayslips: boolean }) {
   return (
@@ -109,7 +110,7 @@ export function PayTab({ terms, payslips, showTerms, showPayslips }: { terms: Pa
             emptyMessage="Not in any payroll run yet."
             testId="profile-payslips"
             columns={[
-              { key: "run", header: "Run", render: (row) => <Link href={`/payroll/${row.runId}`} className="font-medium text-primary hover:underline">{row.runNumber}</Link> },
+              { key: "run", header: "Run", render: (row) => <Link href={`/payroll/${row.runId}`} className="font-medium text-primary hover:underline">{runTitle(row)}</Link> },
               { key: "period", header: "Period", width: "lg", render: (row) => `${formatDate(row.periodStart)} – ${formatDate(row.periodEnd)}` },
               { key: "pay", header: "Pay date", width: "sm", render: (row) => formatDate(row.payDate) },
               { key: "gross", header: "Gross", width: "sm", render: (row) => formatMoney(row.grossPay) },

@@ -4,8 +4,6 @@ import { hasPermission } from "@/app/_shared/has-permission";
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
-import { EducationLevelService } from "@/domains/catalog/education-level-service";
-import { educationLevelOptions } from "@/domains/catalog/education-level-options";
 import { PageHeader } from "@/components/shared/page-header";
 import { HireForm } from "./hire-form";
 import { NoAccessState } from "@/components/shared/no-access-state";
@@ -21,11 +19,10 @@ export default async function NewEmployeePage() {
     return <NoAccessState permission="employees.create" message="You don't have access to add employees." />;
   }
 
-  const [positions, projects, employmentTypes, educationLevels] = await Promise.all([
+  const [positions, projects, employmentTypes] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmploymentTypeService.listCurrent(organizationId),
-    EducationLevelService.listCurrent(organizationId),
   ]);
 
   return (
@@ -35,7 +32,6 @@ export default async function NewEmployeePage() {
         organizationId={organizationId}
         positions={positions.map((position) => ({ id: position._id.toString(), label: position.title }))}
         projects={projects.map((project) => ({ id: project._id.toString(), label: project.name }))}
-        educationLevels={educationLevelOptions(educationLevels, null)}
         employmentTypes={employmentTypes.map((item) => ({
           id: item.code,
           label: item.name,

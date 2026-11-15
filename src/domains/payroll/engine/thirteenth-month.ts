@@ -54,7 +54,8 @@ export type RemainderInput = {
  * - Daily-rated: rate × scheduled workdays employed.
  * - Monthly-rated: the salary's share of each pay period, the way the engine pays it: a whole
  *   semi-monthly half (1st–15th, 16th–end) or month is rate ÷ 2 or rate; a part of one is pro-rated by
- *   calendar days employed in it. Weekly: rate × 12 ÷ 52 per week, pro-rated by days.
+ *   calendar days employed in it. Weekly: rate × 12 ÷ 52 per week; bi-weekly: rate × 12 ÷ 26 per two weeks;
+ *   both pro-rated by days.
  * The actual December run can differ (absences, other cutoff days); the January true-up settles that.
  */
 export function estimateRemainingBasic(input: RemainderInput): number {
@@ -81,6 +82,10 @@ function payPeriodsTouching(from: string, to: string, frequency: PayFrequency): 
   if (frequency === "weekly") {
     // Weeks counted from the first unpaid day; a week the remainder only partly covers is pro-rated by days.
     for (let start = from; start <= to; start = addDays(start, 7)) periods.push([start, addDays(start, 6), 12 / 52]);
+    return periods;
+  }
+  if (frequency === "bi-weekly") {
+    for (let start = from; start <= to; start = addDays(start, 14)) periods.push([start, addDays(start, 13), 12 / 26]);
     return periods;
   }
   let [year, month] = from.split("-").map(Number);

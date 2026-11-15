@@ -74,19 +74,42 @@ describe("SettlementActions", () => {
 });
 
 describe("ManualLineForm", () => {
-  it("adds an earning with its reason", async () => {
+  it("adds an earning with its reason, supporting document and taxable choice (payroll plan Phase 5)", async () => {
     const user = userEvent.setup();
-    render(<ManualLineForm organizationId="org1" settlementId="s1" />);
+    render(<ManualLineForm organizationId="org1" settlementId="s1" employeeId="e1" documents={[{ id: "d1", label: "Bonus memo (memo.pdf)" }]} />);
 
     await user.click(screen.getByRole("button", { name: /Add a line/ }));
     await user.type(screen.getByLabelText(/^Description/), "Performance bonus");
     await user.type(screen.getByLabelText(/^Amount/), "5000");
     await user.type(screen.getByLabelText(/Reason or basis/), "Q3 bonus approved 2026-09-30");
     await user.click(screen.getByRole("button", { name: "Add line" }));
+    expect(screen.getByText("Choose the supporting document.")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("manual-line-document"));
+    await user.click(await screen.findByRole("option", { name: "Bonus memo (memo.pdf)" }));
+    await user.click(screen.getByLabelText(/Taxable compensation/));
+    await user.click(screen.getByRole("button", { name: "Add line" }));
 
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/final-settlements/s1/lines");
-    expect(JSON.parse(init.body)).toEqual({ organizationId: "org1", direction: "earning", label: "Performance bonus", amount: 5000, reason: "Q3 bonus approved 2026-09-30" });
+    expect(JSON.parse(init.body)).toEqual({ organizationId: "org1", direction: "earning", label: "Performance bonus", amount: 5000, reason: "Q3 bonus approved 2026-09-30", documentId: "d1", taxable: false });
+  });
+});
+
+describe("SettlementActions approval with warnings (payroll plan Phase 5)", () => {
+  it("asks the approver to tick each warning, then sends them", async () => {
+    const user = userEvent.setup();
+    render(
+      <SettlementActions organizationId="org1" settlementId="s1" clearanceCaseId="c1" status="reviewed" clearanceCleared permissions={ALL} paymentMethods={[]} warnings={[{ code: "tax_true_up", message: "₱233.56 of tax is refunded here." }]} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Approve" }));
+    expect(screen.getByText("Tick each warning once you've checked it.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("₱233.56 of tax is refunded here."));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ organizationId: "org1", action: "approve", acknowledgedWarnings: ["tax_true_up"] });
   });
 });

@@ -18,6 +18,8 @@ import { formatPeso } from "@/domains/payroll/payroll-labels";
 import { formatMultiplierPercent } from "@/domains/payroll/engine/premiums";
 import { formatMinutesShort } from "@/domains/attendance/day-result-labels";
 import { cn } from "@/lib/utils";
+import { formatDateKey } from "@/lib/date-key";
+import { sumMoney } from "@/domains/payroll/engine/money";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
 
 type Props = {
@@ -35,6 +37,7 @@ type Props = {
 function attendanceSummary(row: RegisterRow): string {
   if (row.thirteenthMonth) return `Basic ${formatPeso(row.thirteenthMonth.basicEarned + row.thirteenthMonth.estimatedBasic)} ÷ ${row.thirteenthMonth.divisor}`;
   if (row.yearEnd) return `Tax due ${formatPeso(row.yearEnd.taxDue)} · withheld ${formatPeso(row.yearEnd.presentWithheld + row.yearEnd.previousWithheld)}`;
+  if (row.finalSettlement) return `Final pay · last day ${formatDateKey(row.finalSettlement.lastWorkingDay)}`;
   const parts = [`${row.attendance.daysWorked} worked`];
   if (row.attendance.paidLeaveDays) parts.push(`${row.attendance.paidLeaveDays} leave`);
   if (row.attendance.absentDays) parts.push(`${row.attendance.absentDays} absent`);
@@ -246,6 +249,15 @@ function Payslip({
                 ["Withheld, here", formatPeso(row.yearEnd.presentWithheld)],
                 ["Withheld, previous", row.yearEnd.previousWithheld ? formatPeso(row.yearEnd.previousWithheld) : "—"],
                 [row.yearEnd.difference > 0 ? "To collect" : row.yearEnd.difference < 0 ? "To refund" : "Difference", formatPeso(Math.abs(row.yearEnd.difference))],
+              ]
+            : row.finalSettlement
+            ? [
+                ["Last working day", formatDateKey(row.finalSettlement.lastWorkingDay)],
+                ["Settlement version", row.finalSettlement.version],
+                ["Fingerprint", row.finalSettlement.hash.slice(0, 10)],
+                ["Taxable earnings", formatPeso(sumMoney(row.earnings.filter((line) => line.taxable !== false).map((line) => line.amount)))],
+                ["Non-taxable", formatPeso(sumMoney(row.earnings.filter((line) => line.taxable === false).map((line) => line.amount)))],
+                ["Net pay", formatPeso(row.netPay)],
               ]
             : row.thirteenthMonth
             ? [

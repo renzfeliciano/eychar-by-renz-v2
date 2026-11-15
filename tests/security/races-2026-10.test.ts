@@ -49,6 +49,11 @@ const { DeletionService } = await import("@/domains/deletion/deletion-service");
 const { EmployeeAssignmentService } = await import("@/domains/workforce/employee-assignment-service");
 const { FinalSettlementService } = await import("@/domains/final-settlement/final-settlement-service");
 const { PaymentMethodService } = await import("@/domains/catalog/payment-method-service");
+const { PayrollPolicyService } = await import("@/domains/payroll/payroll-policy-service");
+const { PayrollRuleVersionService } = await import("@/domains/payroll/payroll-rule-version-service");
+const { PH_STATUTORY_2025 } = await import("@/domains/payroll/templates/ph-statutory-2025");
+const { createPayrollPolicySchema } = await import("@/shared/validation/payroll");
+const { FINAL_PAY_CHECK_CODES } = await import("@/domains/final-settlement/final-pay-checks");
 const { BusinessRuleError, ConflictError } = await import("@/shared/errors");
 
 await connectMongoDB();
@@ -248,6 +253,12 @@ describe("Races fixed in 2026-10 (conditional updates inside transactions)", () 
       const organizationId = await seedOrganization();
       const employeeId = await seedEmployee(organizationId, "Cora");
       await PaymentMethodService.create({ organizationId: organizationId.toString(), code: "bank_transfer", name: "Bank transfer" }, {});
+      // What a real settlement has around it since payroll plan Phase 5: a payroll policy and rule version (the final
+      // run records them), an employment that ended on the last working day, and a document for manual lines.
+      await PayrollPolicyService.create(createPayrollPolicySchema.parse({ organizationId: organizationId.toString(), name: "Default", payFrequency: "semi-monthly", effectiveFrom: "2026-01-01" }), {});
+      await PayrollRuleVersionService.create({ organizationId: organizationId.toString(), ...PH_STATUTORY_2025, effectiveFrom: "2026-01-01" }, {});
+      await models.EmploymentModel.create({ organizationId, employeeId, employmentType: "regular", status: "resigned", effectiveFrom: new Date("2025-01-01"), effectiveTo: new Date("2026-09-30") });
+      const document = await models.EmployeeDocumentModel.create({ organizationId, employeeId, title: "Memo", documentType: "memo", fileName: "memo.pdf", fileType: "application/pdf", fileSize: 1, fileData: "eA==" });
       const clearance = await models.ClearanceCaseModel.create({
         organizationId,
         caseNumber: `CL-${unique()}`,
@@ -262,12 +273,13 @@ describe("Races fixed in 2026-10 (conditional updates inside transactions)", () 
         clearanceCaseId: clearance._id,
         employeeId,
         status,
+        lines: [{ code: "salary_balance", direction: "earning", label: "Salary balance", amount: 1000, source: "Test", basis: "Test", taxable: true }],
         totals: { earnings: 1000, deductions: 0, net: 1000 },
         history: [{ action: "prepared", at: new Date(), version: 1 }],
       });
       const disburse = (reference: string) =>
         FinalSettlementService.act(settlement._id.toString(), organizationId.toString(), { action: "disburse", paymentMethodCode: "bank_transfer", paymentReference: reference }, {});
-      return { organizationId: organizationId.toString(), id: settlement._id.toString(), clearanceId: clearance._id, disburse };
+      return { organizationId: organizationId.toString(), id: settlement._id.toString(), clearanceId: clearance._id, disburse, documentId: document._id.toString() };
     }
 
     async function expectDisbursedOnce(s: Awaited<ReturnType<typeof seedSettlement>>, reference: string) {
@@ -292,7 +304,7 @@ describe("Races fixed in 2026-10 (conditional updates inside transactions)", () 
       const stale = await models.FinalSettlementModel.findById(s.id);
       await FinalSettlementService.act(s.id, s.organizationId, { action: "return", note: "Recheck leave" }, {});
       readsStale(models.FinalSettlementModel, stale);
-      await expect(FinalSettlementService.act(s.id, s.organizationId, { action: "approve" }, {})).rejects.toBeInstanceOf(ConflictError);
+      await expect(FinalSettlementService.act(s.id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, {})).rejects.toBeInstanceOf(ConflictError);
       const stored = await models.FinalSettlementModel.findById(s.id).lean();
       expect(stored?.status).toBe("draft");
       expect(stored?.history.map((entry) => entry.action)).toEqual(["prepared", "returned"]);
@@ -304,7 +316,7 @@ describe("Races fixed in 2026-10 (conditional updates inside transactions)", () 
       await models.FinalSettlementModel.updateOne({ _id: s.id }, { $set: { status: "submitted" } });
       readsStale(models.FinalSettlementModel, stale);
       await expect(
-        FinalSettlementService.addManualLine(s.id, s.organizationId, { direction: "earning", label: "Bonus", amount: 100, reason: "Promised" }, {}),
+        FinalSettlementService.addManualLine(s.id, s.organizationId, { direction: "earning", label: "Bonus", amount: 100, reason: "Promised", documentId: s.documentId }, {}),
       ).rejects.toBeInstanceOf(ConflictError);
       const stored = await models.FinalSettlementModel.findById(s.id).lean();
       expect(stored?.status).toBe("submitted");
@@ -323,7 +335,7 @@ describe("Races fixed in 2026-10 (conditional updates inside transactions)", () 
     it.runIf(realTransactions)("concurrent: only one of approve and return lands on a reviewed settlement", async () => {
       const s = await seedSettlement("reviewed");
       const results = await Promise.allSettled([
-        FinalSettlementService.act(s.id, s.organizationId, { action: "approve" }, {}),
+        FinalSettlementService.act(s.id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, {}),
         FinalSettlementService.act(s.id, s.organizationId, { action: "return", note: "Recheck leave" }, {}),
       ]);
       expect(outcome(results).won).toHaveLength(1);
