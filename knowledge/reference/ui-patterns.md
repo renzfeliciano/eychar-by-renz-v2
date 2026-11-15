@@ -1,7 +1,7 @@
 # UI patterns and building blocks (Phase 5)
 
 **Built from commit:** `6587050` (main). **Last verified:** `6587050`.
-**Sources of truth:** `ARCHITECTURE.md` "UI standards" (line ~590), `docs/ENGINEERING.md` §23 (UI authorization), §41 (mobile-first), §47-§50 (type safety, errors, observability, code quality), `docs/architecture/adr/ADR-013-ui-design-system.md`, `ADR-048-navy-ledger-design-and-loading-states.md`, `ADR-050-animated-brand-loader.md`, `ADR-046-org-chart-as-a-drawn-canvas.md`.
+**Sources of truth:** `ARCHITECTURE.md` "UI standards" (line ~590), `docs/engineering/ENGINEERING.md` §23 (UI authorization), §41 (mobile-first), §47-§50 (type safety, errors, observability, code quality), `docs/architecture/adr/ADR-013-ui-design-system.md`, `ADR-048-navy-ledger-design-and-loading-states.md`, `ADR-050-animated-brand-loader.md`, `ADR-046-org-chart-as-a-drawn-canvas.md`.
 Code wins over docs. Cited paths are relative to the repo root.
 
 ## 1. Route structure

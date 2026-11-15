@@ -1,8 +1,8 @@
 # Engineering Guidelines
 
 How PCAS HRIS is designed and built. Code comments and architecture decision records cite these
-guidelines by section, for example "ENGINEERING.md §53" (no hard deletes). [ARCHITECTURE.md](../ARCHITECTURE.md)
-describes what is built; the decision records in [architecture/adr](./architecture/adr) explain why.
+guidelines by section, for example "ENGINEERING.md §53" (no hard deletes). [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
+describes what is built; the decision records in [architecture/adr](../architecture/adr) explain why.
 
 A change is done when typecheck, lint, tests and build pass and the documentation is updated.
 

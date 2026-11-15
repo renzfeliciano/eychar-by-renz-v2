@@ -9,10 +9,10 @@ are computed there and are **not** repeated here.
 
 ## 0. How to work
 
-1. Read, in order: `knowledge/README.md`, `overview.md`, `layers.md`, `CHANGE_PROTOCOL.md`,
-   `domains/payroll.md`, `domains/payroll-engine.md`, `domains/final-settlement.md`,
-   `philippine-payroll-compliance.md`, `known-gaps-and-mismatches.md`, `cross-cutting.md` (money, dates, audit),
-   `testing.md`; then `docs/ENGINEERING.md` §§ 27, 28, 33, 35, 46, 52, 53, 58–60 and ADR-011, 014, 029, 032, 041.
+1. Read, in order: `knowledge/README.md`, `overview.md`, `reference/layers.md`, `CHANGE_PROTOCOL.md`,
+   `domains/payroll.md` (runs and engine), `domains/final-settlement.md`,
+   `reference/philippine-payroll-compliance.md`, `known-gaps-and-mismatches.md`, `reference/cross-cutting.md` (money, dates, audit),
+   `reference/testing.md`; then `docs/engineering/ENGINEERING.md` §§ 27, 28, 33, 35, 46, 52, 53, 58–60 and ADR-011, 014, 029, 032, 041.
 2. Follow `CHANGE_PROTOCOL.md`: brief, baseline (`npm run typecheck`, `lint`, `npm test`), small additive slices on a
    branch, never on `main`.
 3. **Stop at every GATE.** This work changes payroll results and data shape.
@@ -207,8 +207,13 @@ ADR-032 is accepted but only partly implemented (decided 2026-11-14). Close the 
 
 ### Phase 6: Statutory data and pay frequency
 
+**Status (2026-11-15): built.** Owner answers: unacknowledged monthly policies are flagged until acknowledged;
+bi-weekly periods come from an anchor date per schedule; a bi-weekly run without a bi-weekly table refuses until
+HR publishes a new rule version; service incentive leave is report only. Statutory tables unchanged (secondary
+sources). Details: `reference/philippine-payroll-compliance.md` §4–5, known gaps B27–B28.
+
 - **Tables:** verify SSS, PhilHealth, Pag-IBIG and withholding figures against the official sources listed in
-  `philippine-payroll-compliance.md` §6. Publish corrections as a **new rule version** (new `versionNumber`,
+  `reference/philippine-payroll-compliance.md` §6. Publish corrections as a **new rule version** (new `versionNumber`,
   never an in-place edit), effective-dated. Update the seed template and its test. Record what was checked.
 - **Pay frequency is HR's choice** (owner, 2026-11-14), not forced. Monthly stays available. Because Art. 103 as the
   sources read it does not allow monthly pay for rank-and-file staff, choosing monthly must (a) show a plain warning in the
@@ -223,11 +228,22 @@ ADR-032 is accepted but only partly implemented (decided 2026-11-14). Close the 
 
 ### Phase 7: Payslips, register and exports
 
+**Status (2026-11-15): built.** Payslips mark non-taxable earnings, state taxable income and explain 13th-month,
+year-end and final runs (`payslips/payslip-card.tsx`). The run screen's payslip sheet shows a final run's settlement.
+The register export adds "13th month", "Non-taxable earnings" and "Taxable income" columns, and its totals use
+`sumMoney`. Profile payslips name the run type. Tests: `tests/app/payslip-card.test.tsx`,
+`tests/domains/payroll/payroll-register-export.test.ts`. The payslips page keeps its own print header (not `PageHeader`, C5).
+
 - Payslip and register show every new line (13th month, year-end adjustment, final lines) with their taxable flags.
 - Register export columns follow the existing `roundMoney` / `sumMoney` rules, so totals add up.
 - Keep `PageHeader`, `loading.tsx`, mobile layout (§41). Add UI tests, since payroll pages have none today.
 
 ### Phase 8: Verify and document
+
+**Status (2026-11-15): done, except the running-app walk-through and e2e (no throwaway database configured).**
+Tests: `tests/domains/payroll/payroll-phase-8-verification.test.ts` (history §59, reproducibility §46 for regular,
+13th-month and year-end runs, authorization §60 for each run type); concurrency stays in `tests/security/races-2026-10.test.ts`.
+ADRs 058–063 written; `ARCHITECTURE.md`, `domains/payroll.md`, `domains/final-settlement.md` and the compliance file updated.
 
 - Gates: `npm run typecheck`, `lint`, `npm test`, `npm run build`; run the app and walk a regular run, a 13th-month run,
   a year-end adjustment, a final settlement and the payslip. Run `npm run test:e2e` for payroll.
@@ -295,3 +311,492 @@ or secondary source in this pass (the ₱90,000 exemption is deferred, so its fi
 - Every released run and old period reproduces to the centavo.
 - Statutory figures verified and recorded, or the unverified ones named in the compliance file.
 - Knowledge files, ADRs and `ARCHITECTURE.md` updated; gaps B1, B7, the exclusion item and the deadline mismatch resolved or restated.
+
+---
+
+## Appendix: per-phase designs
+
+The three designs below were separate files (`payroll-phase-3-13th-month.md`, `payroll-phase-4-year-end-tax.md`, `payroll-phase-5-final-settlement.md`) until 2026-11-15. They are the detailed designs behind Phases 3, 4 and 5 above.
+
+---
+
+## Appendix A: Phase 3 design: 13th-month run (Gate B draft)
+
+**Status:** Gate B approved 2026-11-14 (owner): build on this base; December is estimated, then trued up in January.
+Built 2026-11-14 (uncommitted at the time of writing): `engine/thirteenth-month.ts`, `thirteenth-month-compute.ts`,
+`thirteenth-month-ledger.ts`, `thirteenth-month-report.ts`, `PayrollRunService.prepareThirteenthMonth` and
+`addThirteenthMonthTrueUp`, the "13th month" button on Payroll runs and the true-up button on January drafts. The final
+settlement now reads "already paid" from the same ledger. Legal check of the base and the DOLE fields still open (gaps B24). Parent plan: the plan above Phase 3.
+
+### Shape
+
+- **Run type `thirteenth_month`** (Phase 2), one per calendar year per scope. Period = Jan 1 – Dec 31.
+  Same lifecycle and permissions as a regular run (prepare `payroll-runs.create`, submit, approve, release).
+- **Due date is policy data:** new optional `PayrollPolicy.thirteenthMonthPayBy` (month-day, default `12-24`).
+  Prepare warns (not blocks) when the pay date is after it.
+- **Who is paid:** every employee with basic pay in an approved or released **regular** run whose period ends in
+  the year. Managerial staff included (company policy, not PD 851 coverage; say so in the ADR).
+- **Base:** sum of the `basic`, `absences` and `tardiness` earning lines from those records. These lines are
+  already net of unpaid absence and tardiness, and they already exclude overtime, premiums, allowances and
+  adjustments (those are separate lines). This is the same base the final settlement uses today
+  (`final-settlement-service.ts`, `BASIC_CODES`); it moves into one shared function used by both.
+- **Amount** = `roundMoney(base ÷ thirteenthMonthDivisor − already paid)`, floored at zero.
+  **Already paid** = `thirteenth_month` adjustments in regular runs that year + the `thirteenth_month` line of
+  any approved or disbursed final settlement that year. An employee whose final settlement covered it gets 0 and is
+  listed as excluded, with the reason.
+- **Record:** one earning line `thirteenth_month`, **non-taxable** (today's behavior; the ₱90,000 cap is deferred,
+  risk recorded), no SSS/PhilHealth/Pag-IBIG, no withholding, no other deductions. Net = amount.
+- **Snapshot on the record:** base earned, divisor, already paid, months with pay, and the ids of the source runs, so
+  the record reproduces (§46).
+- **Report:** XLSX/CSV export with the data for DOLE's annual 13th-month report (employee, base, amount, paid on).
+
+### Hand-worked examples (monthly policy: 261 workdays/year, 8 h/day, divisor 12)
+
+Engine rounding: daily rate = round(monthly × 12 ÷ 261); hourly = round(daily ÷ 8); each line rounded.
+
+| | A: full year | B: hired mid-year, raise in Nov | C: resigned Jun 30 |
+|---|---|---|---|
+| Pay terms | ₱30,000/month all year | ₱24,000/month from Aug 17 (Mon); ₱26,000 from Nov 1 | ₱650/day (daily-rated) |
+| Basic lines | 12 × 30,000 = 360,000.00 | Aug: 11 of the month's workdays × 1,103.45 = 12,137.95; Sep–Oct 2 × 24,000; Nov–Dec 2 × 26,000 → 112,137.95 | 126 days paid (129 weekdays Jan–Jun, 3 unpaid absences) × 650 = 81,900.00 |
+| Absences | 2 days × 1,379.31 = −2,758.62 | none | (daily-rated: unpaid days are simply not paid) |
+| Tardiness | 60 min × 172.41 ÷ 60 = −172.41 | none | none |
+| Excluded (not in base) | ₱5,000 overtime, ₱1,500/month rice allowance | none | none |
+| **Base** | **357,068.97** | **112,137.95** | **81,900.00** |
+| **13th month** (÷ 12) | **29,755.75** | **9,344.83** | **6,825.00**, paid in final pay; the December run lists C as excluded ("paid in final settlement") |
+
+### For the owner to confirm at Gate B
+
+1. The base above against PD 851 and its implementing rules: "basic salary" excludes overtime, premiums, night
+   differential, holiday pay and allowances not integrated into the basic salary; unpaid absences reduce it.
+   **Not verified against the official text in this pass.**
+2. December's last cutoff: **decided** (owner, 2026-11-14): estimate the unpaid rest of the year at current terms (full
+   attendance, by the policy's pay periods), then true up in January's first regular run as a 13th-month adjustment tagged
+   with the year it belongs to (`PayrollAdjustment.thirteenthMonthYear`), for HR to approve with that run.
+3. The DOLE report due date (January 15) and its required fields.
+
+---
+
+## Appendix B: Phase 4 design: year-end tax and Form 2316 data (Gate C draft)
+
+**Status:** Gate C approved as drafted, 2026-11-14 (owner). The [verify] marks stay open as legal checks (gaps file).
+Decisions:
+- Q2: the employer's BIR details live on the organization.
+- Q3: the ₱90,000 cap is applied at year-end, as rule data.
+- Q6: the annual base is the true annual sum.
+- Q4 (true-up year) and Q5 (allowance boxes) take the defaults: the year the true-up is for, and the default allowance map. Parent plan: the plan above
+Phase 4 and §5 item 3.
+
+**How to read the source marks.**
+- **[verify]**: from my knowledge of BIR Form 2316 (January 2018 version, RR 11-2018). Not checked against the official
+  form or issuance in this pass.
+- **Have**: the field exists in the system today.
+- **New**: a field this phase adds.
+
+Item numbers are the form's box numbers as I remember them. Gate C means checking every line against the current form
+on bir.gov.ph before anything is built.
+
+### Shape
+
+- **Run type `year_end_adjustment`** (Gate A): one per calendar year per scope.
+  - Same lifecycle and permissions as a regular run.
+  - It can be prepared only after every regular run whose period ends in the year is approved or released (the same
+    guard as the 13th-month true-up).
+  - The pay date is HR's choice: the last December pay, or January for a refund **[verify]**.
+- **One record per employee**, with one line:
+  - **Under-withheld:** a `year_end_tax` **deduction**, labelled "Withholding tax YYYY (year-end)".
+  - **Over-withheld:** a non-taxable **earning**, labelled "Tax refund YYYY".
+  - Nothing else: no contributions and no other deductions.
+  - Employees with no difference are listed with ₱0.00 so the reconciliation is complete.
+  - HR approves the run. Nothing is applied silently.
+- **Snapshot on the record** (§46):
+  - every annualization figure in the formula below;
+  - the rule version id used;
+  - the ids of the source runs;
+  - the previous-employer input id.
+- **Who is in it:** employees with an approved or released regular record in the year who are still employed on
+  December 31.
+  - Separated employees are annualized in their final settlement (Phase 5), so this run lists them as excluded with
+    that reason.
+  - They still appear in the Form 2316 export.
+- **Exports**, all audited like `auditExport`:
+  1. the reconciliation report;
+  2. the Form 2316 data, one row per employee;
+  3. the BIR Annex F list of employees qualified for substituted filing.
+  - A printable 2316 stays a follow-up.
+
+### Annualization (RR 11-2018, the employer's December duty [verify])
+
+```
+benefits excess   = max(0, Σ non-taxable 13th-month and bonus lines (incl. the 13th-month run) − benefits cap)
+                    (cap is rule data; Q3)
+present taxable   = max(0, Σ taxable earning lines − Σ employee contributions + benefits excess), over the year's
+                    approved/released regular runs (true annual sum, not Σ record.taxableIncome; Q6)
+gross taxable     = present taxable + previous-employer taxable (new input)
+annual tax due    = roundMoney(progressive tax on gross taxable, using the rule version's ANNUAL table)
+withheld          = Σ record.tax (present) + previous-employer tax withheld
+difference        = annual tax due − withheld      > 0 → collect   < 0 → refund   0 → none
+```
+
+- **Minimum wage earners:** tax due 0, so any amount withheld is refunded. This only happens if the flag changed
+  mid-year.
+- **Annual table:** today a rule version holds weekly, semi-monthly and monthly tables only.
+  - It needs a new `annual` entry. Rule versions are never edited in place, so HR adds a new version with it.
+  - The starter template gets the TRAIN annual brackets (2023 onward):
+    - 0% up to ₱250,000;
+    - 15% of the excess over ₱250,000;
+    - ₱22,500 + 20% over ₱400,000;
+    - ₱102,500 + 25% over ₱800,000;
+    - ₱402,500 + 30% over ₱2,000,000;
+    - ₱2,202,500 + 35% over ₱8,000,000.
+  - These are in the compliance file, from secondary sources **[verify]**.
+  - The year uses the rule version in force on December 31 for the scope.
+  - If that version has no annual table, prepare refuses: "Add the annual tax table to a new rule version first."
+- **Settlement deadlines:**
+  - Collect from the December pay; any balance by January 25 of the next year **[verify]**.
+  - Refund by January 25 **[verify]**.
+  - These are guidance on the run, not a block.
+
+### Previous employer (new, per employee and year)
+
+`PriorEmployment` is entered by HR from the previous employer's 2316. It holds:
+
+- year;
+- employer TIN, name, registered address, ZIP;
+- period from and to;
+- taxable compensation;
+- non-taxable compensation;
+- tax withheld;
+- "concurrent employer" (yes/no).
+
+It is audited, editable only until the year-end run of that year is approved, and shown on the employee's payroll
+tab. One or more entries mean the employee **had two or more employers**: they are flagged and left off Annex F.
+
+### Form 2316 field list
+
+#### Part I: Employee
+
+| Box | Field | Source |
+|---|---|---|
+| 1 | For the year | run year |
+| 2 | Period from / to (MM/DD) | first and last day employed in the year (employment dates, clamped) |
+| 3 | TIN | **Have:** `Person.tinNumber` (free text; validate as 9 or 12 digits) |
+| 4 | Name (last, first, middle) | **Have:** `Person` name fields |
+| 5 | RDO code | **New:** `Person.rdoCode` |
+| 6, 6A | Registered address, ZIP | **Have:** `Person.address` (one string). **New:** `Person.zipCode` |
+| 6B–6D | Local home address, ZIP, foreign address | **Have, partly:** reuse `address`; foreign address not needed for now **[ask]** |
+| 7 | Date of birth | **Have:** `Person.birthDate` |
+| 8 | Contact number | **Have:** `Person.phone` |
+| 9, 10 | Statutory minimum wage per day and per month (MWE only) | **Have:** `Compensation` rate when `minimumWageEarner` (the monthly figure uses the policy's days per year ÷ 12) |
+| 11 | Minimum wage earner | **Have:** `Compensation.minimumWageEarner` (any MWE period in the year **[verify how a mixed year is shown]**) |
+
+#### Part II: Present employer
+
+| Box | Field | Source |
+|---|---|---|
+| 12 | TIN | **New:** `Organization.tax.tin` |
+| 13 | Employer name | **Have:** `Organization.name` (**New:** optional `Organization.tax.registeredName` when the BIR name differs) |
+| 14, 14A | Registered address, ZIP | **New:** `Organization.tax.registeredAddress`, `zipCode` |
+| 15 | Main or secondary employer | **New:** derived. Secondary when the prior-employment entry is marked concurrent **[verify]** |
+
+#### Part III: Previous employer(s)
+
+Boxes 16–18A: TIN, name, address and ZIP, from `PriorEmployment`. The form has one block, so the export lists the
+first and adds a column with the rest.
+
+#### Part IV-A: Summary
+
+| Box | Field | Formula |
+|---|---|---|
+| 19 | Gross compensation, present employer | box 38 + box 52 |
+| 20 | Less non-taxable/exempt, present | box 38 |
+| 21 | Taxable, present | box 52 (equals present taxable above) |
+| 22 | Add taxable, previous employer | `PriorEmployment` |
+| 23 | Gross taxable compensation | 21 + 22 |
+| 24 | Tax due | annual tax due |
+| 25A, 25B | Tax withheld, present / previous | Σ `record.tax` + the year-end line / `PriorEmployment` |
+| 26 | Total withheld as adjusted | 25A + 25B, after the year-end adjustment |
+| 27 | 5% tax credit (PERA) | 0. Not supported, stated in the export |
+| 28 | Total taxes withheld | 26 + 27 |
+
+#### Part IV-B: Details from the present employer (which pay line goes to which box)
+
+The mapping is **rule data**: a new `form2316Boxes` list on the rule version (box ← earning codes or adjustment
+categories, with an MWE switch). It is not code, because BIR renumbers forms.
+
+Proposed starting map:
+
+| Box | Field | Pay lines |
+|---|---|---|
+| 29 | Basic salary (incl. MWE's statutory minimum wage, or basic ≤ ₱250,000 **[verify]**) | MWE: `basic`, `absences`, `tardiness` |
+| 30–33 | Holiday pay, overtime, night shift differential, hazard pay (MWE only) | MWE: `holiday_pay`, `rest_day_pay` **[ask: 30 or 31]**, `overtime`, `night_differential`, `hazard_pay` |
+| 34 | 13th month pay and other benefits (exempt up to ₱90,000) | non-taxable `thirteenth_month` and `bonus` lines |
+| 35 | De minimis benefits | non-taxable `allowance` lines, `de_minimis` |
+| 36 | SSS, GSIS, PhilHealth, Pag-IBIG contributions and union dues (employee share) | employee contributions |
+| 37 | Salaries and other forms of compensation (non-taxable) | any other non-taxable earning |
+| 38 | Total non-taxable | Σ 29–37 |
+| 39 | Basic salary (taxable) | non-MWE: `basic`, `absences`, `tardiness` |
+| 40–43 | Representation, transportation, COLA, fixed housing allowance | none by default (allowances are free-named; HR maps by name later **[ask]**) |
+| 44 | Others (taxable regular) | taxable `allowance` lines |
+| 45–47 | Commission, profit sharing, fees | none by default |
+| 48 | Taxable 13th month and other benefits | taxable `thirteenth_month` and `bonus` lines |
+| 49, 50 | Hazard pay, overtime pay | non-MWE: `hazard_pay`; `overtime`, `holiday_pay`, `rest_day_pay`, `night_differential` **[ask]** |
+| 51 | Others (taxable supplementary) | `retro_pay`, `other_earning`, any other taxable earning |
+| 52 | Total taxable | Σ 39–51, less box 36 **[verify: whether contributions come off 39 or are shown only in 36]** |
+
+**Not compensation, never on the form:**
+- `reimbursement`;
+- every deduction other than contributions and tax (loans, cash advances);
+- the "Tax refund" line itself.
+
+**Cap at year-end (Q3):** box 34 holds non-taxable 13th-month and bonus pay up to the cap. Any excess moves to box 48
+and is taxed in the annualization.
+
+**Check on export:** box 52 must equal present taxable from the annualization. Any difference is shown on the export
+as a warning, never hidden.
+
+#### Annex F: employees qualified for substituted filing [verify columns]
+
+The columns are: sequence, TIN, last name, first name, middle name.
+
+An employee qualifies when all of these are true:
+- they were with this employer only, for the whole year they were employed (no `PriorEmployment` entry);
+- they are on the year-end run;
+- annual tax due equals tax withheld after the year-end adjustment.
+
+HR can exclude an employee with a reason (for example, other income it doesn't know about). The exclusion is recorded
+in the run's history.
+
+### Hand-worked examples (semi-monthly policy, contributions every cutoff)
+
+| | A: full year, no prior employer | B: hired Jul 1, prior employer Jan–Jun | C: minimum wage earner |
+|---|---|---|---|
+| Pay terms | ₱30,000/month | ₱40,000/month; prior 2316: taxable ₱180,000, tax withheld ₱0 | ₱650/day, MWE |
+| Contributions/month | SSS 1,500 + PhilHealth 750 + Pag-IBIG 200 = 2,450 | 1,750 + 1,000 + 200 = 2,950 | (per table) |
+| Per-cutoff taxable | 15,000 − 1,225 = 13,775.00 | 20,000 − 1,475 = 18,525.00 | n/a |
+| Per-cutoff tax | 15% × (13,775 − 10,416.67) = 503.75 | 937.50 + 20% × (18,525 − 16,666.67) = 1,309.17 | 0 |
+| Present taxable (year) | 360,000 − 29,400 = 330,600.00 | 240,000 − 17,700 = 222,300.00 | 0 (all in boxes 29 and 36) |
+| Gross taxable | 330,600.00 | 222,300 + 180,000 = 402,300.00 | 0 |
+| Annual tax due | 15% × 80,600 = 12,090.00 | 22,500 + 20% × 2,300 = 22,960.00 | 0 |
+| Withheld | 24 × 503.75 = 12,090.00 | 12 × 1,309.17 = 15,710.04 + 0 | 0 |
+| **Year-end line** | **none** | **collect 7,249.96** | **none** |
+| Annex F | qualifies | no (two employers) | qualifies |
+
+Example B shows why the prior-employer input matters. Without it, the present employer alone would annualize ₱222,300
+(below ₱250,000), find ₱0 due and refund ₱15,710.04 wrongly.
+
+### Questions for the owner at Gate C
+
+1. **Check against the current BIR forms:**
+   - the 2316 box list and numbering above;
+   - the Annex F columns;
+   - the annual table;
+   - the January 25 deadlines.
+2. **Where the employer's TIN, RDO and address live.** Proposed: on the organization, as one BIR employer. Ask if any
+   project is a separate BIR-registered employer.
+3. **The ₱90,000 cap at year-end.** It was deferred for per-period pay. Annualization reads every 13th-month and
+   bonus line anyway, so it could apply the cap here at almost no cost: any excess becomes taxable and is collected in
+   the year-end line, with the cap stored as rule data. **Recommended**, but it reverses the Phase 3 deferral, so it
+   is your call.
+4. **Which year a January 13th-month true-up counts for on the 2316:** the year it is for (`thirteenthMonthYear`) or
+   the year it is paid. It is non-taxable either way; this only moves box 34. **[verify]**
+5. **The allowance mapping:** default as above (non-taxable to box 35, taxable to box 44), with HR mapping named
+   allowances to boxes 40–43 later. Or should the allowance form get a 2316 box now?
+6. **Negative per-period taxable** (a cutoff with more contributions than taxable pay) is floored at 0 today, so the
+   difference is lost.
+   - The annual figure could instead use the true annual sum (taxable earnings − contributions).
+   - **Recommended: true annual sum.** It is what the form's boxes add up to.
+
+---
+
+## Appendix C: Phase 5 design: final settlement completed (Gate D draft)
+
+**Status:** draft for Gate D, 2026-11-14. Nothing built. Owner's answers, 2026-11-14:
+- Q2: plain SHA-256.
+- Q3: the approver only has to differ from the preparer (ADR-032 as written).
+- Q4: warnings need a recorded "I've checked these" tick at approve.
+- Q5: Phase 5a slice 2 is built with Phase 5.
+
+Q1 (the design as a whole) was approved 2026-11-14 ("go ahead").
+
+Built 2026-11-14:
+- `settlement-statutory.ts`, `final-pay-checks.ts`, `settlement-hash.ts`, `separation-status.ts`;
+- the reworked `final-settlement-service.ts`, and the settlement page's checks, warning confirmation and document picker;
+- the dashboard's deadline source.
+
+Tests: `tests/domains/final-settlement/final-pay-phase-5.test.ts` (the Carla example to the centavo, plus the end-to-end
+flow). Follow-ups are recorded in the gaps file (B25, B26). Parent plan: the plan above
+Phase 5 and §5 items 5–6; ADR-032; gap list in [domains/final-settlement.md](../domains/final-settlement.md).
+
+**Where Phase 5a stands (read 2026-11-14):**
+- **Slice 1 (End Employment dialog) is done** (other session, commit `87efd87`). It sends status, date and note, and
+  includes edit-ending and reinstate (ADR-055).
+- **Slice 2 (separation type → employment status mapping) is not done:** no `employmentStatusCode` exists yet.
+- Slices 3–4 are not done. Slice 4 is check V7 below.
+
+**Marks:**
+- **[verify]**: from my knowledge or secondary sources, not the official text.
+- **[ask]**: a choice for you.
+
+### 1. The final run (closes "disburse creates the `final` run")
+
+Disburse runs in the **same transaction** that records the payment and closes the clearance (ADR-041). It creates a
+`PayrollRun`:
+
+| Field | Value |
+|---|---|
+| `runType` | `final` (Phase 2) |
+| `employeeId` | the employee (the overlap guard already blocks a second final run for the same person) |
+| `projectId` | the employee's project on the last working day |
+| `payPeriodStart` / `payPeriodEnd` | the salary-balance period (day after paid-through → last working day), or the last working day alone when there is no balance |
+| `payDate` | the payment date entered at disburse |
+| `policyId` / `ruleVersionId` | those in force on the last working day |
+| `status` | `released` directly. It was already prepared, reviewed and approved as a settlement. History notes "Released from final settlement FS-…". |
+| `finalSettlementId` | **new** back-link; the settlement gets `payrollRunId` |
+
+**One `PayrollRecord`**, with the settlement's lines mapped to the record's line types:
+
+| Settlement line | Record line | Taxable |
+|---|---|---|
+| Salary balance | earning `basic` | yes |
+| Leave encashment | earning `leave_encashment` | up to the de minimis limit no, beyond it yes (§3) |
+| Pro-rated 13th month | earning `thirteenth_month` | no (the ₱90,000 cap is applied in the tax true-up, as at year-end) |
+| Tax refund (new, §3) | earning `year_end_tax_refund` | no |
+| Manual earning | earning `manual` | **HR picks taxable or not** (new flag) |
+| Contributions still due for the month (new, §3) | contribution lines | — |
+| Tax still due (new, §3) | `tax` | — |
+| Accountability, manual deduction | deductions | — |
+
+The record also carries a **`finalSettlement` snapshot**: settlement id, version, hash, and the tax true-up figures.
+Payslip, register export, audit and the Form 2316 export then work as for any run.
+
+**Double-pay guards (new):**
+- Regular runs **skip the days a final run already paid**: the employee is listed as excluded with "Paid in final pay
+  FS-… (to Oct 21)".
+- A regular run that is draft or submitted and covers the salary-balance days **blocks the settlement** (V8): approve or
+  cancel it first, so the paid-through date can't move under the settlement.
+
+### 2. Tamper evidence (the hash)
+
+- **On approve:** compute **SHA-256** over a canonical JSON (sorted keys, amounts rounded to the centavo) of:
+  - `version`, `employeeId`, `clearanceCaseId`;
+  - `lines`, `totals`;
+  - `inputs`, the full stored inputs object;
+  - `manualLines` (id, direction, label, amount, reason, taxable, attachment id).
+- **Store on the settlement:** `approval { hash, version, at, by }`.
+- **On disburse:** recompute the hash from the stored document.
+  - If it doesn't match, block disburse with "This settlement changed after approval", and write an audit entry
+    `final-settlement.hash-mismatch`.
+  - If it matches, copy the hash to the final run's record.
+- No secret key. This detects edits made outside the app's own workflow. Anyone with database write access could
+  recompute the hash, which ADR-032 accepts **[ask if you want a keyed HMAC instead; it needs a secret in the
+  environment]**.
+
+### 3. Statutory pieces: tax true-up and contributions (same engine, no copies)
+
+- **Contributions:** the month of the last working day gets that month's full employee share, minus what regular runs
+  already deducted that month. It uses `computeMonthlyContributionExact` and the rule version's tables, the same call
+  `computeEmployeePay` uses.
+  - Like regular payroll, the base is the pay terms' monthly basic, not the month's actual earnings **[verify for a
+    partial last month]**.
+  - Employer shares are recorded on the record, not deducted.
+- **Tax true-up:** the Phase 4 annualization for the year, extended with this settlement's lines:
+  1. Take `employeeYears(...)` and add the settlement's lines and contributions as extra pay lines.
+  2. Run `annualizeEmployeeYear(...)`, which applies the box map and the ₱90,000 cap.
+  3. The difference becomes a "Tax refund" earning (over-withheld) or a "Withholding tax" deduction (under-withheld).
+  4. The tax true-up also makes the Form 2316 figures complete for a separated employee, which the year-end run
+     deliberately leaves to final pay.
+- **Leave encashment:** monetized unused vacation leave is de minimis up to **10 days a year** (RR 11-2018 as I recall
+  **[verify]**); the excess is taxable.
+  - The limit becomes rule-version data (`deMinimisLeaveDays`, template 10).
+  - The 2316 box map gets a `leave_encashment` entry.
+
+### 4. Variance checks (as data)
+
+The checks run on prepare, recompute, approve and disburse. They are shown on the settlement page and in the history.
+
+- **Blocking** checks stop submit, approve and disburse.
+- **Warnings** need the approver to tick "I've checked these", which is recorded.
+- Severity and thresholds live on **`PayrollPolicy.finalPayChecks`**, with the defaults below, so HR can tune them
+  without code.
+
+| # | Check | Default | Fires when |
+|---|---|---|---|
+| V1 | Negative net pay | blocking | net < 0 |
+| V2 | Leave over the cap | warning | encashed days of a type > that type's yearly entitlement, or > the de minimis limit (shows the taxable part) |
+| V3 | 13th month already paid / pending | warning; **blocking** if pending | a 13th-month run or advances already paid this year (shows how much), or a 13th-month run for the year still draft/submitted (could pay it twice) |
+| V4 | Recent pay change | warning | pay terms changed within **60 days** (policy data) before the last working day |
+| V5 | Missing government IDs | warning | SSS, PhilHealth, Pag-IBIG or TIN missing on the person |
+| V6 | Tax true-up | warning | the true-up is not zero (shows refund or collection) |
+| V7 | Employment not ended | **blocking** | the employment is still active, or its end date ≠ the last working day (5a slice 4) |
+| V8 | Unfinished regular payroll | **blocking** | a draft/submitted regular run covers any salary-balance day |
+| V9 | Inputs changed since approval | warning at disburse | recomputing the inputs from live records now gives something different from the frozen inputs (lists which fields) |
+
+### 5. Segregation of duties
+
+- **Review:** refused to anyone on a `prepared` or `recomputed` history entry (today only approve checks this).
+- **Approve:** refused to the preparer, as today. Also refused to the reviewer **[ask: ADR-032 only names the preparer;
+  three different people may be too strict for a small HR team]**.
+- The audit metadata records `selfReviewed: false` and `selfApproved: false`, as payroll runs do.
+
+### 6. Manual lines: reason and attachment
+
+- A manual line needs a reason (as today) **and** a supporting document.
+  - The document is an `EmployeeDocument` of that employee, uploaded through the existing document storage, so no new
+    storage.
+  - The manual-line form gets an upload (or a pick from the employee's documents), and the line stores `documentId`.
+- A manual **earning** also gets a **taxable** switch, default taxable. The tax true-up needs it.
+- Existing manual lines without an attachment can't move a draft forward until one is added. Lines on approved or
+  disbursed settlements are untouched.
+
+### 7. One deadline source
+
+- The dashboard's compliance risk reads `PayrollPolicy.finalPayDeadlineDays` for the employee's scope on the last
+  working day.
+- It falls back to `Organization.compliance.finalPayDays` only when no policy applies. The old field stays.
+- The 30-day default is from DOLE Labor Advisory 06-2020 as reported **[verify]**. Per §5 item 5, it counts from the
+  separation date and is not paused by clearance.
+
+### 8. Worked example (monthly policy: semi-monthly, 261 workdays, divisor 12, contributions every cutoff)
+
+**Carla:** ₱25,000/month. She resigns with her last working day on **Wed, Oct 21, 2026**.
+- Payroll is approved through Oct 15.
+- 3 convertible vacation-leave days are left.
+- She hasn't returned a laptop charger, flagged in clearance at ₱1,500.
+- No 13th month has been paid yet.
+- Daily rate = round(25,000 × 12 ÷ 261) = **1,149.43**.
+
+| Line | Working | Amount |
+|---|---|---|
+| Salary balance | 4 workdays (Oct 16, 19, 20, 21) × 1,149.43 | 4,597.72 |
+| Leave encashment | 3 days × 1,149.43 (within 10 days: non-taxable) | 3,448.29 |
+| 13th month | (237,500 earned Jan 1–Oct 15 + 4,597.72) ÷ 12 − 0 | 20,174.81 |
+| Contributions still due | October: SSS 1,250 + PhilHealth 625 + Pag-IBIG 200 = 2,075; already deducted Oct 1–15: 1,037.50 | −1,037.50 |
+| Tax true-up | taxable for the year = 19 × 11,462.50 (= 217,787.50) + 4,597.72 − 1,037.50 = 221,347.72 → tax due 0; withheld 19 × 156.87 = 2,980.53 | **+2,980.53 refund** |
+| Accountability | laptop charger | −1,500.00 |
+| **Net final pay** | | **28,663.85** |
+
+**Checks:**
+- V4 doesn't fire (no recent pay change).
+- V6 warns: "Tax refund ₱2,980.53".
+- V3 warns "No 13th month paid yet this year; paid here in full".
+- If an Oct 16–31 regular run is still a draft, V8 **blocks** until it is approved or cancelled. If approved, it is the
+  run that pays those 4 days and the salary balance drops to 0. If cancelled, the settlement pays them.
+- On disburse, the run `PR-…` (type Final, Oct 16–21, released) holds one record with exactly these lines.
+
+### Questions for the owner at Gate D
+
+1. **Confirm the design above:**
+   - the final run is created as `released` on disburse;
+   - the hash fields;
+   - the check list V1–V9 with its defaults;
+   - manual lines need an attachment.
+2. **Hash:** plain SHA-256 (recommended; detects edits made outside the workflow) or a keyed HMAC (also resists
+   someone who can rewrite the database; needs a secret in the environment).
+3. **Approver ≠ reviewer** as well as ≠ preparer: yes, or only the preparer (ADR-032 as written)?
+4. **Warnings at approve:** a recorded "I've checked these" tick (recommended), or just shown?
+5. **Phase 5a slice 2** (the separation type sets the employment status): build it as part of Phase 5, or leave it
+   for later? V7 works without it, by comparing the dates.
+6. Legal checks still open:
+   - contribution base for the partial last month;
+   - the 10-day de minimis leave limit;
+   - the DOLE 30-day rule and when it starts.

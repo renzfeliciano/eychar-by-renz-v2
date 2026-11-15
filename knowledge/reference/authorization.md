@@ -1,8 +1,8 @@
 # Authentication and authorization
 
 **Purpose:** who a signed-in person is, what they may do in an organization, and where each rule is enforced.
-**Governing docs:** ARCHITECTURE.md "Authorization (ADR-007)", "Custom roles & staff accounts (ADR-023)", "Sign-in security (ADR-030)", "Auth.js session strategy (ADR-010)"; docs/ENGINEERING.md §19 (identity), §20 (RBAC), §21 (role assignment), §22 (scoped authorization), §23 (UI authorization), §24 (project switching), §40 (middleware), §42 (security); ADR-003, ADR-007, ADR-010, ADR-023, ADR-030, ADR-033, ADR-034 (cited, file missing), ADR-039, ADR-043, ADR-045.
-**Last verified:** 6587050.
+**Governing docs:** ARCHITECTURE.md "Authorization (ADR-007)", "Custom roles & staff accounts (ADR-023)", "Sign-in security (ADR-030)", "Auth.js session strategy (ADR-010)"; docs/engineering/ENGINEERING.md §19 (identity), §20 (RBAC), §21 (role assignment), §22 (scoped authorization), §23 (UI authorization), §24 (project switching), §40 (middleware), §42 (security); ADR-003, ADR-007, ADR-010, ADR-023, ADR-030, ADR-033, ADR-034 (cited, file missing), ADR-039, ADR-043, ADR-045.
+**Last verified:** 6587050 (merged with the former `domains/authorization.md` on 2026-11-15).
 
 Code wins over docs. Where docs and code disagree, the code is listed under "Known gaps / mismatches".
 
@@ -91,12 +91,7 @@ From `options.ts` and `src/shared/types/next-auth.d.ts`: `userId`, `sessionId`, 
 - **RoleAssignment:** `src/server/db/models/role-assignment.ts`. Fields include `userId`, `roleId`, `organizationId`, `effectiveFrom`, `effectiveTo`, `scope`. Revoking sets `effectiveTo`; it never deletes (ARCHITECTURE, ADR-023).
 - **Scope** (ADR-043): `{ type: "organization" }` or `{ type: "project", projectIds }`. A missing scope counts as organization-wide. An unknown type grants nothing (`scopeOf` in `src/server/authorization/authorize.ts`).
 - **Managing roles:** `src/domains/authorization/role-service.ts` (create, update, list, get). `src/domains/authorization/role-assignment-service.ts` (assign, revoke). UI: `src/app/(app)/settings/access/` (`page.tsx`, `role-form-dialog.tsx`). API: `src/app/api/roles/`, `src/app/api/role-assignments/`.
-- **Anti-escalation rules** (role-service.ts, role-assignment-service.ts, super-admin-service.ts):
-  - A person may add only permissions they hold themselves (`assertCanAddPermissions`).
-  - Delete keys cannot be put on any ordinary role (`assertNoDeletePermissions`, `isDeletePermission`).
-  - Admin-power keys (`ADMIN_PERMISSION_KEYS`: `roles.create`, `roles.update`, `roles.assign`, `users.create`, `users.update`) can be handled only by the Super Administrator (`assertCanManageAdminRole`).
-  - The reserved name "Super Administrator" cannot be used (`isReservedRoleName`).
-  - The Super Administrator role cannot be edited, assigned or revoked from the app.
+- **Anti-escalation rules:** see §2.6 (rules a change must respect, with code locations).
 - **Seeded roles** (`scripts/seed.ts`): `HR Administrator` gets every non-delete key from the catalog via `$addToSet` on each seed run (so re-seeding brings it up to date). It is assigned to the HR seed account. The `Super Administrator` role is created separately (below).
 
 ### 2.3 Authorization resolution
@@ -123,6 +118,67 @@ From `options.ts` and `src/shared/types/next-auth.d.ts`: `userId`, `sessionId`, 
 - Who sees hidden records: the Super Administrator, and self-service employees (`viewerMaySeeHidden` in `options.ts`).
 - Hideable types: `HIDEABLE` map in `src/domains/visibility/visibility-service.ts`. Set by `POST /api/visibility` (`src/app/api/visibility/route.ts`).
 - Plugin applied per model (examples: `src/server/db/models/applicant.ts`, `case.ts`).
+
+### 2.6 Rules a change must respect
+
+Line numbers were recorded at commit 6587050 and drift. Re-check before editing.
+
+- Check permissions only through `authorize`/`require*`. Never compare role names or `user.role` (`authorize.ts`, doc comment lines 32-38). Keys are literal `<resource>.<verb>` strings.
+- A grant is active only if its assignment is in effect (`effectiveFrom <= now`, `effectiveTo` absent, null or `>= now`) and its role is `active` or has no status field (`authorize.ts`, `activeGrants`, lines 97-116).
+- Scope: an organization-scope grant passes every check. A project-scope grant passes only when `authorize` receives a `projectId` that is in its `projectIds` (`authorize.ts` lines 39-47). Assignments with no scope are organization-wide (`scopeOf`, lines 79-84). An unknown scope type grants nothing.
+- Project ids are validated against the organization before use: `requireProjectAccess` (`require.ts` lines 272-276) and `assertScopeInOrganization` (`role-assignment-service.ts` lines 151-157).
+- The Super Administrator is a `Role` with `system: "super_admin"` in organization scope; it passes every check (`authorize.ts` lines 125-128, 41, 57). It is created only by the seed (`super-admin-service.ts` `ensure`; `scripts/seed.ts` line 744). The app refuses to edit, assign or revoke it (`role-service.ts` line 83; `role-assignment-service.ts` lines 176, 246).
+- Reserved role names ("Super Administrator" and variants) are refused (`super-admin-service.ts` `isReservedRoleName`, used at `role-service.ts` lines 43 and 84).
+- `*.delete` permissions cannot be put on any role and are hidden from the role editor (`role-service.ts` lines 11-13, 44, 85, 135).
+- Admin-power keys (`roles.create`, `roles.update`, `roles.assign`, `users.create`, `users.update`) can be added, changed or handed out only by the Super Administrator (`super-admin-service.ts` `assertCanManageAdminRole`, called from `role-service.ts` lines 45 and 87, and `role-assignment-service.ts` lines 177 and 247).
+- No escalation: a person may grant only permissions they hold at least as broadly as the grant (`role-service.ts` `assertCanAddPermissions`, lines 29-37; `role-assignment-service.ts` `assertCanGrant`, lines 182-191, via `missingGrants`). System calls with no actor skip this (`role-assignment-service.ts` line 181).
+- A person may assign roles only to accounts already in the organization (`role-assignment-service.ts` lines 207-209).
+- Revocation sets `effectiveTo` and keeps the row (`role-assignment-service.ts` `revoke`, lines 240-262). No hard delete.
+- Self-service routes take the employee from the session via `requireSelfServiceEmployee` (`require.ts` lines 298-309), never from the request body.
+- While a password change or two-step setup is pending, `requireAuthenticatedUser` refuses every route except those that opt in (`require.ts` lines 236-242).
+- `keysInAnyScope` is for navigation hints only, not for security decisions (`authorize.ts` line 178).
+- Each role change and grant is audited: `role.created`, `role.updated`, `role-assignment.created`, `role-assignment.revoked`.
+
+### 2.7 Inventory: services, models, routes, pages, tests
+
+**Services:**
+- `src/server/authorization/authorize.ts`: the chokepoint.
+  - `authorize({ userId, organizationId, permission, projectId? })`: throws `AuthorizationError` unless a grant covers it.
+  - `accessibleProjectIds(...)`: `"all"` or the project ids the user holds the permission on (for list endpoints).
+  - `includesProject`, `hasActiveRoleAssignment` (membership only), `heldPermissions`, `keysInAnyScope` (UI hints only), `missingGrants` (escalation check).
+  - Private `activeGrants`, React `cache`d per render.
+- `src/server/authorization/require.ts`: route and page primitives.
+  - `requireAuthenticatedUser`, `requireOrganizationAccess` (no callers in `src/`), `requirePermission`, `requireProjectAccess`, `requireAccessibleProjects`, `requireSelfServiceEmployee`.
+- `src/server/authorization/index.ts`: re-exports both files.
+- `src/app/_shared/has-permission.ts`: `hasPermission(permission, orgId)`, the boolean wrapper pages use.
+- `src/domains/authorization/role-service.ts`: `RoleService`: `create`, `update`, `listCurrent`, `getById`, `listAvailablePermissions`.
+- `src/domains/authorization/role-assignment-service.ts`: `RoleAssignmentService`: `assertCanGrant`, `assign`, `revoke`, `listRoleNamesForUser`, `listForOrganization`, `listOrganizationMembers`.
+- `src/domains/authorization/super-admin-service.ts`: `SuperAdminService`: `isSuperAdmin`, `isSuperAdminAnywhere`, `ensure` (seed only), `assertCanManageAdminRole`. Helpers: `ADMIN_PERMISSION_KEYS`, `isDeletePermission`, `isReservedRoleName`, `grantsAdminPower`.
+
+**Models:**
+- `Role`: `src/server/db/models/role.ts` (`system`, `permissionKeys`, `status`).
+- `RoleAssignment`: `src/server/db/models/role-assignment.ts` (`scope`, `effectiveFrom`, `effectiveTo`).
+- `Permission`: `src/server/db/models/permission.ts` (global seeded catalog).
+- `User`: `src/server/db/models/user.ts` (`employeeId`, `personId` links used by self-service and clearance).
+
+**Permission catalog and seeding:** `scripts/seed.ts` (permission array, e.g. `clearance.*` at lines 204-208). The seed calls `SuperAdminService.ensure` at line 744.
+
+**Routes:**
+- `src/app/api/roles/route.ts`: GET (`roles.read`), POST (`roles.create`).
+- `src/app/api/roles/[id]/route.ts`: PATCH (`roles.update`).
+- `src/app/api/role-assignments/route.ts`: GET (`roles.read`), POST (`roles.assign`).
+- `src/app/api/role-assignments/[id]/route.ts`: DELETE, i.e. revoke (`roles.assign`).
+- Staff account creation (`src/app/api/staff-accounts/route.ts`, `staff-accounts.create`) calls `assertCanGrant` before writing; account routes belong to the identity domain.
+
+**Pages:**
+- `src/app/(app)/settings/access/page.tsx` with `assign-role-dialog.tsx`, `role-form-dialog.tsx`, `revoke-role-assignment-button.tsx`, `create-staff-account-dialog.tsx`.
+- `src/app/(app)/settings/accounts/page.tsx` with `account-actions.tsx`.
+- `src/app/(app)/account/security/page.tsx` (two-step and sign-in events, identity domain).
+
+**Tests:**
+- `tests/domains/authorization/`: `role-service.test.ts`, `role-assignment-service.test.ts`, `role-grant-security.test.ts`, `super-admin.test.ts`.
+- `tests/server/authorization/`: `authorize.test.ts`, `project-scope.test.ts` (the ENGINEERING § 60 matrix), `holiday-event-permission.test.ts`, `require-password-change.test.ts`.
+- `tests/app/nav-permissions.test.tsx` (navigation visibility).
 
 ---
 
@@ -243,6 +299,11 @@ Each item lists the code location that shows it.
 12. **No UI-only `can()` helper.** ENGINEERING §23 allows one. Each page passes booleans instead.
 13. **`Permission.isSystem` and `category` are display data.** The ARCHITECTURE note matches the code. `isSystem` is never read.
 14. **`hasActiveRoleAssignment` / `requireOrganizationAccess` are unused by routes.** ARCHITECTURE says so; they remain as primitives.
+15. **Membership ignores role status.** `hasActiveRoleAssignment` (`authorize.ts` lines 147-162) checks only the assignment dates, while `activeGrants` (line 113) also requires the role to be active. An inactive role still counts as membership. `requireOrganizationAccess` is the only caller of `hasActiveRoleAssignment` and has no callers in `src/`, so the gap is latent.
+16. **Expiry boundary differs.** `listRoleNamesForUser` uses `effectiveTo > now` (`role-assignment-service.ts` line 271); `activeGrants` uses `>= now` (`authorize.ts` line 102). Display only, but the two should agree.
+17. **Project scope is partial.** ARCHITECTURE.md § Authorization and ADR-043 say attendance, projects and payroll runs are project-scoped. Only the list routes honour it, for attendance (see the attendance file). Other modules use organization-wide checks, which ARCHITECTURE.md already lists as a gap.
+18. **ENGINEERING § 60 matrix** is covered for `authorize` and project scope (`tests/server/authorization/project-scope.test.ts`). No matrix test exists for role-assignment escalation through the API routes.
+19. Two-step is per account type, not per role (ADR-039; ARCHITECTURE.md Known gaps). The gate is the session flag `mustSetUpTwoStep` (`require.ts` line 240).
 
 ---
 

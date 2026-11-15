@@ -1,7 +1,7 @@
 # Cross-cutting concerns (Phase 6)
 
 **Built from commit:** `6587050`. **Last verified:** `6587050`.
-**Sources:** docs/ENGINEERING.md §§35, 42–44, 48; ADR-033, ADR-036, ADR-037, ADR-038, ADR-040, ADR-041; ARCHITECTURE.md
+**Sources:** docs/engineering/ENGINEERING.md §§35, 42–44, 48; ADR-033, ADR-036, ADR-037, ADR-038, ADR-040, ADR-041; ARCHITECTURE.md
 (Audit, Brand & installable app, Security hardening, Known gaps). Code wins where they differ. Layer rules are in
 `layers.md`.
 

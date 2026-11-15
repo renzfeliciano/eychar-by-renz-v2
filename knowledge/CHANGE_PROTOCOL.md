@@ -1,12 +1,12 @@
 # Change Protocol
 
 How to extend, add to, or enhance PCAS HRIS without breaking what already works. Every change follows
-this protocol. It is a checklist over the binding rules in [docs/ENGINEERING.md](../docs/ENGINEERING.md),
+this protocol. It is a checklist over the binding rules in [docs/engineering/ENGINEERING.md](../docs/engineering/ENGINEERING.md),
 which win on any conflict. The exploration output in this folder is the map; read the relevant domain
 file before planning.
 
-Prerequisites: the codebase exploration plan ([CODEBASE_EXPLORATION_PLAN.md](./CODEBASE_EXPLORATION_PLAN.md))
-is finished, including the synthesis and gap report (Phase 8).
+Prerequisites: the knowledge base is built (see [README.md](./README.md)), including the gap report
+([known-gaps-and-mismatches.md](./known-gaps-and-mismatches.md)).
 
 ## 0. Ground rules (always)
 
@@ -115,7 +115,7 @@ Check each item against the diff:
 - Commit on a branch, not `main`. One logical change per commit.
 - Open a PR. Its description includes the brief, the baseline results, and the validation results.
 - CI runs on push and PR (`.github/workflows/ci.yml`). Wait for it to pass.
-- For significant architecture, update [ARCHITECTURE.md](../ARCHITECTURE.md) and add or update an ADR
+- For significant architecture, update [ARCHITECTURE.md](../docs/architecture/ARCHITECTURE.md) and add or update an ADR
   in `docs/architecture/adr/` (§61).
 - Update the affected domain file in `knowledge/` so the next change starts from accurate facts.
 

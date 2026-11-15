@@ -7,7 +7,7 @@ and the invariants the code enforces. Authorization is in `authorization.md` (Ph
 
 Sources: `src/server/db/models/*.ts` (all schemas), `src/server/db/*.ts` (connection, plugin,
 transactions, org assertion), `src/domains/deletion/*.ts`, `scripts/seed.ts`, `scripts/sync-indexes.ts`,
-`ARCHITECTURE.md` (Identity, Workforce, MongoDB modeling), `docs/ENGINEERING.md` §§30–34, 53–54,
+`ARCHITECTURE.md` (Identity, Workforce, MongoDB modeling), `docs/engineering/ENGINEERING.md` §§30–34, 53–54,
 ADR-002, ADR-003, ADR-005, ADR-006, ADR-033, ADR-041.
 
 Index and collection facts below were dumped from the compiled schemas (`schema.indexes()`,

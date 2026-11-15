@@ -52,7 +52,7 @@ Node 22 in CI (`.github/workflows/ci.yml`).
 - `.env.local.example` is the template; `.env.local` exists in the working tree and is git-ignored.
   Never record its values.
 - `next.config.ts`: security headers (nosniff, X-Frame-Options DENY, Permissions-Policy,
-  HSTS in production, COOP). CSP is per request with a nonce in `src/proxy.ts` (see `layers.md`).
+  HSTS in production, COOP). CSP is per request with a nonce in `src/proxy.ts` (see `reference/layers.md`).
 - `vercel.json` crons: `/api/cron/payroll-schedules` at 16:05 UTC (00:05 Manila), `/api/cron/recycle-bin`
   at 17:20 UTC (01:20 Manila).
 - `vitest.config.ts` forces `TZ=UTC`, runs one shared in-memory MongoDB (`tests/global-setup.ts`),

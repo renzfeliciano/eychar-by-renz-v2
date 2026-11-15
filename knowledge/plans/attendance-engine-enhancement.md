@@ -6,10 +6,10 @@
 
 ## 0. How to work
 
-1. Read, in this order: `knowledge/README.md`, `overview.md`, `layers.md`, `CHANGE_PROTOCOL.md`,
-   `domains/attendance.md`, `domains/holidays.md`, `domains/payroll.md`, `domains/payroll-engine.md`,
-   `philippine-payroll-compliance.md`, `known-gaps-and-mismatches.md`, `testing.md`, then
-   `docs/ENGINEERING.md` §§ 22, 26–28, 35, 46, 52, 58–60 and ADR-011, 014, 029, 035, 043, 045.
+1. Read, in this order: `knowledge/README.md`, `overview.md`, `reference/layers.md`, `CHANGE_PROTOCOL.md`,
+   `domains/attendance.md`, `domains/holidays.md`, `domains/payroll.md` (runs and engine),
+   `reference/philippine-payroll-compliance.md`, `known-gaps-and-mismatches.md`, `reference/testing.md`, then
+   `docs/engineering/ENGINEERING.md` §§ 22, 26–28, 35, 46, 52, 58–60 and ADR-011, 014, 029, 035, 043, 045.
 2. Follow `CHANGE_PROTOCOL.md`: write the brief, run the baseline (`npm run typecheck`, `lint`, `test`),
    work in small additive slices on a branch, never on `main`.
 3. **Stop and ask for approval** at the gates marked **GATE** below. This work changes data shape and
@@ -128,7 +128,7 @@ Extend, don't rewrite, `computeEmployeePay`.
 1. `summarizeAttendance` reads the Phase 3 stored minutes and day types. For records without them (old rows),
    fall back to the current behavior so finished and older periods reproduce exactly.
 2. Extend `PayrollPolicy` with **optional, effective-dated** multipliers, defaults matching Philippine law
-   (see `philippine-payroll-compliance.md` §4): ordinary overtime, rest-day, rest-day overtime, regular
+   (see `reference/philippine-payroll-compliance.md` §4): ordinary overtime, rest-day, rest-day overtime, regular
    holiday, regular holiday overtime, special non-working day, special day on a rest day, night differential,
    and combinations. Keep `payPremiumsOf` filling older policies. Update the policy dialog.
 3. Add engine lines: overtime pay, rest-day premium, holiday pay, night differential, each computed from the
@@ -155,7 +155,7 @@ official text. Do that before relying on them.
   Do not touch them here. Each gets its own follow-up change.
 - UI: show late, undertime, overtime, night minutes and day type on the roster and record dialog (mobile first, §41).
   Add the columns to the attendance export and the payroll register. Keep `PageHeader`, `loading.tsx` and the
-  existing dialog patterns (`knowledge/ui-patterns.md`).
+  existing dialog patterns (`knowledge/reference/ui-patterns.md`).
 
 ### Phase 7: Verify and document
 
@@ -164,8 +164,8 @@ official text. Do that before relying on them.
 - Historical test (§59): an old period computed with the policy in force on that date still gives the same result
   after the policy changes. Authorization test (§60): HR for the org can run payroll, a project-scoped manager cannot run or see
   payroll outside their project. Reproducibility test (§46).
-- Update `knowledge/domains/attendance.md`, `payroll-engine.md`, `holidays.md`, `known-gaps-and-mismatches.md`,
-  and `philippine-payroll-compliance.md`. Add an ADR for the stored day result and one for premium computation
+- Update `knowledge/domains/attendance.md`, `payroll.md` (Part 2, engine), `holidays.md`, `known-gaps-and-mismatches.md`,
+  and `reference/philippine-payroll-compliance.md`. Add an ADR for the stored day result and one for premium computation
   (new decisions need an ADR). Update `ARCHITECTURE.md` and its "Known gaps".
 
 ## 4. Compatibility and risk

@@ -1,7 +1,7 @@
 # Testing and verification (Phase 7)
 
 **Built from commit:** `6587050` (main). **Last verified:** `6587050`.
-**Sources of truth:** `docs/ENGINEERING.md` §46 (testing), §58 (domain test), §59 (historical test), §60 (authorization test); `package.json`; `vitest.config.ts`; `playwright.config.ts`; `.github/workflows/ci.yml`; `.husky/pre-commit`.
+**Sources of truth:** `docs/engineering/ENGINEERING.md` §46 (testing), §58 (domain test), §59 (historical test), §60 (authorization test); `package.json`; `vitest.config.ts`; `playwright.config.ts`; `.github/workflows/ci.yml`; `.husky/pre-commit`.
 Code wins over docs. Paths are relative to the repo root.
 
 ## 1. Commands

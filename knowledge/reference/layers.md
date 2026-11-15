@@ -2,7 +2,7 @@
 
 **Built from commit:** `6587050`. **Last verified:** `6587050`.
 **Sources:** ARCHITECTURE.md (Directory structure, Brand & installable app ADR-036, Security hardening ADR-037, Audit),
-docs/ENGINEERING.md §§4, 36–40, ADR-001, ADR-037, ADR-041. Code wins where they differ (see the last section).
+docs/engineering/ENGINEERING.md §§4, 36–40, ADR-001, ADR-037, ADR-041. Code wins where they differ (see the last section).
 
 ## 1. Layer map
 
