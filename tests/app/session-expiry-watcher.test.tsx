@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { SessionExpiryWatcher } from "@/components/shared/session-expiry-watcher";
 
@@ -11,8 +11,8 @@ vi.mock("next-auth/react", () => ({
 const originalFetch = window.fetch;
 let serverSession: unknown;
 let sessionChecks: number;
-let api: ReturnType<typeof vi.fn>;
-let leave: ReturnType<typeof vi.fn>;
+let api: Mock;
+let leave: Mock;
 
 beforeEach(() => {
   update.mockReset();

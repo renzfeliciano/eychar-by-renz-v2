@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { installSessionExpiryInterceptor } from "@/lib/session-expiry-interceptor";
 
 const originalFetch = window.fetch;
-let respond: ReturnType<typeof vi.fn>;
+let respond: Mock;
 let uninstall: () => void;
-let onRejected: ReturnType<typeof vi.fn>;
+let onRejected: Mock;
 
 beforeEach(() => {
   respond = vi.fn(async () => new Response("{}", { status: 200 }));
