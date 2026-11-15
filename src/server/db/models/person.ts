@@ -1,6 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 import { REMARKS_MAX_LENGTH } from "@/shared/validation/shared";
-import { CIVIL_STATUSES } from "@/shared/civil-status";
 
 const personSchema = new Schema(
   {
@@ -11,7 +10,8 @@ const personSchema = new Schema(
     email: { type: String, trim: true, lowercase: true },
     phone: { type: String, trim: true },
     gender: { type: String, enum: ["Male", "Female"] },
-    civilStatus: { type: String, enum: CIVIL_STATUSES },
+    // The code of a CivilStatus catalog item, checked at the service boundary (PersonService), not by a schema enum.
+    civilStatusCode: { type: String, trim: true },
     birthDate: { type: Date },
     address: { type: String, trim: true },
     // Free-text HR note shown on the roster (e.g. "Senior, PWD"); length rule mirrors remarksSchema.

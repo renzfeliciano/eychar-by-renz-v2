@@ -55,6 +55,7 @@ export { LoginThrottleModel } from "./login-throttle";
 export { ClearanceDepartmentModel } from "./clearance-department";
 export { SeparationTypeModel } from "./separation-type";
 export { EducationLevelModel } from "./education-level";
+export { CivilStatusModel } from "./civil-status";
 export { EducationRecordModel } from "./education-record";
 export { ClearanceChecklistItemModel } from "./clearance-checklist-item";
 export { ClearanceCaseModel } from "./clearance-case";

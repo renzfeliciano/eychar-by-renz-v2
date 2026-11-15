@@ -12,7 +12,6 @@ import { FormField, FormError, RequiredFieldsHint } from "@/components/shared/fo
 import { useFieldErrors } from "@/lib/field-errors";
 import { OptionSelect } from "@/components/shared/option-select";
 import { REMARKS_MAX_LENGTH, remarksSchema } from "@/shared/validation/shared";
-import { CIVIL_STATUSES } from "@/shared/civil-status";
 
 type Option = { id: string; label: string };
 type EmploymentTypeOption = Option & { requiresEndOfContract: boolean };
@@ -21,7 +20,6 @@ const GENDER_OPTIONS: Option[] = [
   { id: "Male", label: "Male" },
   { id: "Female", label: "Female" },
 ];
-const CIVIL_STATUS_OPTIONS: Option[] = CIVIL_STATUSES.map((status) => ({ id: status, label: status }));
 
 /** API field (POST /api/employees) → the control it's about, for field-level errors. */
 const HIRE_FIELD_IDS = {
@@ -29,7 +27,7 @@ const HIRE_FIELD_IDS = {
   middleName: "hire-middle-name",
   lastName: "hire-last-name",
   gender: "hire-gender",
-  civilStatus: "hire-civil-status",
+  civilStatusCode: "hire-civil-status",
   birthDate: "hire-birth-date",
   phone: "hire-phone",
   employeeNumber: "hire-employee-number",
@@ -50,11 +48,14 @@ export function HireForm({
   organizationId,
   positions,
   projects,
+  civilStatuses = [],
   employmentTypes,
 }: {
   organizationId: string;
   positions: Option[];
   projects: Option[];
+  /** Choices from the Civil statuses catalog (see catalogChoiceOptions). */
+  civilStatuses?: Option[];
   employmentTypes: EmploymentTypeOption[];
 }) {
   const router = useRouter();
@@ -62,7 +63,7 @@ export function HireForm({
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
-  const [civilStatus, setCivilStatus] = useState("");
+  const [civilStatusCode, setCivilStatusCode] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -104,7 +105,7 @@ export function HireForm({
         middleName: middleName || undefined,
         lastName,
         gender: gender || undefined,
-        civilStatus: civilStatus || undefined,
+        civilStatusCode: civilStatusCode || undefined,
         birthDate: birthDate || undefined,
         phone: phone || undefined,
         address: address || undefined,
@@ -153,7 +154,7 @@ export function HireForm({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect id="hire-gender" label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" error={fieldErrors.gender} />
-            <OptionSelect id="hire-civil-status" label="Civil status" value={civilStatus} onChange={setCivilStatus} options={CIVIL_STATUS_OPTIONS} placeholder="Not specified" error={fieldErrors.civilStatus} />
+            <OptionSelect id="hire-civil-status" label="Civil status" value={civilStatusCode} onChange={setCivilStatusCode} options={civilStatuses} placeholder="Not specified" error={fieldErrors.civilStatusCode} />
             <FormField label="Birth date" htmlFor="hire-birth-date" error={fieldErrors.birthDate}>
               <Input id="hire-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
             </FormField>

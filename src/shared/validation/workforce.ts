@@ -1,9 +1,7 @@
 import { z } from "zod";
 import { clearable, contactNumberSchema, remarksSchema, sssNumberSchema, philHealthNumberSchema, pagIbigNumberSchema, tinNumberSchema } from "./shared";
 import { objectId } from "@/shared/validation/object-id";
-import { CIVIL_STATUSES } from "@/shared/civil-status";
 
-const civilStatusSchema = z.enum(CIVIL_STATUSES, { message: "Choose a civil status from the list." });
 
 const assignmentFields = {
   positionId: objectId().optional(),
@@ -22,8 +20,8 @@ export const hireEmployeeSchema = z.object({
   employeeNumber: z.string().max(200).trim().min(1).optional(),
   employmentType: z.string().max(200).trim().min(1),
   gender: z.enum(["Male", "Female"]).optional(),
-  // Blank means none chosen: never stored as an empty string.
-  civilStatus: z.union([civilStatusSchema, z.literal("")]).transform((value) => value || undefined).optional(),
+  // A status from the Civil statuses catalog (checked by PersonService); blank means none.
+  civilStatusCode: z.string().trim().max(200).transform((value) => value || undefined).optional(),
   birthDate: z.coerce.date().optional(),
   phone: contactNumberSchema.optional(),
   address: z.string().trim().max(255).optional(),
@@ -52,7 +50,7 @@ export const updateEmployeeProfileSchema = z.object({
   email: clearable(z.string().max(254).trim().toLowerCase().email()).optional(),
   employeeNumber: clearable(z.string().max(200).trim().min(1)).optional(),
   gender: clearable(z.enum(["Male", "Female"])).optional(),
-  civilStatus: clearable(civilStatusSchema).optional(),
+  civilStatusCode: clearable(z.string().trim().min(1).max(200)).optional(),
   birthDate: clearable(z.coerce.date()).optional(),
   phone: clearable(contactNumberSchema).optional(),
   address: z.string().trim().max(255).optional(),

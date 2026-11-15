@@ -4,7 +4,7 @@ import { PersonModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { EducationLevelService } from "@/domains/catalog/education-level-service";
-import type { CivilStatus } from "@/shared/civil-status";
+import { CivilStatusService } from "@/domains/catalog/civil-status-service";
 
 export type CreatePersonInput = {
   organizationId: string;
@@ -14,7 +14,8 @@ export type CreatePersonInput = {
   email?: string;
   phone?: string;
   gender?: "Male" | "Female";
-  civilStatus?: CivilStatus;
+  /** A code from the Civil statuses catalog. */
+  civilStatusCode?: string;
   birthDate?: Date;
   address?: string;
   remarks?: string;
@@ -39,6 +40,7 @@ export const PersonService = {
     await connectMongoDB();
     // Checked before anything is written, so a bad level can't leave a half-made hire behind.
     if (input.educationLevelCode) await EducationLevelService.assertValidCode(input.organizationId, input.educationLevelCode);
+    if (input.civilStatusCode) await CivilStatusService.assertValidCode(input.organizationId, input.civilStatusCode);
 
     const person = await PersonModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
@@ -48,7 +50,7 @@ export const PersonService = {
       email: input.email,
       phone: input.phone,
       gender: input.gender,
-      civilStatus: input.civilStatus,
+      civilStatusCode: input.civilStatusCode,
       birthDate: input.birthDate,
       address: input.address,
       remarks: input.remarks,
@@ -84,6 +86,10 @@ export const PersonService = {
     if (patch.educationLevelCode && patch.educationLevelCode !== existing.educationLevelCode) {
       await EducationLevelService.assertValidCode(organizationId, patch.educationLevelCode);
     }
+    // Same rule for civil status: the form re-sends the person's own (possibly retired) status with every save.
+    if (patch.civilStatusCode && patch.civilStatusCode !== existing.civilStatusCode) {
+      await CivilStatusService.assertValidCode(organizationId, patch.civilStatusCode);
+    }
 
     const before = {
       firstName: existing.firstName,
@@ -92,7 +98,7 @@ export const PersonService = {
       email: existing.email,
       phone: existing.phone,
       gender: existing.gender,
-      civilStatus: existing.civilStatus,
+      civilStatusCode: existing.civilStatusCode,
       birthDate: existing.birthDate,
       address: existing.address,
       remarks: existing.remarks,

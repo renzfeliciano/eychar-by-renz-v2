@@ -21,13 +21,11 @@ import { OptionSelect, type SelectOption } from "@/components/shared/option-sele
 import { useFieldErrors } from "@/lib/field-errors";
 import { cn } from "@/lib/utils";
 import { REMARKS_MAX_LENGTH, remarksSchema } from "@/shared/validation/shared";
-import { CIVIL_STATUSES } from "@/shared/civil-status";
 
 const GENDER_OPTIONS: SelectOption[] = [
   { id: "Male", label: "Male" },
   { id: "Female", label: "Female" },
 ];
-const CIVIL_STATUS_OPTIONS: SelectOption[] = CIVIL_STATUSES.map((status) => ({ id: status, label: status }));
 
 export type EditEmployeeInitialValue = {
   firstName: string;
@@ -36,7 +34,8 @@ export type EditEmployeeInitialValue = {
   email?: string | null;
   employeeNumber?: string | null;
   gender?: string | null;
-  civilStatus?: string | null;
+  /** Code of a Civil statuses catalog item. */
+  civilStatusCode?: string | null;
   birthDate?: string | null;
   phone?: string | null;
   address?: string | null;
@@ -48,15 +47,18 @@ export type EditEmployeeInitialValue = {
 };
 
 /** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
-const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatus", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
+const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatusCode", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
   employeeId,
+  civilStatuses = [],
   initialValue,
 }: {
   organizationId: string;
   employeeId: string;
+  /** Choices from the Civil statuses catalog, including the person's own retired status (catalogChoiceOptions). */
+  civilStatuses?: SelectOption[];
   initialValue: EditEmployeeInitialValue;
 }) {
   const router = useRouter();
@@ -69,7 +71,7 @@ export function EditEmployeeDialog({
   const [email, setEmail] = useState(initialValue.email ?? "");
   const [employeeNumber, setEmployeeNumber] = useState(initialValue.employeeNumber ?? "");
   const [gender, setGender] = useState(initialValue.gender ?? "");
-  const [civilStatus, setCivilStatus] = useState(initialValue.civilStatus ?? "");
+  const [civilStatusCode, setCivilStatusCode] = useState(initialValue.civilStatusCode ?? "");
   const [birthDate, setBirthDate] = useState(initialValue.birthDate ?? "");
   const [phone, setPhone] = useState(initialValue.phone ?? "");
   const [address, setAddress] = useState(initialValue.address ?? "");
@@ -88,7 +90,7 @@ export function EditEmployeeDialog({
     setEmail(initialValue.email ?? "");
     setEmployeeNumber(initialValue.employeeNumber ?? "");
     setGender(initialValue.gender ?? "");
-    setCivilStatus(initialValue.civilStatus ?? "");
+    setCivilStatusCode(initialValue.civilStatusCode ?? "");
     setBirthDate(initialValue.birthDate ?? "");
     setPhone(initialValue.phone ?? "");
     setAddress(initialValue.address ?? "");
@@ -128,7 +130,7 @@ export function EditEmployeeDialog({
         email,
         employeeNumber,
         gender,
-        civilStatus,
+        civilStatusCode,
         birthDate,
         phone,
         address,
@@ -195,7 +197,7 @@ export function EditEmployeeDialog({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect id={`${formId}-gender`} error={fieldErrors.gender} label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" />
-            <OptionSelect id={`${formId}-civilStatus`} error={fieldErrors.civilStatus} label="Civil status" value={civilStatus} onChange={setCivilStatus} options={CIVIL_STATUS_OPTIONS} placeholder="Not specified" />
+            <OptionSelect id={`${formId}-civilStatusCode`} error={fieldErrors.civilStatusCode} label="Civil status" value={civilStatusCode} onChange={setCivilStatusCode} options={civilStatuses} placeholder="Not specified" />
             <FormField label="Birth date" htmlFor={`${formId}-birthDate`} error={fieldErrors.birthDate}>
               <Input id={`${formId}-birthDate`} type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
             </FormField>

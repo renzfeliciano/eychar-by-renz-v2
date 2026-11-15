@@ -22,7 +22,7 @@ export const HireService = {
         email: input.email,
         phone: input.phone,
         gender: input.gender,
-        civilStatus: input.civilStatus,
+        civilStatusCode: input.civilStatusCode,
         birthDate: input.birthDate,
         address: input.address,
         remarks: input.remarks,

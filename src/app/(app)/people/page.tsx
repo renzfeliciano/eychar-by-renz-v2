@@ -8,6 +8,8 @@ import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
+import { CivilStatusService } from "@/domains/catalog/civil-status-service";
+import { catalogChoiceName } from "@/domains/catalog/catalog-choice-options";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -51,11 +53,12 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     return <NoAccessState permission="employees.read" message="You don't have access to view employees." />;
   }
 
-  const [positions, projects, employmentTypes, employmentStatuses] = await Promise.all([
+  const [positions, projects, employmentTypes, employmentStatuses, civilStatuses] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmploymentTypeService.listCurrent(organizationId),
     EmploymentStatusService.listCurrent(organizationId),
+    CivilStatusService.listCurrent(organizationId),
   ]);
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
@@ -248,7 +251,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             {
               key: "civilStatus",
               header: "Civil status", mobile: "hidden",
-              render: (row) => row.person?.civilStatus ?? "—",
+              render: (row) => catalogChoiceName(civilStatuses, row.person?.civilStatusCode) || "—",
             },
             {
               key: "remarks",

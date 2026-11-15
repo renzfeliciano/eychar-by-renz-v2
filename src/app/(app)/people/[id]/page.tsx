@@ -36,6 +36,8 @@ import { EmploymentService } from "@/domains/workforce/employment-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 import { EducationLevelService } from "@/domains/catalog/education-level-service";
+import { CivilStatusService } from "@/domains/catalog/civil-status-service";
+import { catalogChoiceName, catalogChoiceOptions } from "@/domains/catalog/catalog-choice-options";
 import { educationLevelName } from "@/domains/catalog/education-level-options";
 import { endReasonChoices } from "@/domains/workforce/end-reasons";
 import { contractEndOf, requiresEndOfContract } from "@/domains/workforce/contract-terms";
@@ -161,9 +163,10 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const load = <T,>(when: boolean, query: () => Promise<T>, empty: T): Promise<T> => (when ? query() : Promise.resolve(empty));
 
   const now = new Date();
-  const [employmentTypes, employmentStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
+  const [employmentTypes, employmentStatuses, civilStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
     EmploymentTypeService.listCurrent(organizationId),
     EmploymentStatusService.listCurrent(organizationId),
+    CivilStatusService.listCurrent(organizationId),
     EducationLevelService.listCurrent(organizationId),
     load(on("overview"), async () => (await EducationRecordService.listForEmployee(id, organizationId)).map(toEducationRecordView), [] as EducationRecordView[]),
     PositionService.listCurrent(organizationId),
@@ -291,10 +294,10 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                 {educationLevelName(educationLevels, detail.person.educationLevelCode)}
               </p>
             )}
-            {detail.person?.civilStatus && (
+            {detail.person?.civilStatusCode && (
               <p className="mt-1 text-sm" data-testid="profile-civil-status">
                 <span className="text-muted-foreground">Civil status: </span>
-                {detail.person.civilStatus}
+                {catalogChoiceName(civilStatuses, detail.person.civilStatusCode)}
               </p>
             )}
             {detail.person?.remarks && (
@@ -352,6 +355,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               <EditEmployeeDialog
                 organizationId={organizationId}
                 employeeId={employeeId}
+                civilStatuses={catalogChoiceOptions(civilStatuses, detail.person.civilStatusCode)}
                 initialValue={{
                   firstName: detail.person.firstName,
                   middleName: detail.person.middleName,
@@ -359,7 +363,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   email: detail.person.email,
                   employeeNumber: detail.employee.employeeNumber,
                   gender: detail.person.gender,
-                  civilStatus: detail.person.civilStatus,
+                  civilStatusCode: detail.person.civilStatusCode,
                   birthDate: detail.person.birthDate ? new Date(detail.person.birthDate).toISOString().slice(0, 10) : undefined,
                   phone: detail.person.phone,
                   address: detail.person.address,

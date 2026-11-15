@@ -47,30 +47,35 @@ describe("EditEmployeeDialog: no educational attainment field", () => {
   });
 });
 
+const CIVIL_STATUSES = [
+  { id: "single", label: "Single" },
+  { id: "married", label: "Married" },
+];
+
 describe("EditEmployeeDialog: civil status", () => {
   it("sends the status on file back unchanged when nothing else is touched", async () => {
     const user = setupUser();
-    render(<EditEmployeeDialog {...base} initialValue={{ ...person, civilStatus: "Single" }} />);
+    render(<EditEmployeeDialog {...base} civilStatuses={CIVIL_STATUSES} initialValue={{ ...person, civilStatusCode: "single" }} />);
 
     const { save } = await openAndSave(user);
-    expect((await save()).civilStatus).toBe("Single");
+    expect((await save()).civilStatusCode).toBe("single");
   });
 
-  it("sends the newly chosen status", async () => {
+  it("sends the newly chosen status's catalog code", async () => {
     const user = setupUser();
-    render(<EditEmployeeDialog {...base} initialValue={{ ...person, civilStatus: "Single" }} />);
+    render(<EditEmployeeDialog {...base} civilStatuses={CIVIL_STATUSES} initialValue={{ ...person, civilStatusCode: "single" }} />);
 
     const { save } = await openAndSave(user);
     await user.click(screen.getByLabelText(/Civil status/));
     await user.click(await screen.findByRole("option", { name: "Married" }));
-    expect((await save()).civilStatus).toBe("Married");
+    expect((await save()).civilStatusCode).toBe("married");
   });
 
   it("sends an empty value for someone with none on file, which leaves it unset", async () => {
     const user = setupUser();
-    render(<EditEmployeeDialog {...base} initialValue={person} />);
+    render(<EditEmployeeDialog {...base} civilStatuses={CIVIL_STATUSES} initialValue={person} />);
 
     const { save } = await openAndSave(user);
-    expect((await save()).civilStatus).toBe("");
+    expect((await save()).civilStatusCode).toBe("");
   });
 });

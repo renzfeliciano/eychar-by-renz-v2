@@ -54,6 +54,11 @@ describe("HireForm: no educational attainment field", () => {
   });
 });
 
+const CIVIL_STATUSES = [
+  { id: "single", label: "Single" },
+  { id: "married", label: "Married" },
+];
+
 describe("HireForm: civil status", () => {
   it("is optional: leaving it out sends nothing for it", async () => {
     const user = setupUser();
@@ -61,17 +66,26 @@ describe("HireForm: civil status", () => {
     await fillRequired(user);
 
     const body = await submit(user);
-    expect(body).not.toHaveProperty("civilStatus");
+    expect(body).not.toHaveProperty("civilStatusCode");
   });
 
-  it("sends the chosen status", async () => {
+  it("sends the chosen status's catalog code", async () => {
     const user = setupUser();
-    render(<HireForm {...props} />);
+    render(<HireForm {...props} civilStatuses={CIVIL_STATUSES} />);
     await fillRequired(user);
     await user.click(screen.getByLabelText(/Civil status/));
     await user.click(await screen.findByRole("option", { name: "Married" }));
 
     const body = await submit(user);
-    expect(body.civilStatus).toBe("Married");
+    expect(body.civilStatusCode).toBe("married");
+  });
+
+  it("offers only the statuses it was given", async () => {
+    const user = setupUser();
+    render(<HireForm {...props} civilStatuses={[{ id: "solo_parent", label: "Solo parent" }]} />);
+    await user.click(screen.getByLabelText(/Civil status/));
+
+    expect(await screen.findByRole("option", { name: "Solo parent" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "Married" })).toBeNull();
   });
 });

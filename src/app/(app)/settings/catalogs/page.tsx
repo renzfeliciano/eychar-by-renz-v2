@@ -22,6 +22,7 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "clearance-departments", title: "Clearance departments", description: "Departments that sign off a separating employee's clearance." },
   { catalogType: "separation-types", title: "Separation types", description: "Why an employee leaves: resignation, end of contract, and so on." },
   { catalogType: "payment-methods", title: "Payment methods", description: "How final settlements are paid out." },
+  { catalogType: "civil-statuses", title: "Civil statuses", description: "Civil status choices on each employee's profile and the roster: single, married, and so on." },
   { catalogType: "education-levels", title: "Education levels", description: "Highest educational attainment choices on the employee roster, from elementary to doctoral." },
   { catalogType: "document-types", title: "Document types", description: "Categories for employee documents (government IDs, contracts, certifications)." },
 ];

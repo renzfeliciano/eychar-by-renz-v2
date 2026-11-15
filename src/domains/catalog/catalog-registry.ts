@@ -12,6 +12,7 @@ import { ClearanceDepartmentService } from "./clearance-department-service";
 import { SeparationTypeService } from "./separation-type-service";
 import { PaymentMethodService } from "./payment-method-service";
 import { EducationLevelService } from "./education-level-service";
+import { CivilStatusService } from "./civil-status-service";
 import { ComplaintStageService } from "./complaint-stage-service";
 
 /**
@@ -37,6 +38,7 @@ export const CATALOG_REGISTRY = {
   "separation-types": { service: SeparationTypeService, permissionPrefix: "separation-types" },
   "payment-methods": { service: PaymentMethodService, permissionPrefix: "payment-methods" },
   "education-levels": { service: EducationLevelService, permissionPrefix: "education-levels" },
+  "civil-statuses": { service: CivilStatusService, permissionPrefix: "civil-statuses" },
   "complaint-stages": { service: ComplaintStageService, permissionPrefix: "complaint-stages" },
 } as const;
 

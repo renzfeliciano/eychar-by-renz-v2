@@ -4,6 +4,7 @@ import { EmployeeRosterService } from "@/domains/workforce/employee-roster-servi
 import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
+import { CivilStatusService } from "@/domains/catalog/civil-status-service";
 import { employeeExportQuerySchema } from "@/shared/validation/workforce";
 import { toErrorResponse } from "@/shared/errors/to-response";
 import { auditExport, enforceRateLimit } from "@/server/security/rate-limit";
@@ -20,10 +21,11 @@ export async function GET(request: NextRequest) {
     const { userId } = await requirePermission("employees.read", organizationId);
     await enforceRateLimit("export", userId);
 
-    const [positions, projects, statuses] = await Promise.all([
+    const [positions, projects, statuses, civilStatuses] = await Promise.all([
       PositionService.listCurrent(organizationId),
       ProjectService.listCurrent(organizationId),
       EmploymentStatusService.listCurrent(organizationId),
+      CivilStatusService.listCurrent(organizationId),
     ]);
     const rows = await EmployeeRosterService.exportRows(
       organizationId,
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
         positionTitleById: new Map(positions.map((position) => [position._id.toString(), position.title])),
         projectNameById: new Map(projects.map((project) => [project._id.toString(), project.name])),
         statusNameByCode: new Map(statuses.map((status) => [status.code, status.name])),
+        civilStatusNameByCode: new Map(civilStatuses.map((status) => [status.code, status.name])),
       },
       employmentType,
     );

@@ -26,7 +26,7 @@ export type RosterPageQuery = {
   contractsEnding?: { from: Date; to: Date; activeStatuses: string[]; typesWithoutEnd: string[] };
 };
 
-type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date; remarks?: string; civilStatus?: string };
+type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date; remarks?: string; civilStatusCode?: string };
 export type RosterRow = {
   _id: Types.ObjectId;
   employeeNumber?: string;
@@ -142,7 +142,7 @@ export const EmployeeRosterService = {
                   "person.email": 1,
                   "person.birthDate": 1,
                   "person.remarks": 1,
-                  "person.civilStatus": 1,
+                  "person.civilStatusCode": 1,
                   currentEmployment: 1,
                   currentAssignment: 1,
                 },
@@ -216,6 +216,8 @@ export const EmployeeRosterService = {
       positionTitleById: Map<string, string>;
       projectNameById: Map<string, string>;
       statusNameByCode: Map<string, string>;
+      /** Catalog names for civil status codes; a code with no name is shown as stored. */
+      civilStatusNameByCode?: Map<string, string>;
     },
     employmentType?: string,
   ): Promise<RosterExportRow[]> {
@@ -229,7 +231,7 @@ export const EmployeeRosterService = {
           employeeNumber: row.employeeNumber ?? "—",
           name: row.person ? formatPersonName(row.person) : "—",
           gender: row.person?.gender ?? "",
-          civilStatus: row.person?.civilStatus ?? "",
+          civilStatus: row.person?.civilStatusCode ? (lookups.civilStatusNameByCode?.get(row.person.civilStatusCode) ?? row.person.civilStatusCode) : "",
           position: row.currentAssignment?.positionId ? (lookups.positionTitleById.get(row.currentAssignment.positionId.toString()) ?? "—") : "—",
           project: row.currentAssignment?.projectId ? (lookups.projectNameById.get(row.currentAssignment.projectId.toString()) ?? "—") : "—",
           employmentStatus: row.currentEmployment ? (lookups.statusNameByCode.get(row.currentEmployment.status) ?? row.currentEmployment.status) : "—",
