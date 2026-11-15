@@ -1,6 +1,6 @@
 # Cross-cutting concerns (Phase 6)
 
-**Built from commit:** `6587050`. **Last verified:** `6587050`.
+**Built from commit:** `6587050`. **Last verified:** `6587050`; error handling re-verified 2026-11-15.
 **Sources:** docs/engineering/ENGINEERING.md §§35, 42–44, 48; ADR-033, ADR-036, ADR-037, ADR-038, ADR-040, ADR-041; ARCHITECTURE.md
 (Audit, Brand & installable app, Security hardening, Known gaps). Code wins where they differ. Layer rules are in
 `layers.md`.
@@ -20,7 +20,15 @@
 - Field routing on the client: `src/lib/field-errors.ts` `splitApiError` sends `{ error, field }` to a field or to the form.
 - Logs: `describeErrorForLog` in `to-response.ts` keeps name, code, message and stack, and redacts `keyValue` and
   `keyPattern` (PII) and the `dup key` value.
-- Tests: `tests/shared/errors/to-response.test.ts`.
+- **Nothing technical reaches a person (2026-11-15).** Validation 400s carry `{ error, field }` only (no Zod `flatten()` map). Zod's own
+  wording ("Invalid option: expected one of ...", "Unrecognized key", "Invalid string: must match pattern") becomes "X isn't valid"
+  (`ZOD_INTERNAL_WORDING`). A non-JSON body answers "We couldn't read what was sent". `describeErrorForLog` now lives in
+  `src/shared/errors/describe-error.ts` (no `next/server` import, so domain services may use it) and is re-exported by `to-response.ts`.
+  Anything stored for display from a caught error must be an `AppError` message; other errors go to the log only (see
+  `payroll-schedule-service.ts`, `lastError`).
+- Client side: show a caught error through `friendlyErrorMessage(err, fallback)` (`src/lib/friendly-error.ts`), never `err.message`, so
+  "Failed to fetch" and "Unexpected token <" become plain sentences.
+- Tests: `tests/shared/errors/to-response.test.ts`, `tests/lib/friendly-error.test.ts`.
 - Gaps: see section 11 (malformed JSON returns 500; `"database"` kind unused).
 
 ## 2. Dates and time zones

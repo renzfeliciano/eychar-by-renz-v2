@@ -26,6 +26,17 @@ gap was found. This section is the current position.
 Still open (not answered): decision list items 7–10 (e2e in CI, exports audited, `CHANGE_PROTOCOL.md`,
 duplicate seed permissions).
 
+## Security hardening, 2026-11-15
+
+| Item | Result |
+|---|---|
+| A7 Critical dependency RCEs | `next` 16.3.8 had unauthenticated RCE in the image optimizer (SVG, GHSA-2464-fhr4-w9xw) and in `use cache` (GHSA-673q-mjm6-r5xr). **Fixed**: 16.4.6. `mongoose` 9.12.1 and `zod` 4.6.7 fix the high advisories. `shadcn` moved to devDependencies; `overrides` pins `@vercel/cli-config`'s nested `zod`. `npm audit --omit=dev`: 0. |
+| A8 Dev-tool advisories | **Fixed**: `vitest` 4.1.12 clears the two critical `vitest`/`tinypool` advisories; the whole suite passes on it. `npm audit` (with dev) shows 13 moderate/low in dev tooling only. |
+| A2 Roster API | **Fixed**: `GET /api/employees` returns name and work email only (`roster-api-view.ts`). Still unpaged and unaudited (decision C8). |
+| A9 Raw errors on screen | **Fixed**: stored schedule errors, Zod wording, `details` map, raw `err.message` in 7 client catches, audit sheet technical rows. See `reference/cross-cutting.md`. |
+| A5 Documents PATCH ignores `[id]` | **Fixed**: `EmployeeDocumentService.update` takes the employee id and refuses a document that employee doesn't own (same check as download). |
+| C2 e2e not in CI | **Fixed in the workflow** (job `e2e`, plus a production `npm audit` gate in `check`). Written without a GitHub run: confirm the first run and the MongoDB replica-set step. |
+
 ## A. Security and data protection
 
 | # | Item | Status | Evidence |
