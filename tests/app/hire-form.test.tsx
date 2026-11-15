@@ -20,10 +20,6 @@ const props = {
   positions: [],
   projects: [],
   employmentTypes: [{ id: "regular", label: "Regular", requiresEndOfContract: false }],
-  educationLevels: [
-    { id: "bachelors_degree", label: "Bachelor’s Degree" },
-    { id: "masters_degree", label: "Master’s Degree" },
-  ],
 };
 
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
@@ -43,34 +39,53 @@ async function submit(user: ReturnType<typeof userEvent.setup>) {
 // environment, not of the dialog), so the click library's pointer-events check is turned off for these tests.
 const setupUser = () => userEvent.setup({ pointerEventsCheck: 0 });
 
-describe("HireForm: educational attainment", () => {
+// Highest educational attainment was dropped from the form: the Educational background card on the profile
+// records schooling, so the roster form no longer asks for it.
+describe("HireForm: no educational attainment field", () => {
+  it("doesn't show the field or send a level", async () => {
+    const user = setupUser();
+    render(<HireForm {...props} />);
+    await fillRequired(user);
+
+    expect(screen.queryByTestId("hire-education")).toBeNull();
+    expect(screen.queryByText("Highest educational attainment")).toBeNull();
+    const body = await submit(user);
+    expect(body).not.toHaveProperty("educationLevelCode");
+  });
+});
+
+const CIVIL_STATUSES = [
+  { id: "single", label: "Single" },
+  { id: "married", label: "Married" },
+];
+
+describe("HireForm: civil status", () => {
   it("is optional: leaving it out sends nothing for it", async () => {
     const user = setupUser();
     render(<HireForm {...props} />);
     await fillRequired(user);
 
-    expect(screen.getByTestId("hire-education")).toHaveTextContent("Not specified");
     const body = await submit(user);
-    expect(body).not.toHaveProperty("educationLevelCode");
+    expect(body).not.toHaveProperty("civilStatusCode");
   });
 
-  it("sends the chosen level", async () => {
+  it("sends the chosen status's catalog code", async () => {
     const user = setupUser();
-    render(<HireForm {...props} />);
+    render(<HireForm {...props} civilStatuses={CIVIL_STATUSES} />);
     await fillRequired(user);
-    await user.click(screen.getByTestId("hire-education"));
-    await user.click(await screen.findByRole("option", { name: "Master’s Degree" }));
+    await user.click(screen.getByLabelText(/Civil status/));
+    await user.click(await screen.findByRole("option", { name: "Married" }));
 
     const body = await submit(user);
-    expect(body.educationLevelCode).toBe("masters_degree");
+    expect(body.civilStatusCode).toBe("married");
   });
 
-  it("offers only the levels it was given", async () => {
+  it("offers only the statuses it was given", async () => {
     const user = setupUser();
-    render(<HireForm {...props} educationLevels={[{ id: "associate_degree", label: "Associate Degree" }]} />);
-    await user.click(screen.getByTestId("hire-education"));
+    render(<HireForm {...props} civilStatuses={[{ id: "solo_parent", label: "Solo parent" }]} />);
+    await user.click(screen.getByLabelText(/Civil status/));
 
-    expect(await screen.findByRole("option", { name: "Associate Degree" })).toBeTruthy();
-    expect(screen.queryByRole("option", { name: "Master’s Degree" })).toBeNull();
+    expect(await screen.findByRole("option", { name: "Solo parent" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "Married" })).toBeNull();
   });
 });

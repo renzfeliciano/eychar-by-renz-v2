@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
-import { AuditLogModel, ClearanceCaseModel, LeaveBalanceModel, LeaveTypeModel, PayrollPolicyModel, UserModel } from "@/server/db/models";
+import { AuditLogModel, ClearanceCaseModel, EmployeeDocumentModel, EmployeeModel, EmploymentModel, LeaveBalanceModel, LeaveTypeModel, PayrollPolicyModel, PersonModel, UserModel } from "@/server/db/models";
+import { dateKeyToDate } from "@/lib/date-key";
+import { FINAL_PAY_CHECK_CODES } from "@/domains/final-settlement/final-pay-checks";
 import { ClearanceDepartmentService } from "@/domains/catalog/clearance-department-service";
 import { SeparationTypeService } from "@/domains/catalog/separation-type-service";
 import { PaymentMethodService } from "@/domains/catalog/payment-method-service";
@@ -27,9 +29,15 @@ async function seed() {
     {},
   );
   const laptopId = clearance.items[0]._id.toString();
+  // Ana's employment ended as a resignation on her last working day, and her government IDs are on file
+  // (payroll plan Phase 5: otherwise the variance checks block or warn).
+  await EmploymentModel.updateMany({ employeeId }, { $set: { status: "resigned", effectiveTo: dateKeyToDate("2026-10-02") } });
+  const employee = await EmployeeModel.findById(employeeId).lean();
+  await PersonModel.updateOne({ _id: employee!.personId }, { $set: { sssNumber: "34-1234567-8", philHealthNumber: "12-345678901-2", pagIbigNumber: "1234-5678-9012", tinNumber: "123-456-789-000" } });
+  const document = await EmployeeDocumentModel.create({ organizationId, employeeId, title: "Bonus memo", documentType: "memo", fileName: "memo.pdf", fileType: "application/pdf", fileSize: 10, fileData: "eA==" });
   const users = await Promise.all(["prep", "hr", "fin"].map((name) => UserModel.create({ username: `${name}.${Date.now()}.${Math.random()}`, passwordHash: "x" })));
   const [preparer, reviewer, approver] = users.map((user) => user._id.toString());
-  return { organizationId, employeeId, caseId: clearance._id.toString(), laptopId, preparer, reviewer, approver };
+  return { organizationId, employeeId, caseId: clearance._id.toString(), laptopId, preparer, reviewer, approver, documentId: document._id.toString() };
 }
 
 describe("FinalSettlementService", () => {
@@ -58,7 +66,7 @@ describe("FinalSettlementService", () => {
   it("keeps one settlement per clearance, recomputing as a new version and keeping HR's manual lines", async () => {
     const s = await seed();
     const first = await FinalSettlementService.prepare(s.caseId, s.organizationId, { userId: s.preparer });
-    await FinalSettlementService.addManualLine(first._id.toString(), s.organizationId, { direction: "earning", label: "Performance bonus", amount: 5000, reason: "Q3 bonus" }, { userId: s.preparer });
+    await FinalSettlementService.addManualLine(first._id.toString(), s.organizationId, { direction: "earning", label: "Performance bonus", amount: 5000, reason: "Q3 bonus", documentId: s.documentId }, { userId: s.preparer });
 
     const second = await FinalSettlementService.prepare(s.caseId, s.organizationId, { userId: s.preparer });
 
@@ -70,7 +78,7 @@ describe("FinalSettlementService", () => {
   it("requires a reason and a positive amount on a manual line", async () => {
     const s = await seed();
     const settlement = await FinalSettlementService.prepare(s.caseId, s.organizationId, {});
-    await expect(FinalSettlementService.addManualLine(settlement._id.toString(), s.organizationId, { direction: "earning", label: "Bonus", amount: 100, reason: " " }, {})).rejects.toThrow(
+    await expect(FinalSettlementService.addManualLine(settlement._id.toString(), s.organizationId, { direction: "earning", label: "Bonus", amount: 100, reason: " ", documentId: s.documentId }, {})).rejects.toThrow(
       ValidationError,
     );
   });
@@ -91,8 +99,8 @@ describe("FinalSettlementService", () => {
 
     await FinalSettlementService.act(id, s.organizationId, { action: "submit" }, { userId: s.preparer });
     await FinalSettlementService.act(id, s.organizationId, { action: "review" }, { userId: s.reviewer });
-    await expect(FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.preparer })).rejects.toThrow(AuthorizationError);
-    await FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.approver });
+    await expect(FinalSettlementService.act(id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, { userId: s.preparer })).rejects.toThrow(AuthorizationError);
+    await FinalSettlementService.act(id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, { userId: s.approver });
     await expect(FinalSettlementService.act(id, s.organizationId, { action: "disburse", paymentMethodCode: "bank_transfer" }, { userId: s.approver })).rejects.toThrow(
       BusinessRuleError,
     );
@@ -113,25 +121,25 @@ describe("FinalSettlementService", () => {
     await FinalSettlementService.act(id, s.organizationId, { action: "review" }, { userId: s.reviewer });
     // Accounting finds a cash discrepancy after the settlement went to review.
     await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "reopen", note: "Cash count short" }, {});
-    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "flag", amount: 54_000, note: "Unremitted collections" }, {});
+    await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "flag", amount: 5_400, note: "Unremitted collections" }, {});
 
-    await expect(FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.approver })).rejects.toThrow(
-      "Return laptop: flagged at ₱54,000.00 but not deducted",
+    await expect(FinalSettlementService.act(id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, { userId: s.approver })).rejects.toThrow(
+      "Return laptop: flagged at ₱5,400.00 but not deducted",
     );
 
     await FinalSettlementService.act(id, s.organizationId, { action: "return", note: "Recompute with the new flag" }, { userId: s.approver });
     await FinalSettlementService.prepare(s.caseId, s.organizationId, { userId: s.preparer });
     await FinalSettlementService.act(id, s.organizationId, { action: "submit" }, { userId: s.preparer });
     await FinalSettlementService.act(id, s.organizationId, { action: "review" }, { userId: s.reviewer });
-    const approved = await FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.approver });
+    const approved = await FinalSettlementService.act(id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, { userId: s.approver });
     expect(approved.status).toBe("approved");
 
-    // Waived after approval: the ₱54,000 deduction no longer stands, so it can't be paid out as is.
+    // Waived after approval: the ₱5,400 deduction no longer stands, so it can't be paid out as is.
     await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "reopen", note: "Recounted" }, {});
     await ClearanceService.actOnItem(s.caseId, s.organizationId, s.laptopId, { action: "waive", note: "Found in the vault" }, {});
     await expect(
       FinalSettlementService.act(id, s.organizationId, { action: "disburse", paymentMethodCode: "bank_transfer", paymentReference: "BDO-1" }, { userId: s.approver }),
-    ).rejects.toThrow("Return laptop: deducted ₱54,000.00 but no longer flagged");
+    ).rejects.toThrow("Return laptop: deducted ₱5,400.00 but no longer flagged");
   });
 
   it("returns a settlement to draft with a reason, and freezes it once approved", async () => {
@@ -146,7 +154,7 @@ describe("FinalSettlementService", () => {
 
     await FinalSettlementService.act(id, s.organizationId, { action: "submit" }, { userId: s.preparer });
     await FinalSettlementService.act(id, s.organizationId, { action: "review" }, { userId: s.reviewer });
-    await FinalSettlementService.act(id, s.organizationId, { action: "approve" }, { userId: s.approver });
+    await FinalSettlementService.act(id, s.organizationId, { action: "approve", acknowledgedWarnings: [...FINAL_PAY_CHECK_CODES] }, { userId: s.approver });
     await expect(FinalSettlementService.prepare(s.caseId, s.organizationId, { userId: s.preparer })).rejects.toThrow(ConflictError);
   });
 

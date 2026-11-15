@@ -108,7 +108,7 @@ export async function computeRun(runId: Types.ObjectId) {
   if (!policy || !rules) throw new NotFoundError("This run's policy or rule version no longer exists");
   const payFrequency = policy.payFrequency as PayFrequency;
   const taxTable = rules.taxTables.find((table: { payFrequency: string }) => table.payFrequency === payFrequency);
-  if (!taxTable) throw new BusinessRuleError(`Rule version v${rules.versionNumber} has no ${payFrequency} withholding tax table.`);
+  if (!taxTable) throw new BusinessRuleError(`Rule version v${rules.versionNumber} has no ${payFrequency} withholding tax table. Publish a new rule version that has one (Payroll › Rule versions › New; the Philippine template includes every frequency, bi-weekly as the annual table ÷ 26).`);
 
   // Who was employed on which days of the period.
   const employmentsByEmployee = new Map<string, typeof employments>();

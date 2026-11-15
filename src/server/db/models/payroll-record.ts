@@ -144,6 +144,19 @@ const payrollRecordSchema = new Schema(
       ),
       default: undefined,
     },
+    // On a final run's record only (payroll plan Phase 5): the settlement it pays and its approved hash.
+    finalSettlement: {
+      type: new Schema(
+        {
+          settlementId: { type: Schema.Types.ObjectId, required: true, ref: "FinalSettlement" },
+          version: { type: Number, required: true },
+          hash: { type: String, required: true },
+          lastWorkingDay: { type: String, required: true },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     // On a year-end adjustment run's record only (payroll plan Phase 4): the annualization and the
     // Form 2316 amounts it came from, so the record reproduces (§46) and the 2316 export reads it back.
     yearEnd: {

@@ -18,8 +18,10 @@ import { closedCaseCodes, isOpenCase } from "@/domains/cases/case-summary";
 import { CaseStatusService } from "@/domains/catalog/case-status-service";
 import { PayrollRunService } from "@/domains/payroll/payroll-run-service";
 import { CompensationService } from "@/domains/payroll/compensation-service";
+import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
+import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { greetingFor, upcomingEvents } from "@/domains/dashboard/dashboard-summary";
-import { documentRisks, finalPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
+import { documentRisks, finalPayRisks, monthlyPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
 import { EvaluationFollowUpService } from "@/domains/performance/evaluation-follow-up-service";
 import { EvaluationTypeService } from "@/domains/catalog/evaluation-type-service";
 import { regularizationEvaluationCodes } from "@/domains/performance/evaluation-purpose";
@@ -131,6 +133,7 @@ export default async function DashboardPage() {
     canReadSettlements,
     canReadDocuments,
     canReadAudit,
+    canReadPayrollPolicies,
   ] = await Promise.all(
     [
       "employees.read",
@@ -150,10 +153,11 @@ export default async function DashboardPage() {
       "final-settlements.read",
       "employee-documents.read",
       "audit-logs.read",
+      "payroll-policies.read",
     ].map(can),
   );
 
-  const [probationEvaluations, roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity] = await Promise.all([
+  const [probationEvaluations, roster, statuses, pendingLeave, leaveTypes, leaveToday, attendanceToday, travelOrders, monthEvents, cases, payrollRuns, compensation, employmentTypes, clearances, settlements, expiringDocuments, holidays, approvedLeave, activity, payrollPolicies] = await Promise.all([
     // What already settles a probation's evaluation: recorded as sent or done, or submitted in Performance (ADR-053).
     canReadEmployees
       ? Promise.all([
@@ -181,6 +185,7 @@ export default async function DashboardPage() {
     canReadAttendance || canReadEvents ? HolidayService.listBetween(organizationId, todayKey, addDays(todayKey, COMING_UP_DAYS)) : null,
     canReadLeave ? LeaveRequestService.listForOrganization(organizationId, { status: "approved" }) : null,
     canReadAudit ? AuditQueryService.list(organizationId, { pageSize: 30 }).then((result) => result.rows.filter((row) => !row.action.startsWith("auth.")).slice(0, 6)) : null,
+    canReadPayrollPolicies ? PayrollPolicyService.listCurrent(organizationId) : null,
   ]);
 
   // Names and who counts as current staff (statuses flagged as active headcount; everyone until the catalog is set up).
@@ -296,10 +301,24 @@ export default async function DashboardPage() {
   }
   if (clearances) {
     const settlementByClearance = new Map((settlements ?? []).map((settlement) => [settlement.clearanceCaseId.toString(), settlement]));
+    // One deadline source (payroll plan Phase 5): the payroll policy for the employee's scope on the last working
+    // day (as the settlement stored it, or resolved now); the organization's value only when no policy applies.
     const finalPayDays = (organization as { compliance?: { finalPayDays?: number } }).compliance?.finalPayDays ?? DEFAULT_FINAL_PAY_DAYS;
+    const open = clearances.filter((clearance) => clearance.status !== "cancelled" && clearance.status !== "closed");
+    const policyDays = new Map(
+      await Promise.all(
+        open.map(async (clearance) => {
+          const stored = (settlementByClearance.get(clearance._id.toString())?.inputs as { finalPayDeadlineDays?: number } | undefined)?.finalPayDeadlineDays;
+          if (stored) return [clearance._id.toString(), stored] as const;
+          const lastDay = new Date(clearance.lastWorkingDay);
+          const assignment = await EmployeeAssignmentService.getAsOf(clearance.employeeId.toString(), lastDay).catch(() => null);
+          const resolved = await PayrollPolicyService.resolve({ organizationId: organization._id.toString(), projectId: assignment?.projectId?.toString(), effectiveDate: lastDay }).catch(() => null);
+          return [clearance._id.toString(), resolved?.policy?.finalPayDeadlineDays ?? null] as const;
+        }),
+      ),
+    );
     const rows = finalPayRisks(
-      clearances
-        .filter((clearance) => clearance.status !== "cancelled" && clearance.status !== "closed")
+      open
         .map((clearance) => {
           const settlement = settlementByClearance.get(clearance._id.toString());
           const flagged = clearance.items.filter((item) => item.status === "flagged");
@@ -309,6 +328,7 @@ export default async function DashboardPage() {
             lastWorkingDayKey: dateToDateKey(new Date(clearance.lastWorkingDay)),
             settlementId: canReadSettlements && settlement ? settlement._id.toString() : undefined,
             settlementStatus: settlement?.status ?? null,
+            finalPayDays: policyDays.get(clearance._id.toString()) ?? null,
             // The same flags the Red flags panel lists, so the two never disagree.
             openIssues: {
               redFlags: flagged.length,
@@ -333,6 +353,12 @@ export default async function DashboardPage() {
     const missingIds = staff.filter((row) => !row.person?.sssNumber || !row.person?.philHealthNumber || !row.person?.pagIbigNumber || !row.person?.tinNumber);
     const rows: ActionItem[] = missingIds.map((row) => ({ id: `ids-${row._id.toString()}`, kind: "ids", title: `Complete ${nameOf(row._id)}'s government IDs`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: `/people/${row._id.toString()}`, actionLabel: "Open profile", urgency: "later" }));
     complianceRisks.push(...collapseKind(rows, 3, (count) => ({ id: "ids-many", kind: "ids", title: `Complete government IDs for ${count} employees`, detail: "Missing SSS, PhilHealth, Pag-IBIG or TIN", href: "/people", actionLabel: "Open people", urgency: "later" })));
+  }
+  if (payrollPolicies) {
+    // Monthly pay without HR's acknowledgement (payroll plan Phase 6).
+    complianceRisks.push(
+      ...monthlyPayRisks(payrollPolicies.map((policy) => ({ id: policy._id.toString(), name: policy.name, payFrequency: policy.payFrequency, status: policy.status, acknowledged: Boolean(policy.monthlyPayAcknowledgement) }))),
+    );
   }
   const rankedCompliance = rankActions(complianceRisks);
 
@@ -665,7 +691,7 @@ function Panel({
           {description && <p className="text-[13px] text-muted-foreground">{description}</p>}
         </div>
         {href && (
-          <Link href={href} className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-xs font-medium text-primary hover:underline">
+          <Link href={href} className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-xs font-medium text-primary hover:underline max-md:-my-2.5 max-md:min-h-10">
             {linkLabel}
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>

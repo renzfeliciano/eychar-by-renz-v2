@@ -3,8 +3,10 @@ import { calendarDateSchema, dateSpanInDays } from "./schedule";
 import { objectId } from "@/shared/validation/object-id";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 import { HOLIDAY_DAY_TYPE_CHOICES } from "@/domains/payroll/holiday-day-types";
+import { compensationTotal } from "@/domains/payroll/compensation-history";
 
-const PAY_FREQUENCY = z.enum(["weekly", "semi-monthly", "monthly"]);
+const PAY_FREQUENCY = z.enum(["weekly", "bi-weekly", "semi-monthly", "monthly"]);
+const MONTHLY_ACK_MESSAGE = "Tick the acknowledgement to choose monthly pay";
 const optionalId = z.string().max(200).trim().min(1).optional();
 const money = (label: string) => z.coerce.number({ message: `${label} must be a number` }).min(0, `${label} can't be negative`);
 
@@ -17,18 +19,36 @@ const allowanceSchema = z.object({
   taxable: z.boolean().default(false),
 });
 
-const compensationTermsSchema = z.object({
+const compensationTermsFields = {
   organizationId: objectId(),
   rateType: z.enum(["monthly", "daily"]),
-  rate: money("Rate").refine((value) => value > 0, "Rate must be more than zero"),
+  // The basic salary (or daily rate) and the annual increase on top of it;
+  // the total payroll pays (`rate`) is always computed from these. A plain
+  // `rate` with no basic is still accepted, as a basic with no increase.
+  baseRate: money("Basic salary").optional(),
+  annualIncrease: money("Annual increase").optional(),
+  rate: money("Rate").optional(),
   allowances: z.array(allowanceSchema).max(20).default([]),
   minimumWageEarner: z.boolean().default(false),
   effectiveFrom: calendarDateSchema.optional(),
   reason: z.string().trim().max(200).optional(),
-});
+};
 
-export const createCompensationSchema = compensationTermsSchema.extend({ employeeId: objectId() });
-export const reviseCompensationSchema = compensationTermsSchema;
+function withTotalRate<T extends { baseRate?: number; annualIncrease?: number; rate?: number }>(terms: T, ctx: z.RefinementCtx) {
+  if (terms.baseRate === undefined && terms.rate === undefined) {
+    ctx.addIssue({ code: "custom", path: ["baseRate"], message: "Enter the basic salary" });
+    return z.NEVER;
+  }
+  const total = compensationTotal(terms);
+  if (!(total.baseRate > 0)) {
+    ctx.addIssue({ code: "custom", path: ["baseRate"], message: "Basic salary must be more than zero" });
+    return z.NEVER;
+  }
+  return { ...terms, ...total };
+}
+
+export const createCompensationSchema = z.object({ ...compensationTermsFields, employeeId: objectId() }).transform(withTotalRate);
+export const reviseCompensationSchema = z.object(compensationTermsFields).transform(withTotalRate);
 
 export const BULK_CHANGE_TYPES = ["set_rate", "increase_amount", "increase_percent", "raise_to_minimum"] as const;
 
@@ -74,12 +94,19 @@ export const createPayrollPolicySchema = z.object({
   // What each holiday type counts as (attendance plan Phase 4); unset types use the defaults.
   holidayDayTypes: z.object({ regular: holidayDayType, special_non_working: holidayDayType, special_working: holidayDayType }).partial().optional(),
   effectiveFrom: calendarDateSchema.optional(),
-});
+  // Final pay checks (payroll plan Phase 5): per check, blocking, warning or off; unset checks use the defaults.
+  finalPayChecks: z.array(z.object({ code: z.string().trim().min(1).max(40), severity: z.enum(["blocking", "warning", "off"]) })).max(20).optional(),
+  recentPayChangeDays: z.coerce.number().int().min(1).max(365).optional(),
+  // Payroll plan Phase 6: monthly pay needs HR's acknowledgement of the Art. 103 risk (never blocked otherwise).
+  acknowledgeMonthlyPay: z.boolean().optional(),
+}).refine((input) => input.payFrequency !== "monthly" || input.acknowledgeMonthlyPay === true, { message: MONTHLY_ACK_MESSAGE, path: ["acknowledgeMonthlyPay"] });
 
 export const updatePayrollPolicyStatusSchema = z.object({
   organizationId: objectId(),
   status: z.enum(["active", "inactive"]).optional(),
   effectiveTo: z.coerce.date().optional(),
+  // Acknowledge monthly pay on a policy created before the acknowledgement existed (Phase 6).
+  acknowledgeMonthlyPay: z.literal(true).optional(),
 });
 
 const taxBracketSchema = z.object({
@@ -137,6 +164,8 @@ export const createPayrollRuleVersionSchema = z.object({
   benefitsExemptionCap: money("Benefits exemption").nullish(),
   form2316Boxes: z.array(form2316BoxSchema).max(80).optional(),
   form2316Excluded: z.array(z.string().trim().min(1).max(40)).max(50).optional(),
+  // Final pay (Phase 5): leave converted to cash is non-taxable up to this many days a year.
+  deMinimisLeaveDays: z.coerce.number().min(0).max(365).nullish(),
 });
 
 export const updatePayrollRuleVersionStatusSchema = z.object({
@@ -266,17 +295,24 @@ const scheduleFieldsSchema = z.object({
   payDateOffsetDays: z.coerce.number().int().min(0).max(31).default(5),
   autoPrepare: z.boolean().default(true),
   startsOn: calendarDateSchema.optional(),
+  // Bi-weekly only: the end date of one 14-day period (Phase 6); cutoffDay is set to its weekday.
+  anchorDate: calendarDateSchema.optional(),
+  acknowledgeMonthlyPay: z.boolean().optional(),
 });
 
 function validCutoffDay(input: { payFrequency: string; cutoffDay: number }) {
-  if (input.payFrequency === "weekly") return input.cutoffDay >= 0 && input.cutoffDay <= 6;
+  if (input.payFrequency === "weekly" || input.payFrequency === "bi-weekly") return input.cutoffDay >= 0 && input.cutoffDay <= 6;
   if (input.payFrequency === "semi-monthly") return input.cutoffDay >= 1 && input.cutoffDay <= 15;
   return input.cutoffDay >= 1 && input.cutoffDay <= 31;
 }
 
 const CUTOFF_MESSAGE = "Semi-monthly cutoffs end on day 1–15, monthly on day 1–31, weekly on a weekday.";
+const ANCHOR_MESSAGE = "Pick the end date of one bi-weekly period";
 
-export const createPayrollScheduleSchema = scheduleFieldsSchema.refine(validCutoffDay, { message: CUTOFF_MESSAGE, path: ["cutoffDay"] });
+export const createPayrollScheduleSchema = scheduleFieldsSchema
+  .refine(validCutoffDay, { message: CUTOFF_MESSAGE, path: ["cutoffDay"] })
+  .refine((input) => input.payFrequency !== "bi-weekly" || Boolean(input.anchorDate), { message: ANCHOR_MESSAGE, path: ["anchorDate"] })
+  .refine((input) => input.payFrequency !== "monthly" || input.acknowledgeMonthlyPay === true, { message: MONTHLY_ACK_MESSAGE, path: ["acknowledgeMonthlyPay"] });
 
 export const updatePayrollScheduleSchema = scheduleFieldsSchema
   .partial()

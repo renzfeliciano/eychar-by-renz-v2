@@ -3,12 +3,20 @@ import { connectMongoDB } from "@/server/db/connection";
 import { PayrollPolicyModel, ProjectModel } from "@/server/db/models";
 import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
-import { NotFoundError } from "@/shared/errors";
+import { BusinessRuleError, NotFoundError } from "@/shared/errors";
 import { resolveOrgProjectPolicy, type PolicySource } from "@/server/policies/resolve-org-project-policy";
 import { dateKeyToDate } from "@/lib/date-key";
 import { assertNoSameDayVersion } from "./same-day-version-guard";
 import type { CreatePayrollPolicyInput } from "@/shared/validation/payroll";
 import type { PayPremiums } from "./engine/premiums";
+import { MONTHLY_PAY_ACKNOWLEDGEMENT } from "./engine/pay-frequency";
+
+/** Monthly pay is HR's choice, but only with the Art. 103 acknowledgement ticked (payroll plan Phase 6). */
+export function monthlyPayAcknowledgement(payFrequency: string, acknowledged: boolean | undefined, userId: string | undefined) {
+  if (payFrequency !== "monthly") return undefined;
+  if (!acknowledged) throw new BusinessRuleError("Tick the acknowledgement to choose monthly pay: the Labor Code (Art. 103) requires pay at least twice a month.");
+  return { by: userId && Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : undefined, at: new Date(), statement: MONTHLY_PAY_ACKNOWLEDGEMENT };
+}
 
 export type { PolicySource };
 
@@ -24,6 +32,7 @@ export const PayrollPolicyService = {
     await assertOptionalInOrganization(ProjectModel, input.projectId, input.organizationId, "Project");
     const effectiveFrom = input.effectiveFrom ? dateKeyToDate(input.effectiveFrom) : new Date();
     await assertNoSameDayVersion(PayrollPolicyModel, { organizationId: input.organizationId, projectId: input.projectId, effectiveFrom }, "payroll policy");
+    const acknowledgement = monthlyPayAcknowledgement(input.payFrequency, input.acknowledgeMonthlyPay, actor.userId);
 
     const policy = await PayrollPolicyModel.create({
       organizationId: new Types.ObjectId(input.organizationId),
@@ -48,6 +57,7 @@ export const PayrollPolicyService = {
       holidayDayTypes: input.holidayDayTypes && Object.keys(input.holidayDayTypes).length ? input.holidayDayTypes : undefined,
       finalPayChecks: input.finalPayChecks?.length ? input.finalPayChecks : undefined,
       recentPayChangeDays: input.recentPayChangeDays,
+      monthlyPayAcknowledgement: acknowledgement,
       effectiveFrom,
     });
 
@@ -73,21 +83,28 @@ export const PayrollPolicyService = {
         nightDifferentialRate: policy.nightDifferentialRate,
         holidayDayTypes: input.holidayDayTypes,
         projectId: policy.projectId,
+        monthlyPayAcknowledged: acknowledgement ? acknowledgement.statement : undefined,
       },
     });
 
     return policy;
   },
 
-  async updateStatus(id: string, organizationId: string, patch: { status?: "active" | "inactive"; effectiveTo?: Date }, actor: { userId?: string }) {
+  async updateStatus(id: string, organizationId: string, patch: { status?: "active" | "inactive"; effectiveTo?: Date; acknowledgeMonthlyPay?: true }, actor: { userId?: string }) {
     await connectMongoDB();
 
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundError("Payroll policy not found in this organization");
     const policy = await PayrollPolicyModel.findOne({ _id: new Types.ObjectId(id), organizationId: new Types.ObjectId(organizationId) });
     if (!policy) throw new NotFoundError("Payroll policy not found in this organization");
 
-    const before = { status: policy.status, effectiveTo: policy.effectiveTo };
+    const before = { status: policy.status, effectiveTo: policy.effectiveTo, monthlyPayAcknowledged: Boolean(policy.monthlyPayAcknowledgement) };
     if (patch.status) policy.status = patch.status;
     if (patch.effectiveTo) policy.effectiveTo = patch.effectiveTo;
+    // A monthly policy from before the acknowledgement existed (Phase 6): HR ticks it here. Pay is unchanged.
+    if (patch.acknowledgeMonthlyPay) {
+      if (policy.payFrequency !== "monthly") throw new BusinessRuleError("Only a monthly policy needs the monthly pay acknowledgement.");
+      if (!policy.monthlyPayAcknowledgement) policy.monthlyPayAcknowledgement = monthlyPayAcknowledgement("monthly", true, actor.userId);
+    }
     await policy.save();
 
     await AuditService.record({
@@ -97,7 +114,7 @@ export const PayrollPolicyService = {
       resourceType: "PayrollPolicy",
       resourceId: policy._id.toString(),
       before,
-      after: { status: policy.status, effectiveTo: policy.effectiveTo },
+      after: { status: policy.status, effectiveTo: policy.effectiveTo, monthlyPayAcknowledged: Boolean(policy.monthlyPayAcknowledgement) },
     });
 
     return policy;

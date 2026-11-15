@@ -9,7 +9,7 @@ import type { Form2316Box } from "../engine/year-end-tax";
  *   Secondary sources only [verify on bir.gov.ph].
  * - Benefits cap: ₱90,000 for 13th month pay and other benefits (RA 10963) [verify].
  * - Box map: BIR Form 2316 (January 2018 version) as remembered at Gate C. Box numbers and labels
- *   [verify against the current form]; see knowledge/plans/payroll-phase-4-year-end-tax.md.
+ *   [verify against the current form]; see knowledge/plans/payroll-enhancement.md, Appendix B.
  */
 const bracket = (minIncome: number, maxIncome: number | null, baseDeduction: number, rate: number): TaxBracket => ({ minIncome, maxIncome, rate, baseDeduction });
 
@@ -18,6 +18,7 @@ const MWE_EXEMPT_BASIC = ["basic", "absences", "tardiness"];
 export const PH_YEAR_END_2023: {
   annualTaxTable: TaxBracket[];
   benefitsExemptionCap: number;
+  deMinimisLeaveDays: number;
   form2316Boxes: Form2316Box[];
   form2316Excluded: string[];
 } = {
@@ -30,6 +31,8 @@ export const PH_YEAR_END_2023: {
     bracket(8000000, null, 2202500, 0.35),
   ],
   benefitsExemptionCap: 90000,
+  // Final pay (payroll plan Phase 5): monetized unused vacation leave is de minimis up to 10 days a year [verify].
+  deMinimisLeaveDays: 10,
   form2316Boxes: [
     // Non-taxable / exempt (Part IV-B A)
     { box: "29", label: "Basic salary / statutory minimum wage (MWE)", part: "non_taxable", codes: MWE_EXEMPT_BASIC, minimumWage: "mwe", lessContributions: true },
@@ -38,7 +41,7 @@ export const PH_YEAR_END_2023: {
     { box: "32", label: "Night shift differential (MWE)", part: "non_taxable", codes: ["night_differential"], minimumWage: "mwe" },
     { box: "33", label: "Hazard pay (MWE)", part: "non_taxable", codes: ["hazard_pay"], minimumWage: "mwe" },
     { box: "34", label: "13th month pay and other benefits", part: "non_taxable", codes: ["thirteenth_month", "bonus"], taxable: "no", capped: true, overflowTo: "48" },
-    { box: "35", label: "De minimis benefits", part: "non_taxable", codes: ["de_minimis", "allowance"], taxable: "no" },
+    { box: "35", label: "De minimis benefits", part: "non_taxable", codes: ["de_minimis", "allowance", "leave_encashment"], taxable: "no" },
     { box: "36", label: "SSS, GSIS, PhilHealth and Pag-IBIG contributions (employee share)", part: "non_taxable", codes: ["@contributions"] },
     { box: "37", label: "Salaries and other forms of compensation (non-taxable)", part: "non_taxable", codes: ["*"], taxable: "no" },
     // Taxable (Part IV-B B)

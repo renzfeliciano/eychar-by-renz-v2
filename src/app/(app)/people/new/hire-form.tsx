@@ -27,12 +27,12 @@ const HIRE_FIELD_IDS = {
   middleName: "hire-middle-name",
   lastName: "hire-last-name",
   gender: "hire-gender",
+  civilStatusCode: "hire-civil-status",
   birthDate: "hire-birth-date",
   phone: "hire-phone",
   employeeNumber: "hire-employee-number",
   address: "hire-address",
   remarks: "hire-remarks",
-  educationLevelCode: "hire-education",
   employmentType: "hire-employment-type",
   effectiveFrom: "hire-date-hired",
   endOfContract: "hire-end-of-contract",
@@ -48,26 +48,26 @@ export function HireForm({
   organizationId,
   positions,
   projects,
+  civilStatuses = [],
   employmentTypes,
-  educationLevels = [],
 }: {
   organizationId: string;
   positions: Option[];
   projects: Option[];
+  /** Choices from the Civil statuses catalog (see catalogChoiceOptions). */
+  civilStatuses?: Option[];
   employmentTypes: EmploymentTypeOption[];
-  /** Choices for Highest educational attainment (see educationLevelOptions). */
-  educationLevels?: Option[];
 }) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
+  const [civilStatusCode, setCivilStatusCode] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [educationLevelCode, setEducationLevelCode] = useState("");
   const [employeeNumber, setEmployeeNumber] = useState("");
   const [employmentType, setEmploymentType] = useState("");
   const [dateHired, setDateHired] = useState("");
@@ -105,11 +105,11 @@ export function HireForm({
         middleName: middleName || undefined,
         lastName,
         gender: gender || undefined,
+        civilStatusCode: civilStatusCode || undefined,
         birthDate: birthDate || undefined,
         phone: phone || undefined,
         address: address || undefined,
         remarks: remarks.trim() || undefined,
-        educationLevelCode: educationLevelCode || undefined,
         employeeNumber: employeeNumber || undefined,
         employmentType,
         effectiveFrom: dateHired || undefined,
@@ -154,6 +154,7 @@ export function HireForm({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect id="hire-gender" label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" error={fieldErrors.gender} />
+            <OptionSelect id="hire-civil-status" label="Civil status" value={civilStatusCode} onChange={setCivilStatusCode} options={civilStatuses} placeholder="Not specified" error={fieldErrors.civilStatusCode} />
             <FormField label="Birth date" htmlFor="hire-birth-date" error={fieldErrors.birthDate}>
               <Input id="hire-birth-date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
             </FormField>
@@ -174,19 +175,6 @@ export function HireForm({
           <FormField label="Address" htmlFor="hire-address" error={fieldErrors.address}>
             <Textarea id="hire-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City" />
           </FormField>
-          <OptionSelect
-            id="hire-education"
-            label="Highest educational attainment"
-            value={educationLevelCode}
-            onChange={(value) => {
-              setEducationLevelCode(value);
-              clearFieldError("educationLevelCode");
-            }}
-            options={educationLevels}
-            placeholder="Not specified"
-            error={fieldErrors.educationLevelCode}
-            testId="hire-education"
-          />
           <FormField label="Remarks" htmlFor="hire-remarks" error={fieldErrors.remarks} description={`Optional note for the roster, e.g. "Senior, PWD". ${remarks.length}/${REMARKS_MAX_LENGTH}`}>
             <Input id="hire-remarks" value={remarks} onChange={(event) => { setRemarks(event.target.value); clearFieldError("remarks"); }} placeholder="e.g. Senior, PWD" />
           </FormField>

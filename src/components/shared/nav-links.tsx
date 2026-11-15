@@ -80,6 +80,7 @@ export const CATALOG_READ_PERMISSIONS = [
   "separation-types.read",
   "payment-methods.read",
   "education-levels.read",
+  "civil-statuses.read",
   "complaint-stages.read",
 ] as const;
 

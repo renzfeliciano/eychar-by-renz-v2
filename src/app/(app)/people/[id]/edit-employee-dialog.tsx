@@ -34,12 +34,12 @@ export type EditEmployeeInitialValue = {
   email?: string | null;
   employeeNumber?: string | null;
   gender?: string | null;
+  /** Code of a Civil statuses catalog item. */
+  civilStatusCode?: string | null;
   birthDate?: string | null;
   phone?: string | null;
   address?: string | null;
   remarks?: string | null;
-  /** Code of an Education levels catalog item. */
-  educationLevelCode?: string | null;
   sssNumber?: string | null;
   philHealthNumber?: string | null;
   pagIbigNumber?: string | null;
@@ -47,19 +47,19 @@ export type EditEmployeeInitialValue = {
 };
 
 /** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
-const EDIT_EMPLOYEE_FIELDS = ["gender", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "educationLevelCode", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
+const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatusCode", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
   employeeId,
+  civilStatuses = [],
   initialValue,
-  educationLevels = [],
 }: {
   organizationId: string;
   employeeId: string;
+  /** Choices from the Civil statuses catalog, including the person's own retired status (catalogChoiceOptions). */
+  civilStatuses?: SelectOption[];
   initialValue: EditEmployeeInitialValue;
-  /** Choices for Highest educational attainment (see educationLevelOptions). */
-  educationLevels?: SelectOption[];
 }) {
   const router = useRouter();
   const formId = `edit-employee-form-${employeeId}`;
@@ -71,11 +71,11 @@ export function EditEmployeeDialog({
   const [email, setEmail] = useState(initialValue.email ?? "");
   const [employeeNumber, setEmployeeNumber] = useState(initialValue.employeeNumber ?? "");
   const [gender, setGender] = useState(initialValue.gender ?? "");
+  const [civilStatusCode, setCivilStatusCode] = useState(initialValue.civilStatusCode ?? "");
   const [birthDate, setBirthDate] = useState(initialValue.birthDate ?? "");
   const [phone, setPhone] = useState(initialValue.phone ?? "");
   const [address, setAddress] = useState(initialValue.address ?? "");
   const [remarks, setRemarks] = useState(initialValue.remarks ?? "");
-  const [educationLevelCode, setEducationLevelCode] = useState(initialValue.educationLevelCode ?? "");
   const [sssNumber, setSssNumber] = useState(initialValue.sssNumber ?? "");
   const [philHealthNumber, setPhilHealthNumber] = useState(initialValue.philHealthNumber ?? "");
   const [pagIbigNumber, setPagIbigNumber] = useState(initialValue.pagIbigNumber ?? "");
@@ -90,11 +90,11 @@ export function EditEmployeeDialog({
     setEmail(initialValue.email ?? "");
     setEmployeeNumber(initialValue.employeeNumber ?? "");
     setGender(initialValue.gender ?? "");
+    setCivilStatusCode(initialValue.civilStatusCode ?? "");
     setBirthDate(initialValue.birthDate ?? "");
     setPhone(initialValue.phone ?? "");
     setAddress(initialValue.address ?? "");
     setRemarks(initialValue.remarks ?? "");
-    setEducationLevelCode(initialValue.educationLevelCode ?? "");
     setSssNumber(initialValue.sssNumber ?? "");
     setPhilHealthNumber(initialValue.philHealthNumber ?? "");
     setPagIbigNumber(initialValue.pagIbigNumber ?? "");
@@ -130,11 +130,11 @@ export function EditEmployeeDialog({
         email,
         employeeNumber,
         gender,
+        civilStatusCode,
         birthDate,
         phone,
         address,
         remarks,
-        educationLevelCode,
         sssNumber,
         philHealthNumber,
         pagIbigNumber,
@@ -197,6 +197,7 @@ export function EditEmployeeDialog({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <OptionSelect id={`${formId}-gender`} error={fieldErrors.gender} label="Gender" value={gender} onChange={setGender} options={GENDER_OPTIONS} placeholder="Select gender" />
+            <OptionSelect id={`${formId}-civilStatusCode`} error={fieldErrors.civilStatusCode} label="Civil status" value={civilStatusCode} onChange={setCivilStatusCode} options={civilStatuses} placeholder="Not specified" />
             <FormField label="Birth date" htmlFor={`${formId}-birthDate`} error={fieldErrors.birthDate}>
               <Input id={`${formId}-birthDate`} type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
             </FormField>
@@ -237,19 +238,6 @@ export function EditEmployeeDialog({
               placeholder="e.g. 123 Rizal Street, Brgy. San Isidro, Quezon City"
             />
           </FormField>
-          <OptionSelect
-            id={`${formId}-educationLevelCode`}
-            error={fieldErrors.educationLevelCode}
-            label="Highest educational attainment"
-            value={educationLevelCode}
-            onChange={(value) => {
-              setEducationLevelCode(value);
-              clearFieldError("educationLevelCode");
-            }}
-            options={educationLevels}
-            placeholder="Not specified"
-            testId="edit-employee-education"
-          />
           <FormField label="Remarks" htmlFor={`${formId}-remarks`} error={fieldErrors.remarks} description={`Optional note for the roster, e.g. "Senior, PWD". ${remarks.length}/${REMARKS_MAX_LENGTH}`}>
             <Input
               id={`${formId}-remarks`}

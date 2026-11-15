@@ -1,7 +1,7 @@
 # Final settlement (separation pay-out)
 
 **Purpose:** The separation pay-out for one clearance case. It is computed from live payroll, leave and clearance records while a draft, then moves through submit, review, approve and disburse. Disbursing closes the clearance.
-**Governing docs:** ADR-032 (**Proposed, "Design only; not yet implemented"**, dated 2026-09-30: `docs/architecture/adr/ADR-032-final-settlement.md`). The code implements part of it (see gaps). ADR-031 (Workforce Clearance, referenced by ADR-032). ADR-041 (the disburse and clearance-close write is one transaction). ADR-033 (settlements are registered for the recycle bin). ENGINEERING.md §33 (transactions).
+**Governing docs:** ADR-032 (final settlement; implemented 2026-11-14 by payroll plan Phase 5, see its implementation section), ADR-061 (final pay run, fingerprint and checks), ADR-062 (separation type → employment status). ADR-031 (Workforce Clearance, referenced by ADR-032). ADR-041 (the disburse and clearance-close write is one transaction). ADR-033 (settlements are registered for the recycle bin). ENGINEERING.md §33 (transactions).
 **Services:**
 - `src/domains/final-settlement/final-settlement-service.ts`: `FinalSettlementService` with `prepare(clearanceId, org, actor)`, `addManualLine`, `removeManualLine`, `act(id, org, input, actor)` where `input.action` is `submit | review | approve | return | disburse | cancel`, `getByClearance`, `getById`, `listForOrganization`.
 - `src/domains/final-settlement/settlement-calculator.ts`: pure `computeSettlement(inputs)` and `countWorkdays`. Types `SettlementLine`, `ManualLine`, `SettlementInputs`.
@@ -41,14 +41,7 @@
 - If the employee has no pay terms on the last working day, or no payroll policy applies, prepare stops with `BusinessRuleError`.
 
 **Known gaps / mismatches (ADR-032 against the code):**
-- ADR-032 is Proposed and says "not yet implemented", but the code implements a subset. The ADR status is stale or the implementation is partial. Either way the two disagree.
-- "Disbursed: release creates the `final` payroll run" (ADR-032 Decision). `disburse` only sets status and payment (`final-settlement-service.ts`). `PayrollRunModel` is read, never written.
-- "Each approved version stores a hash of its lines and inputs" (ADR-032, Tamper evidence). The model has no hash field and no code computes one.
-- Variance checks (ADR-032: net pay negative, leave cap, 13th month paid, tax true-up, recent rate change, missing government IDs). None are in the service or the calculator.
-- Manual lines need "a reason and an attachment" (ADR-032). Only `reason` is required.
-- "The preparer can't review or approve" (ADR-032, Segregation of duties). Only approve checks the preparer. `act` case `review` has no check.
-- "Locked inputs … sources changed since approval" warning (ADR-032). Not implemented. The stored `inputs` do not change after approval, but nothing warns when source records change.
-- Two final-pay deadline sources are not reconciled. The settlement reads `PayrollPolicy.finalPayDeadlineDays` (default 30) into `inputs`. The dashboard's compliance risk reads `Organization.compliance.finalPayDays` (default 30) from `src/app/(app)/dashboard/page.tsx` line ~299 and `src/domains/dashboard/compliance-risks.ts`. A change to one does not change the other.
-- The calculator's own comment says tax true-up and statutory contributions come later. Neither is in the code.
+- Resolved 2026-11-14 (payroll plan Phase 5, ADR-061): disburse creates the `final` run in the same transaction; approve stores a SHA-256 fingerprint and disburse checks it; the variance checks are policy data (`final-pay-checks.ts`) with acknowledgement of warnings at approve; the preparer can't review or approve; manual lines need a reason and a document; contributions and the tax true-up use the engine (`settlement-statutory.ts`); the dashboard reads the policy's deadline; an inputs-changed check warns when source records changed after approval.
+- Open: the legal checks (DOLE 30-day rule, de minimis leave limit, partial-month contribution base) are known gaps B25; no settings screen for the separation-type mapping and the policy form doesn't show check severities (B26).
 
-**Last verified:** 6587050
+**Last verified:** 2026-11-15 (payroll plan Phase 8)

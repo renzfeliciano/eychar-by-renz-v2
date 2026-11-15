@@ -17,13 +17,13 @@ export const EmployeeRecords = {
       .select("payrollRunId grossPay netPay")
       .lean<{ _id: Types.ObjectId; payrollRunId: Types.ObjectId; grossPay: number; netPay: number }[]>();
     const runs = await PayrollRunModel.find({ organizationId: orgId, _id: { $in: records.map((record) => record.payrollRunId) }, status: { $ne: "cancelled" } })
-      .select("runNumber status payPeriodStart payPeriodEnd payDate")
-      .lean<{ _id: Types.ObjectId; runNumber: string; status: string; payPeriodStart: Date; payPeriodEnd: Date; payDate: Date }[]>();
+      .select("runNumber runType status payPeriodStart payPeriodEnd payDate")
+      .lean<{ _id: Types.ObjectId; runNumber: string; runType?: string | null; status: string; payPeriodStart: Date; payPeriodEnd: Date; payDate: Date }[]>();
     const runById = new Map(runs.map((run) => [run._id.toString(), run]));
     return records
       .flatMap((record) => {
         const run = runById.get(record.payrollRunId.toString());
-        return run ? [{ id: record._id.toString(), runId: run._id.toString(), runNumber: run.runNumber, status: run.status, periodStart: run.payPeriodStart, periodEnd: run.payPeriodEnd, payDate: run.payDate, grossPay: record.grossPay, netPay: record.netPay }] : [];
+        return run ? [{ id: record._id.toString(), runId: run._id.toString(), runNumber: run.runNumber, runType: run.runType ?? "regular", status: run.status, periodStart: run.payPeriodStart, periodEnd: run.payPeriodEnd, payDate: run.payDate, grossPay: record.grossPay, netPay: record.netPay }] : [];
       })
       .sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime());
   },

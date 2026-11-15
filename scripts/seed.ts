@@ -29,6 +29,7 @@ import {
   ClearanceDepartmentModel,
   SeparationTypeModel,
   EducationLevelModel,
+  CivilStatusModel,
   ClearanceChecklistItemModel,
   PaymentMethodModel,
   LeaveTypeModel,
@@ -38,6 +39,7 @@ import {
 import { AuditService } from "@/server/audit/audit-service";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
 import { EDUCATION_LEVEL_DEFAULTS } from "@/domains/catalog/education-level-defaults";
+import { CIVIL_STATUS_DEFAULTS } from "@/domains/catalog/civil-status-defaults";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
 import { DEFAULT_RECRUITMENT_STAGES } from "@/domains/recruitment/default-stages";
@@ -223,6 +225,9 @@ const BASELINE_PERMISSIONS = [
   { key: "education-levels.create", description: "Add education levels", category: "settings" },
   { key: "education-levels.read", description: "View education levels", category: "settings" },
   { key: "education-levels.update", description: "Retire education levels", category: "settings" },
+  { key: "civil-statuses.create", description: "Add civil statuses", category: "settings" },
+  { key: "civil-statuses.read", description: "View civil statuses", category: "settings" },
+  { key: "civil-statuses.update", description: "Retire civil statuses", category: "settings" },
   { key: "complaint-stages.create", description: "Add complaint stage catalog items", category: "settings" },
   { key: "complaint-stages.read", description: "View complaint stage catalog items", category: "settings" },
   { key: "complaint-stages.update", description: "Retire complaint stage catalog items", category: "settings" },
@@ -622,6 +627,7 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
   ]);
 
   await seedCatalogDefaults(EducationLevelModel, EDUCATION_LEVEL_DEFAULTS);
+  await seedCatalogDefaults(CivilStatusModel, CIVIL_STATUS_DEFAULTS);
 
   await seedCatalogDefaults(PaymentMethodModel, [
     { code: "bank_transfer", name: "Bank transfer", sortOrder: 0 },

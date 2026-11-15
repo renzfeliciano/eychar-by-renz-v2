@@ -101,7 +101,7 @@ export const PayrollRunService = {
     if (!ruleResult) throw new NotFoundError("No payroll rule version applies on the pay date. Add one under Payroll › Rule versions.");
     const payFrequency = policyResult.policy.payFrequency as string;
     if (!ruleResult.policy.taxTables.some((table: { payFrequency: string }) => table.payFrequency === payFrequency)) {
-      throw new BusinessRuleError(`Rule version v${ruleResult.policy.versionNumber} has no ${payFrequency} withholding tax table.`);
+      throw new BusinessRuleError(`Rule version v${ruleResult.policy.versionNumber} has no ${payFrequency} withholding tax table. Publish a new rule version that has one (Payroll › Rule versions › New; the Philippine template includes every frequency, bi-weekly as the annual table ÷ 26).`);
     }
 
     await assertNoOverlap(input.organizationId, input.projectId, input.payPeriodStart, input.payPeriodEnd);

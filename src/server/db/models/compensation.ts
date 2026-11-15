@@ -25,6 +25,11 @@ const compensationSchema = new Schema(
     employeeId: { type: Schema.Types.ObjectId, required: true, ref: "Employee" },
     rateType: { type: String, enum: ["monthly", "daily"], required: true },
     rate: { type: Number, required: true, min: 0 },
+    // `rate` is what payroll pays: the basic salary (or daily rate) plus the
+    // annual increase entered with it, kept apart for the history. Rows from
+    // before these fields existed are a basic of `rate` with no increase.
+    baseRate: { type: Number, min: 0 },
+    annualIncrease: { type: Number, min: 0, default: 0 },
     allowances: { type: [allowanceSchema], default: [] },
     // Minimum wage earners are exempt from withholding tax.
     minimumWageEarner: { type: Boolean, required: true, default: false },

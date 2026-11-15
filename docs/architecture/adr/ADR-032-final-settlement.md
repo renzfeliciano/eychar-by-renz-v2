@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (2026-11-14), partially implemented. Companion to ADR-031 (Workforce Clearance).
+Accepted (2026-11-14), implemented 2026-11-14 (payroll plan Phase 5, Gate D). Companion to ADR-031 (Workforce Clearance).
+Still open: version comparison and reports (delivery phase 5), and the legal checks listed under Implementation status.
 
 The design was Proposed on 2026-09-30. It is accepted now because the settlement pages and the
 disbursement action are already live, so the design needs to be the agreed target, not a proposal.
@@ -283,4 +284,22 @@ Each phase is test-first (TDD) and usable on its own.
   - Calculator: salary balance for unpaid workdays, leave encashment (per leave type "paid out at separation" switch), pro-rated 13th month, clearance accountabilities, manual lines with a reason.
   - Flow: submit (needs clearance cleared) → review → approve (not the preparer) → disburse (payment method catalog and reference), which closes the clearance.
   - The final pay deadline is `PayrollPolicy.finalPayDeadlineDays` (seeded at 30), recorded on each settlement, not a code constant.
-- **Not yet:** tax true-up and statutory contributions (phase 3), documents (phase 4), variance checks, version comparison and reports (phase 5).
+- **Payroll plan Phase 5 (done, 2026-11-14; design in `knowledge/plans/payroll-enhancement.md, Appendix C`, Gate D):**
+  - **Final run:** disburse creates a released `final` payroll run with one record carrying the settlement's lines, in the
+    same transaction as the payment and the clearance closing (ADR-041). The run and the settlement link to each other.
+    Regular runs leave out an employee whose days a final run already paid.
+  - **Tamper evidence:** approve stores a plain SHA-256 of version, lines, totals, inputs and manual lines
+    (`approval.hash`, Gate D Q2). Disburse recomputes it and refuses on a mismatch, with an audit entry.
+  - **Variance checks** V1–V9 (`final-pay-checks.ts`): severity is policy data (`PayrollPolicy.finalPayChecks`), with
+    defaults in code as for pay premiums. Blocking checks stop submit, review, approve and disburse. Warnings must be
+    ticked by the approver, and that is recorded (Gate D Q4).
+  - **Segregation of duties:** the preparer can't review or approve. The reviewer may approve (Gate D Q3).
+  - **Manual lines** need a reason and a supporting `EmployeeDocument` of the employee. Earnings carry a taxable flag.
+  - **Statutory:** the month's employee contributions still due (`computeMonthlyContributionExact`, less what regular
+    runs deducted) and the year's tax true-up (the payroll plan Phase 4 annualization with the settlement's lines added).
+    Leave converted to cash is non-taxable up to the rule version's `deMinimisLeaveDays`.
+  - **One deadline source:** the dashboard reads the payroll policy's `finalPayDeadlineDays`. The organization value is
+    only the fallback.
+  - **Phase 5a slice 2:** a separation type's `metadata.employmentStatusCode` (seeded defaults: resignation → resigned,
+    termination → terminated) is checked against the employment record (V7).
+- **Not yet:** version comparison and reports (delivery phase 5). Legal checks are still open (gaps file B25).

@@ -14,6 +14,18 @@ const lineSchema = new Schema(
     basis: { type: String, required: true },
     clearanceItemId: { type: String },
     manualLineId: { type: String },
+    // Whether the line is taxable compensation (payroll plan Phase 5): the tax true-up and the final run read it.
+    taxable: { type: Boolean },
+  },
+  { _id: false },
+);
+
+// A variance check's result (payroll plan Phase 5, Gate D V1–V9).
+const checkSchema = new Schema(
+  {
+    code: { type: String, required: true },
+    severity: { type: String, enum: ["blocking", "warning"], required: true },
+    message: { type: String, required: true },
   },
   { _id: false },
 );
@@ -23,6 +35,11 @@ const manualLineSchema = new Schema({
   label: { type: String, required: true, trim: true },
   amount: { type: Number, required: true, min: 0 },
   reason: { type: String, required: true, trim: true },
+  // Payroll plan Phase 5 (Gate D): a manual earning says whether it is taxable, and every manual line
+  // points at its supporting document (an EmployeeDocument of the employee). Lines added before this
+  // have neither; a draft can't move forward until they do.
+  taxable: { type: Boolean },
+  documentId: { type: Schema.Types.ObjectId, ref: "EmployeeDocument" },
   addedBy: { type: Schema.Types.ObjectId, ref: "User" },
   addedAt: { type: Date, required: true, default: () => new Date() },
 });
@@ -65,6 +82,26 @@ const finalSettlementSchema = new Schema(
       paidAt: { type: Date },
     },
     history: { type: [historySchema], default: [] },
+    // Variance checks from the last computation (payroll plan Phase 5).
+    checks: { type: [checkSchema], default: [] },
+    // Tamper evidence (ADR-032, Gate D: plain SHA-256): the hash of the approved version's lines, totals,
+    // inputs and manual lines. Disburse recomputes it and refuses on a mismatch.
+    approval: {
+      type: new Schema(
+        {
+          hash: { type: String, required: true },
+          version: { type: Number, required: true },
+          at: { type: Date, required: true },
+          by: { type: Schema.Types.ObjectId, ref: "User" },
+          // The warnings the approver confirmed they checked (Gate D Q4).
+          acknowledgedWarnings: { type: [String], default: [] },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    // The final payroll run disburse created (payroll plan Phase 5).
+    payrollRunId: { type: Schema.Types.ObjectId, ref: "PayrollRun" },
   },
   { timestamps: true },
 );

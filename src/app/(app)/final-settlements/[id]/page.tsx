@@ -4,7 +4,8 @@ import { HideToggle } from "@/components/shared/hide-toggle";
 import { DeleteRecordButton } from "@/components/shared/delete-record-button";
 import { isSuperAdmin } from "@/app/_shared/is-super-admin";
 import { notFound } from "next/navigation";
-import { ArrowDownRight, ArrowUpRight, Info, OctagonAlert } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, OctagonAlert } from "lucide-react";
+import { EmployeeDocumentModel, PayrollRunModel } from "@/server/db/models";
 import { accountabilityDrift, describeDrift } from "@/domains/final-settlement/settlement-accountabilities";
 import { getCurrentOrganization } from "@/app/_shared/get-current-organization";
 import { hasPermission } from "@/app/_shared/has-permission";
@@ -40,7 +41,8 @@ const HISTORY_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-type Line = { code: string; direction: string; label: string; amount: number; source: string; basis: string; manualLineId?: string | null };
+type Line = { code: string; direction: string; label: string; amount: number; source: string; basis: string; manualLineId?: string | null; taxable?: boolean | null };
+type Check = { code: string; severity: "blocking" | "warning"; message: string };
 
 function LinesTable({ title, lines, total, tone, removable }: { title: string; lines: Line[]; total: number; tone: "earning" | "deduction"; removable: ((line: Line) => React.ReactNode) | null }) {
   return (
@@ -60,7 +62,10 @@ function LinesTable({ title, lines, total, tone, removable }: { title: string; l
             {lines.map((line, index) => (
               <li key={`${line.code}-${index}`} className="flex items-start gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{line.label}</p>
+                  <p className="text-sm font-medium">
+                    {line.label}
+                    {line.direction === "earning" && line.taxable === false && <span className="font-normal text-muted-foreground"> (non-taxable)</span>}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     <span className="font-medium">{line.source}</span> · {line.basis}
                   </p>
@@ -90,14 +95,17 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [clearances, methods, canPrepare, canReview, canApprove, canDisburse] = await Promise.all([
+  const [clearances, methods, canPrepare, canReview, canApprove, canDisburse, documents, finalRun] = await Promise.all([
     ClearanceService.listForOrganization(organizationId),
     PaymentMethodService.listCurrent(organizationId),
     hasPermission("final-settlements.prepare", organizationId),
     hasPermission("final-settlements.review", organizationId),
     hasPermission("final-settlements.approve", organizationId),
     hasPermission("final-settlements.disburse", organizationId),
+    EmployeeDocumentModel.find({ organizationId: settlement.organizationId, employeeId: settlement.employeeId }).select("title fileName").sort({ createdAt: -1 }).lean(),
+    settlement.payrollRunId ? PayrollRunModel.findById(settlement.payrollRunId).select("runNumber").lean() : Promise.resolve(null),
   ]);
+  const checks = settlement.status === "disbursed" || settlement.status === "cancelled" ? [] : ((settlement.checks ?? []) as Check[]);
   const clearance = clearances.find((candidate) => candidate._id.toString() === settlement.clearanceCaseId.toString());
   if (!clearance) notFound();
 
@@ -114,7 +122,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
   const totals = settlement.totals ?? { earnings: 0, deductions: 0, net: 0 };
   // Same check FinalSettlementService.act enforces, shown before anyone tries.
   const drift = settlement.status === "disbursed" || settlement.status === "cancelled" ? [] : accountabilityDrift(clearance.items, settlement.lines);
-  const inputs = (settlement.inputs ?? {}) as { dailyRate?: number; lastPaidThrough?: string | null; rateType?: string; rate?: number };
+  const inputs = (settlement.inputs ?? {}) as { dailyRate?: number; lastPaidThrough?: string | null; rateType?: string; rate?: number; statutory?: { taxDifference?: number; taxBasis?: string } };
 
   return (
     <div className="flex flex-col gap-6">
@@ -158,16 +166,49 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
         </div>
       )}
 
+      {checks.length > 0 && (
+        <div className="flex flex-col gap-2" data-testid="settlement-checks">
+          {checks.map((check) => (
+            <div
+              key={check.code}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm",
+                check.severity === "blocking" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-warning/30 bg-warning/10 text-foreground",
+              )}
+              role={check.severity === "blocking" ? "alert" : "status"}
+            >
+              {check.severity === "blocking" ? <OctagonAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" /> : <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />}
+              <p>
+                <span className="font-medium">{check.severity === "blocking" ? "Blocks the next step: " : "Check: "}</span>
+                {check.message}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm">
             <p className="font-medium">
               {settlement.status === "disbursed"
-                ? `Paid by ${methodName.get(settlement.payment?.methodCode ?? "") ?? settlement.payment?.methodCode} · ${settlement.payment?.reference}`
+                ? `Paid by ${methodName.get(settlement.payment?.methodCode ?? "") ?? settlement.payment?.methodCode} · ${settlement.payment?.reference}${finalRun ? ` · payroll run ${finalRun.runNumber}` : ""}`
                 : settlement.status === "cancelled"
                   ? "This settlement was cancelled."
                   : "Next step"}
             </p>
+            {finalRun && (
+              <p>
+                <Link href={`/payroll/${finalRun._id.toString()}`} className="text-primary hover:underline">
+                  Open the final payroll run
+                </Link>
+              </p>
+            )}
+            {settlement.approval?.hash && (
+              <p className="text-xs text-muted-foreground" title={settlement.approval.hash}>
+                Approved version {settlement.approval.version} · fingerprint {settlement.approval.hash.slice(0, 12)}
+              </p>
+            )}
             <p className="text-muted-foreground">
               Clearance:{" "}
               <Link href={`/clearance/${clearance._id.toString()}`} className="text-primary hover:underline">
@@ -183,6 +224,7 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
             clearanceCleared={clearance.status === "cleared"}
             permissions={{ canPrepare, canReview, canApprove, canDisburse }}
             paymentMethods={methods.filter((method) => method.status === "active").map((method) => ({ id: method.code, label: method.name }))}
+            warnings={checks.filter((check) => check.severity === "warning").map((check) => ({ code: check.code, message: check.message }))}
           />
         </CardContent>
       </Card>
@@ -191,11 +233,20 @@ export default async function FinalSettlementPage({ params }: { params: Promise<
         <div className="flex flex-col gap-4">
           <LinesTable title="Earnings" lines={lines.filter((line) => line.direction === "earning")} total={totals.earnings} tone="earning" removable={removable} />
           <LinesTable title="Deductions" lines={lines.filter((line) => line.direction === "deduction")} total={totals.deductions} tone="deduction" removable={removable} />
-          {editable && <ManualLineForm organizationId={organizationId} settlementId={id} />}
-          <p className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
-            <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            Withholding tax true-up and statutory contributions for the final period aren&apos;t computed here yet. Add them as manual lines if needed until that phase ships.
-          </p>
+          {editable && (
+            <ManualLineForm
+              organizationId={organizationId}
+              settlementId={id}
+              employeeId={settlement.employeeId.toString()}
+              documents={documents.map((document) => ({ id: document._id.toString(), label: `${document.title} (${document.fileName})` }))}
+            />
+          )}
+          {inputs.statutory?.taxBasis && (
+            <p className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              Tax for the year: {inputs.statutory.taxBasis}. Contributions still due for the month and this true-up are computed with the payroll rule version.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-4">

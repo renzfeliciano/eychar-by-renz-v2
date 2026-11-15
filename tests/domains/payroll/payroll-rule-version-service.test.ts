@@ -59,7 +59,7 @@ describe("PayrollRuleVersionService", () => {
 
     const stored = await PayrollRuleVersionService.getById(v2._id.toString(), organization._id.toString());
     expect(stored.basedOnVersionId?.toString()).toBe(v1._id.toString());
-    expect(stored.taxTables.map((table: { payFrequency: string }) => table.payFrequency)).toEqual(["weekly", "semi-monthly", "monthly"]);
+    expect(stored.taxTables.map((table: { payFrequency: string }) => table.payFrequency)).toEqual(["weekly", "bi-weekly", "semi-monthly", "monthly"]);
     expect(stored.contributions.find((rule: { code: string }) => rule.code === "SSS")?.rows).toHaveLength(61);
     expect(stored.effectiveFrom).toEqual(new Date("2027-01-01T00:00:00.000Z"));
   });

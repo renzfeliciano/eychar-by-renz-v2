@@ -17,6 +17,7 @@ import { MetricCard, MetricStrip } from "@/components/shared/metric-card";
 import { TableSearchInput } from "@/components/shared/table-search-input";
 import { CompensationFormDialog, type CompensationTerms } from "./compensation-form-dialog";
 import { BulkChangeDialog } from "./bulk-change-dialog";
+import { CompensationHistoryDialog } from "./compensation-history-dialog";
 import { PriorEmploymentDialog } from "./prior-employment-dialog";
 import { NoAccessState } from "@/components/shared/no-access-state";
 
@@ -62,6 +63,8 @@ export default async function CompensationPage({ searchParams }: { searchParams:
       projectName: projectId ? (projectNameById.get(projectId) ?? null) : null,
       current: entry?.current ?? null,
       upcoming: entry?.upcoming ?? null,
+      latest: entry?.latest ?? null,
+      history: entry?.history ?? [],
     };
   });
 
@@ -76,16 +79,30 @@ export default async function CompensationPage({ searchParams }: { searchParams:
     },
   });
   const termsAction = (row: (typeof rows)[number]) => {
-    if (row.current && canUpdate && !row.upcoming) {
+    // Revise always opens on the latest terms: a change scheduled for later is edited (corrected) there.
+    if (row.latest && canUpdate) {
+      const latest = row.latest;
       const current: CompensationTerms = {
-        rateType: row.current.rateType as "monthly" | "daily",
-        rate: row.current.rate,
-        allowances: (row.current.allowances as Allowance[]).map((allowance) => ({ name: allowance.name, amount: allowance.amount, basis: allowance.basis, taxable: allowance.taxable })),
-        minimumWageEarner: row.current.minimumWageEarner,
+        rateType: latest.rateType as "monthly" | "daily",
+        rate: latest.rate,
+        baseRate: latest.baseRate ?? undefined,
+        annualIncrease: latest.annualIncrease ?? undefined,
+        allowances: (latest.allowances as Allowance[]).map((allowance) => ({ name: allowance.name, amount: allowance.amount, basis: allowance.basis, taxable: allowance.taxable })),
+        minimumWageEarner: latest.minimumWageEarner,
       };
-      return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} current={current} />;
+      const latestStart = dateToDateKey(latest.effectiveFrom);
+      return (
+        <CompensationFormDialog
+          organizationId={organizationId}
+          employeeId={row.employeeId}
+          employeeName={row.name}
+          current={current}
+          recordedRate={row.current?.rate}
+          editingFrom={latestStart > today ? latestStart : undefined}
+        />
+      );
     }
-    if (!row.current && !row.upcoming && canCreate) return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} />;
+    if (!row.latest && canCreate) return <CompensationFormDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} />;
     return null;
   };
   const projectOptions = projects.filter((project) => project.status === "active").map((project) => ({ id: project._id.toString(), label: project.name }));
@@ -146,7 +163,10 @@ export default async function CompensationPage({ searchParams }: { searchParams:
                 row.current ? (
                   <div className="flex flex-col items-end">
                     <span className="font-medium tabular-nums">{formatPeso(row.current.rate)}</span>
-                    <span className="text-xs text-muted-foreground">{row.current.rateType === "daily" ? "per day" : "per month"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {row.current.annualIncrease ? `${formatPeso(row.current.baseRate ?? row.current.rate)} + ${formatPeso(row.current.annualIncrease)} increase · ` : ""}
+                      {row.current.rateType === "daily" ? "per day" : "per month"}
+                    </span>
                   </div>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">Not set</span>
@@ -196,6 +216,7 @@ export default async function CompensationPage({ searchParams }: { searchParams:
               render: (row) => (
                 <div className="flex items-center justify-end gap-1">
                   <PriorEmploymentDialog organizationId={organizationId} employeeId={row.employeeId} employeeName={row.name} canEdit={canCreate && canUpdate} currentYear={Number(today.slice(0, 4))} />
+                  {row.history.length > 0 && <CompensationHistoryDialog employeeId={row.employeeId} employeeName={row.name} entries={row.history} />}
                   {termsAction(row)}
                 </div>
               ),

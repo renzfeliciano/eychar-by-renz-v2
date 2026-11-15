@@ -37,6 +37,7 @@ export type EditorInitial = {
   benefitsExemptionCap?: number | null;
   form2316Boxes?: Form2316Box[] | null;
   form2316Excluded?: string[] | null;
+  deMinimisLeaveDays?: number | null;
 };
 
 // The annual table sits next to the per-frequency tables as one more tab.
@@ -137,6 +138,7 @@ export function RuleVersionEditor({ organizationId, initial }: { organizationId:
         benefitsExemptionCap: fromCell(benefitsCap),
         form2316Boxes: initial.form2316Boxes ?? undefined,
         form2316Excluded: initial.form2316Excluded ?? undefined,
+        deMinimisLeaveDays: initial.deMinimisLeaveDays ?? undefined,
         contributions: contributions.map((rule) => ({
           code: rule.code.trim(),
           name: rule.name.trim(),

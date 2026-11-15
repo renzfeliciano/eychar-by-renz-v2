@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { basicEarnedFrom, estimateRemainingBasic, thirteenthMonthAmount, type RemainderInput } from "@/domains/payroll/engine/thirteenth-month";
 
 /**
- * The Gate B examples (knowledge/plans/payroll-phase-3-13th-month.md), approved 2026-11-14.
+ * The Gate B examples (knowledge/plans/payroll-enhancement.md, Appendix A), approved 2026-11-14.
  * Monthly policy: 261 workdays a year, 8 hours a day, divisor 12.
  */
 describe("13th month (PD 851)", () => {

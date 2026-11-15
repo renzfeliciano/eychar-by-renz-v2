@@ -5,7 +5,8 @@ import { daysBetween, relativeDue, urgencyFor, type ActionItem } from "./action-
  * Legal and compliance risks the dashboard watches: dates the law (or the
  * organization's own policy) attaches consequences to. Every deadline comes
  * from configuration: an employment type's `regularizeAfterMonths`, the
- * organization's `compliance.finalPayDays`, a document's `expiresAt`.
+ * payroll policy's `finalPayDeadlineDays` (the organization's `compliance.finalPayDays`
+ * only when no policy applies), a document's `expiresAt`.
  * Pure functions over already-loaded data, so the rules are tested directly.
  */
 
@@ -95,12 +96,14 @@ function issuesNote(issues?: FinalPayIssues): string {
  * read without the red flags behind it (HR concerns deck, Nov 2026).
  */
 export function finalPayRisks(
-  separations: { clearanceId: string; employeeName: string; lastWorkingDayKey: string; settlementId?: string; settlementStatus?: string | null; openIssues?: FinalPayIssues }[],
-  finalPayDays: number,
+  separations: { clearanceId: string; employeeName: string; lastWorkingDayKey: string; settlementId?: string; settlementStatus?: string | null; openIssues?: FinalPayIssues; finalPayDays?: number | null }[],
+  /** Fallback when a separation has no deadline of its own (payroll plan Phase 5: the policy's is the source). */
+  defaultFinalPayDays: number,
   todayKey: string,
 ): ActionItem[] {
   return separations.flatMap((separation) => {
     if (separation.settlementStatus === "disbursed" || separation.settlementStatus === "cancelled") return [];
+    const finalPayDays = separation.finalPayDays ?? defaultFinalPayDays;
     const deadlineKey = addDays(separation.lastWorkingDayKey, finalPayDays);
     const days = daysBetween(todayKey, deadlineKey);
     if (days > RISK_WINDOW_DAYS) return [];
@@ -117,6 +120,24 @@ export function finalPayRisks(
       },
     ];
   });
+}
+
+/**
+ * Active monthly payroll policies HR hasn't acknowledged (payroll plan Phase 6, owner: flag until acknowledged).
+ * Art. 103 asks for pay at least twice a month; monthly stays HR's choice, but an unacknowledged one is a risk.
+ */
+export function monthlyPayRisks(policies: { id: string; name: string; payFrequency: string; status?: string | null; acknowledged: boolean }[]): ActionItem[] {
+  return policies
+    .filter((policy) => policy.payFrequency === "monthly" && policy.status !== "inactive" && !policy.acknowledged)
+    .map((policy) => ({
+      id: `monthly-pay-${policy.id}`,
+      kind: "monthly-pay",
+      title: `Review monthly pay: ${policy.name}`,
+      detail: "Labor Code Art. 103 asks for pay at least twice a month. Change the frequency or acknowledge the risk.",
+      href: "/payroll/policies",
+      actionLabel: "Open policies",
+      urgency: "soon" as const,
+    }));
 }
 
 /** Employee documents (contracts, licenses, permits) expired or expiring within the window. */

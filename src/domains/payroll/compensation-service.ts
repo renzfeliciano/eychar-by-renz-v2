@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { connectMongoDB } from "@/server/db/connection";
-import { CompensationModel, EmployeeModel } from "@/server/db/models";
+import { CompensationModel, EmployeeModel, PayrollRecordModel, PayrollRunModel } from "@/server/db/models";
 import { assertInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService, type AuditRecordInput } from "@/server/audit/audit-service";
 import { withTransaction } from "@/server/db/transaction";
@@ -11,9 +11,16 @@ import { formatPersonName } from "@/lib/person-name";
 import { addDays, dateKeyToDate, dateToDateKey, formatDateKey, localDateKey } from "@/lib/date-key";
 import { roundMoney } from "./engine/money";
 import { projectsAsOf } from "./payroll-scope";
+import { compensationHistory, compensationTotal } from "./compensation-history";
 import type { BulkCompensationChangeInput, CreateCompensationInput, ReviseCompensationInput } from "@/shared/validation/payroll";
 
-type Terms = Omit<ReviseCompensationInput, "organizationId">;
+/** Pay terms as entered: a basic salary (or daily rate) and an annual increase, or a plain rate (a basic with no increase). The total is always computed here. */
+type RateFields = { rate?: number; baseRate?: number; annualIncrease?: number };
+type Terms = Omit<ReviseCompensationInput, "organizationId" | keyof RateFields> & RateFields;
+type CreateInput = Omit<CreateCompensationInput, keyof RateFields> & RateFields;
+
+/** Payroll runs past draft: pay terms they used are part of what was paid and can't be corrected in place. */
+const FINAL_RUN_STATUSES = ["submitted", "approved", "released"];
 type CompensationRow = { _id: Types.ObjectId; employeeId: Types.ObjectId; rateType: string; rate: number; effectiveFrom: Date; effectiveTo?: Date | null };
 
 export type BulkPreviewRow = {
@@ -31,8 +38,15 @@ function appliesOn<T extends { effectiveFrom: Date; effectiveTo?: Date | null }>
   return dateToDateKey(row.effectiveFrom) <= dateKey && (!row.effectiveTo || dateToDateKey(row.effectiveTo) >= dateKey);
 }
 
-function termsSnapshot(row: { rateType: string; rate: number; allowances?: unknown; minimumWageEarner?: boolean }) {
-  return { rateType: row.rateType, rate: row.rate, allowances: row.allowances, minimumWageEarner: row.minimumWageEarner };
+function termsSnapshot(row: { rateType: string; rate: number; baseRate?: number | null; annualIncrease?: number | null; allowances?: unknown; minimumWageEarner?: boolean }) {
+  return {
+    rateType: row.rateType,
+    baseRate: row.baseRate ?? row.rate,
+    annualIncrease: row.annualIncrease ?? 0,
+    rate: row.rate,
+    allowances: row.allowances,
+    minimumWageEarner: row.minimumWageEarner,
+  };
 }
 
 function applyChange(currentRate: number, changeType: BulkCompensationChangeInput["changeType"], value: number): number {
@@ -43,14 +57,16 @@ function applyChange(currentRate: number, changeType: BulkCompensationChangeInpu
 }
 
 /**
- * Effective-dated pay terms (ENGINEERING.md §27). Rows are never edited: a
- * revision closes the current terms the day before it starts, so every
- * calendar day resolves exactly one row and past payroll keeps using the
- * terms it was computed with.
+ * Effective-dated pay terms (ENGINEERING.md §27). A revision closes the
+ * current terms the day before it starts, so every calendar day resolves
+ * exactly one row and past payroll keeps using the terms it was computed
+ * with. The one exception is a correction: a revision dated the same day as
+ * the latest terms replaces them in place (a typo in a salary just entered),
+ * refused once a payroll run past draft has used them.
  */
 export const CompensationService = {
   /** The first pay terms for an employee; after that, use `revise`. */
-  async create(input: CreateCompensationInput, actor: { userId?: string }) {
+  async create(input: CreateInput, actor: { userId?: string }) {
     await connectMongoDB();
     await assertInOrganization(EmployeeModel, input.employeeId, input.organizationId, "Employee");
     const organizationId = new Types.ObjectId(input.organizationId);
@@ -63,7 +79,7 @@ export const CompensationService = {
       organizationId,
       employeeId,
       rateType: input.rateType,
-      rate: input.rate,
+      ...compensationTotal(input),
       allowances: input.allowances,
       minimumWageEarner: input.minimumWageEarner,
       effectiveFrom: dateKeyToDate(input.effectiveFrom ?? localDateKey()),
@@ -91,9 +107,10 @@ export const CompensationService = {
     const latest = await CompensationModel.findOne({ employeeId: employeeObjectId, organizationId: new Types.ObjectId(organizationId) }).sort({ effectiveFrom: -1 });
     if (!latest) throw new NotFoundError("This employee has no pay terms yet. Add them first.");
     const latestStart = dateToDateKey(latest.effectiveFrom);
-    if (latestStart >= effectiveKey) {
-      throw new ConflictError(`Pay terms already change on ${formatDateKey(latestStart)}. Revise from a later date.`);
+    if (latestStart > effectiveKey) {
+      throw new ConflictError(`Pay terms already change on ${formatDateKey(latestStart)}. Revise from that date or later.`);
     }
+    if (latestStart === effectiveKey) return this.correct(latest, organizationId, terms, actor);
 
     const before = termsSnapshot(latest);
     // Close and open together (ADR-041): a failure between the two writes must
@@ -107,7 +124,7 @@ export const CompensationService = {
             organizationId: new Types.ObjectId(organizationId),
             employeeId: employeeObjectId,
             rateType: terms.rateType,
-            rate: terms.rate,
+            ...compensationTotal(terms),
             allowances: terms.allowances,
             minimumWageEarner: terms.minimumWageEarner,
             effectiveFrom: dateKeyToDate(effectiveKey),
@@ -134,6 +151,44 @@ export const CompensationService = {
     return next;
   },
 
+  /** Replaces the latest terms in place, on their own start date. Called by `revise`. */
+  async correct(latest: { _id: Types.ObjectId; rateType: string; rate: number; baseRate?: number | null; annualIncrease?: number | null; allowances?: unknown; minimumWageEarner?: boolean; effectiveFrom: Date }, organizationId: string, terms: Terms, actor: { userId?: string }) {
+    const runIds = await PayrollRecordModel.distinct("payrollRunId", { compensationId: latest._id });
+    if (runIds.length && (await PayrollRunModel.exists({ _id: { $in: runIds }, status: { $in: FINAL_RUN_STATUSES } }))) {
+      throw new ConflictError(
+        `These pay terms are already used by payroll that was submitted or approved, so they can't be corrected. Enter the change from a later date instead.`,
+      );
+    }
+
+    const before = termsSnapshot(latest);
+    const corrected = await CompensationModel.findOneAndUpdate(
+      { _id: latest._id },
+      {
+        $set: {
+          rateType: terms.rateType,
+          ...compensationTotal(terms),
+          allowances: terms.allowances,
+          minimumWageEarner: terms.minimumWageEarner,
+          reason: terms.reason,
+        },
+      },
+      { new: true },
+    );
+    if (!corrected) throw new NotFoundError("These pay terms no longer exist. Reload and try again.");
+
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "compensation.corrected",
+      resourceType: "Compensation",
+      resourceId: corrected._id.toString(),
+      before,
+      after: termsSnapshot(corrected),
+      metadata: { effectiveFrom: dateToDateKey(latest.effectiveFrom), reason: terms.reason },
+    });
+    return corrected;
+  },
+
   async getAsOf(employeeId: string, organizationId: string, dateKey: string) {
     await connectMongoDB();
     if (!Types.ObjectId.isValid(employeeId)) return null;
@@ -158,19 +213,22 @@ export const CompensationService = {
     return byEmployee;
   },
 
-  /** Every employee with pay terms: what applies today and the next scheduled change, if any. */
+  /** Every employee with pay terms: what applies today, the next scheduled change if any, the latest terms, and the full history. */
   async listForOrganization(organizationId: string, todayKey: string = localDateKey()) {
     await connectMongoDB();
     const rows = await CompensationModel.find({ organizationId: new Types.ObjectId(organizationId) }).sort({ effectiveFrom: 1 }).lean();
-    const byEmployee = new Map<string, { employeeId: string; current: (typeof rows)[number] | null; upcoming: (typeof rows)[number] | null }>();
+    type Row = (typeof rows)[number];
+    const byEmployee = new Map<string, { employeeId: string; current: Row | null; upcoming: Row | null; latest: Row; rows: Row[] }>();
     for (const row of rows) {
       const employeeId = row.employeeId.toString();
-      const entry = byEmployee.get(employeeId) ?? { employeeId, current: null, upcoming: null };
+      const entry = byEmployee.get(employeeId) ?? { employeeId, current: null, upcoming: null, latest: row, rows: [] as Row[] };
       if (appliesOn(row, todayKey)) entry.current = row;
       else if (dateToDateKey(row.effectiveFrom) > todayKey && !entry.upcoming) entry.upcoming = row;
+      entry.latest = row;
+      entry.rows.push(row);
       byEmployee.set(employeeId, entry);
     }
-    return [...byEmployee.values()];
+    return [...byEmployee.values()].map(({ rows: employeeRows, ...entry }) => ({ ...entry, history: compensationHistory(employeeRows) }));
   },
 
   async listHistory(employeeId: string, organizationId: string) {
@@ -276,7 +334,8 @@ export const CompensationService = {
           organizationId,
           employeeId: new Types.ObjectId(row.employeeId),
           rateType: current.rateType as "monthly" | "daily",
-          rate: row.newRate!,
+          // A bulk change (a wage order) sets the new rate as the basic, with no increase of its own.
+          ...compensationTotal({ baseRate: row.newRate! }),
           allowances: current.allowances.map((allowance) => ({ ...allowance })),
           minimumWageEarner: current.minimumWageEarner,
           effectiveFrom: dateKeyToDate(effectiveKey),

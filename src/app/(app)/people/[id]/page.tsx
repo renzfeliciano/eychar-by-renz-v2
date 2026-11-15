@@ -36,7 +36,9 @@ import { EmploymentService } from "@/domains/workforce/employment-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 import { EducationLevelService } from "@/domains/catalog/education-level-service";
-import { educationLevelName, educationLevelOptions } from "@/domains/catalog/education-level-options";
+import { CivilStatusService } from "@/domains/catalog/civil-status-service";
+import { catalogChoiceName, catalogChoiceOptions } from "@/domains/catalog/catalog-choice-options";
+import { educationLevelName } from "@/domains/catalog/education-level-options";
 import { endReasonChoices } from "@/domains/workforce/end-reasons";
 import { contractEndOf, requiresEndOfContract } from "@/domains/workforce/contract-terms";
 import { userDisplayNames } from "@/domains/identity/user-directory";
@@ -161,9 +163,10 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const load = <T,>(when: boolean, query: () => Promise<T>, empty: T): Promise<T> => (when ? query() : Promise.resolve(empty));
 
   const now = new Date();
-  const [employmentTypes, employmentStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
+  const [employmentTypes, employmentStatuses, civilStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
     EmploymentTypeService.listCurrent(organizationId),
     EmploymentStatusService.listCurrent(organizationId),
+    CivilStatusService.listCurrent(organizationId),
     EducationLevelService.listCurrent(organizationId),
     load(on("overview"), async () => (await EducationRecordService.listForEmployee(id, organizationId)).map(toEducationRecordView), [] as EducationRecordView[]),
     PositionService.listCurrent(organizationId),
@@ -291,6 +294,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                 {educationLevelName(educationLevels, detail.person.educationLevelCode)}
               </p>
             )}
+            {detail.person?.civilStatusCode && (
+              <p className="mt-1 text-sm" data-testid="profile-civil-status">
+                <span className="text-muted-foreground">Civil status: </span>
+                {catalogChoiceName(civilStatuses, detail.person.civilStatusCode)}
+              </p>
+            )}
             {detail.person?.remarks && (
               <p className="mt-1 text-sm" data-testid="profile-remarks">
                 <span className="text-muted-foreground">Remarks: </span>
@@ -298,7 +307,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               </p>
             )}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* max-w-full lets the buttons wrap onto more lines on a phone; without it this group keeps its one-line width and the card's overflow-hidden cuts the last buttons off. */}
+          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
             {superAdmin && <HideToggle organizationId={organizationId} type="employee" id={employeeId} label={personName} hidden={Boolean(detail.employee.hiddenFromOthers)} />}
             {superAdmin && <DeleteRecordButton organizationId={organizationId} type="employee" id={employeeId} afterDeleteHref="/people" />}
             {canUpdate && isCurrentlyActive && detail.currentEmployment && !detail.currentEmployment.effectiveTo && employmentTypes.length > 0 && (
@@ -345,7 +355,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
               <EditEmployeeDialog
                 organizationId={organizationId}
                 employeeId={employeeId}
-                educationLevels={educationLevelOptions(educationLevels, detail.person.educationLevelCode)}
+                civilStatuses={catalogChoiceOptions(civilStatuses, detail.person.civilStatusCode)}
                 initialValue={{
                   firstName: detail.person.firstName,
                   middleName: detail.person.middleName,
@@ -353,11 +363,11 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   email: detail.person.email,
                   employeeNumber: detail.employee.employeeNumber,
                   gender: detail.person.gender,
+                  civilStatusCode: detail.person.civilStatusCode,
                   birthDate: detail.person.birthDate ? new Date(detail.person.birthDate).toISOString().slice(0, 10) : undefined,
                   phone: detail.person.phone,
                   address: detail.person.address,
                   remarks: detail.person.remarks,
-                  educationLevelCode: detail.person.educationLevelCode,
                   sssNumber: detail.person.sssNumber,
                   philHealthNumber: detail.person.philHealthNumber,
                   pagIbigNumber: detail.person.pagIbigNumber,
@@ -573,6 +583,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
             id: terms._id.toString(),
             rateType: terms.rateType,
             rate: terms.rate,
+            baseRate: terms.baseRate ?? terms.rate,
+            annualIncrease: terms.annualIncrease ?? 0,
             allowances: ((terms.allowances ?? []) as { amount: number }[]).reduce((sum, allowance) => sum + allowance.amount, 0),
             effectiveFrom: terms.effectiveFrom,
             effectiveTo: terms.effectiveTo,

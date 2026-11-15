@@ -51,7 +51,9 @@ const payrollRunSchema = new Schema(
     runType: { type: String, enum: ["regular", "thirteenth_month", "year_end_adjustment", "final"] },
     // A final-pay run pays one employee; two final runs for the same employee conflict.
     employeeId: { type: Schema.Types.ObjectId, ref: "Employee" },
-    payFrequency: { type: String, enum: ["weekly", "semi-monthly", "monthly"], required: true },
+    // A final run's settlement (payroll plan Phase 5).
+    finalSettlementId: { type: Schema.Types.ObjectId, ref: "FinalSettlement" },
+    payFrequency: { type: String, enum: ["weekly", "bi-weekly", "semi-monthly", "monthly"], required: true },
     payPeriodStart: { type: Date, required: true },
     payPeriodEnd: { type: Date, required: true },
     payDate: { type: Date, required: true },
@@ -86,11 +88,11 @@ const payrollRunSchema = new Schema(
     blockingIssues: { type: Number, default: 0 },
     warningCount: { type: Number, default: 0 },
     computedAt: { type: Date },
-    // Held while the run is being recalculated (see withComputeLock in
-    // payroll-run-service.ts); expires on its own if a server dies mid-way.
     // Computes overtime, rest-day, holiday and night pay from the stored attendance day results
     // (attendance plan Phase 5). Set on new regular runs; runs made before it pay as they always did.
     computePremiums: { type: Boolean },
+    // Held while the run is being recalculated (see withComputeLock in
+    // payroll-run-service.ts); expires on its own if a server dies mid-way.
     computeLock: { type: String },
     computeLockUntil: { type: Date },
     preparedBy: { type: Schema.Types.ObjectId, ref: "User" },

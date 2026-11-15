@@ -160,6 +160,8 @@ export default async function PayrollSchedulesPage() {
                     payDateOffsetDays: schedule.payDateOffsetDays,
                     autoPrepare: schedule.autoPrepare,
                     status: schedule.status as "active" | "inactive",
+                    anchorDate: schedule.anchorDate ? dateToDateKey(new Date(schedule.anchorDate)) : undefined,
+                    monthlyAcknowledged: Boolean(schedule.monthlyPayAcknowledgement),
                   }}
                 />
               ) : null,

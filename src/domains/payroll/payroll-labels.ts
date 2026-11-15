@@ -39,13 +39,14 @@ export const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thurs
 /** Kept for existing imports: the one money formatter is `formatMoney` in `@/lib/money`. */
 export { formatMoney as formatPeso } from "@/lib/money";
 
-/** "Every 10th and 25th", "Every month on the 31st", "Weekly, ending Saturday". */
+/** "Every 10th and 25th", "Every month on the 31st", "Weekly, ending Saturday", "Every two weeks, ending Friday". */
 export function describeCutoffs(payFrequency: string, cutoffDay: number): string {
   const ordinal = (day: number) => {
     const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
     return `${day}${suffix}`;
   };
   if (payFrequency === "weekly") return `Weekly, ending ${WEEKDAY_NAMES[cutoffDay] ?? "?"}`;
+  if (payFrequency === "bi-weekly") return `Every two weeks, ending ${WEEKDAY_NAMES[cutoffDay] ?? "?"}`;
   if (payFrequency === "monthly") return cutoffDay >= 28 ? "Monthly, ending on the last day" : `Monthly, ending on the ${ordinal(cutoffDay)}`;
   return cutoffDay >= 15 ? "Cutoffs end on the 15th and the last day" : `Cutoffs end on the ${ordinal(cutoffDay)} and ${ordinal(cutoffDay + 15)}`;
 }

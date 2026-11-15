@@ -16,9 +16,11 @@ import { HOLIDAY_DAY_TYPE_DEFAULTS, type HolidayDayType } from "@/domains/payrol
 import { HOLIDAY_TYPE_LABELS, HOLIDAY_TYPES, type HolidayType } from "@/domains/holidays/holiday-types";
 import { localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
+import { PAY_FREQUENCIES, PAY_FREQUENCY_LABELS } from "@/domains/payroll/engine/pay-frequency";
+import { MonthlyPayNotice } from "../monthly-pay-notice";
 
-// Monthly only for now (decided 2026-11-14). Semi-monthly and bi-weekly are planned; the engine doesn't support bi-weekly yet.
-const FREQUENCIES: SelectOption[] = [{ id: "monthly", label: "Monthly" }];
+// Pay frequency is HR's choice (payroll plan Phase 6). Monthly needs the Art. 103 acknowledgement ticked.
+const FREQUENCIES: SelectOption[] = PAY_FREQUENCIES.map((id) => ({ id, label: PAY_FREQUENCY_LABELS[id] }));
 const TIMING: SelectOption[] = [
   { id: "every_cutoff", label: "Split across the month's cutoffs" },
   { id: "last_cutoff_of_month", label: "Whole month on the last cutoff" },
@@ -26,7 +28,8 @@ const TIMING: SelectOption[] = [
 const EMPTY = {
   name: "",
   projectId: "",
-  payFrequency: "monthly",
+  payFrequency: "semi-monthly",
+  acknowledgeMonthlyPay: false,
   workDaysPerYear: "261",
   hoursPerDay: "8",
   finalPayDeadlineDays: "30",
@@ -88,6 +91,7 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
   async function save() {
     setError(null);
     if (!form.name.trim()) return setError("Name the policy.");
+    if (form.payFrequency === "monthly" && !form.acknowledgeMonthlyPay) return setError("Tick the acknowledgement to choose monthly pay.");
     setSaving(true);
     const response = await fetch("/api/payroll-policies", {
       method: "POST",
@@ -97,6 +101,7 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
         name: form.name.trim(),
         projectId: form.projectId || undefined,
         payFrequency: form.payFrequency,
+        acknowledgeMonthlyPay: form.payFrequency === "monthly" ? form.acknowledgeMonthlyPay : undefined,
         workDaysPerYear: Number(form.workDaysPerYear),
         hoursPerDay: Number(form.hoursPerDay),
         finalPayDeadlineDays: Number(form.finalPayDeadlineDays),
@@ -151,8 +156,9 @@ export function CreatePayrollPolicyDialog({ organizationId, projects }: { organi
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
             <OptionSelect label="Applies to" value={form.projectId} onChange={(projectId) => setForm({ ...form, projectId })} options={projects} placeholder="Whole organization" />
-            <OptionSelect label="Pay frequency" value={form.payFrequency} onChange={(value) => setForm({ ...form, payFrequency: value || "monthly" })} options={FREQUENCIES} placeholder="Monthly" required />
+            <OptionSelect label="Pay frequency" value={form.payFrequency} onChange={(value) => setForm({ ...form, payFrequency: value || "semi-monthly", acknowledgeMonthlyPay: false })} options={FREQUENCIES} placeholder="Semi-monthly" required />
           </div>
+          {form.payFrequency === "monthly" && <MonthlyPayNotice checked={form.acknowledgeMonthlyPay} onCheckedChange={(acknowledgeMonthlyPay) => setForm({ ...form, acknowledgeMonthlyPay })} />}
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Workdays</span>
             <div className="flex flex-wrap gap-1.5">
