@@ -8,8 +8,6 @@ import { PositionService } from "@/domains/organization/position-service";
 import { ProjectService } from "@/domains/organization/project-service";
 import { EmploymentTypeService } from "@/domains/catalog/employment-type-service";
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
-import { EducationLevelService } from "@/domains/catalog/education-level-service";
-import { educationLevelName } from "@/domains/catalog/education-level-options";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -53,12 +51,11 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     return <NoAccessState permission="employees.read" message="You don't have access to view employees." />;
   }
 
-  const [positions, projects, employmentTypes, employmentStatuses, educationLevels] = await Promise.all([
+  const [positions, projects, employmentTypes, employmentStatuses] = await Promise.all([
     PositionService.listCurrent(organizationId),
     ProjectService.listCurrent(organizationId),
     EmploymentTypeService.listCurrent(organizationId),
     EmploymentStatusService.listCurrent(organizationId),
-    EducationLevelService.listCurrent(organizationId),
   ]);
   const positionTitleById = new Map(positions.map((position) => [position._id.toString(), position.title]));
   const projectNameById = new Map(projects.map((project) => [project._id.toString(), project.name]));
@@ -249,13 +246,9 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
               render: (row) => (row.currentEmployment?.effectiveFrom ? formatLengthOfService(new Date(row.currentEmployment.effectiveFrom)) : "—"),
             },
             {
-              key: "education",
-              header: "Education", mobile: "hidden",
-              className: "max-w-56",
-              render: (row) => {
-                const name = educationLevelName(educationLevels, row.person?.educationLevelCode);
-                return name ? <span className="block truncate" title={name}>{name}</span> : "—";
-              },
+              key: "civilStatus",
+              header: "Civil status", mobile: "hidden",
+              render: (row) => row.person?.civilStatus ?? "—",
             },
             {
               key: "remarks",

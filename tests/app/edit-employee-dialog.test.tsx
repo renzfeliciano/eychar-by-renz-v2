@@ -86,3 +86,31 @@ describe("EditEmployeeDialog: educational attainment", () => {
     expect((await save()).educationLevelCode).toBe("old_level");
   });
 });
+
+describe("EditEmployeeDialog: civil status", () => {
+  it("sends the status on file back unchanged when nothing else is touched", async () => {
+    const user = setupUser();
+    render(<EditEmployeeDialog {...base} initialValue={{ ...person, civilStatus: "Single" }} />);
+
+    const { save } = await openAndSave(user);
+    expect((await save()).civilStatus).toBe("Single");
+  });
+
+  it("sends the newly chosen status", async () => {
+    const user = setupUser();
+    render(<EditEmployeeDialog {...base} initialValue={{ ...person, civilStatus: "Single" }} />);
+
+    const { save } = await openAndSave(user);
+    await user.click(screen.getByLabelText(/Civil status/));
+    await user.click(await screen.findByRole("option", { name: "Married" }));
+    expect((await save()).civilStatus).toBe("Married");
+  });
+
+  it("sends an empty value for someone with none on file, which leaves it unset", async () => {
+    const user = setupUser();
+    render(<EditEmployeeDialog {...base} initialValue={person} />);
+
+    const { save } = await openAndSave(user);
+    expect((await save()).civilStatus).toBe("");
+  });
+});

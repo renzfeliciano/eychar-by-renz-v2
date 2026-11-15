@@ -8,6 +8,7 @@ const row: PeopleExportRow = {
   employeeNumber: "E-001",
   name: "Jane Doe",
   gender: "Female",
+  civilStatus: "Married",
   position: "Engineer",
   project: "HQ",
   employmentStatus: "Active",
@@ -18,7 +19,6 @@ const row: PeopleExportRow = {
   contactNumber: "",
   address: "",
   remarks: "Senior",
-  educationLevel: "Master’s Degree",
   sssNumber: "",
   philHealthNumber: "",
   pagIbigNumber: "",
@@ -26,27 +26,29 @@ const row: PeopleExportRow = {
 };
 
 describe("the roster export", () => {
-  it("has an Educational attainment column carrying the level's name", () => {
-    const column = PEOPLE_EXPORT.columns.find((item) => item.header === "Educational attainment");
+  it("has a Civil status column and no Educational attainment column", () => {
+    const column = PEOPLE_EXPORT.columns.find((item) => item.header === "Civil status");
     expect(column).toBeDefined();
-    expect(column!.value(row)).toBe("Master’s Degree");
-    expect(column!.value({ ...row, educationLevel: "" })).toBe("");
+    expect(column!.value(row)).toBe("Married");
+    expect(column!.value({ ...row, civilStatus: "" })).toBe("");
+    expect(PEOPLE_EXPORT.columns.map((item) => item.header)).not.toContain("Educational attainment");
   });
 
-  it("keeps the other columns where they were", () => {
+  it("keeps Remarks, with Civil status next to Gender", () => {
     const headers = PEOPLE_EXPORT.columns.map((item) => item.header);
     expect(headers).toContain("Remarks");
-    expect(headers.indexOf("Educational attainment")).toBeGreaterThan(headers.indexOf("Birth date"));
-    expect(headers.indexOf("Educational attainment")).toBeLessThan(headers.indexOf("SSS no"));
+    expect(headers.indexOf("Civil status")).toBe(headers.indexOf("Gender") + 1);
   });
 });
 
 describe("the roster print report", () => {
-  it("shows each person's educational attainment, or a dash when there is none", () => {
-    render(<PeoplePrintReport rows={[row, { ...row, name: "No Level", employeeNumber: "E-002", educationLevel: "" }]} />);
-    expect(screen.getByRole("columnheader", { name: "Educational attainment" })).toBeTruthy();
-    expect(screen.getByText("Master’s Degree")).toBeTruthy();
-    const dashRow = screen.getByText("No Level").closest("tr")!;
+  it("shows each person's civil status, or a dash when there is none, and keeps Remarks", () => {
+    render(<PeoplePrintReport rows={[row, { ...row, name: "No Status", employeeNumber: "E-002", civilStatus: "" }]} />);
+    expect(screen.getByRole("columnheader", { name: "Civil status" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Remarks" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Educational attainment" })).toBeNull();
+    expect(screen.getByText("Married")).toBeTruthy();
+    const dashRow = screen.getByText("No Status").closest("tr")!;
     expect(dashRow.textContent).toContain("—");
   });
 });

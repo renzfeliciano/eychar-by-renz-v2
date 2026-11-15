@@ -26,7 +26,7 @@ export type RosterPageQuery = {
   contractsEnding?: { from: Date; to: Date; activeStatuses: string[]; typesWithoutEnd: string[] };
 };
 
-type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date; remarks?: string; educationLevelCode?: string };
+type RosterPerson = { firstName: string; middleName?: string; lastName: string; email?: string; birthDate?: Date; remarks?: string; civilStatus?: string };
 export type RosterRow = {
   _id: Types.ObjectId;
   employeeNumber?: string;
@@ -142,7 +142,7 @@ export const EmployeeRosterService = {
                   "person.email": 1,
                   "person.birthDate": 1,
                   "person.remarks": 1,
-                  "person.educationLevelCode": 1,
+                  "person.civilStatus": 1,
                   currentEmployment: 1,
                   currentAssignment: 1,
                 },
@@ -216,8 +216,6 @@ export const EmployeeRosterService = {
       positionTitleById: Map<string, string>;
       projectNameById: Map<string, string>;
       statusNameByCode: Map<string, string>;
-      /** Catalog names for education level codes; a code with no name is shown as entered. */
-      educationLevelNameByCode?: Map<string, string>;
     },
     employmentType?: string,
   ): Promise<RosterExportRow[]> {
@@ -231,6 +229,7 @@ export const EmployeeRosterService = {
           employeeNumber: row.employeeNumber ?? "—",
           name: row.person ? formatPersonName(row.person) : "—",
           gender: row.person?.gender ?? "",
+          civilStatus: row.person?.civilStatus ?? "",
           position: row.currentAssignment?.positionId ? (lookups.positionTitleById.get(row.currentAssignment.positionId.toString()) ?? "—") : "—",
           project: row.currentAssignment?.projectId ? (lookups.projectNameById.get(row.currentAssignment.projectId.toString()) ?? "—") : "—",
           employmentStatus: row.currentEmployment ? (lookups.statusNameByCode.get(row.currentEmployment.status) ?? row.currentEmployment.status) : "—",
@@ -241,7 +240,6 @@ export const EmployeeRosterService = {
           contactNumber: row.person?.phone ?? "",
           address: row.person?.address ?? "",
           remarks: row.person?.remarks ?? "",
-          educationLevel: row.person?.educationLevelCode ? (lookups.educationLevelNameByCode?.get(row.person.educationLevelCode) ?? row.person.educationLevelCode) : "",
           sssNumber: row.person?.sssNumber ?? "",
           philHealthNumber: row.person?.philHealthNumber ?? "",
           pagIbigNumber: row.person?.pagIbigNumber ?? "",
@@ -256,6 +254,7 @@ export type RosterExportRow = {
   employeeNumber: string;
   name: string;
   gender: string;
+  civilStatus: string;
   position: string;
   project: string;
   employmentStatus: string;
@@ -266,7 +265,6 @@ export type RosterExportRow = {
   contactNumber: string;
   address: string;
   remarks: string;
-  educationLevel: string;
   sssNumber: string;
   philHealthNumber: string;
   pagIbigNumber: string;

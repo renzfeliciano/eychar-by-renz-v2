@@ -291,6 +291,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                 {educationLevelName(educationLevels, detail.person.educationLevelCode)}
               </p>
             )}
+            {detail.person?.civilStatus && (
+              <p className="mt-1 text-sm" data-testid="profile-civil-status">
+                <span className="text-muted-foreground">Civil status: </span>
+                {detail.person.civilStatus}
+              </p>
+            )}
             {detail.person?.remarks && (
               <p className="mt-1 text-sm" data-testid="profile-remarks">
                 <span className="text-muted-foreground">Remarks: </span>
@@ -353,6 +359,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   email: detail.person.email,
                   employeeNumber: detail.employee.employeeNumber,
                   gender: detail.person.gender,
+                  civilStatus: detail.person.civilStatus,
                   birthDate: detail.person.birthDate ? new Date(detail.person.birthDate).toISOString().slice(0, 10) : undefined,
                   phone: detail.person.phone,
                   address: detail.person.address,
@@ -573,6 +580,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
             id: terms._id.toString(),
             rateType: terms.rateType,
             rate: terms.rate,
+            baseRate: terms.baseRate ?? terms.rate,
+            annualIncrease: terms.annualIncrease ?? 0,
             allowances: ((terms.allowances ?? []) as { amount: number }[]).reduce((sum, allowance) => sum + allowance.amount, 0),
             effectiveFrom: terms.effectiveFrom,
             effectiveTo: terms.effectiveTo,

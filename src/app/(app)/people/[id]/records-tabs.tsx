@@ -74,23 +74,27 @@ export function AttendanceTab({ records, days }: { records: AttendanceRow[]; day
   );
 }
 
-type PayTermsRow = { id: string; rateType: string; rate: number; allowances: number; effectiveFrom: Date; effectiveTo?: Date | null; reason?: string };
+/** Newest first (CompensationService.listHistory). `rate` is the total paid: `baseRate` plus `annualIncrease`. */
+type PayTermsRow = { id: string; rateType: string; rate: number; baseRate: number; annualIncrease: number; allowances: number; effectiveFrom: Date; effectiveTo?: Date | null; reason?: string };
 type PayslipRow = { id: string; runId: string; runNumber: string; status: string; periodStart: Date; periodEnd: Date; payDate: Date; grossPay: number; netPay: number };
 
 export function PayTab({ terms, payslips, showTerms, showPayslips }: { terms: PayTermsRow[]; payslips: PayslipRow[]; showTerms: boolean; showPayslips: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       {showTerms && (
-        <Section title="Pay terms" description="Rate and allowances, with every change kept" href="/payroll/compensation" linkLabel="Change in Compensation">
+        <Section title="Pay terms" description="Every salary change: what it replaced, the revised basic, the increase and the date it took effect" href="/payroll/compensation" linkLabel="Change in Compensation">
           <DataTable
-            rows={terms}
+            rows={terms.map((row, index) => ({ ...row, previousRate: terms[index + 1]?.rate ?? null }))}
             getRowKey={(row) => row.id}
             emptyMessage="No pay terms on file."
             emptyDescription="Payroll skips anyone without pay terms."
             testId="profile-pay-terms"
             columns={[
               { key: "from", header: "Effective", render: (row) => `${formatDate(row.effectiveFrom)} – ${row.effectiveTo ? formatDate(row.effectiveTo) : "now"}` },
-              { key: "rate", header: "Rate", width: "md", render: (row) => `${formatMoney(row.rate)} / ${row.rateType === "daily" ? "day" : "month"}` },
+              { key: "previous", header: "Previous", width: "sm", render: (row) => (row.previousRate === null ? "—" : formatMoney(row.previousRate)) },
+              { key: "basic", header: "Revised basic", width: "sm", render: (row) => formatMoney(row.baseRate) },
+              { key: "increase", header: "Increase", width: "sm", render: (row) => (row.annualIncrease ? formatMoney(row.annualIncrease) : "—") },
+              { key: "rate", header: "New total", width: "md", render: (row) => `${formatMoney(row.rate)} / ${row.rateType === "daily" ? "day" : "month"}` },
               { key: "allowances", header: "Allowances", width: "sm", render: (row) => (row.allowances ? formatMoney(row.allowances) : "—") },
               { key: "reason", header: "Reason", width: "lg", render: (row) => row.reason || "—" },
             ]}

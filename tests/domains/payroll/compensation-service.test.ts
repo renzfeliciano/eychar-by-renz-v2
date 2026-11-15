@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { connectMongoDB } from "@/server/db/connection";
 import mongoose, { Types } from "mongoose";
-import { AuditLogModel, CompensationModel, EmployeeAssignmentModel, EmployeeModel, EmploymentModel, PersonModel } from "@/server/db/models";
+import { AuditLogModel, CompensationModel, EmployeeAssignmentModel, EmployeeModel, EmploymentModel, PayrollRecordModel, PayrollRunModel, PersonModel } from "@/server/db/models";
 import { CompensationService } from "@/domains/payroll/compensation-service";
 import { ConflictError } from "@/shared/errors";
 import { dateKeyToDate } from "@/lib/date-key";
@@ -67,12 +67,95 @@ describe("CompensationService", () => {
     expect((await CompensationService.getAsOf(employeeId, organizationId, "2026-10-15"))?.rate).toBe(30000);
   });
 
-  it("refuses a revision dated on or before the current terms' start", async () => {
+  it("refuses a revision dated before the latest terms' start", async () => {
     const { organizationId } = await seedPayrollOrganization();
     const employeeId = await seedEmployee(organizationId, "Maria");
+    await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 32000, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-01-01" }, {});
     await expect(
-      CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 1, allowances: [], minimumWageEarner: false, effectiveFrom: "2025-01-01" }, {}),
+      CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 1, allowances: [], minimumWageEarner: false, effectiveFrom: "2025-06-01" }, {}),
     ).rejects.toThrow(ConflictError);
+  });
+
+  describe("basic salary plus an annual increase", () => {
+    it("stores the revised basic and the increase separately and pays their total (Adrian Napay's example)", async () => {
+      const { organizationId } = await seedPayrollOrganization();
+      const employeeId = await seedEmployee(organizationId, "Adrian", { compensation: { rateType: "monthly", rate: 25000 } });
+
+      const revised = await CompensationService.revise(
+        employeeId,
+        organizationId,
+        { rateType: "monthly", baseRate: 37000, annualIncrease: 3000, rate: 40000, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-12-01", reason: "Salary revision" },
+        {},
+      );
+      expect(revised).toMatchObject({ baseRate: 37000, annualIncrease: 3000, rate: 40000 });
+      expect((await CompensationService.getAsOf(employeeId, organizationId, "2026-11-30"))?.rate).toBe(25000);
+      expect((await CompensationService.getAsOf(employeeId, organizationId, "2026-12-01"))?.rate).toBe(40000);
+
+      const audit = await AuditLogModel.findOne({ action: "compensation.revised", resourceId: revised._id.toString() }).lean();
+      expect(audit?.before).toMatchObject({ rate: 25000 });
+      expect(audit?.after).toMatchObject({ baseRate: 37000, annualIncrease: 3000, rate: 40000 });
+    });
+
+    it("computes the total itself, whatever total the caller sent", async () => {
+      const { organizationId } = await seedPayrollOrganization();
+      const employeeId = await seedEmployee(organizationId, "Totals", { compensation: { rateType: "monthly", rate: 25000 } });
+      const revised = await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", baseRate: 37000.5, annualIncrease: 2999.5, rate: 1, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-12-01" }, {});
+      expect(revised.rate).toBe(40000);
+    });
+  });
+
+  describe("correcting a change", () => {
+    it("corrects the latest terms in place when revised on the same date, keeping the day-before close of the terms before it", async () => {
+      const { organizationId } = await seedPayrollOrganization();
+      const employeeId = await seedEmployee(organizationId, "Typo", { compensation: { rateType: "monthly", rate: 25000 } });
+      const first = await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", baseRate: 3700, annualIncrease: 3000, rate: 6700, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-12-01" }, {});
+
+      const corrected = await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", baseRate: 37000, annualIncrease: 3000, rate: 40000, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-12-01", reason: "Typo in basic" }, {});
+
+      expect(corrected._id.toString()).toBe(first._id.toString());
+      const rows = await CompensationModel.find({ employeeId }).sort({ effectiveFrom: 1 }).lean();
+      expect(rows).toHaveLength(2);
+      expect(rows[0].effectiveTo).toEqual(dateKeyToDate("2026-11-30"));
+      expect(rows[1]).toMatchObject({ baseRate: 37000, annualIncrease: 3000, rate: 40000, reason: "Typo in basic" });
+      const audit = await AuditLogModel.findOne({ action: "compensation.corrected", resourceId: first._id.toString() }).lean();
+      expect(audit?.before).toMatchObject({ rate: 6700 });
+      expect(audit?.after).toMatchObject({ rate: 40000 });
+    });
+
+    it("can correct the very first terms on their start date", async () => {
+      const { organizationId } = await seedPayrollOrganization();
+      const employeeId = await seedEmployee(organizationId, "First", { compensation: { rateType: "monthly", rate: 25000 } });
+      await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 26000, allowances: [], minimumWageEarner: false, effectiveFrom: "2025-01-01" }, {});
+      const rows = await CompensationModel.find({ employeeId }).lean();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].rate).toBe(26000);
+    });
+
+    it("refuses to correct terms a submitted, approved or released payroll run already used", async () => {
+      const { organizationId } = await seedPayrollOrganization();
+      const employeeId = await seedEmployee(organizationId, "Paid", { compensation: { rateType: "monthly", rate: 25000 } });
+      const terms = await CompensationModel.findOne({ employeeId }).lean();
+      const runId = new Types.ObjectId();
+      await PayrollRunModel.collection.insertOne({ _id: runId, organizationId: new Types.ObjectId(organizationId), runNumber: "RUN-approved", status: "approved" });
+      await PayrollRecordModel.collection.insertOne({ payrollRunId: runId, organizationId: new Types.ObjectId(organizationId), employeeId: new Types.ObjectId(employeeId), compensationId: terms!._id });
+
+      await expect(
+        CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 26000, allowances: [], minimumWageEarner: false, effectiveFrom: "2025-01-01" }, {}),
+      ).rejects.toThrow(/already used by payroll/);
+    });
+
+    it("allows the correction when only a draft or cancelled run used them", async () => {
+      const { organizationId } = await seedPayrollOrganization();
+      const employeeId = await seedEmployee(organizationId, "Draft", { compensation: { rateType: "monthly", rate: 25000 } });
+      const terms = await CompensationModel.findOne({ employeeId }).lean();
+      for (const status of ["draft", "cancelled"]) {
+        const runId = new Types.ObjectId();
+        await PayrollRunModel.collection.insertOne({ _id: runId, organizationId: new Types.ObjectId(organizationId), runNumber: `RUN-${status}`, status });
+        await PayrollRecordModel.collection.insertOne({ payrollRunId: runId, organizationId: new Types.ObjectId(organizationId), employeeId: new Types.ObjectId(employeeId), compensationId: terms!._id });
+      }
+      const corrected = await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", rate: 26000, allowances: [], minimumWageEarner: false, effectiveFrom: "2025-01-01" }, {});
+      expect(corrected.rate).toBe(26000);
+    });
   });
 
   it("lists today's terms and any change already scheduled", async () => {
@@ -82,6 +165,18 @@ describe("CompensationService", () => {
 
     const [row] = await CompensationService.listForOrganization(organizationId, "2026-09-28");
     expect(row).toMatchObject({ employeeId, current: { rate: 30000 }, upcoming: { rate: 35000 } });
+  });
+
+  it("lists each employee's pay history, newest first, with the salary each change replaced", async () => {
+    const { organizationId } = await seedPayrollOrganization();
+    const employeeId = await seedEmployee(organizationId, "Adrian", { compensation: { rateType: "monthly", rate: 25000 } });
+    await CompensationService.revise(employeeId, organizationId, { rateType: "monthly", baseRate: 37000, annualIncrease: 3000, allowances: [], minimumWageEarner: false, effectiveFrom: "2026-12-01" }, {});
+
+    const [row] = await CompensationService.listForOrganization(organizationId, "2026-11-15");
+    expect(row.history).toMatchObject([
+      { effectiveFrom: "2026-12-01", previousRate: 25000, baseRate: 37000, annualIncrease: 3000, rate: 40000, change: 15000 },
+      { effectiveFrom: "2025-01-01", previousRate: null, baseRate: 25000, annualIncrease: 0, rate: 25000 },
+    ]);
   });
 
   describe("bulk change", () => {

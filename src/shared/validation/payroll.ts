@@ -3,6 +3,7 @@ import { calendarDateSchema, dateSpanInDays } from "./schedule";
 import { objectId } from "@/shared/validation/object-id";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 import { HOLIDAY_DAY_TYPE_CHOICES } from "@/domains/payroll/holiday-day-types";
+import { compensationTotal } from "@/domains/payroll/compensation-history";
 
 const PAY_FREQUENCY = z.enum(["weekly", "semi-monthly", "monthly"]);
 const optionalId = z.string().max(200).trim().min(1).optional();
@@ -17,18 +18,36 @@ const allowanceSchema = z.object({
   taxable: z.boolean().default(false),
 });
 
-const compensationTermsSchema = z.object({
+const compensationTermsFields = {
   organizationId: objectId(),
   rateType: z.enum(["monthly", "daily"]),
-  rate: money("Rate").refine((value) => value > 0, "Rate must be more than zero"),
+  // The basic salary (or daily rate) and the annual increase on top of it;
+  // the total payroll pays (`rate`) is always computed from these. A plain
+  // `rate` with no basic is still accepted, as a basic with no increase.
+  baseRate: money("Basic salary").optional(),
+  annualIncrease: money("Annual increase").optional(),
+  rate: money("Rate").optional(),
   allowances: z.array(allowanceSchema).max(20).default([]),
   minimumWageEarner: z.boolean().default(false),
   effectiveFrom: calendarDateSchema.optional(),
   reason: z.string().trim().max(200).optional(),
-});
+};
 
-export const createCompensationSchema = compensationTermsSchema.extend({ employeeId: objectId() });
-export const reviseCompensationSchema = compensationTermsSchema;
+function withTotalRate<T extends { baseRate?: number; annualIncrease?: number; rate?: number }>(terms: T, ctx: z.RefinementCtx) {
+  if (terms.baseRate === undefined && terms.rate === undefined) {
+    ctx.addIssue({ code: "custom", path: ["baseRate"], message: "Enter the basic salary" });
+    return z.NEVER;
+  }
+  const total = compensationTotal(terms);
+  if (!(total.baseRate > 0)) {
+    ctx.addIssue({ code: "custom", path: ["baseRate"], message: "Basic salary must be more than zero" });
+    return z.NEVER;
+  }
+  return { ...terms, ...total };
+}
+
+export const createCompensationSchema = z.object({ ...compensationTermsFields, employeeId: objectId() }).transform(withTotalRate);
+export const reviseCompensationSchema = z.object(compensationTermsFields).transform(withTotalRate);
 
 export const BULK_CHANGE_TYPES = ["set_rate", "increase_amount", "increase_percent", "raise_to_minimum"] as const;
 

@@ -4,6 +4,7 @@ import { PersonModel } from "@/server/db/models";
 import { AuditService } from "@/server/audit/audit-service";
 import { NotFoundError } from "@/shared/errors";
 import { EducationLevelService } from "@/domains/catalog/education-level-service";
+import type { CivilStatus } from "@/shared/civil-status";
 
 export type CreatePersonInput = {
   organizationId: string;
@@ -13,6 +14,7 @@ export type CreatePersonInput = {
   email?: string;
   phone?: string;
   gender?: "Male" | "Female";
+  civilStatus?: CivilStatus;
   birthDate?: Date;
   address?: string;
   remarks?: string;
@@ -46,6 +48,7 @@ export const PersonService = {
       email: input.email,
       phone: input.phone,
       gender: input.gender,
+      civilStatus: input.civilStatus,
       birthDate: input.birthDate,
       address: input.address,
       remarks: input.remarks,
@@ -89,6 +92,7 @@ export const PersonService = {
       email: existing.email,
       phone: existing.phone,
       gender: existing.gender,
+      civilStatus: existing.civilStatus,
       birthDate: existing.birthDate,
       address: existing.address,
       remarks: existing.remarks,

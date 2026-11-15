@@ -74,3 +74,25 @@ describe("HireForm: educational attainment", () => {
     expect(screen.queryByRole("option", { name: "Master’s Degree" })).toBeNull();
   });
 });
+
+describe("HireForm: civil status", () => {
+  it("is optional: leaving it out sends nothing for it", async () => {
+    const user = setupUser();
+    render(<HireForm {...props} />);
+    await fillRequired(user);
+
+    const body = await submit(user);
+    expect(body).not.toHaveProperty("civilStatus");
+  });
+
+  it("sends the chosen status", async () => {
+    const user = setupUser();
+    render(<HireForm {...props} />);
+    await fillRequired(user);
+    await user.click(screen.getByLabelText(/Civil status/));
+    await user.click(await screen.findByRole("option", { name: "Married" }));
+
+    const body = await submit(user);
+    expect(body.civilStatus).toBe("Married");
+  });
+});
