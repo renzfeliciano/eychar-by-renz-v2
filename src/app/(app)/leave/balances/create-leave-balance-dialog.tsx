@@ -99,7 +99,7 @@ export function CreateLeaveBalanceDialog({ organizationId, employees, leaveTypes
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
-        className={cn(variant === "cell" ? "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10" : buttonVariants({ size: "sm" }))}
+        className={cn(variant === "cell" ? "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 max-md:min-h-10 max-md:px-3" : buttonVariants({ size: "sm" }))}
         data-testid={variant === "cell" ? "leave-balance-grant-cell" : "leave-balances-create-button"}
       >
         <Plus className="size-3.5" />

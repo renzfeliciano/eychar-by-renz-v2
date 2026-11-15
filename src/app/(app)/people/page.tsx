@@ -150,7 +150,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         </MetricStrip>
 
         <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-[var(--shadow-soft)] sm:flex-row sm:items-end">
-          <TableSearchInput placeholder="Search by name, employee #, or position…" />
+          <TableSearchInput placeholder="Search name, employee # or position" />
           <span aria-hidden="true" className="hidden h-9 w-px bg-border sm:block" />
           <PeopleFilters employmentTypes={employmentTypes.map((item) => ({ id: item.code, label: item.name }))} />
           {contractsEnding && (

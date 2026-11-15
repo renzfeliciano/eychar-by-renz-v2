@@ -50,6 +50,28 @@ describe("EducationBackgroundCard", () => {
     expect(screen.queryByTestId("education-remove-r1")).toBeNull();
   });
 
+  it("gives School the spare room, so a long school name isn't squeezed by the other columns", () => {
+    render(<EducationBackgroundCard {...base} records={RECORDS} canUpdate={false} />);
+    expect(screen.getByRole("columnheader", { name: "School" }).className).toContain("md:w-full");
+    expect(screen.getByRole("columnheader", { name: "Level" }).className).not.toContain("md:w-full");
+    expect(screen.getByRole("columnheader", { name: "Year graduated" }).className).not.toContain("md:w-full");
+  });
+
+  it("cuts a long school and course with an ellipsis: wrapped for the table, clamped to two lines on a phone", () => {
+    const longSchool = "Polytechnic University of the Philippines, Sta. Mesa Main Campus, College of Accountancy and Finance ".repeat(2).trim();
+    const longCourse = "Bachelor of Science in Accountancy with a Major in Management Accounting and Auditing ".repeat(2).trim();
+    render(<EducationBackgroundCard {...base} records={[{ id: "r9", levelCode: "bachelors_degree", school: longSchool, course: longCourse, yearGraduated: 2015 }]} canUpdate={false} />);
+
+    const school = screen.getByText(longSchool);
+    const course = screen.getByText(longCourse);
+    for (const element of [school, course]) {
+      expect(element.className).toContain("max-md:line-clamp-2");
+      expect(element.className).toContain("max-md:break-words");
+      // Desktop: the cell's TruncatedCell does the cutting and shows the full text on hover.
+      expect(element.closest('[data-testid="truncated-cell"]')).not.toBeNull();
+    }
+  });
+
   it("gives an updater add, edit and remove", () => {
     render(<EducationBackgroundCard {...base} records={RECORDS} canUpdate />);
     expect(screen.getByTestId("education-add-button")).toBeTruthy();

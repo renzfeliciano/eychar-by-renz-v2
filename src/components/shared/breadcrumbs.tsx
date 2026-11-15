@@ -104,7 +104,7 @@ export function MobileHeaderTitle() {
     );
   }
   return (
-    <Link href="/dashboard" className="shrink-0 text-sm font-semibold tracking-tight md:hidden">
+    <Link href="/dashboard" className="inline-flex h-10 shrink-0 items-center text-sm font-semibold tracking-tight md:hidden">
       {BRAND.name}
     </Link>
   );

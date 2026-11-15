@@ -1,6 +1,6 @@
 # Overview (Phase 0)
 
-**Built from commit:** `6587050` (main, 2026-11-09). **Verified:** 2026-11-14.
+**Built from commit:** `6587050` (main, 2026-11-09). **Verified:** 2026-11-14; dependency versions updated 2026-11-15.
 **Scope:** orientation only. Layers, domains and data are in later files.
 
 ## What it is

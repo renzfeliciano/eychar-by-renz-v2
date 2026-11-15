@@ -195,17 +195,21 @@ async function liveFacts(settlement: { organizationId: Types.ObjectId; employeeI
     .map(([label]) => label as string);
 
   // Phase 5a slices 2 and 4: the employment must have ended on the last working day, with the status the separation type means.
+  // An end scheduled for later (slice 3) counts as the ending, with its own date and status, until it is applied.
   let employmentProblem: string | null = null;
   const employment = employments[0];
-  if (!employment || !employment.effectiveTo) {
+  const endDate = employment?.effectiveTo ?? employment?.scheduledEnd?.effectiveTo;
+  const endStatus = employment?.effectiveTo ? employment.status : employment?.scheduledEnd?.status;
+  const scheduledNote = !employment?.effectiveTo && employment?.scheduledEnd ? " (scheduled)" : "";
+  if (!employment || !endDate) {
     employmentProblem = `The employment hasn't been ended yet. End it in People › End employment, effective ${formatDateKey(lastWorkingDay)}.`;
-  } else if (dateToDateKey(employment.effectiveTo) !== lastWorkingDay) {
-    employmentProblem = `The employment ends on ${formatDateKey(dateToDateKey(employment.effectiveTo))}, but the clearance's last working day is ${formatDateKey(lastWorkingDay)}. Correct one of them.`;
+  } else if (dateToDateKey(endDate) !== lastWorkingDay) {
+    employmentProblem = `The employment ends on ${formatDateKey(dateToDateKey(endDate))}${scheduledNote}, but the clearance's last working day is ${formatDateKey(lastWorkingDay)}. Correct one of them.`;
   } else if (clearance) {
     const type = await SeparationTypeModel.findOne({ organizationId: settlement.organizationId, code: clearance.separationTypeCode }).select("code name metadata").lean();
     const expected = employmentStatusForSeparation(type, clearance.separationTypeCode);
-    if (expected && employment.status !== expected) {
-      employmentProblem = `The clearance says ${type?.name ?? clearance.separationTypeCode}, which ends employment as "${expected}", but the employment is recorded as "${employment.status}". Correct the ending or the clearance.`;
+    if (expected && endStatus !== expected) {
+      employmentProblem = `The clearance says ${type?.name ?? clearance.separationTypeCode}, which ends employment as "${expected}", but the employment is recorded as "${endStatus}"${scheduledNote}. Correct the ending or the clearance.`;
     }
   }
 

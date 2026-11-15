@@ -103,7 +103,7 @@ export function ChecklistDialog({ organizationId, departments, items }: { organi
           <div className="grid gap-3 sm:grid-cols-[11rem_1fr]">
             <OptionSelect label="Department" value={departmentCode} onChange={setDepartmentCode} options={departments} placeholder="Select a department" testId="checklist-department-select" required />
             <FormField label="Item" htmlFor="checklist-title" required>
-              <Input id="checklist-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Return company laptop and charger" maxLength={120} required />
+              <Input id="checklist-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Return company laptop" maxLength={120} required />
             </FormField>
           </div>
           <OptionSelect label="Automatic check" value={autoSource} onChange={setAutoSource} options={AUTO_OPTIONS} placeholder="None (signed off by hand)" testId="checklist-auto-select" />

@@ -6,7 +6,7 @@ import { EmploymentTypeService } from "@/domains/catalog/employment-type-service
 import { EmploymentStatusService } from "@/domains/catalog/employment-status-service";
 import { BusinessRuleError, NotFoundError } from "@/shared/errors";
 import { requiresEndOfContract } from "./contract-terms";
-import { localDateKey } from "@/lib/date-key";
+import { dateKeyToDate, localDateKey } from "@/lib/date-key";
 
 export type CreateEmploymentInput = {
   organizationId: string;
@@ -26,7 +26,7 @@ export type ChangeEmploymentTermsInput = {
 
 const dayKey = (date: Date) => date.toISOString().slice(0, 10);
 
-export type EndingHistoryAction = "ended" | "ending_corrected" | "reinstated";
+export type EndingHistoryAction = "ended" | "ending_corrected" | "reinstated" | "end_scheduled" | "scheduled_end_cancelled";
 
 function endingEntry(action: EndingHistoryAction, status: string, effectiveTo: Date | undefined, reason: string | undefined, actor: { userId?: string }) {
   return {
@@ -41,10 +41,11 @@ function endingEntry(action: EndingHistoryAction, status: string, effectiveTo: D
 
 /**
  * The checks every ending shares (End employment and Edit ending): the status must be valid and not
- * an active-headcount one, and the last day can't be in the future or before the hire date. Only an
- * explicit active flag refuses a status: an unflagged item keeps the old behaviour (see isActiveStatus).
+ * an active-headcount one, and the last day can't be before the hire date. A future last day is only
+ * allowed where it is scheduled (`allowFuture`, End employment); an ending already in effect can't move
+ * into the future. Only an explicit active flag refuses a status (see isActiveStatus).
  */
-async function assertEndingFields(organizationId: string, employment: { effectiveFrom: Date }, patch: { status?: string; effectiveTo?: Date }) {
+async function assertEndingFields(organizationId: string, employment: { effectiveFrom: Date }, patch: { status?: string; effectiveTo?: Date }, allowFuture = false) {
   if (patch.status !== undefined) {
     await EmploymentStatusService.assertValidCode(organizationId, patch.status);
     const item = await EmploymentStatusService.getByCode(organizationId, patch.status);
@@ -53,11 +54,9 @@ async function assertEndingFields(organizationId: string, employment: { effectiv
       throw new BusinessRuleError(`"${item?.name ?? patch.status}" is an active status. Choose a reason that ends employment, such as Resigned or Terminated.`);
     }
   }
-  // The status flips now, so a future end date would drop the employee from current staff early.
-  // Until scheduled endings exist, end it on the last working day.
   if (patch.effectiveTo) {
-    if (dayKey(patch.effectiveTo) > localDateKey()) {
-      throw new BusinessRuleError("The end date can't be in the future yet. End the employment on the last working day.");
+    if (!allowFuture && dayKey(patch.effectiveTo) > localDateKey()) {
+      throw new BusinessRuleError("The end date can't be in the future here. To end it later, use End employment, which schedules it.");
     }
     if (dayKey(patch.effectiveTo) < dayKey(employment.effectiveFrom)) {
       throw new BusinessRuleError("The end date can't be before the employee was hired.");
@@ -163,9 +162,31 @@ export const EmploymentService = {
     // pick a specific reason — an org can also configure "resigned"/"awol"
     // etc. via Settings > Catalogs and pass one of those codes instead.
     const nextStatus = patch.status ?? "terminated";
-    await assertEndingFields(organizationId, employment, { status: nextStatus, effectiveTo: patch.effectiveTo });
+    await assertEndingFields(organizationId, employment, { status: nextStatus, effectiveTo: patch.effectiveTo }, true);
 
-    const before = { status: employment.status, effectiveTo: employment.effectiveTo };
+    // A last working day after today is scheduled, not applied (payroll plan Phase 5a slice 3): the employee stays
+    // active and paid through that day, and the daily job ends the employment the day after.
+    if (patch.effectiveTo && dayKey(patch.effectiveTo) > localDateKey()) {
+      if (employment.scheduledEnd) {
+        throw new BusinessRuleError(`An end is already scheduled for ${dayKey(employment.scheduledEnd.effectiveTo)}. Cancel it first to schedule another.`);
+      }
+      employment.scheduledEnd = { status: nextStatus, effectiveTo: patch.effectiveTo, terminationReason: patch.terminationReason || undefined, scheduledBy: actor.userId ? new Types.ObjectId(actor.userId) : undefined, scheduledAt: new Date() };
+      employment.endingHistory.push(endingEntry("end_scheduled", nextStatus, patch.effectiveTo, patch.terminationReason, actor));
+      await employment.save();
+      await AuditService.record({
+        organizationId,
+        actorUserId: actor.userId,
+        action: "employment.end_scheduled",
+        resourceType: "Employment",
+        resourceId: employment._id.toString(),
+        after: { status: nextStatus, effectiveTo: patch.effectiveTo, terminationReason: patch.terminationReason },
+      });
+      return employment;
+    }
+
+    const before = { status: employment.status, effectiveTo: employment.effectiveTo, scheduledEnd: employment.scheduledEnd ? dayKey(employment.scheduledEnd.effectiveTo) : undefined };
+    // Ending it now replaces any end scheduled for later.
+    employment.scheduledEnd = undefined;
     employment.status = nextStatus;
     employment.effectiveTo = patch.effectiveTo ?? new Date();
     if (patch.terminationReason) employment.terminationReason = patch.terminationReason;
@@ -287,14 +308,91 @@ export const EmploymentService = {
   },
 
   /**
+   * Cancels an end scheduled for later (payroll plan Phase 5a slice 3), e.g. a resignation withdrawn during the
+   * notice period. Only before it is applied; afterwards, Reinstate reverses it. Audited and kept in endingHistory.
+   */
+  async cancelScheduledEnd(employeeId: string, organizationId: string, input: { reason: string }, actor: { userId?: string }) {
+    await connectMongoDB();
+    const reason = input.reason.trim();
+    if (!reason) throw new BusinessRuleError("Say why the scheduled end is cancelled.");
+    const employment = await latestEmployment(employeeId, organizationId);
+    const scheduled = employment.scheduledEnd;
+    if (!scheduled) throw new BusinessRuleError("No end is scheduled for this employee.");
+    const updated = await EmploymentModel.findOneAndUpdate(
+      { _id: employment._id, organizationId: new Types.ObjectId(organizationId), "scheduledEnd.effectiveTo": scheduled.effectiveTo },
+      { $unset: { scheduledEnd: "" }, $push: { endingHistory: endingEntry("scheduled_end_cancelled", scheduled.status, scheduled.effectiveTo, reason, actor) } },
+      { returnDocument: "after" },
+    );
+    if (!updated) throw new BusinessRuleError("The scheduled end changed or was already applied. Reload and try again.");
+    await AuditService.record({
+      organizationId,
+      actorUserId: actor.userId,
+      action: "employment.scheduled_end_cancelled",
+      resourceType: "Employment",
+      resourceId: employment._id.toString(),
+      before: { status: scheduled.status, effectiveTo: scheduled.effectiveTo, terminationReason: scheduled.terminationReason },
+      after: { reason },
+    });
+    return updated;
+  },
+
+  /**
+   * Applies every scheduled end whose last working day is before `today` (the daily job; idempotent). Each one
+   * becomes an ordinary ending: status, last day and note set, `scheduledEnd` cleared, "ended" in endingHistory
+   * (credited to whoever scheduled it), audited as `employment.terminated`. Without `organizationId`, every
+   * organization (cron).
+   */
+  async applyDueScheduledEnds({ today = localDateKey(), organizationId }: { today?: string; organizationId?: string } = {}): Promise<number> {
+    await connectMongoDB();
+    const due = await EmploymentModel.find({
+      ...(organizationId ? { organizationId: new Types.ObjectId(organizationId) } : {}),
+      "scheduledEnd.effectiveTo": { $lt: dateKeyToDate(today) },
+    }).lean();
+    let applied = 0;
+    for (const employment of due) {
+      const scheduled = employment.scheduledEnd!;
+      const by = { userId: scheduled.scheduledBy?.toString() };
+      const updated = await EmploymentModel.findOneAndUpdate(
+        { _id: employment._id, "scheduledEnd.effectiveTo": scheduled.effectiveTo },
+        {
+          $set: { status: scheduled.status, effectiveTo: scheduled.effectiveTo, ...(scheduled.terminationReason ? { terminationReason: scheduled.terminationReason } : {}) },
+          $unset: { scheduledEnd: "" },
+          $push: { endingHistory: endingEntry("ended", scheduled.status, scheduled.effectiveTo, scheduled.terminationReason ?? undefined, by) },
+        },
+        { returnDocument: "after" },
+      );
+      if (!updated) continue;
+      applied += 1;
+      await AuditService.record({
+        organizationId: employment.organizationId.toString(),
+        actorUserId: by.userId,
+        action: "employment.terminated",
+        resourceType: "Employment",
+        resourceId: employment._id.toString(),
+        before: { status: employment.status, effectiveTo: employment.effectiveTo },
+        after: { status: updated.status, effectiveTo: updated.effectiveTo, terminationReason: updated.terminationReason },
+        metadata: { scheduled: true, scheduledAt: scheduled.scheduledAt },
+      });
+    }
+    return applied;
+  },
+
+  /**
    * What the profile needs to show Edit ending and Reinstate honestly: whether the latest employment has ended,
    * and the reason (the same message the action would throw) when reinstating is blocked or the last day is locked.
+   * `scheduledEnd` is an end recorded for later that hasn't taken effect (Phase 5a slice 3).
    */
-  async getEndingState(employeeId: string, organizationId: string): Promise<{ ended: boolean; reinstateBlockedReason: string | null; lastDayLockedReason: string | null }> {
+  async getEndingState(
+    employeeId: string,
+    organizationId: string,
+  ): Promise<{ ended: boolean; reinstateBlockedReason: string | null; lastDayLockedReason: string | null; scheduledEnd: { status: string; lastDay: string; reason: string | null } | null }> {
     await connectMongoDB();
     const employment = await latestEmployment(employeeId, organizationId);
+    const scheduledEnd = employment.scheduledEnd
+      ? { status: employment.scheduledEnd.status, lastDay: dayKey(employment.scheduledEnd.effectiveTo), reason: employment.scheduledEnd.terminationReason ?? null }
+      : null;
     const ended = Boolean(employment.effectiveTo) && !(await EmploymentService.isActiveStatus(organizationId, employment.status));
-    if (!ended) return { ended: false, reinstateBlockedReason: null, lastDayLockedReason: null };
+    if (!ended) return { ended: false, reinstateBlockedReason: null, lastDayLockedReason: null, scheduledEnd };
 
     const [disbursed, prepared, clearance] = await Promise.all([
       settlementSince(organizationId, employeeId, employment.effectiveFrom, { $eq: "disbursed" }),
@@ -305,6 +403,7 @@ export const EmploymentService = {
       ended: true,
       reinstateBlockedReason: disbursed ? PAID_OUT_MESSAGE : clearance ? CLEARANCE_OPEN_MESSAGE : null,
       lastDayLockedReason: prepared ? LAST_DAY_LOCKED_MESSAGE : null,
+      scheduledEnd: null,
     };
   },
 

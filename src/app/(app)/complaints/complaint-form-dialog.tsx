@@ -142,7 +142,7 @@ export function ComplaintFormDialog({
           </>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit complaint" : "Add complaint"}</DialogTitle>
           <DialogDescription>{isEdit ? "Updates who the complaint is about, when it was received, and the incident details." : "Logs an incident report or complaint about an employee. It starts in the first stage."}</DialogDescription>

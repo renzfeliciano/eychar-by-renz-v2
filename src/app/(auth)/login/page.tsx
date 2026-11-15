@@ -60,6 +60,10 @@ export default function LoginPage() {
     event.preventDefault();
     if (isSubmitting) return;
     setError(null);
+    if (step === "password" && (!login.trim() || !password)) {
+      setError("Enter your username or email and your password.");
+      return;
+    }
     setIsSubmitting(true);
 
     let result: Awaited<ReturnType<typeof signIn>>;

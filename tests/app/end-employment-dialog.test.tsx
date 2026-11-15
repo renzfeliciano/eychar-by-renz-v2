@@ -95,16 +95,17 @@ describe("EndEmploymentDialog", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ status: "resigned", effectiveTo: "2026-11-10" });
   });
 
-  it("refuses a future date before sending, and tells HR to come back on the last working day", async () => {
+  it("sends a future last day, explaining that the end is scheduled (payroll plan Phase 5a slice 3)", async () => {
     const user = setupUser();
     render(<EndEmploymentDialog {...props} />);
 
     await openAndPick(user, "Resigned");
     fireEvent.change(screen.getByLabelText(/Last day of employment/), { target: { value: "2026-12-15" } });
+    expect(screen.getByText(/they stay active and paid through this day/)).toBeTruthy();
     await user.click(screen.getByTestId("end-employment-submit"));
 
-    expect(await screen.findByText(/can't be in the future yet/)).toBeTruthy();
-    expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ status: "resigned", effectiveTo: "2026-12-15" });
   });
 
   it("refuses a date before the hire date before sending", async () => {

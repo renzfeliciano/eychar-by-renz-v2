@@ -20,6 +20,8 @@ export const ADJUSTMENT_CATEGORIES = [
   { code: "pagibig_loan", label: "Pag-IBIG loan", direction: "deduction", taxable: false },
   { code: "company_loan", label: "Company loan", direction: "deduction", taxable: false },
   { code: "cash_advance", label: "Cash advance", direction: "deduction", taxable: false },
+  // Tax a year-end adjustment run found still due; HR deducts it by hand on a later run (owner decision 2026-11-15).
+  { code: "year_end_tax", label: "Year-end tax collected", direction: "deduction", taxable: false },
   { code: "other_deduction", label: "Other deduction", direction: "deduction", taxable: false },
 ] as const satisfies readonly { code: string; label: string; direction: "earning" | "deduction"; taxable: boolean }[];
 

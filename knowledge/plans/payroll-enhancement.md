@@ -174,10 +174,10 @@ needs it, because the pay-out depends on why employment ended.
    terminated, and so on, configurable by HR. Opening a clearance then offers to end the employment with the mapped status
    on the last working day, and ending an employment offers to open clearance. Warn when the two disagree. Do not add a new
    field on `Employment` unless the owner wants one (§5 item 12).
-3. **Scheduled end (resignation with notice).** A resignation usually takes effect after a notice period. Keep the employee
+3. **Done 2026-11-15 (ADR-064; owner: active until the date).** **Scheduled end (resignation with notice).** A resignation usually takes effect after a notice period. Keep the employee
    active until the effective date, and show "ending on <date>". Decide whether a daily job or a read-time check applies the
    status (the cron pattern already exists). Until built, slice 1 should tell HR to end the employment on the last working day.
-4. **Hand-off to final pay.** Phase 5's variance checks add "employment not ended or not yet effective", and the settlement reads
+4. **Done 2026-11-15 (ADR-064 item 5).** **Hand-off to final pay.** Phase 5's variance checks add "employment not ended or not yet effective", and the settlement reads
    the last working day from one source.
 
 **Out of scope here, but flagged:** separation pay depends on the **cause** (authorized causes such as redundancy, retrenchment,
@@ -377,6 +377,8 @@ Engine rounding: daily rate = round(monthly × 12 ÷ 261); hourly = round(daily 
 ---
 
 ## Appendix B: Phase 4 design: year-end tax and Form 2316 data (Gate C draft)
+
+> **Box numbers corrected 2026-11-15:** the numbers below are the Gate C draft's, two higher than the official BIR Form 2316 (January 2018 ENCS). The template now uses the form's own: non-taxable items 27–35 (13th month 32), taxable 37–49 (basic 37, taxable 13th month 46). Read each number here as two lower. Gaps B25.
 
 **Status:** Gate C approved as drafted, 2026-11-14 (owner). The [verify] marks stay open as legal checks (gaps file).
 Decisions:
