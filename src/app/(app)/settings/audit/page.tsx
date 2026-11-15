@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { addDays, localDateKey } from "@/lib/date-key";
 import { cn } from "@/lib/utils";
 import { AuditEntrySheet } from "./audit-entry-sheet";
+import { describeRecordType } from "./audit-fields";
 import { NoAccessState } from "@/components/shared/no-access-state";
 import { formatDateTime } from "@/lib/app-time";
 
@@ -126,7 +127,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
               </span>
             ),
           },
-          { key: "record", header: "Record", render: (row) => <span className="text-muted-foreground">{row.resourceType}</span> },
+          { key: "record", header: "Record", render: (row) => <span className="text-muted-foreground">{describeRecordType(row.resourceType)}</span> },
           {
             key: "details",
             header: "",

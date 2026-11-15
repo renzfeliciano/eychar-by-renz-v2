@@ -24,6 +24,7 @@ import { HOLIDAY_TYPE_LABELS } from "@/domains/holidays/holiday-types";
 import { DayDetailsDialog } from "./day-details-dialog";
 import { HOLIDAY_DOT, strongestHolidayType } from "./holiday-badge";
 import { cellKey, useGridSelection } from "./use-grid-selection";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -102,7 +103,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
     try {
       await save(entries, false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save the schedule.");
+      toast.error(friendlyErrorMessage(err, "Failed to save the schedule."));
     } finally {
       setQuickSavingId(null);
     }
@@ -129,7 +130,7 @@ export function ScheduleGrid({ organizationId, view, shifts, projects, canUpdate
       );
       setAssignOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save the schedule.");
+      setError(friendlyErrorMessage(err, "Failed to save the schedule."));
     } finally {
       setIsSaving(false);
     }

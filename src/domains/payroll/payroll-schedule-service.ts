@@ -3,7 +3,8 @@ import { connectMongoDB } from "@/server/db/connection";
 import { PayrollRunModel, PayrollScheduleModel, ProjectModel } from "@/server/db/models";
 import { assertOptionalInOrganization } from "@/server/db/assert-in-organization";
 import { AuditService } from "@/server/audit/audit-service";
-import { BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { AppError, BusinessRuleError, NotFoundError } from "@/shared/errors";
+import { describeErrorForLog } from "@/shared/errors/describe-error";
 import { addDays, dateKeyToDate, dateToDateKey, localDateKey, weekdayOf } from "@/lib/date-key";
 import { periodContaining, periodEndingOnOrBefore, type CutoffSpec, type PayPeriod } from "./engine/pay-periods";
 import type { PayFrequency } from "./engine/pay-frequency";
@@ -228,7 +229,10 @@ export const PayrollScheduleService = {
           );
           outcomes.push({ scheduleId, outcome: "prepared", period, runNumber: run.runNumber });
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Couldn't prepare the run";
+          // Only our own plain-language messages reach the screen; a database or
+          // library error stays in the server log (it can carry internal text or personal data).
+          if (!(error instanceof AppError)) console.error("Scheduled payroll run failed", describeErrorForLog(error));
+          const message = error instanceof AppError ? error.message : "Couldn't prepare the run. Try again, and contact support if it keeps happening.";
           await PayrollScheduleModel.updateOne({ _id: schedule._id }, { $set: { lastError: message, lastAttemptAt: new Date() } });
           outcomes.push({ scheduleId, outcome: "failed", period, error: message });
         }

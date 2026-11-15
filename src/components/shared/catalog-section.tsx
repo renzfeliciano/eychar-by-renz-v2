@@ -20,6 +20,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 export type CatalogItemRow = {
   _id: string;
@@ -229,7 +230,7 @@ export function CatalogSection({
                         variant="ghost"
                         icon={RotateCcw}
                         pending={isToggling}
-                        onClick={() => handleToggleStatus(item._id, "active").catch((err) => setToggleError(err instanceof Error ? err.message : "Failed to update item."))}
+                        onClick={() => handleToggleStatus(item._id, "active").catch((err) => setToggleError(friendlyErrorMessage(err, "Failed to update item.")))}
                         aria-label={isToggling ? `Reactivating ${item.name}` : `Reactivate ${item.name}`}
                       />
                     )}

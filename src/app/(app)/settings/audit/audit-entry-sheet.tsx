@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { auditChanges, auditFields } from "./audit-fields";
+import { auditChanges, auditFields, describeRecordType } from "./audit-fields";
 
 export type AuditEntryView = {
   id: string;
@@ -88,12 +88,8 @@ export function AuditEntrySheet({ entry }: { entry: AuditEntryView }) {
           </SheetHeader>
           <div className="flex flex-col gap-4 p-4">
             <dl className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-              <dt className="text-muted-foreground">Action code</dt>
-              <dd className="font-mono text-xs break-all">{entry.action}</dd>
-              <dt className="text-muted-foreground">Record type</dt>
-              <dd>{entry.resourceType}</dd>
-              <dt className="text-muted-foreground">Record ID</dt>
-              <dd className="font-mono text-xs break-all">{entry.resourceId}</dd>
+              <dt className="text-muted-foreground">Record</dt>
+              <dd>{describeRecordType(entry.resourceType)}</dd>
             </dl>
             {isChange ? (
               <ChangeTable before={entry.before} after={entry.after} />
@@ -104,6 +100,16 @@ export function AuditEntrySheet({ entry }: { entry: AuditEntryView }) {
               </>
             )}
             <FieldList title="Details" value={entry.metadata} />
+            <details className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <summary className="cursor-pointer text-[13px] font-semibold text-foreground">Technical reference</summary>
+              <p className="mt-1.5 text-xs text-muted-foreground">Only needed if you contact support about this entry.</p>
+              <dl className="mt-2 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-2">
+                <dt className="text-muted-foreground">Action code</dt>
+                <dd className="font-mono text-xs break-all">{entry.action}</dd>
+                <dt className="text-muted-foreground">Record ID</dt>
+                <dd className="font-mono text-xs break-all">{entry.resourceId}</dd>
+              </dl>
+            </details>
           </div>
         </SheetContent>
       </Sheet>

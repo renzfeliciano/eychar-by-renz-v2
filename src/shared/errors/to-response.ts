@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { ZodError, type core } from "zod";
 import { AppError, RateLimitError } from "./app-error";
+import { describeErrorForLog } from "./describe-error";
+
+export { describeErrorForLog };
 
 /** "annualEntitlementDays" -> "Annual entitlement days" — for naming the field a validation issue is about. */
 function humanizeFieldPath(path: readonly PropertyKey[]): string | null {
@@ -21,6 +24,7 @@ function humanizeFieldPath(path: readonly PropertyKey[]): string | null {
 // Zod's own default wording for these codes — anything else was written by
 // hand in a schema (e.g. `.min(10, "Radius must be at least 10 m")`) and is
 // already better than the generic field-name rewrite below.
+const ZOD_INTERNAL_WORDING = /^(Invalid (input|option|string|number|key|element|value|type)|Unrecognized key|Input not instance|Too (small|big))\b/;
 const ZOD_DEFAULT_MESSAGE = /^(Invalid input|Too small|Too big)\b/;
 
 function describeIssue(issue: core.$ZodIssue, field: string | null): string {
@@ -47,6 +51,10 @@ function describeIssue(issue: core.$ZodIssue, field: string | null): string {
     const unit = issue.origin === "string" ? "characters" : issue.origin === "array" ? "items" : "";
     return `${name} must be at most ${issue.maximum}${unit ? ` ${unit}` : ""}`;
   }
+  // Anything still in Zod's own wording ("Invalid option: expected one of ...",
+  // "Unrecognized key: ...", "Invalid string: must match pattern /.../") names
+  // the library or lists internal values, so it never reaches a person.
+  if (ZOD_INTERNAL_WORDING.test(issue.message)) return `${name} isn't valid`;
   return field ? `${name}: ${issue.message}` : issue.message;
 }
 
@@ -59,42 +67,8 @@ function firstFieldKey(path: readonly PropertyKey[]): string | null {
 /** The first issue, named by field, instead of Zod's own generic message alone — "Code is required" beats "Invalid input". */
 function describeZodError(error: ZodError): { message: string; field: string | null } {
   const [issue] = error.issues;
-  if (!issue) return { message: "Invalid input", field: null };
+  if (!issue) return { message: "Some of what was entered isn't valid. Check it and try again.", field: null };
   return { message: describeIssue(issue, humanizeFieldPath(issue.path)), field: firstFieldKey(issue.path) };
-}
-
-/** keyValue / keyPattern on a MongoServerError E11000 carry the duplicated values themselves (emails, ID numbers). */
-const REDACTED_ERROR_FIELDS = ["keyValue", "keyPattern"] as const;
-
-function redactFields(value: unknown): Record<string, string> | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  return Object.fromEntries(Object.keys(value).map((key) => [key, "[redacted]"]));
-}
-
-function redactMessage(message: string): string {
-  // The driver repeats the duplicated value inside the message: `dup key: { email: "a@b.c" }`.
-  return message.replace(/dup key: \{[\s\S]*\}/, "dup key: { [redacted] }");
-}
-
-/**
- * What gets logged for an unexpected error: name, code, message and stack,
- * never the whole object, which for a Mongo error carries the offending
- * document values (PII) in keyValue and friends. Field names are kept so a
- * duplicate-key log still says which index tripped.
- */
-export function describeErrorForLog(error: unknown): Record<string, unknown> {
-  if (!(error instanceof Error)) return { name: "NonError", message: `Non-error thrown (${typeof error})` };
-  const record = error as Error & { code?: unknown; codeName?: unknown } & Partial<Record<(typeof REDACTED_ERROR_FIELDS)[number], unknown>>;
-  const message = redactMessage(error.message);
-  const entry: Record<string, unknown> = { name: error.name, message };
-  if (typeof record.code === "string" || typeof record.code === "number") entry.code = record.code;
-  if (typeof record.codeName === "string") entry.codeName = record.codeName;
-  for (const field of REDACTED_ERROR_FIELDS) {
-    const redacted = redactFields(record[field]);
-    if (redacted) entry[field] = redacted;
-  }
-  if (error.stack) entry.stack = redactMessage(error.stack.replace(error.message, message));
-  return entry;
 }
 
 /**
@@ -118,7 +92,7 @@ export function toErrorResponse(error: unknown): NextResponse {
   if (error instanceof ZodError) {
     const { message, field } = describeZodError(error);
     return NextResponse.json(
-      { error: message, field, details: error.flatten() },
+      { error: message, field },
       { status: 400 },
     );
   }
@@ -129,7 +103,7 @@ export function toErrorResponse(error: unknown): NextResponse {
   }
   // `await request.json()` on a body that isn't JSON: also the caller's mistake.
   if (error instanceof SyntaxError) {
-    return NextResponse.json({ error: "The request body isn't valid JSON." }, { status: 400 });
+    return NextResponse.json({ error: "We couldn't read what was sent. Refresh the page and try again." }, { status: 400 });
   }
   console.error("Unexpected error", describeErrorForLog(error));
   return NextResponse.json({ error: "Unexpected error — please try again, and contact support if it keeps happening." }, { status: 500 });
