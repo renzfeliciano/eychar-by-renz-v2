@@ -44,7 +44,8 @@ describe("module export (Excel or CSV)", () => {
     await user.click(screen.getByTestId("cases-export-button"));
     await user.click(screen.getByTestId("cases-export-xlsx"));
 
-    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    // Building a real workbook takes longer than waitFor's 1 s default on a busy machine or CI runner.
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled(), { timeout: 10_000 });
     const [blob, filename] = downloadBlob.mock.calls[0];
     expect(filename).toMatch(/^acme-inc-case-monitoring-\d{4}-\d{2}-\d{2}\.xlsx$/);
     expect(blob.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
