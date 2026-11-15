@@ -3,7 +3,7 @@
 PCAS HRIS is a configurable,
 multi-tenant-capable HRIS platform. The database describes
 the business (organizations, people, roles, permissions); the application code provides reusable
-capabilities on top of that data. See [docs/ENGINEERING.md](./docs/ENGINEERING.md) for the full engineering
+capabilities on top of that data. See [docs/engineering/ENGINEERING.md](../engineering/ENGINEERING.md) for the full engineering
 instructions this repository is built against.
 
 ## Status
@@ -213,6 +213,21 @@ identically from either page.
     applies; it keeps the one it was prepared with.
   - Permissions: prepare `payroll-runs.create`; recompute, adjustments, submit and cancel
     `payroll-runs.update`; approve and return `payroll.approve`; release `payroll.release`.
+- **Run types** (ADR-058): `regular`, `thirteenth_month`, `year_end_adjustment` and `final` share the lifecycle and
+  permissions. The double-pay guard is type-aware: runs of different types never conflict; same-type runs conflict on
+  overlapping dates and scopes, and final runs per employee. A regular run leaves out days a final run already paid.
+  - **13th month** (ADR-059): for every employee, base = basic earned in the year ÷ the policy divisor, December
+    estimated and trued up in January, one "already paid" ledger shared with final pay.
+  - **Year-end adjustment** (ADR-060): annualized tax from the rule version's annual table (with any previous
+    employer's pay and the ₱90,000 benefits cap) against tax withheld; refunds and collections go to HR for approval.
+    Exports the reconciliation, Form 2316 data and the Annex F list.
+  - **Final** (ADR-061): disbursing an approved final settlement creates a released final run in the same transaction,
+    after checking its SHA-256 fingerprint; settlement checks are policy data (ADR-032, ADR-062).
+- **Pay frequency** (ADR-063): HR picks weekly, bi-weekly (14-day periods from a schedule's anchor date),
+  semi-monthly or monthly; monthly needs a stored, audited acknowledgement of the Art. 103 risk, and unacknowledged
+  monthly policies appear on the dashboard.
+- **Payslips and register** show which earnings are non-taxable and the taxable income; the register export has
+  13th-month, non-taxable and taxable-income columns, totalled with `sumMoney`.
 - **Payroll schedules** (`PayrollSchedule`) prepare each cutoff's draft automatically.
 - **Compensation:** each employee has calendar-dated pay terms (monthly or daily rate, allowances,
   minimum-wage-earner flag). Bulk changes (e.g. a wage order for a project) are previewed, then

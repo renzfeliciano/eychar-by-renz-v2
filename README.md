@@ -8,8 +8,8 @@ attendance and the self-service clock, monthly schedules with a holiday calendar
 clearance and final settlement, recruitment, performance, cases, travel orders, assets, documents
 and events. It installs as an app on phones and desktops (PWA).
 
-See [docs/ENGINEERING.md](./docs/ENGINEERING.md) for the engineering guidelines and
-[ARCHITECTURE.md](./ARCHITECTURE.md) for what's built and why (decisions are in
+See [docs/engineering/ENGINEERING.md](./docs/engineering/ENGINEERING.md) for the engineering guidelines and
+[docs/architecture/ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) for what's built and why (decisions are in
 [docs/architecture/adr](./docs/architecture/adr)).
 
 > Product strings (name, tagline) live in one place: [`src/lib/brand.ts`](./src/lib/brand.ts).

@@ -20,7 +20,7 @@
 
 ## Consequences
 
-- The percentages follow the DOLE handbook figures and were approved at GATE 3, but have not been checked against the official Labor Code text (Arts. 86, 87, 93, 94 and the implementing rules). Verify before relying on them (`knowledge/philippine-payroll-compliance.md`).
+- The percentages follow the DOLE handbook figures and were approved at GATE 3, but have not been checked against the official Labor Code text (Arts. 86, 87, 93, 94 and the implementing rules). Verify before relying on them (`knowledge/reference/philippine-payroll-compliance.md`).
 - A draft made before this change keeps manual premiums until it is prepared again.
 - An unworked regular holiday on a rest day isn't paid to daily-rated staff; two regular holidays on one day (300%) aren't supported.
 - Results computed under `DAY_CALC_VERSION` 1 pay night overtime at the ordinary night rate until that range is recalculated.
