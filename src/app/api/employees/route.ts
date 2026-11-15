@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/server/authorization";
 import { EmployeeService } from "@/domains/workforce/employee-service";
 import { HireService } from "@/domains/workforce/hire-service";
+import { toRosterApiRow } from "@/domains/workforce/roster-api-view";
 import { hireEmployeeSchema } from "@/shared/validation/workforce";
 import { organizationIdParamSchema } from "@/shared/validation/organization";
 import { toErrorResponse } from "@/shared/errors/to-response";
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     });
     await requirePermission("employees.read", organizationId);
     const employees = await EmployeeService.listWithCurrentStatus(organizationId);
-    return NextResponse.json({ employees });
+    return NextResponse.json({ employees: employees.map(toRosterApiRow) });
   } catch (error) {
     return toErrorResponse(error);
   }

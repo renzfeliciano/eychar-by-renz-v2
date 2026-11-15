@@ -105,6 +105,26 @@ describe("EmployeeDocumentService", () => {
     expect(updated.fileData).toBe(SAMPLE_BASE64);
   });
 
+  it("refuses to edit a document through another employee's id", async () => {
+    const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-doc-owner-${Date.now()}-${Math.random()}` });
+    const orgId = organization._id.toString();
+    const owner = await seedEmployee(organization._id, "C1");
+    const other = await seedEmployee(organization._id, "C2");
+    const document = await EmployeeDocumentService.create(
+      owner._id.toString(),
+      { organizationId: orgId, title: "ID", documentType: "government-id" },
+      pdf("id.pdf"),
+      {},
+    );
+    const patch = { title: "Changed", documentType: "government-id" };
+
+    await expect(EmployeeDocumentService.update(document._id.toString(), orgId, patch, {}, other._id.toString())).rejects.toThrow(NotFoundError);
+    expect((await EmployeeDocumentService.getById(document._id.toString(), orgId)).title).toBe("ID");
+
+    const updated = await EmployeeDocumentService.update(document._id.toString(), orgId, patch, {}, owner._id.toString());
+    expect(updated.title).toBe("Changed");
+  });
+
   it("lists documents for an employee, most recently uploaded first", async () => {
     const organization = await OrganizationModel.create({ name: "Acme", slug: `acme-doc-list-${Date.now()}-${Math.random()}` });
     const orgId = organization._id.toString();
