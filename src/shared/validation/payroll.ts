@@ -4,6 +4,7 @@ import { objectId } from "@/shared/validation/object-id";
 import { PAY_PREMIUM_DEFAULTS } from "@/domains/payroll/engine/premiums";
 import { HOLIDAY_DAY_TYPE_CHOICES } from "@/domains/payroll/holiday-day-types";
 import { compensationTotal } from "@/domains/payroll/compensation-history";
+import { BONUS_BASES } from "@/domains/payroll/engine/bonus";
 
 const PAY_FREQUENCY = z.enum(["weekly", "bi-weekly", "semi-monthly", "monthly"]);
 const MONTHLY_ACK_MESSAGE = "Tick the acknowledgement to choose monthly pay";
@@ -203,6 +204,34 @@ export const createThirteenthMonthRunSchema = z
   })
   .refine((input) => Number(input.payDate.slice(0, 4)) >= input.year, { message: "Pay the 13th month in its year or later.", path: ["payDate"] });
 
+/**
+ * A bonus run (e.g. a Christmas bonus) for one calendar year: HR names it and picks how each amount is
+ * worked out. More than one a year is allowed; the run warns about anyone already paid a bonus that year.
+ */
+export const createBonusRunSchema = z
+  .object({
+    organizationId: objectId(),
+    projectId: optionalId,
+    year: z.coerce.number().int().min(2000).max(2100),
+    payDate: calendarDateSchema,
+    label: z.string().trim().min(1, "Name the bonus").max(60).default("Christmas bonus"),
+    basis: z.enum(BONUS_BASES, { message: "Choose how the bonus is worked out" }),
+    value: z.coerce.number({ message: "Enter the amount" }).refine((value) => value > 0, "Enter an amount above zero"),
+    prorate: z.boolean().default(false),
+    minServiceMonths: z.coerce.number().int().min(0).max(600).default(0),
+  })
+  .refine((input) => Number(input.payDate.slice(0, 4)) >= input.year, { message: "Pay the bonus in its year or later.", path: ["payDate"] })
+  .refine((input) => input.basis !== "percent_of_monthly" || input.value <= 1000, { message: "A percentage can be at most 1,000%.", path: ["value"] })
+  .refine((input) => input.basis !== "months_of_pay" || input.value <= 24, { message: "At most 24 months of pay.", path: ["value"] })
+  .refine((input) => input.basis !== "days_of_pay" || input.value <= 730, { message: "At most 730 days of pay.", path: ["value"] });
+
+/** One employee's amount on a draft bonus run: a peso amount, 0 to leave them out, or null to go back to the computed amount. */
+export const setBonusAmountSchema = z.object({
+  organizationId: objectId(),
+  employeeId: objectId(),
+  amount: money("Amount").nullable(),
+});
+
 export const createYearEndRunSchema = z
   .object({
     organizationId: objectId(),
@@ -331,6 +360,8 @@ export type CreatePayrollRuleVersionInput = z.infer<typeof createPayrollRuleVers
 export type UpdatePayrollRuleVersionStatusInput = z.infer<typeof updatePayrollRuleVersionStatusSchema>;
 export type CreatePayrollRunInput = z.infer<typeof createPayrollRunSchema>;
 export type CreateThirteenthMonthRunInput = z.infer<typeof createThirteenthMonthRunSchema>;
+export type CreateBonusRunInput = z.infer<typeof createBonusRunSchema>;
+export type SetBonusAmountInput = z.infer<typeof setBonusAmountSchema>;
 export type CreateYearEndRunInput = z.infer<typeof createYearEndRunSchema>;
 export type PriorEmploymentInput = z.infer<typeof priorEmploymentSchema>;
 export type EmployerTaxInput = z.infer<typeof employerTaxSchema>;

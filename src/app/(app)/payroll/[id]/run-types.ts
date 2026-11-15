@@ -40,6 +40,8 @@ export type RegisterRow = {
   /** On a run that computes premiums (attendance plan Phase 6): the paid overtime and night minutes, and overtime left unpaid. */
   premiums?: { overtimeMinutes: number; nightMinutes: number; unapprovedOvertimeMinutes: number } | null;
   thirteenthMonth?: { year: number; basicEarned: number; estimatedBasic: number; estimatedFrom: string | null; divisor: number; alreadyPaid: number; monthsWithPay: number } | null;
+  /** On a bonus run's rows: how the amount was worked out, and whether HR changed it. */
+  bonus?: { basis: string; value: number; monthlyBasic: number; dailyRate: number; prorated: boolean; monthsServed: number | null; computed: number; overridden: boolean } | null;
   /** On a year-end run's rows: the annualization (payroll plan Phase 4). */
   yearEnd?: { year: number; presentTaxable: number; previousTaxable: number; grossTaxable: number; taxDue: number; presentWithheld: number; previousWithheld: number; difference: number; benefitsExcess: number } | null;
   /** On a final run's row: the settlement it pays (payroll plan Phases 5 and 7). */

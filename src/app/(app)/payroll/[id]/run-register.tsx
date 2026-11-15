@@ -21,6 +21,9 @@ import { cn } from "@/lib/utils";
 import { formatDateKey } from "@/lib/date-key";
 import { sumMoney } from "@/domains/payroll/engine/money";
 import type { AdjustmentRow, RegisterRow } from "./run-types";
+import { bonusBasisText } from "@/domains/payroll/bonus-labels";
+import { BONUS_BASIS_LABELS, type BonusBasis } from "@/domains/payroll/engine/bonus";
+import { BonusAmountForm } from "./bonus-amount-control";
 
 type Props = {
   runId: string;
@@ -32,9 +35,12 @@ type Props = {
   overtimeMultiplier: number;
   /** The run computes overtime, rest day, holiday and night pay from attendance (attendance plan Phase 5). */
   computesPremiums?: boolean;
+  /** A bonus run: its payslips set each person's amount instead of taking adjustments. */
+  bonusRun?: boolean;
 };
 
 function attendanceSummary(row: RegisterRow): string {
+  if (row.bonus) return bonusBasisText(row.bonus);
   if (row.thirteenthMonth) return `Basic ${formatPeso(row.thirteenthMonth.basicEarned + row.thirteenthMonth.estimatedBasic)} ÷ ${row.thirteenthMonth.divisor}`;
   if (row.yearEnd) return `Tax due ${formatPeso(row.yearEnd.taxDue)} · withheld ${formatPeso(row.yearEnd.presentWithheld + row.yearEnd.previousWithheld)}`;
   if (row.finalSettlement) return `Final pay · last day ${formatDateKey(row.finalSettlement.lastWorkingDay)}`;
@@ -53,7 +59,7 @@ function attendanceSummary(row: RegisterRow): string {
  * raised). While the run is a draft, adjustments are added and removed
  * from the payslip, and the run recomputes on each change.
  */
-export function RunRegister({ runId, organizationId, records, adjustments, editable, overtimeMultiplier, computesPremiums = false }: Props) {
+export function RunRegister({ runId, organizationId, records, adjustments, editable, overtimeMultiplier, computesPremiums = false, bonusRun = false }: Props) {
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const normalized = query.trim().toLowerCase();
@@ -75,7 +81,9 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input type="search" aria-label="Find employee" placeholder="Find by name or employee #" value={query} onChange={(event) => setQuery(event.target.value)} className="pl-8" />
         </div>
-        <p className="text-sm text-muted-foreground">{editable ? "Open a payslip to add overtime, holiday pay, loans and other adjustments." : "Open a payslip for the full breakdown."}</p>
+        <p className="text-sm text-muted-foreground">
+          {editable && bonusRun ? "Open a payslip to change one person's bonus or leave them out." : editable ? "Open a payslip to add overtime, holiday pay, loans and other adjustments." : "Open a payslip for the full breakdown."}
+        </p>
       </div>
 
       <div className="overflow-hidden rounded-lg border bg-card shadow-[var(--shadow-soft)]">
@@ -163,6 +171,7 @@ export function RunRegister({ runId, organizationId, records, adjustments, edita
               editable={editable}
               overtimeMultiplier={overtimeMultiplier}
               computesPremiums={computesPremiums}
+              bonusRun={bonusRun}
             />
           )}
         </SheetContent>
@@ -188,12 +197,14 @@ function Payslip({
   editable,
   overtimeMultiplier,
   computesPremiums,
+  bonusRun = false,
 }: {
   row: RegisterRow;
   runId: string;
   organizationId: string;
   adjustments: AdjustmentRow[];
   editable: boolean;
+  bonusRun?: boolean;
   overtimeMultiplier: number;
   computesPremiums: boolean;
 }) {
@@ -259,6 +270,15 @@ function Payslip({
                 ["Non-taxable", formatPeso(sumMoney(row.earnings.filter((line) => line.taxable === false).map((line) => line.amount)))],
                 ["Net pay", formatPeso(row.netPay)],
               ]
+            : row.bonus
+            ? [
+                ["Basis", BONUS_BASIS_LABELS[row.bonus.basis as BonusBasis] ?? row.bonus.basis],
+                ["Monthly salary", formatPeso(row.bonus.monthlyBasic)],
+                ["Daily rate", formatPeso(row.bonus.dailyRate)],
+                ["Months counted", row.bonus.prorated && row.bonus.monthsServed != null ? `${row.bonus.monthsServed} of 12` : "Full"],
+                ["Worked out", formatPeso(row.bonus.computed)],
+                ["Paid", formatPeso(row.netPay)],
+              ]
             : row.thirteenthMonth
             ? [
                 ["Basic earned", formatPeso(row.thirteenthMonth.basicEarned)],
@@ -317,6 +337,17 @@ function Payslip({
           {row.previousNetPay != null ? `. Last payroll's net pay ${formatPeso(row.previousNetPay)}.` : "."}
         </p>
 
+        {bonusRun && row.bonus && editable && (
+          <BonusAmountForm runId={runId} organizationId={organizationId} employeeId={row.employeeId} employeeName={row.employeeName} computed={row.bonus.computed} amount={row.netPay} overridden={row.bonus.overridden} />
+        )}
+        {bonusRun ? (
+          <div className="flex justify-end border-t pt-4">
+            <Link href={`/payroll/${runId}/payslips?employee=${row.employeeId}`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+              <Printer className="size-3.5" />
+              Print payslip
+            </Link>
+          </div>
+        ) : (
         <section className="flex flex-col gap-2 border-t pt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">Adjustments</h3>
@@ -360,6 +391,7 @@ function Payslip({
           </ul>
           {editable && <AddAdjustmentForm runId={runId} organizationId={organizationId} employeeId={row.employeeId} hourlyRate={row.hourlyRate} overtimeMultiplier={overtimeMultiplier} computesPremiums={computesPremiums} />}
         </section>
+        )}
       </div>
     </>
   );
