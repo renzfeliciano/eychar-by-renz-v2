@@ -17,11 +17,12 @@
 
 **Pages:**
 - `src/app/(app)/travel-orders/page.tsx`: list, monthly count, timeline. Computes `todayKey` with `localDateKey()` from `src/lib/date-key.ts` and passes it to `travelTiming`.
-- `travel-order-form-dialog.tsx` (create and edit), `cancel-travel-order-button.tsx`, `travel-timeline.tsx` (uses `timelineBars`), `travel-order-export-actions.tsx`, `travel-order-print-report.tsx`, `loading.tsx`.
+- `travel-order-form-dialog.tsx` (create and edit; picks employees with the shared `SearchableMultiSelect`, the same search-box list as the other searchable pickers, since 2026-11-16, replacing a scrolling checkbox list; "Select at least one employee." shows on the picker), `cancel-travel-order-button.tsx`, `travel-timeline.tsx` (uses `timelineBars`), `travel-order-export-actions.tsx`, `travel-order-print-report.tsx`, `loading.tsx`.
 - Dashboard: `src/app/(app)/dashboard/page.tsx` imports `TravelOrderService`.
 - Profile: `src/app/(app)/people/[id]/page.tsx` (via `EmployeeRecords`).
 
 **Tests:**
+- `tests/app/travel-order-form-dialog.test.tsx` (the searchable employee picker: narrowing, picking several including after a search, the at-least-one rule, edit pre-selection, server errors)
 - `tests/domains/travel-orders/travel-order-service.test.ts`
 - `tests/domains/travel-orders/travel-timing.test.ts`
 - `tests/app/travel-timeline.test.tsx`
@@ -41,4 +42,4 @@
 - `listCurrent` returns every order for the organization with no pagination.
 - `status` on the model has no enum, so an unexpected value written outside the service would be treated as "not cancelled" by `travelTiming`.
 
-**Last verified:** 6587050.
+**Last verified:** 6587050; updated 2026-11-16 (employee picker).

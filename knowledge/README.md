@@ -82,6 +82,7 @@ docs/
 | Educational background | [plans/educational-background.md](./plans/educational-background.md) | Design and plan |
 | Employee IDs and licenses | [plans/employee-ids-and-licenses.md](./plans/employee-ids-and-licenses.md) | Built 2026-11-16. Removes employee RDO/ZIP; adds PWD and Solo Parent IDs, PRC licenses, catalog-backed government IDs, expiry alerts. Design and plan. Known-gaps B29 |
 | Leave calendar | [plans/leave-calendar.md](./plans/leave-calendar.md) | Design only |
+| Self-service attendance upgrade | [plans/self-service-attendance-upgrade.md](./plans/self-service-attendance-upgrade.md) | PLAN ONLY, not approved, nothing built (2026-11-16); all six projects planned to task level. Six projects to replace biometric terminals with software: punch review, reference photo, correction requests, site code, switch device, offline punches |
 
 ## How this knowledge base is built and kept current
 

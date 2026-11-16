@@ -1,6 +1,6 @@
 # UI patterns and building blocks (Phase 5)
 
-**Built from commit:** `6587050` (main). **Last verified:** `6587050`; error text rules added 2026-11-15.
+**Built from commit:** `6587050` (main). **Last verified:** `6587050`; error text rules added 2026-11-15; searchable multi-select and the PageHeader mobile fix added 2026-11-16.
 **Sources of truth:** `ARCHITECTURE.md` "UI standards" (line ~590), `docs/engineering/ENGINEERING.md` §23 (UI authorization), §41 (mobile-first), §47-§50 (type safety, errors, observability, code quality), `docs/architecture/adr/ADR-013-ui-design-system.md`, `ADR-048-navy-ledger-design-and-loading-states.md`, `ADR-050-animated-brand-loader.md`, `ADR-046-org-chart-as-a-drawn-canvas.md`.
 Code wins over docs. Cited paths are relative to the repo root.
 
@@ -21,7 +21,7 @@ Code wins over docs. Cited paths are relative to the repo root.
 
 **error.tsx.** `src/app/(app)/error.tsx` and `src/app/(self-service)/error.tsx` render `SectionError` (`src/components/shared/section-error.tsx`) inside the frame, so navigation stays usable. The root `src/app/error.tsx` is a full-page card with a digest reference, and `src/app/global-error.tsx` is the last resort.
 
-**Page headers.** `PageHeader` (`src/components/shared/page-header.tsx`, 28 lines) is used by 42 of the 44 `(app)` pages. Exceptions: `src/app/(app)/people/[id]/page.tsx` (own record header, `<h1>` at line ~259) and `src/app/(app)/payroll/[id]/payslips/page.tsx` (own `<h1>`, line ~70). ARCHITECTURE and ADR-013 say "used on every page".
+**Page headers.** `PageHeader` (`src/components/shared/page-header.tsx`, 28 lines) is used by 42 of the 44 `(app)` pages. Exceptions: `src/app/(app)/people/[id]/page.tsx` (own record header, `<h1>` at line ~259) and `src/app/(app)/payroll/[id]/payslips/page.tsx` (own `<h1>`, line ~70). ARCHITECTURE and ADR-013 say "used on every page". **Mobile (2026-11-16):** the action row is `max-w-full shrink-0 flex-wrap`; before, with four actions (Payroll runs) it was 450 px wide on a 390 px phone and ran off the screen over the content beside it (measured in a browser); capped, it wraps onto more lines. `tests/app/page-header.test.tsx` pins the classes.
 
 **Tabs.** Two components, both link-based so the section lives in the URL:
 - `PageTabs` (`src/components/shared/page-tabs.tsx`): underlined `<Link>` tabs with optional count, `aria-current="page"`. Used only by `src/app/(app)/people/[id]/page.tsx`.
@@ -57,7 +57,7 @@ Code wins over docs. Cited paths are relative to the repo root.
 - `CatalogSection` (`settings/catalogs/page.tsx` only).
 
 **Filters, search and selection**
-- `TableSearchInput` (8 uses), `OptionSelect` (33; optional FK dropdown with a "None" choice, per ADR-013), `SearchableOptionSelect` (only `performance/new-evaluation-dialog.tsx`).
+- `TableSearchInput` (8 uses), `OptionSelect` (33; optional FK dropdown with a "None" choice, per ADR-013), `SearchableOptionSelect` (pick one from a long list with a search box; `performance/new-evaluation-dialog.tsx` and `complaints/complaint-form-dialog.tsx`), and its pick-several twin `SearchableMultiSelect` (`src/components/shared/searchable-multi-select.tsx`, added 2026-11-16: same search box and inline list, a "N selected" line with Clear all; used by `travel-orders/travel-order-form-dialog.tsx`). Both search through `matchOptions` (`searchable-options.ts`: every word typed must appear in the label, in any order). **Use these, not a scrolling checkbox list, when a form picks people.** Still checkbox lists, by design (table-like lists with extra columns): `payroll/compensation/bulk-change-dialog.tsx`, `attendance/schedules/schedule-roster-dialog.tsx`.
 
 **Forms, dialogs and actions**
 - `FormField` (59 uses; label, control, `description`, `error`, `required`), `FormError` (68; form-level `role="alert"` banner), `RequiredFieldsHint` (45). See §3.

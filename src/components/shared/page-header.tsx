@@ -22,7 +22,8 @@ export function PageHeader({
         <h1 className="text-[1.625rem] leading-tight font-semibold tracking-[-0.018em] text-balance">{title}</h1>
         {description && <p className="mt-1.5 max-w-[65ch] text-sm text-pretty text-muted-foreground">{description}</p>}
       </div>
-      {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
+      {/* max-w-full: with several actions (Payroll runs has four) the row is wider than a phone, and shrink-0 alone would let it run off the screen. Capped, it wraps onto more lines instead. */}
+      {action && <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{action}</div>}
     </header>
   );
 }

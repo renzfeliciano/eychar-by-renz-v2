@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FormField } from "./form-field";
 import type { SelectOption } from "./option-select";
+import { matchOptions } from "./searchable-options";
 
 /**
  * A pick-one list with a search box, for long lists (every employee) where a
@@ -41,13 +42,7 @@ export function SearchableOptionSelect({
   const listId = `${inputId}-list`;
   const [query, setQuery] = useState("");
 
-  const matches = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return options;
-    // Every word typed must appear somewhere in the label, in any order ("cruz juan" finds "Juan Dela Cruz").
-    const words = needle.split(/\s+/);
-    return options.filter((option) => words.every((word) => option.label.toLowerCase().includes(word)));
-  }, [options, query]);
+  const matches = useMemo(() => matchOptions(options, query), [options, query]);
 
   return (
     <FormField label={label} htmlFor={inputId} required={required} error={error} description={description}>
