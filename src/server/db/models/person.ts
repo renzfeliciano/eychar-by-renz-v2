@@ -25,15 +25,20 @@ const personSchema = new Schema(
     philHealthNumber: { type: String, trim: true },
     pagIbigNumber: { type: String, trim: true },
     tinNumber: { type: String, trim: true },
-    // For BIR Form 2316 (payroll plan Phase 4): the employee's revenue district office and address ZIP code.
-    rdoCode: { type: String, trim: true },
-    zipCode: { type: String, trim: true },
+    // PWD and Solo Parent IDs (benefits and statutory reporting): number plus the date the ID stops being valid.
+    pwdIdNumber: { type: String, trim: true, maxlength: 50 },
+    pwdIdValidUntil: { type: Date },
+    soloParentIdNumber: { type: String, trim: true, maxlength: 50 },
+    soloParentIdValidUntil: { type: Date },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },
 );
 
 personSchema.index({ organizationId: 1 });
+// The dashboard looks for PWD and Solo Parent IDs about to expire (IdExpiryService), one query per date.
+personSchema.index({ organizationId: 1, pwdIdValidUntil: 1 });
+personSchema.index({ organizationId: 1, soloParentIdValidUntil: 1 });
 
 export type Person = InferSchemaType<typeof personSchema>;
 

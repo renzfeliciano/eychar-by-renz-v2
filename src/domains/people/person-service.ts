@@ -25,9 +25,10 @@ export type CreatePersonInput = {
   philHealthNumber?: string;
   pagIbigNumber?: string;
   tinNumber?: string;
-  /** For BIR Form 2316: revenue district office code and address ZIP code. */
-  rdoCode?: string;
-  zipCode?: string;
+  pwdIdNumber?: string;
+  pwdIdValidUntil?: Date;
+  soloParentIdNumber?: string;
+  soloParentIdValidUntil?: Date;
 };
 
 // "" on an otherwise-typed field means "clear it" (see updateEmployeeProfileSchema's
@@ -62,6 +63,10 @@ export const PersonService = {
       philHealthNumber: input.philHealthNumber,
       pagIbigNumber: input.pagIbigNumber,
       tinNumber: input.tinNumber,
+      pwdIdNumber: input.pwdIdNumber,
+      pwdIdValidUntil: input.pwdIdValidUntil,
+      soloParentIdNumber: input.soloParentIdNumber,
+      soloParentIdValidUntil: input.soloParentIdValidUntil,
     });
 
     await AuditService.record({
@@ -110,8 +115,10 @@ export const PersonService = {
       philHealthNumber: existing.philHealthNumber,
       pagIbigNumber: existing.pagIbigNumber,
       tinNumber: existing.tinNumber,
-      rdoCode: existing.rdoCode,
-      zipCode: existing.zipCode,
+      pwdIdNumber: existing.pwdIdNumber,
+      pwdIdValidUntil: existing.pwdIdValidUntil,
+      soloParentIdNumber: existing.soloParentIdNumber,
+      soloParentIdValidUntil: existing.soloParentIdValidUntil,
     };
 
     // An empty string means "clear it" ($unset), not "set it to the empty

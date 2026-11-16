@@ -22,7 +22,8 @@ import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PayrollScheduleService } from "@/domains/payroll/payroll-schedule-service";
 import { EmployeeAssignmentService } from "@/domains/workforce/employee-assignment-service";
 import { greetingFor, upcomingEvents } from "@/domains/dashboard/dashboard-summary";
-import { documentRisks, finalPayRisks, monthlyPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
+import { IdExpiryService } from "@/domains/people/id-expiry-service";
+import { documentRisks, finalPayRisks, personIdRisks, monthlyPayRisks, regularizationFollowUpKey, regularizationRisks, RISK_WINDOW_DAYS } from "@/domains/dashboard/compliance-risks";
 import { EvaluationFollowUpService } from "@/domains/performance/evaluation-follow-up-service";
 import { EvaluationTypeService } from "@/domains/catalog/evaluation-type-service";
 import { regularizationEvaluationCodes } from "@/domains/performance/evaluation-purpose";
@@ -352,6 +353,16 @@ export default async function DashboardPage() {
       todayKey,
     );
     complianceRisks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "documents-many", kind: "document", title: `${count} employee documents expired or expiring`, detail: `Within the next ${RISK_WINDOW_DAYS} days or already past`, href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
+  }
+  if (canReadEmployees) {
+    // PWD, Solo Parent, other government IDs and PRC licenses: current staff only (the service reads just their items, and
+    // keeps one record per rehired person), so former staff's old dates neither crowd out nor duplicate a current employee's.
+    const expiringPersonIds = await IdExpiryService.listExpiring(organizationId, new Date(`${addDays(todayKey, RISK_WINDOW_DAYS)}T23:59:59Z`), { employeeIds: staff.map((row) => row._id.toString()) });
+    const rows = personIdRisks(
+      expiringPersonIds.map((item) => ({ id: item.id, employeeId: item.employeeId, employeeName: nameOf(item.employeeId), label: item.label, validKey: item.validKey })),
+      todayKey,
+    );
+    complianceRisks.push(...collapseKind(rows, ROWS_PER_KIND, (count) => ({ id: "person-ids-many", kind: "person-id", title: `${count} employee IDs or licenses expired or expiring`, detail: `Within the next ${RISK_WINDOW_DAYS} days or already past`, href: "/people", actionLabel: "Open people", urgency: rankActions(rows)[0].urgency, dueKey: rankActions(rows)[0].dueKey })));
   }
   if (roster) {
     const missingIds = staff.filter((row) => !row.person?.sssNumber || !row.person?.philHealthNumber || !row.person?.pagIbigNumber || !row.person?.tinNumber);

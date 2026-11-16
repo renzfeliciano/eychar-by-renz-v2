@@ -27,9 +27,7 @@ export type YearEndRow = {
   firstName: string;
   middleName: string;
   tin: string;
-  rdoCode: string;
   address: string;
-  zipCode: string;
   birthDate: string;
   phone: string;
   minimumWageEarner: boolean;
@@ -81,7 +79,7 @@ export async function yearEndReportData(run: { _id: Types.ObjectId; organization
     employeeYears(run.organizationId, year, allIds),
   ]);
   const people = new Map(
-    (await PersonModel.find({ _id: { $in: employees.map((employee) => employee.personId) } }).select("firstName middleName lastName tinNumber rdoCode address zipCode birthDate phone").lean()).map((person) => [person._id.toString(), person]),
+    (await PersonModel.find({ _id: { $in: employees.map((employee) => employee.personId) } }).select("firstName middleName lastName tinNumber address birthDate phone").lean()).map((person) => [person._id.toString(), person]),
   );
   const employeeById = new Map(employees.map((employee) => [employee._id.toString(), employee]));
 
@@ -94,9 +92,7 @@ export async function yearEndReportData(run: { _id: Types.ObjectId; organization
       firstName: person?.firstName ?? "",
       middleName: person?.middleName ?? "",
       tin: person?.tinNumber ?? "",
-      rdoCode: person?.rdoCode ?? "",
       address: person?.address ?? "",
-      zipCode: person?.zipCode ?? "",
       birthDate: person?.birthDate ? dateToDateKey(person.birthDate) : "",
       phone: person?.phone ?? "",
     };
@@ -199,7 +195,7 @@ export function yearEndTable(report: YearEndReport, data: YearEndReportData, con
   const nonTaxable = boxes.filter((box) => box.part === "non_taxable");
   const taxable = boxes.filter((box) => box.part === "taxable");
   const identityHeaders = [
-    "1 Year", "2 Period from", "2 Period to", "3 TIN", "4 Last name", "4 First name", "4 Middle name", "5 RDO code", "6 Registered address", "6A ZIP code", "7 Date of birth", "8 Contact number", "11 Minimum wage earner",
+    "1 Year", "2 Period from", "2 Period to", "3 TIN", "4 Last name", "4 First name", "4 Middle name", "6 Registered address", "7 Date of birth", "8 Contact number", "11 Minimum wage earner",
     "12 Employer TIN", "13 Employer name", "14 Employer address", "14A Employer ZIP code", "15 Employer type",
     "16 Previous employer TIN", "17 Previous employer name", "18 Previous employer address", "18A Previous employer ZIP code", "Other previous employers",
     "Note",
@@ -211,7 +207,7 @@ export function yearEndTable(report: YearEndReport, data: YearEndReportData, con
     const presentAdjusted = sumMoney([row.presentWithheld, row.difference]);
     const totalWithheld = sumMoney([presentAdjusted, row.previousWithheld]);
     return [
-      data.year, row.periodFrom, row.periodTo, row.tin, row.lastName, row.firstName, row.middleName, row.rdoCode, row.address, row.zipCode, row.birthDate, row.phone, yesNo(row.minimumWageEarner),
+      data.year, row.periodFrom, row.periodTo, row.tin, row.lastName, row.firstName, row.middleName, row.address, row.birthDate, row.phone, yesNo(row.minimumWageEarner),
       data.employer.tin, data.employer.name, data.employer.address, data.employer.zipCode, row.previousEmployers.some((employer) => employer.concurrent) ? "Secondary" : "Main",
       first?.tin ?? "", first?.name ?? "", first?.address ?? "", first?.zipCode ?? "", others.map((employer) => employer.name).join("; "),
       row.note,

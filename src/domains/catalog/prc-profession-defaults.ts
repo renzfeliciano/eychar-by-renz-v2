@@ -1,0 +1,55 @@
+const PROFESSIONS: [code: string, name: string][] = [
+  ["certified_public_accountant", "Certified Public Accountant"],
+  ["architect", "Architect"],
+  ["civil_engineer", "Civil Engineer"],
+  ["electrical_engineer", "Electrical Engineer"],
+  ["mechanical_engineer", "Mechanical Engineer"],
+  ["electronics_engineer", "Electronics Engineer"],
+  ["chemical_engineer", "Chemical Engineer"],
+  ["sanitary_engineer", "Sanitary Engineer"],
+  ["geodetic_engineer", "Geodetic Engineer"],
+  ["mining_engineer", "Mining Engineer"],
+  ["master_plumber", "Master Plumber"],
+  ["master_electrician", "Master Electrician"],
+  ["registered_electrical_engineer_technician", "Registered Electrical Technician"],
+  ["interior_designer", "Interior Designer"],
+  ["landscape_architect", "Landscape Architect"],
+  ["environmental_planner", "Environmental Planner"],
+  ["nurse", "Nurse"],
+  ["midwife", "Midwife"],
+  ["physician", "Physician"],
+  ["dentist", "Dentist"],
+  ["pharmacist", "Pharmacist"],
+  ["medical_technologist", "Medical Technologist"],
+  ["radiologic_technologist", "Radiologic Technologist"],
+  ["physical_therapist", "Physical Therapist"],
+  ["occupational_therapist", "Occupational Therapist"],
+  ["respiratory_therapist", "Respiratory Therapist"],
+  ["optometrist", "Optometrist"],
+  ["nutritionist_dietitian", "Nutritionist-Dietitian"],
+  ["veterinarian", "Veterinarian"],
+  ["psychologist", "Psychologist"],
+  ["guidance_counselor", "Guidance Counselor"],
+  ["social_worker", "Social Worker"],
+  ["teacher", "Professional Teacher"],
+  ["librarian", "Librarian"],
+  ["criminologist", "Criminologist"],
+  ["chemist", "Chemist"],
+  ["geologist", "Geologist"],
+  ["forester", "Forester"],
+  ["agriculturist", "Agriculturist"],
+  ["agricultural_biosystems_engineer", "Agricultural and Biosystems Engineer"],
+  ["customs_broker", "Customs Broker"],
+  ["real_estate_broker", "Real Estate Broker"],
+  ["marine_deck_officer", "Marine Deck Officer"],
+  ["marine_engineer_officer", "Marine Engineer Officer"],
+  ["naval_architect", "Naval Architect and Marine Engineer"],
+];
+
+/**
+ * The professions a new organization starts with: the common ones regulated by the Professional Regulation
+ * Commission. Starting data only: each organization can add, rename or retire professions under
+ * Settings › Catalogs (the PRC adds regulated professions over time), so nothing in the code depends on
+ * these codes. The codes are stable because a license record stores the code, not the name.
+ */
+export const PRC_PROFESSION_DEFAULTS: { code: string; name: string; sortOrder: number }[] = PROFESSIONS.map(([code, name], sortOrder) => ({ code, name, sortOrder }));

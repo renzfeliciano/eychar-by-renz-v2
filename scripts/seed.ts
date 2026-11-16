@@ -30,6 +30,8 @@ import {
   SeparationTypeModel,
   EducationLevelModel,
   CivilStatusModel,
+  GovernmentIdTypeModel,
+  PrcProfessionModel,
   ClearanceChecklistItemModel,
   PaymentMethodModel,
   LeaveTypeModel,
@@ -40,6 +42,8 @@ import { AuditService } from "@/server/audit/audit-service";
 import { PayrollRuleVersionService } from "@/domains/payroll/payroll-rule-version-service";
 import { EDUCATION_LEVEL_DEFAULTS } from "@/domains/catalog/education-level-defaults";
 import { CIVIL_STATUS_DEFAULTS } from "@/domains/catalog/civil-status-defaults";
+import { GOVERNMENT_ID_TYPE_DEFAULTS } from "@/domains/catalog/government-id-type-defaults";
+import { PRC_PROFESSION_DEFAULTS } from "@/domains/catalog/prc-profession-defaults";
 import { PayrollPolicyService } from "@/domains/payroll/payroll-policy-service";
 import { PH_STATUTORY_2025 } from "@/domains/payroll/templates/ph-statutory-2025";
 import { DEFAULT_RECRUITMENT_STAGES } from "@/domains/recruitment/default-stages";
@@ -228,6 +232,12 @@ const BASELINE_PERMISSIONS = [
   { key: "civil-statuses.create", description: "Add civil statuses", category: "settings" },
   { key: "civil-statuses.read", description: "View civil statuses", category: "settings" },
   { key: "civil-statuses.update", description: "Retire civil statuses", category: "settings" },
+  { key: "government-id-types.create", description: "Add government ID types", category: "settings" },
+  { key: "government-id-types.read", description: "View government ID types", category: "settings" },
+  { key: "government-id-types.update", description: "Retire government ID types", category: "settings" },
+  { key: "prc-professions.create", description: "Add PRC professions", category: "settings" },
+  { key: "prc-professions.read", description: "View PRC professions", category: "settings" },
+  { key: "prc-professions.update", description: "Retire PRC professions", category: "settings" },
   { key: "complaint-stages.create", description: "Add complaint stage catalog items", category: "settings" },
   { key: "complaint-stages.read", description: "View complaint stage catalog items", category: "settings" },
   { key: "complaint-stages.update", description: "Retire complaint stage catalog items", category: "settings" },
@@ -628,6 +638,8 @@ export async function seed(): Promise<{ organizationId: string; hrUserId: string
 
   await seedCatalogDefaults(EducationLevelModel, EDUCATION_LEVEL_DEFAULTS);
   await seedCatalogDefaults(CivilStatusModel, CIVIL_STATUS_DEFAULTS);
+  await seedCatalogDefaults(GovernmentIdTypeModel, GOVERNMENT_ID_TYPE_DEFAULTS);
+  await seedCatalogDefaults(PrcProfessionModel, PRC_PROFESSION_DEFAULTS);
 
   await seedCatalogDefaults(PaymentMethodModel, [
     { code: "bank_transfer", name: "Bank transfer", sortOrder: 0 },

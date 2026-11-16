@@ -2,7 +2,7 @@
 
 **Purpose:** who a signed-in person is, what they may do in an organization, and where each rule is enforced.
 **Governing docs:** ARCHITECTURE.md "Authorization (ADR-007)", "Custom roles & staff accounts (ADR-023)", "Sign-in security (ADR-030)", "Auth.js session strategy (ADR-010)"; docs/engineering/ENGINEERING.md §19 (identity), §20 (RBAC), §21 (role assignment), §22 (scoped authorization), §23 (UI authorization), §24 (project switching), §40 (middleware), §42 (security); ADR-003, ADR-007, ADR-010, ADR-023, ADR-030, ADR-033, ADR-034 (cited, file missing), ADR-039, ADR-043, ADR-045.
-**Last verified:** 6587050 (merged with the former `domains/authorization.md` on 2026-11-15).
+**Last verified:** 6587050 (merged with the former `domains/authorization.md` on 2026-11-15); 2026-11-16: six permission keys added (`government-id-types.create/read/update`, `prc-professions.create/read/update`, category `settings`, seeded in `scripts/seed.ts`, read keys in `CATALOG_READ_PERMISSIONS`). The government ID and PRC license records add no new key: `employees.update` changes them, `employees.read` views them, and the dashboard ID alerts need `employees.read`.
 
 Code wins over docs. Where docs and code disagree, the code is listed under "Known gaps / mismatches".
 

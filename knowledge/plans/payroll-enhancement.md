@@ -483,8 +483,8 @@ tab. One or more entries mean the employee **had two or more employers**: they a
 | 2 | Period from / to (MM/DD) | first and last day employed in the year (employment dates, clamped) |
 | 3 | TIN | **Have:** `Person.tinNumber` (free text; validate as 9 or 12 digits) |
 | 4 | Name (last, first, middle) | **Have:** `Person` name fields |
-| 5 | RDO code | **New:** `Person.rdoCode` |
-| 6, 6A | Registered address, ZIP | **Have:** `Person.address` (one string). **New:** `Person.zipCode` |
+| 5 | RDO code | ~~**New:** `Person.rdoCode`~~ **Removed 2026-11-16** (owner: not relevant to the employee information kept); the export has no such column now |
+| 6, 6A | Registered address, ZIP | **Have:** `Person.address` (one string). ~~**New:** `Person.zipCode`~~ **Removed 2026-11-16** with the RDO; 6A is no longer exported |
 | 6B–6D | Local home address, ZIP, foreign address | **Have, partly:** reuse `address`; foreign address not needed for now **[ask]** |
 | 7 | Date of birth | **Have:** `Person.birthDate` |
 | 8 | Contact number | **Have:** `Person.phone` |

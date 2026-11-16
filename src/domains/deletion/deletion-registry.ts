@@ -108,6 +108,9 @@ async function planEmployee(organizationId: Types.ObjectId, id: Types.ObjectId):
       ...(person ? [{ model: models.PersonModel, filter: { _id: person._id }, label: "Personal details" }] : []),
       // Educational background belongs to the person, so it goes (and comes back) with them.
       ...(person ? [{ model: models.EducationRecordModel, filter: { personId: person._id, organizationId }, label: "Educational background" }] : []),
+      // So do the person's additional government IDs and PRC licenses.
+      ...(person ? [{ model: models.GovernmentIdRecordModel, filter: { personId: person._id, organizationId }, label: "Government IDs" }] : []),
+      ...(person ? [{ model: models.ProfessionalLicenseRecordModel, filter: { personId: person._id, organizationId }, label: "PRC licenses" }] : []),
       byEmployee(models.EmploymentModel, "Employment history"),
       byEmployee(models.EmployeeAssignmentModel, "Job assignments"),
       byEmployee(models.CompensationModel, "Pay terms"),

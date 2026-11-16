@@ -1,6 +1,7 @@
 # Data model (Phase 3)
 
 **Last verified:** `6587050` (main, 2026-11-14). Working tree had only the untracked `knowledge/` folder.
+**Added 2026-11-16 (employee IDs and licenses; counts below are the 6587050 count, since then more models were added, so re-count before relying on "63"):** four new models: `GovernmentIdType` and `PrcProfession` (simple catalogs, unique `{ organizationId, code }` and `{ organizationId, sortOrder }` from `buildSimpleCatalogSchema`), `GovernmentIdRecord` (`organizationId`, `personId`, `typeCode?`, `otherTypeName?` (max 100), `idNumber` (max 50), `validUntil?`) and `ProfessionalLicenseRecord` (`organizationId`, `personId`, `professionCode`, `licenseNumber` (max 50), `validUntil?`), each record model indexed `{ organizationId: 1, personId: 1 }` and `{ organizationId: 1, validUntil: 1 }` with no unique index (renewals repeat a type); `Person` also has `{ organizationId: 1, pwdIdValidUntil: 1 }` and `{ organizationId: 1, soloParentIdValidUntil: 1 }` for the dashboard's expiry query. `Person` gained `pwdIdNumber`, `pwdIdValidUntil`, `soloParentIdNumber`, `soloParentIdValidUntil` and lost `rdoCode` and `zipCode`. New indexes need `scripts/sync-indexes.ts` on an existing database.
 **Scope:** the Mongoose schemas as the code defines them, how reference data is seeded and indexed,
 and the invariants the code enforces. Authorization is in `authorization.md` (Phase 4), not here.
 **Code wins over docs.** Where a doc disagrees, the mismatch is listed in the last section.

@@ -19,3 +19,7 @@
 - A collection larger than the record's pay shows as negative net pay; HR deducts it from a later payslip (gaps B26).
 - Box numbers, Annex F columns and the annual table come from secondary sources (gaps B25).
 - A printable Form 2316 and e-filing are out of scope.
+
+## Addendum, 2026-11-16: employee RDO and ZIP removed
+
+The owner removed the employee RDO code and ZIP code from the employee profile (they are not part of the employee information the system keeps; see `knowledge/plans/employee-ids-and-licenses.md`). The Form 2316 data export therefore no longer has items 5 (RDO code) and 6A (ZIP code); HR completes them outside the system. Decision 5 stands: the employer's TIN, RDO, address and ZIP stay on the organization, and the previous-employer ZIP stays on `PriorEmployment`.

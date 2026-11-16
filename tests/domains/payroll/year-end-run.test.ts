@@ -105,6 +105,11 @@ describe("year-end adjustment run (payroll plan Phase 4)", () => {
     const adjustedColumn = form.headers.indexOf("25A Withheld, present (as adjusted)");
     const angelaRow = form.rows.find((row) => row[5] === "Angela")!;
     expect([angelaRow[taxDueColumn], angelaRow[adjustedColumn]]).toEqual([0, 0]);
+    // The employee's RDO and ZIP are no longer kept, so the 2316 data has no such columns; the employer's ZIP stays.
+    expect(form.headers).not.toContain("5 RDO code");
+    expect(form.headers).not.toContain("6A ZIP code");
+    expect(form.headers).toContain("14A Employer ZIP code");
+    expect(form.rows.every((row) => row.length === form.headers.length)).toBe(true);
 
     const audit = await AuditLogModel.findOne({ resourceId: run._id, action: "payroll-run.prepared" }).lean();
     expect(audit?.metadata).toMatchObject({ runType: "year_end_adjustment" });

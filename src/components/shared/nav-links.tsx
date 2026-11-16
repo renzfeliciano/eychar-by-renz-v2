@@ -82,6 +82,8 @@ export const CATALOG_READ_PERMISSIONS = [
   "education-levels.read",
   "civil-statuses.read",
   "complaint-stages.read",
+  "government-id-types.read",
+  "prc-professions.read",
 ] as const;
 
 /**

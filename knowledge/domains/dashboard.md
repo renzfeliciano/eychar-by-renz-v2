@@ -5,7 +5,7 @@
 
 **Services:** No service object and no DB access in this folder. All functions are pure and take already-loaded data:
 - `src/domains/dashboard/action-queue.ts`: `rankActions`, `urgencyFor`, `relativeDue`, `daysBetween`, `collapseKind`; types `ActionItem`, `ActionUrgency`.
-- `src/domains/dashboard/compliance-risks.ts`: `regularizationRisks`, `finalPayRisks`, `documentRisks`, `regularizationFollowUpKey`, `RISK_WINDOW_DAYS` (30), type `ProbationEvaluations`.
+- `src/domains/dashboard/compliance-risks.ts`: `regularizationRisks`, `finalPayRisks`, `documentRisks`, `personIdRisks` (2026-11-16: PWD, Solo Parent, other government IDs and PRC licenses expired or due within the window; kind `person-id`, row `Open profile`), `regularizationFollowUpKey`, `RISK_WINDOW_DAYS` (30), type `ProbationEvaluations`.
 - `src/domains/dashboard/red-flags.ts`: `clearanceRedFlags`, `redFlagTotal`; types `RedFlag`, `RedFlagStage`.
 - `src/domains/dashboard/dashboard-summary.ts`: `greetingFor`, `upcomingEvents`.
 - Composition lives in `src/app/(app)/dashboard/page.tsx`. It loads from `OrganizationService.listAccessibleTo`, `EmployeeService.listWithCurrentStatus`, `EmploymentStatusService`, `EmploymentTypeService`, `LeaveRequestService`, `LeaveTypeService`, `AttendanceService.listForOrganization`, `TravelOrderService`, `EventService`, `CaseService`, `CaseStatusService`, `PayrollRunService`, `CompensationService`, `ClearanceService.listForOrganization`, `FinalSettlementService.listForOrganization`, `EmployeeDocumentService.listExpiringForOrganization`, `HolidayService.listBetween`, `EvaluationFollowUpService`, `AuditQueryService.list`.
@@ -27,6 +27,7 @@
 - Final pay deadline = last working day plus the organization's `finalPayDays`; disbursed and cancelled settlements are excluded (`finalPayRisks`). Each row also names what still holds the pay up (`openIssues`): the case's flagged items with their total, and blocking items still pending. These are counted from the same `flagged` items the Red flags panel lists.
 - Red-flag resolution text says "on hold" for a flagged amount that a submitted, reviewed or approved settlement doesn't deduct, because `FinalSettlementService.act` refuses to move it on until it's recomputed (ADR-032).
 - Document expiry watch: 30-day window (`documentRisks`, lines 106-122).
+- ID and license watch (2026-11-16): loaded only with `employees.read` (`IdExpiryService.listExpiring`, `src/domains/people/id-expiry-service.ts`), 30-day window, kept to current staff: the page passes its `staff` ids to `listExpiring({ employeeIds })`, which reads only those employees' items (so former staff's old dates can't use up the 200-row cap per source) and keeps the newest employee record of a rehired person, even when no status is flagged as active headcount (the fallback that treats everyone as staff); rows collapse past `ROWS_PER_KIND` into "N employee IDs or licenses expired or expiring". A validity date equal to today reads "Expires today", not expired. The profile chips use the same window (`expiryStatus`).
 - Urgency comes from `urgencyFor` with per-kind windows; more than a set number of rows of one kind collapse into a summary row (`collapseKind`; the limit is set near `page.tsx` line 57).
 - "Today" is `localDateKey(now)`, the Manila date (`page.tsx` line 100).
 - The activity feed drops `auth.*` entries (`page.tsx` line 183).
@@ -38,4 +39,4 @@
 - **Date-key mixing.** The expiring-documents query passes `new Date(\`${addDays(todayKey, 30)}T23:59:59Z\`)` (`page.tsx` line 180), a UTC end-of-day for a Manila-based window. Minor, but the same inconsistency.
 - ARCHITECTURE.md § Dashboard matches the code on permissions, red-flag rules and the no-statistics rule.
 
-**Last verified:** 6587050.
+**Last verified:** 6587050; updated 2026-11-16 (ID and license alerts, on top of ae34b98). The `IdExpiryService` import and `personIdRisks` wiring in `page.tsx` have no page-level test (as with the rest of the page); the pure function and the service are tested (`tests/domains/dashboard/person-id-risks.test.ts`, `tests/domains/people/id-expiry-service.test.ts`).

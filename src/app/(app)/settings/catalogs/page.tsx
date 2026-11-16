@@ -28,6 +28,8 @@ const CATALOG_SECTIONS: { catalogType: CatalogTypeSlug; title: string; descripti
   { catalogType: "payment-methods", title: "Payment methods", description: "How final settlements are paid out." },
   { catalogType: "civil-statuses", title: "Civil statuses", description: "Civil status choices on each employee's profile and the roster: single, married, and so on." },
   { catalogType: "education-levels", title: "Education levels", description: "Highest educational attainment choices on the employee roster, from elementary to doctoral." },
+  { catalogType: "government-id-types", title: "Government ID types", description: "The kinds of government ID HR can add to an employee's profile, such as a driver's license or passport." },
+  { catalogType: "prc-professions", title: "PRC professions", description: "The professions an employee's PRC license can be for, such as nurse or civil engineer." },
   { catalogType: "document-types", title: "Document types", description: "Categories for employee documents (government IDs, contracts, certifications)." },
 ];
 

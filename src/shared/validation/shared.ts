@@ -27,6 +27,28 @@ export const contactNumberSchema = z
   .trim()
   .regex(/^\d{4}-\d{3}-\d{4}$/, "Use format XXXX-XXX-XXXX");
 
+/** An ID or license number (PWD, Solo Parent, PRC, other government IDs): formats vary too much to check, so only the length. */
+export const idNumberSchema = z.string().trim().min(1, "Enter the ID number.").max(50, "An ID number can be at most 50 characters.");
+
+/**
+ * A validity date from a form or the API: a real "YYYY-MM-DD" calendar day (so "2027-02-30" and "May 31 2027" are
+ * refused), turned into UTC midnight of that day, the stored form for calendar days. `z.coerce.date()` is not used
+ * because it turns `null` into 1970-01-01 and reads loose text in the server's own time zone.
+ */
+export const validUntilDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date.")
+  .transform((value, context) => {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+      context.addIssue({ code: "custom", message: "Enter a valid date." });
+      return z.NEVER;
+    }
+    return date;
+  });
+
 /** Shared across every feature's email field for consistent validation. */
 export const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email").max(150);
 

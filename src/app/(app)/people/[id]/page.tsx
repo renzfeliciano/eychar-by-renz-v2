@@ -69,6 +69,13 @@ import { EditEndingDialog } from "./edit-ending-dialog";
 import { ReinstateDialog } from "./reinstate-dialog";
 import { CancelScheduledEndDialog } from "./cancel-scheduled-end-dialog";
 import { EducationBackgroundCard } from "./education-background-card";
+import { GovernmentIdsCard } from "./government-ids-card";
+import { PrcLicensesCard } from "./prc-licenses-card";
+import { ExpiryChip } from "./expiry-chip";
+import { GovernmentIdTypeService } from "@/domains/catalog/government-id-type-service";
+import { PrcProfessionService } from "@/domains/catalog/prc-profession-service";
+import { GovernmentIdRecordService, toGovernmentIdRecordView, type GovernmentIdRecordView } from "@/domains/people/government-id-record-service";
+import { ProfessionalLicenseRecordService, toProfessionalLicenseRecordView, type ProfessionalLicenseRecordView } from "@/domains/people/professional-license-record-service";
 import { EducationRecordService, toEducationRecordView, type EducationRecordView } from "@/domains/people/education-record-service";
 import { ChangeEmploymentDialog } from "./change-employment-dialog";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
@@ -167,7 +174,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
   const load = <T,>(when: boolean, query: () => Promise<T>, empty: T): Promise<T> => (when ? query() : Promise.resolve(empty));
 
   const now = new Date();
-  const [employmentTypes, employmentStatuses, civilStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding] = await Promise.all([
+  const [employmentTypes, employmentStatuses, civilStatuses, educationLevels, educationRecords, positions, projects, selfServiceAccount, isCurrentlyActive, documents, documentTypes, leaveBalances, leaveTypes, leaveRequests, payTerms, offboarding, governmentIdTypes, prcProfessions, governmentIdRecords, prcLicenseRecords] = await Promise.all([
     EmploymentTypeService.listCurrent(organizationId),
     EmploymentStatusService.listCurrent(organizationId),
     CivilStatusService.listCurrent(organizationId),
@@ -184,6 +191,10 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
     load(can["leave.read"] && (on("overview") || on("leave")), () => LeaveRequestService.listForEmployee(id, organizationId), []),
     load(can["compensation.read"] && (on("overview") || on("pay")), () => CompensationService.listHistory(id, organizationId), []),
     load(can["clearance.read"] && (on("overview") || on("offboarding")), () => EmployeeRecords.offboarding(id, organizationId), []),
+    load(on("overview"), () => GovernmentIdTypeService.listCurrent(organizationId), []),
+    load(on("overview"), () => PrcProfessionService.listCurrent(organizationId), []),
+    load(on("overview"), async () => (await GovernmentIdRecordService.listForEmployee(id, organizationId)).map(toGovernmentIdRecordView), [] as GovernmentIdRecordView[]),
+    load(on("overview"), async () => (await ProfessionalLicenseRecordService.listForEmployee(id, organizationId)).map(toProfessionalLicenseRecordView), [] as ProfessionalLicenseRecordView[]),
   ]);
   // What ends employment is catalog data. HR picks from these when ending, or correcting how it ended.
   const endReasons = canUpdate ? endReasonChoices(employmentStatuses) : [];
@@ -392,8 +403,10 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                   philHealthNumber: detail.person.philHealthNumber,
                   pagIbigNumber: detail.person.pagIbigNumber,
                   tinNumber: detail.person.tinNumber,
-                  rdoCode: detail.person.rdoCode,
-                  zipCode: detail.person.zipCode,
+                  pwdIdNumber: detail.person.pwdIdNumber,
+                  pwdIdValidUntil: detail.person.pwdIdValidUntil ? new Date(detail.person.pwdIdValidUntil).toISOString().slice(0, 10) : undefined,
+                  soloParentIdNumber: detail.person.soloParentIdNumber,
+                  soloParentIdValidUntil: detail.person.soloParentIdValidUntil ? new Date(detail.person.soloParentIdValidUntil).toISOString().slice(0, 10) : undefined,
                 }}
               />
             )}
@@ -474,10 +487,20 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
                     </Fact>
                   ))}
                 </dl>
-                {/* For BIR Form 2316 (gaps B26): shown, not flagged, since only the year-end export needs them. */}
-                <p className="mt-3 text-xs text-muted-foreground" data-testid="profile-rdo-zip">
-                  RDO {detail.person?.rdoCode || "not set"} · ZIP {detail.person?.zipCode || "not set"} (for BIR Form 2316)
-                </p>
+                {/* PWD and Solo Parent IDs: shown when on file, with how long each is valid. */}
+                {(
+                  [
+                    ["PWD ID", "profile-pwd", detail.person?.pwdIdNumber, detail.person?.pwdIdValidUntil],
+                    ["Solo Parent ID", "profile-solo-parent", detail.person?.soloParentIdNumber, detail.person?.soloParentIdValidUntil],
+                  ] as const
+                ).map(([label, testId, number, validUntil]) => (
+                  <p key={testId} className="mt-3 flex flex-wrap items-center gap-x-2 text-sm" data-testid={testId}>
+                    <span className="text-muted-foreground">{label}:</span>
+                    {number ? <span className="font-mono text-[13px] tabular-nums">{number}</span> : <span className="text-muted-foreground">not set</span>}
+                    {validUntil && <span className="text-muted-foreground">valid until {new Date(validUntil).toISOString().slice(0, 10)}</span>}
+                    {validUntil && <ExpiryChip validUntil={new Date(validUntil).toISOString().slice(0, 10)} todayKey={localDateKey(now)} />}
+                  </p>
+                ))}
                 {missingIds.length > 0 && canUpdate && (
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <IdCard className="size-3.5" aria-hidden="true" />
@@ -518,6 +541,8 @@ export default async function EmployeeDetailPage({ params, searchParams }: { par
           </div>
 
           <EducationBackgroundCard organizationId={organizationId} employeeId={employeeId} employeeName={personName} records={educationRecords} levels={educationLevels.map(({ code, name, status, sortOrder }) => ({ code, name, status, sortOrder }))} canUpdate={canUpdate} />
+          <GovernmentIdsCard organizationId={organizationId} employeeId={employeeId} employeeName={personName} records={governmentIdRecords} types={governmentIdTypes.map(({ code, name, status, sortOrder }) => ({ code, name, status, sortOrder }))} todayKey={localDateKey(now)} canUpdate={canUpdate} />
+          <PrcLicensesCard organizationId={organizationId} employeeId={employeeId} employeeName={personName} records={prcLicenseRecords} professions={prcProfessions.map(({ code, name, status, sortOrder }) => ({ code, name, status, sortOrder }))} todayKey={localDateKey(now)} canUpdate={canUpdate} />
         </div>
       )}
 

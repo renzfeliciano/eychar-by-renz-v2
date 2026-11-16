@@ -44,13 +44,16 @@ export type EditEmployeeInitialValue = {
   philHealthNumber?: string | null;
   pagIbigNumber?: string | null;
   tinNumber?: string | null;
-  /** For BIR Form 2316 (revenue district office and ZIP code). */
-  rdoCode?: string | null;
-  zipCode?: string | null;
+  pwdIdNumber?: string | null;
+  /** YYYY-MM-DD. */
+  pwdIdValidUntil?: string | null;
+  soloParentIdNumber?: string | null;
+  /** YYYY-MM-DD. */
+  soloParentIdValidUntil?: string | null;
 };
 
 /** The PATCH /api/employees/[id] fields this form renders — where a field-level error can land. */
-const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatusCode", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber", "rdoCode", "zipCode"] as const;
+const EDIT_EMPLOYEE_FIELDS = ["gender", "civilStatusCode", "firstName", "middleName", "lastName", "birthDate", "email", "phone", "employeeNumber", "address", "remarks", "sssNumber", "philHealthNumber", "pagIbigNumber", "tinNumber", "pwdIdNumber", "pwdIdValidUntil", "soloParentIdNumber", "soloParentIdValidUntil"] as const;
 
 export function EditEmployeeDialog({
   organizationId,
@@ -83,8 +86,10 @@ export function EditEmployeeDialog({
   const [philHealthNumber, setPhilHealthNumber] = useState(initialValue.philHealthNumber ?? "");
   const [pagIbigNumber, setPagIbigNumber] = useState(initialValue.pagIbigNumber ?? "");
   const [tinNumber, setTinNumber] = useState(initialValue.tinNumber ?? "");
-  const [rdoCode, setRdoCode] = useState(initialValue.rdoCode ?? "");
-  const [zipCode, setZipCode] = useState(initialValue.zipCode ?? "");
+  const [pwdIdNumber, setPwdIdNumber] = useState(initialValue.pwdIdNumber ?? "");
+  const [pwdIdValidUntil, setPwdIdValidUntil] = useState(initialValue.pwdIdValidUntil ?? "");
+  const [soloParentIdNumber, setSoloParentIdNumber] = useState(initialValue.soloParentIdNumber ?? "");
+  const [soloParentIdValidUntil, setSoloParentIdValidUntil] = useState(initialValue.soloParentIdValidUntil ?? "");
   const { fieldErrors, formError, setFieldError, setFromResponse, clearField: clearFieldError, clear: clearErrors } = useFieldErrors({ formId, fields: EDIT_EMPLOYEE_FIELDS });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -104,8 +109,10 @@ export function EditEmployeeDialog({
     setPhilHealthNumber(initialValue.philHealthNumber ?? "");
     setPagIbigNumber(initialValue.pagIbigNumber ?? "");
     setTinNumber(initialValue.tinNumber ?? "");
-    setRdoCode(initialValue.rdoCode ?? "");
-    setZipCode(initialValue.zipCode ?? "");
+    setPwdIdNumber(initialValue.pwdIdNumber ?? "");
+    setPwdIdValidUntil(initialValue.pwdIdValidUntil ?? "");
+    setSoloParentIdNumber(initialValue.soloParentIdNumber ?? "");
+    setSoloParentIdValidUntil(initialValue.soloParentIdValidUntil ?? "");
     clearErrors();
   }
 
@@ -120,6 +127,9 @@ export function EditEmployeeDialog({
     // Same rule the API enforces (remarksSchema), so a too-long note is caught before the round trip.
     const remarksCheck = remarksSchema.safeParse(remarks);
     if (!remarksCheck.success) return setFieldError("remarks", remarksCheck.error.issues[0].message);
+    // Same rule the API enforces: a valid-until date needs its ID number.
+    if (!pwdIdNumber.trim() && pwdIdValidUntil) return setFieldError("pwdIdNumber", "Enter the PWD ID number, or clear its valid-until date.");
+    if (!soloParentIdNumber.trim() && soloParentIdValidUntil) return setFieldError("soloParentIdNumber", "Enter the Solo Parent ID number, or clear its valid-until date.");
     setIsSubmitting(true);
 
     const response = await fetch(`/api/employees/${employeeId}`, {
@@ -146,8 +156,10 @@ export function EditEmployeeDialog({
         philHealthNumber,
         pagIbigNumber,
         tinNumber,
-        rdoCode,
-        zipCode,
+        pwdIdNumber,
+        pwdIdValidUntil,
+        soloParentIdNumber,
+        soloParentIdValidUntil,
       }),
     });
 
@@ -281,11 +293,19 @@ export function EditEmployeeDialog({
             <FormField label="TIN no." htmlFor={`${formId}-tinNumber`} error={fieldErrors.tinNumber}>
               <Input id={`${formId}-tinNumber`} value={tinNumber} onChange={(event) => setTinNumber(event.target.value)} placeholder="e.g. 123-456-789" />
             </FormField>
-            <FormField label="RDO code" htmlFor={`${formId}-rdoCode`} error={fieldErrors.rdoCode} description="For BIR Form 2316">
-              <Input id={`${formId}-rdoCode`} value={rdoCode} onChange={(event) => { setRdoCode(event.target.value); clearFieldError("rdoCode"); }} placeholder="e.g. 039" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="PWD ID number" htmlFor={`${formId}-pwdIdNumber`} error={fieldErrors.pwdIdNumber}>
+              <Input id={`${formId}-pwdIdNumber`} value={pwdIdNumber} onChange={(event) => { setPwdIdNumber(event.target.value); clearFieldError("pwdIdNumber"); }} maxLength={50} />
             </FormField>
-            <FormField label="ZIP code" htmlFor={`${formId}-zipCode`} error={fieldErrors.zipCode} description="For BIR Form 2316">
-              <Input id={`${formId}-zipCode`} value={zipCode} onChange={(event) => { setZipCode(event.target.value); clearFieldError("zipCode"); }} placeholder="e.g. 1100" inputMode="numeric" />
+            <FormField label="PWD ID valid until" htmlFor={`${formId}-pwdIdValidUntil`} error={fieldErrors.pwdIdValidUntil}>
+              <Input id={`${formId}-pwdIdValidUntil`} type="date" value={pwdIdValidUntil} onChange={(event) => { setPwdIdValidUntil(event.target.value); clearFieldError("pwdIdValidUntil"); }} />
+            </FormField>
+            <FormField label="Solo Parent ID number" htmlFor={`${formId}-soloParentIdNumber`} error={fieldErrors.soloParentIdNumber}>
+              <Input id={`${formId}-soloParentIdNumber`} value={soloParentIdNumber} onChange={(event) => { setSoloParentIdNumber(event.target.value); clearFieldError("soloParentIdNumber"); }} maxLength={50} />
+            </FormField>
+            <FormField label="Solo Parent ID valid until" htmlFor={`${formId}-soloParentIdValidUntil`} error={fieldErrors.soloParentIdValidUntil}>
+              <Input id={`${formId}-soloParentIdValidUntil`} type="date" value={soloParentIdValidUntil} onChange={(event) => { setSoloParentIdValidUntil(event.target.value); clearFieldError("soloParentIdValidUntil"); }} />
             </FormField>
           </div>
           <FormError message={formError} />

@@ -155,6 +155,29 @@ export function monthlyPayRisks(
   ];
 }
 
+/**
+ * Employee IDs and licenses with a validity date (PWD, Solo Parent, other government IDs, PRC licenses) that
+ * has passed or falls within the window. One row per item, so HR can renew each one in time.
+ */
+export function personIdRisks(items: { id: string; employeeId: string; employeeName: string; label: string; validKey: string }[], todayKey: string): ActionItem[] {
+  return items.flatMap((item) => {
+    const days = daysBetween(todayKey, item.validKey);
+    if (days > RISK_WINDOW_DAYS) return [];
+    return [
+      {
+        id: `person-id-${item.id}`,
+        kind: "person-id",
+        title: days < 0 ? `${item.label} expired: ${item.employeeName}` : `Renew ${item.employeeName}'s ${item.label}`,
+        detail: days < 0 ? `Expired ${relativeDue(todayKey, item.validKey)}` : `Expires ${relativeDue(todayKey, item.validKey)}`,
+        href: `/people/${item.employeeId}`,
+        actionLabel: "Open profile",
+        urgency: urgencyFor(todayKey, item.validKey, 7, RISK_WINDOW_DAYS),
+        dueKey: item.validKey,
+      },
+    ];
+  });
+}
+
 /** Employee documents (contracts, licenses, permits) expired or expiring within the window. */
 export function documentRisks(documents: { id: string; employeeId: string; employeeName: string; title: string; expiresKey: string }[], todayKey: string): ActionItem[] {
   return documents.flatMap((document) => {

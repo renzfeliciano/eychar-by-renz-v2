@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { clearable, contactNumberSchema, remarksSchema, sssNumberSchema, philHealthNumberSchema, pagIbigNumberSchema, tinNumberSchema } from "./shared";
+import { clearable, contactNumberSchema, idNumberSchema, validUntilDateSchema, remarksSchema, sssNumberSchema, philHealthNumberSchema, pagIbigNumberSchema, tinNumberSchema } from "./shared";
 import { objectId } from "@/shared/validation/object-id";
 
 
@@ -60,9 +60,21 @@ export const updateEmployeeProfileSchema = z.object({
   philHealthNumber: clearable(philHealthNumberSchema).optional(),
   pagIbigNumber: clearable(pagIbigNumberSchema).optional(),
   tinNumber: clearable(tinNumberSchema).optional(),
-  // For BIR Form 2316 (payroll plan Phase 4; editable since gaps B26): revenue district office and ZIP code.
-  rdoCode: clearable(z.string().trim().regex(/^\d{2,3}[A-Za-z]?$/, "An RDO code is 2 or 3 digits, sometimes with a letter, e.g. 039 or 21A").transform((value) => value.toUpperCase())).optional(),
-  zipCode: clearable(z.string().trim().regex(/^\d{4}$/, "A Philippine ZIP code is 4 digits, e.g. 1100")).optional(),
+  pwdIdNumber: clearable(idNumberSchema).optional(),
+  pwdIdValidUntil: clearable(validUntilDateSchema).optional(),
+  soloParentIdNumber: clearable(idNumberSchema).optional(),
+  soloParentIdValidUntil: clearable(validUntilDateSchema).optional(),
+}).superRefine((value, context) => {
+  // A valid-until date means nothing without its ID number: clearing the number must clear the date too, so a
+  // leftover date can't keep showing an "Expired" chip and a dashboard alert for an ID that is no longer on file.
+  for (const [number, date, label] of [
+    ["pwdIdNumber", "pwdIdValidUntil", "PWD ID"],
+    ["soloParentIdNumber", "soloParentIdValidUntil", "Solo Parent ID"],
+  ] as const) {
+    if (value[number] === "" && value[date] instanceof Date) {
+      context.addIssue({ code: "custom", path: [number], message: `Enter the ${label} number, or clear its valid-until date.` });
+    }
+  }
 });
 
 export const transferAssignmentSchema = z.object({
@@ -131,6 +143,49 @@ export const updateEducationRecordSchema = z.object({
 
 /** DELETE /api/employees/[id]/education/[recordId]. */
 export const removeEducationRecordSchema = z.object({ organizationId: objectId() });
+
+/**
+ * POST /api/employees/[id]/government-ids. Exactly one of `typeCode` (a Government ID types catalog code) and
+ * `otherTypeName` (HR picked "Other") is needed; the service checks that, the catalog and the date.
+ */
+export const createGovernmentIdRecordSchema = z.object({
+  organizationId: objectId(),
+  typeCode: z.string().trim().max(200).optional(),
+  otherTypeName: z.string().trim().max(100, "The ID type can be at most 100 characters.").optional(),
+  idNumber: idNumberSchema,
+  validUntil: z.string().trim().optional(),
+});
+
+/** PATCH /api/employees/[id]/government-ids/[recordId]: send only what changed; `null` clears the validity date. */
+export const updateGovernmentIdRecordSchema = z.object({
+  organizationId: objectId(),
+  typeCode: z.string().trim().max(200).optional(),
+  otherTypeName: z.string().trim().max(100, "The ID type can be at most 100 characters.").optional(),
+  idNumber: idNumberSchema.optional(),
+  validUntil: z.string().trim().nullable().optional(),
+});
+
+/** DELETE /api/employees/[id]/government-ids/[recordId]. */
+export const removeGovernmentIdRecordSchema = z.object({ organizationId: objectId() });
+
+/** POST /api/employees/[id]/prc-licenses. The service checks the profession against the catalog and the date. */
+export const createProfessionalLicenseRecordSchema = z.object({
+  organizationId: objectId(),
+  professionCode: z.string().trim().min(1, "Choose the profession.").max(200),
+  licenseNumber: idNumberSchema,
+  validUntil: z.string().trim().optional(),
+});
+
+/** PATCH /api/employees/[id]/prc-licenses/[recordId]: send only what changed; `null` clears the validity date. */
+export const updateProfessionalLicenseRecordSchema = z.object({
+  organizationId: objectId(),
+  professionCode: z.string().trim().min(1, "Choose the profession.").max(200).optional(),
+  licenseNumber: idNumberSchema.optional(),
+  validUntil: z.string().trim().nullable().optional(),
+});
+
+/** DELETE /api/employees/[id]/prc-licenses/[recordId]. */
+export const removeProfessionalLicenseRecordSchema = z.object({ organizationId: objectId() });
 
 /** PATCH /api/employees/[id]/employment/ending: send only what changed (the reason, the last day, the note). */
 export const correctEndingSchema = z.object({

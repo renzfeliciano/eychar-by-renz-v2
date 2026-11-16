@@ -33,6 +33,7 @@
 - Only the Super Administrator can remove, restore or purge. The service checks it (`assertSuperAdmin` in `deletion-service.ts`). Preview is checked only in its route (`src/app/api/deletions/preview/route.ts`), so any new caller of `DeletionService.preview` must check too.
 - A type not in `DELETABLE_TYPES` cannot be deleted. `isDeletableType` uses own-keys (`Object.hasOwn`) so `constructor` and similar are refused (`deletion-registry.ts`, end of file). New record types must be registered before they can be deleted (ADR-033 Consequences).
 - Shared setup is refused while anything uses it. The `whileUnused` helper adds a blocker per referencing collection (`deletion-registry.ts`): positions, projects, locations, units, leave types, shifts.
+- Employee deletion also moves the person's Educational background, Additional government IDs and PRC licenses to the bin and restores them (`planEmployee`: `EducationRecordModel`, `GovernmentIdRecordModel`, `ProfessionalLicenseRecordModel`, filtered by `personId` and `organizationId`; `tests/domains/deletion/government-id-and-license-deletion.test.ts`).
 - Employee deletion is blocked by approved or released payslips, a disbursed settlement, or a login account with roles in another organization (`planEmployee`, `crossOrganizationBlockers` in `deletion-registry.ts`). Draft payroll lines are deleted with the employee.
 - The account that is the Super Administrator, or the actor's own staff account, cannot be deleted (`planStaffAccount`; `remove` checks `actor.userId === id`).
 - Remove moves records inside one `withTransaction` (`deletion-service.ts` `remove`). Restore and purge first claim the batch with a conditional update on `status: "in_bin"` (`claimBatch`), so a restore and a purge cannot both win.
@@ -49,4 +50,4 @@
 - The recycle-bin page purges expired batches during render (`settings/recycle-bin/page.tsx`, line ~34). That is a write during a GET page render.
 - ARCHITECTURE.md § Organization structure says services never delete. The registry does delete positions, projects, locations and units into the bin. Not a hard delete, but the wording differs.
 
-**Last verified:** 6587050
+**Last verified:** 6587050; updated 2026-11-16 (government IDs and PRC licenses join the employee plan).

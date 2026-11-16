@@ -64,7 +64,7 @@ docs/
 | Leave | [domains/leave.md](./domains/leave.md) | |
 | Organization | [domains/organization.md](./domains/organization.md) | |
 | Payroll | [domains/payroll.md](./domains/payroll.md) | Part 1 runs, compensation, schedules. Part 2 calculation engine, rule versions, tax, money. |
-| People | [domains/people.md](./domains/people.md) | |
+| People | [domains/people.md](./domains/people.md) | Person fields, educational background, government IDs, PRC licenses, expiry alerts |
 | Performance | [domains/performance.md](./domains/performance.md) | |
 | Recruitment | [domains/recruitment.md](./domains/recruitment.md) | |
 | Travel orders | [domains/travel-orders.md](./domains/travel-orders.md) | |
@@ -80,6 +80,7 @@ docs/
 | Complaints module | [plans/complaints-module.md](./plans/complaints-module.md) | Design, module plan, stage-details plan. ADR-054 |
 | Edit ending and Reinstate | [plans/edit-ending-and-reinstate.md](./plans/edit-ending-and-reinstate.md) | Design and plan. ADR-055 |
 | Educational background | [plans/educational-background.md](./plans/educational-background.md) | Design and plan |
+| Employee IDs and licenses | [plans/employee-ids-and-licenses.md](./plans/employee-ids-and-licenses.md) | Built 2026-11-16. Removes employee RDO/ZIP; adds PWD and Solo Parent IDs, PRC licenses, catalog-backed government IDs, expiry alerts. Design and plan. Known-gaps B29 |
 | Leave calendar | [plans/leave-calendar.md](./plans/leave-calendar.md) | Design only |
 
 ## How this knowledge base is built and kept current

@@ -49,8 +49,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/employ
         philHealthNumber: input.philHealthNumber,
         pagIbigNumber: input.pagIbigNumber,
         tinNumber: input.tinNumber,
-        rdoCode: input.rdoCode,
-        zipCode: input.zipCode,
+        pwdIdNumber: input.pwdIdNumber,
+        pwdIdValidUntil: input.pwdIdValidUntil,
+        soloParentIdNumber: input.soloParentIdNumber,
+        soloParentIdValidUntil: input.soloParentIdValidUntil,
       },
       { userId },
     );

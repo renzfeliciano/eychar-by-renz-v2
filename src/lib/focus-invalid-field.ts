@@ -12,7 +12,7 @@ export function focusInvalidField(formId: string, field: string | null | undefin
   const element = form?.querySelector<HTMLElement>(`[id$="-${field}"]`) ?? document.querySelector<HTMLElement>(`[id$="-${field}"]`);
   if (!element) return;
 
-  element.scrollIntoView({ behavior: "smooth", block: "center" });
+  element.scrollIntoView?.({ behavior: "smooth", block: "center" });
   element.classList.add("field-error-highlight");
   window.setTimeout(() => element.classList.remove("field-error-highlight"), 1600);
 

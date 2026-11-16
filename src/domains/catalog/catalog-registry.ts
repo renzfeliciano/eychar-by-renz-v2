@@ -14,6 +14,8 @@ import { PaymentMethodService } from "./payment-method-service";
 import { EducationLevelService } from "./education-level-service";
 import { CivilStatusService } from "./civil-status-service";
 import { ComplaintStageService } from "./complaint-stage-service";
+import { GovernmentIdTypeService } from "./government-id-type-service";
+import { PrcProfessionService } from "./prc-profession-service";
 
 /**
  * Maps a URL-safe type slug to its bound service + permission prefix, so
@@ -40,6 +42,8 @@ export const CATALOG_REGISTRY = {
   "education-levels": { service: EducationLevelService, permissionPrefix: "education-levels" },
   "civil-statuses": { service: CivilStatusService, permissionPrefix: "civil-statuses" },
   "complaint-stages": { service: ComplaintStageService, permissionPrefix: "complaint-stages" },
+  "government-id-types": { service: GovernmentIdTypeService, permissionPrefix: "government-id-types" },
+  "prc-professions": { service: PrcProfessionService, permissionPrefix: "prc-professions" },
 } as const;
 
 export type CatalogTypeSlug = keyof typeof CATALOG_REGISTRY;

@@ -14,6 +14,17 @@ const LABELS: Record<string, string> = {
   philHealthNumber: "PhilHealth number",
   pagIbigNumber: "Pag-IBIG number",
   tinNumber: "TIN",
+  pwdIdNumber: "PWD ID number",
+  pwdIdValidUntil: "PWD ID valid until",
+  soloParentIdNumber: "Solo Parent ID number",
+  soloParentIdValidUntil: "Solo Parent ID valid until",
+  // Government ID and PRC license records.
+  typeCode: "ID type",
+  otherTypeName: "ID type name",
+  idNumber: "ID number",
+  professionCode: "Profession",
+  licenseNumber: "License number",
+  validUntil: "Valid until",
 };
 
 // Codes stored for a choice, shown by their name.
